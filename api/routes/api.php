@@ -18,7 +18,7 @@ use App\Http\Controllers\User\{
 // AI modules
 // role = User
 use App\Http\Controllers\Modules\{
-    DocumentClassificationController,
+    DocumentController,
 };
 
 
@@ -70,7 +70,7 @@ Route::middleware('auth:sanctum')->prefix('tokens')->group(function () {
 // Header ~ Authorization: Bearer <api_token>
 Route::middleware(['auth.apikey'])->group(function () {
     Route::get('/secure-data', fn () => ['message' => 'You are authenticated and active']);
-    Route::post('/classify-document', [DocumentClassificationController::class, 'classify']);
+    Route::post('/process-document', [DocumentController::class, 'processDocument']);
 });
 
 // Open AI 
@@ -78,4 +78,6 @@ Route::middleware(['auth.apikey'])->group(function () {
 // http://localhost:8000/api/test-openai-key
 // Header ~ Authorization: Bearer <api_token>
 Route::get('/test-openai-key', [App\Http\Controllers\OpenAITestController::class, 'test']);
+
+//Route::post('/process-document', [DocumentController::class, 'processDocument']);
 
