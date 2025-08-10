@@ -10,12 +10,13 @@ use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
-        /*
-        * Extract Document Contents
-        * http://localhost:5678/webhook-test/54d39176-c69c-474a-8bfe-f07aa29df0a8
-        * make sure N8N workflow is running
-        * change the URL to production when switch to production
-        */
+    /*
+    * Extract Document Contents
+    * http://localhost:5678/webhook-test/54d39176-c69c-474a-8bfe-f07aa29df0a8
+    * make sure N8N workflow is running
+    * change the URL to production when switch to production
+    */
+
     public function processDocument(Request $request)
     {
         // Validate
