@@ -5,6 +5,9 @@ namespace App\Http\Controllers\Modules;
 use App\Http\Controllers\Controller;
 
 use App\Models\ApiLog;
+use App\Models\DocumentJob;
+
+use App\Jobs\ProcessDocumentJob;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -16,6 +19,7 @@ class DocumentController extends Controller
     * Extract Document Contents
     * http://localhost:5678/webhook-test/54d39176-c69c-474a-8bfe-f07aa29df0a8
     * make sure N8N workflow is running
+    * make sure use Bearer Token
     * change the URL to production when switch to production
     */
 
@@ -112,4 +116,46 @@ class DocumentController extends Controller
             return response($response->body(), $response->status());
         }
     }
+
+    public function upload(Request $request)
+    {
+
+        // Validate
+        $request->validate([
+            'file' => 'required|mimes:pdf|max:5120', // 5120 = 5 MB
+        ]);
+
+        $file = $request->file('file');
+        $path = $file->store('uploads');
+
+        // Database
+        $job = DocumentJob::create([
+            'file_path' => $path,
+            'status' => 'pending'
+        ]);
+
+        // Job
+        ProcessDocumentJob::dispatch($job->id);
+
+        return response()->json([
+            'status' => 'accepted',
+            'job_id' => $job->id,
+            'result_url' => route('job.result', ['id' => $job->id])
+        ]);
+    }
+
+    public function result($id)
+    {
+        $job = DocumentJob::find($id);
+        if (!$job) {
+            return response()->json(['error' => 'Job not found'], 404);
+        }
+
+        return response()->json([
+            'status' => $job->status,
+            'result' => $job->status === 'completed' ? json_decode($job->result, true) : null
+        ]);
+    }
+
+
 }
