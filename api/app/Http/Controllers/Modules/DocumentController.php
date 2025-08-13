@@ -120,6 +120,9 @@ class DocumentController extends Controller
     public function upload(Request $request)
     {
 
+        // Untuk kiraan ApiLog
+        $startRequest = now();
+
         // Validate
         $request->validate([
             'file' => 'required|mimes:pdf|max:5120', // 5120 = 5 MB
@@ -131,11 +134,12 @@ class DocumentController extends Controller
         // Database
         $job = DocumentJob::create([
             'file_path' => $path,
-            'status' => 'pending'
+            'status' => 'pending',
+            'user_id' => 4,
         ]);
 
         // Job
-        ProcessDocumentJob::dispatch($job->id);
+        ProcessDocumentJob::dispatch($job->id, $startRequest);
 
         return response()->json([
             'status' => 'accepted',

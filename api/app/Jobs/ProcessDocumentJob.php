@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\DocumentJob;
+use App\Models\ApiLog;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -16,14 +17,18 @@ class ProcessDocumentJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $jobId;
+    protected $startRequest;
 
-    public function __construct($jobId)
+    public function __construct($jobId, $startRequest)
     {
         $this->jobId = $jobId;
+        $this->startRequest = $startRequest;
     }
 
     public function handle()
     {
+
+        
         $docJob = DocumentJob::find($this->jobId);
         if (!$docJob) {
             Log::error("DocumentJob ID {$this->jobId} tidak dijumpai.");
@@ -82,12 +87,15 @@ class ProcessDocumentJob implements ShouldQueue
             // ]);
 
             Log::info("Hantar request ke OpenAI");
+            $startRequest = $this->startRequest;
+            $startAiCall = now();
+
             $response =  OpenAI::chat()->create([
                 'model' => 'gpt-4o-mini',
                 'messages' => [
                     [
                         'role' => 'system',
-                        'content' => 'Classify the document and extract key values as JSON'
+                        'content' => 'Classify the document and extract key values as JSON.Give the model name and tokens used too'
                     ],
                     [
                         'role' => 'user',
@@ -100,11 +108,44 @@ class ProcessDocumentJob implements ShouldQueue
             Log::info("OpenAI dah balas");
             $resultJson = $response->choices[0]->message->content ?? '{}';
 
+            // Ambil data daripada response
+            $userId = $docJob->user_id ?? null; // Ambil dari rekod DocumentJob
+            $model  = $response->model ?? null;
+            $tokens = $response->usage->total_tokens ?? 0;
+
+            // Convert string JSON ke array
+            //$resultJson = $response->choices[0]->message->content ?? '{}';
+            $decoded = json_decode($resultJson, true);
+
+            // Ambil value
+            $modelFromAi  = $decoded['model_name'] ?? null;
+            $tokensFromAi = $decoded['tokens_used'] ?? null;
+            
+            $endRequest = now();
+            $timeTaken = $endRequest->diffInMilliseconds($startRequest);
+
+            ApiLog::create([
+                'user_id'         => 4, // Pastikan DocumentJob ada user_id
+                'ai_name'         => 'OpenAI',
+                'model_name'      => $modelFromAi,
+                'module_name'     => 'PDF',
+                'attachment_size' => filesize($pdfPath),
+                'tokens_used'     => $tokensFromAi,
+                'start_request'   => $startRequest,
+                'end_request'     => $endRequest,
+                'time_taken'      => $timeTaken,
+                'request_date'    => now(),
+            ]);
+
+         
+            
             // 6. Simpan result
+            //$resultJson = $response->choices[0]->message->content ?? '{}';
             $docJob->update([
                 'status' => 'completed',
                 'result' => $resultJson
             ]);
+
 
         } catch (\Exception $e) {
             Log::error("ProcessDocumentJob gagal: " . $e->getMessage());
