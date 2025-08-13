@@ -101,7 +101,7 @@ class ProcessDocumentJob implements ShouldQueue
                          'content' => 'Classify the document and extract key values as JSON with this format:
                                         {
                                             "model_name": "<use exactly gpt-4o-mini>",
-                                            "tokens_used": "<estimated or put 0",
+                                            "tokens_used": "<estimated>",
                                             "document_type": "...",
                                             "key_values": {...}
                                         }'
@@ -148,7 +148,7 @@ class ProcessDocumentJob implements ShouldQueue
             ]);
 
          
-            \Log::info( 'api log id ialah ' . $apiLog->id);
+            //\Log::info( 'api log id ialah ' . $apiLog->id);
             // 6. Simpan result
             //$resultJson = $response->choices[0]->message->content ?? '{}';
             $docJob->update([

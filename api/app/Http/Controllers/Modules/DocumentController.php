@@ -8,6 +8,7 @@ use App\Models\ApiLog;
 use App\Models\DocumentJob;
 
 use App\Jobs\ProcessDocumentJob;
+use App\Jobs\ProcessImageJob;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -117,35 +118,75 @@ class DocumentController extends Controller
         }
     }
 
+    // public function upload(Request $request)
+    // {
+
+    //     //$userId = $request->user()->id;
+    //     $userId = auth()->id();
+    //     //\Log::info($userId);
+
+    //     // Untuk kiraan ApiLog
+    //     $startRequest = now();
+
+    //     // Validate
+    //     $request->validate([
+    //         'file' => 'required|mimes:pdf|max:5120', // 5120 = 5 MB
+    //     ]);
+
+    //     $file = $request->file('file');
+    //     $path = $file->store('uploads');
+    //     $filename = $file->getClientOriginalName();
+
+    //     // Database
+    //     $job = DocumentJob::create([
+    //         'file_name' => $filename,
+    //         'file_path' => $path,
+    //         'status' => 'pending',
+    //         'user_id' =>  $userId,
+    //     ]);
+
+    //     // Job
+    //     ProcessDocumentJob::dispatch($job->id, $startRequest, $userId);
+
+    //     return response()->json([
+    //         'status' => 'accepted',
+    //         'job_id' => $job->id,
+    //         'result_url' => route('job.result', ['id' => $job->id])
+    //     ]);
+    // }
+
     public function upload(Request $request)
     {
-
-        //$userId = $request->user()->id;
         $userId = auth()->id();
-        //\Log::info($userId);
-
-        // Untuk kiraan ApiLog
         $startRequest = now();
 
-        // Validate
+        // Validate jenis fail
         $request->validate([
-            'file' => 'required|mimes:pdf|max:5120', // 5120 = 5 MB
+            'file' => 'required|mimes:pdf,jpg,jpeg,png|max:5120', // sokong PDF + gambar
         ]);
 
         $file = $request->file('file');
         $path = $file->store('uploads');
         $filename = $file->getClientOriginalName();
+        $mime = $file->getMimeType();
 
-        // Database
+        // Simpan dalam DB
         $job = DocumentJob::create([
             'file_name' => $filename,
             'file_path' => $path,
-            'status' => 'pending',
-            'user_id' =>  $userId,
+            'status'    => 'pending',
+            'user_id'   => $userId,
         ]);
 
-        // Job
-        ProcessDocumentJob::dispatch($job->id, $startRequest, $userId);
+        // Pilih job ikut MIME type
+        if ($mime === 'application/pdf') {
+            ProcessDocumentJob::dispatch($job->id, $startRequest, $userId);
+        } elseif (in_array($mime, ['image/jpeg', 'image/png'])) {
+            ProcessImageJob::dispatch($job->id, $startRequest, $userId);
+        } else {
+            // Kalau fail jenis lain
+            $job->update(['status' => 'failed', 'result' => 'Unsupported file type']);
+        }
 
         return response()->json([
             'status' => 'accepted',
@@ -153,6 +194,7 @@ class DocumentController extends Controller
             'result_url' => route('job.result', ['id' => $job->id])
         ]);
     }
+
 
     public function result($id)
     {
