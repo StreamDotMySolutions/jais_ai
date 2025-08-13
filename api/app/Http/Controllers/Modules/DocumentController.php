@@ -9,6 +9,7 @@ use App\Models\DocumentJob;
 
 use App\Jobs\ProcessDocumentJob;
 use App\Jobs\ProcessImageJob;
+use App\Jobs\ProcessDocumentJobWithAi;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -25,144 +26,111 @@ class DocumentController extends Controller
     */
 
 
-    public function processDocument(Request $request)
-    {
-        // Masa mula
-        $startTime = microtime(true);
-        $startRequest = now();
-
-        // Validate
-        $request->validate([
-            'image' => 'required|image|mimes:jpg,jpeg,png|max:5120',
-        ]);
-
-        $user = $request->user();
-
-        // Store temporarily
-        $path = $request->file('image')->store('temp', 'public');
-        $imagePath = storage_path('app/public/' . $path);
-
-        // Check N8N service availability
-        $n8nUrl = 'http://localhost:5678/webhook-test/54d39176-c69c-474a-8bfe-f07aa29df0a8';
-        try {
-            $ping = Http::timeout(3)->get(
-                parse_url($n8nUrl, PHP_URL_SCHEME) . '://' .
-                parse_url($n8nUrl, PHP_URL_HOST) . ':' .
-                parse_url($n8nUrl, PHP_URL_PORT)
-            );
-            if (!$ping->successful()) {
-                return response()->json(['error' => 'Service not available'], 503);
-            }
-        } catch (\Exception $e) {
-            return response()->json(['error' => 'Service not available'], 503);
-        }
-
-        // Hantar gambar ke N8N
-        try {
-            $response = Http::attach(
-                'data',
-                file_get_contents($imagePath),
-                basename($imagePath)
-            )->timeout(30)->post($n8nUrl);
-        } catch (\Exception $e) {
-            Storage::disk('public')->delete($path);
-            return response()->json(['error' => 'Service not available'], 503);
-        }
-
-        // Masa tamat
-        $endRequest = now();
-        $timeTaken = round(microtime(true) - $startTime, 3);
-
-        // Clean up
-        Storage::disk('public')->delete($path);
-
-        // Ambil body sebagai string
-        //$bodyString = $response->body();
-
-        $data = $response->body();
-        $clean = preg_replace('/^```(?:json)?\s*/', '', $data); // remove starting ```json or ```
-        $clean = preg_replace('/\s*```$/', '', $clean); // remove ending ```
-      
-       // $model = $data->model;
-        //\Log::info($clean);
-
-        $data = json_decode($clean, true); // decode to associative array
-
-        $model  = $data['model']  ?? null;
-        $tokens = $data['tokens'] ?? null;
-
-        // \Log::info('Model: ' . $model);
-        // \Log::info('Tokens: ' . $tokens);
-
-
-        // Simpan API Log
-        ApiLog::create([
-            'user_id'         => $user->id,
-            'ai_name'         => 'OpenAI',
-            'model_name'      => $model ?? null, // tukar ikut model sebenar
-            'module_name'     => 'document_analysis',
-            'attachment_size' => $request->file('image')->getSize(),
-            'tokens_used'     => $tokens ?? 0,
-            'start_request'   => $startRequest,
-            'end_request'     => $endRequest,
-            'time_taken'      => $timeTaken,
-            'request_date'    => now(),
-        ]);
-
-        // Return N8N response (handle JSON/text)
-        $contentType = $response->header('Content-Type');
-        if (str_contains($contentType, 'application/json')) {
-            return response()->json($response->json(), $response->status());
-        } else {
-            return response($response->body(), $response->status());
-        }
-    }
-
-    // public function upload(Request $request)
+    // public function processDocument(Request $request)
     // {
-
-    //     //$userId = $request->user()->id;
-    //     $userId = auth()->id();
-    //     //\Log::info($userId);
-
-    //     // Untuk kiraan ApiLog
+    //     // Masa mula
+    //     $startTime = microtime(true);
     //     $startRequest = now();
 
     //     // Validate
     //     $request->validate([
-    //         'file' => 'required|mimes:pdf|max:5120', // 5120 = 5 MB
+    //         'image' => 'required|image|mimes:jpg,jpeg,png|max:5120',
     //     ]);
 
-    //     $file = $request->file('file');
-    //     $path = $file->store('uploads');
-    //     $filename = $file->getClientOriginalName();
+    //     $user = $request->user();
 
-    //     // Database
-    //     $job = DocumentJob::create([
-    //         'file_name' => $filename,
-    //         'file_path' => $path,
-    //         'status' => 'pending',
-    //         'user_id' =>  $userId,
+    //     // Store temporarily
+    //     $path = $request->file('image')->store('temp', 'public');
+    //     $imagePath = storage_path('app/public/' . $path);
+
+    //     // Check N8N service availability
+    //     $n8nUrl = 'http://localhost:5678/webhook-test/54d39176-c69c-474a-8bfe-f07aa29df0a8';
+    //     try {
+    //         $ping = Http::timeout(3)->get(
+    //             parse_url($n8nUrl, PHP_URL_SCHEME) . '://' .
+    //             parse_url($n8nUrl, PHP_URL_HOST) . ':' .
+    //             parse_url($n8nUrl, PHP_URL_PORT)
+    //         );
+    //         if (!$ping->successful()) {
+    //             return response()->json(['error' => 'Service not available'], 503);
+    //         }
+    //     } catch (\Exception $e) {
+    //         return response()->json(['error' => 'Service not available'], 503);
+    //     }
+
+    //     // Hantar gambar ke N8N
+    //     try {
+    //         $response = Http::attach(
+    //             'data',
+    //             file_get_contents($imagePath),
+    //             basename($imagePath)
+    //         )->timeout(30)->post($n8nUrl);
+    //     } catch (\Exception $e) {
+    //         Storage::disk('public')->delete($path);
+    //         return response()->json(['error' => 'Service not available'], 503);
+    //     }
+
+    //     // Masa tamat
+    //     $endRequest = now();
+    //     $timeTaken = round(microtime(true) - $startTime, 3);
+
+    //     // Clean up
+    //     Storage::disk('public')->delete($path);
+
+    //     // Ambil body sebagai string
+    //     //$bodyString = $response->body();
+
+    //     $data = $response->body();
+    //     $clean = preg_replace('/^```(?:json)?\s*/', '', $data); // remove starting ```json or ```
+    //     $clean = preg_replace('/\s*```$/', '', $clean); // remove ending ```
+      
+    //    // $model = $data->model;
+    //     //\Log::info($clean);
+
+    //     $data = json_decode($clean, true); // decode to associative array
+
+    //     $model  = $data['model']  ?? null;
+    //     $tokens = $data['tokens'] ?? null;
+
+    //     // \Log::info('Model: ' . $model);
+    //     // \Log::info('Tokens: ' . $tokens);
+
+
+    //     // Simpan API Log
+    //     ApiLog::create([
+    //         'user_id'         => $user->id,
+    //         'ai_name'         => 'OpenAI',
+    //         'model_name'      => $model ?? null, // tukar ikut model sebenar
+    //         'module_name'     => 'document_analysis',
+    //         'attachment_size' => $request->file('image')->getSize(),
+    //         'tokens_used'     => $tokens ?? 0,
+    //         'start_request'   => $startRequest,
+    //         'end_request'     => $endRequest,
+    //         'time_taken'      => $timeTaken,
+    //         'request_date'    => now(),
     //     ]);
 
-    //     // Job
-    //     ProcessDocumentJob::dispatch($job->id, $startRequest, $userId);
-
-    //     return response()->json([
-    //         'status' => 'accepted',
-    //         'job_id' => $job->id,
-    //         'result_url' => route('job.result', ['id' => $job->id])
-    //     ]);
+    //     // Return N8N response (handle JSON/text)
+    //     $contentType = $response->header('Content-Type');
+    //     if (str_contains($contentType, 'application/json')) {
+    //         return response()->json($response->json(), $response->status());
+    //     } else {
+    //         return response($response->body(), $response->status());
+    //     }
     // }
 
+    
     public function upload(Request $request)
     {
         $userId = auth()->id();
         $startRequest = now();
 
         // Validate jenis fail
+        // $request->validate([
+        //     'file' => 'required|mimes:pdf,jpg,jpeg,png|max:5120', // sokong PDF + gambar
+        // ]);
         $request->validate([
-            'file' => 'required|mimes:pdf,jpg,jpeg,png|max:5120', // sokong PDF + gambar
+                'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120', // max 5MB
         ]);
 
         $file = $request->file('file');
@@ -178,15 +146,27 @@ class DocumentController extends Controller
             'user_id'   => $userId,
         ]);
 
-        // Pilih job ikut MIME type
-        if ($mime === 'application/pdf') {
-            ProcessDocumentJob::dispatch($job->id, $startRequest, $userId);
-        } elseif (in_array($mime, ['image/jpeg', 'image/png'])) {
-            ProcessImageJob::dispatch($job->id, $startRequest, $userId);
-        } else {
-            // Kalau fail jenis lain
-            $job->update(['status' => 'failed', 'result' => 'Unsupported file type']);
-        }
+
+        switch ($mime) {
+            case 'application/pdf':
+                ProcessDocumentJob::dispatch($job->id, $startRequest, $userId);
+                break;
+
+            case 'image/jpeg':
+            case 'image/png':
+                ProcessImageJob::dispatch($job->id, $startRequest, $userId);
+                break;
+
+            default:
+                //ProcessDocumentJobWithAi::dispatch($job->id, $startRequest, $userId);
+                $job->update([
+                    'status' => 'failed',
+                    'result' => 'Unsupported file type'
+                ]);
+                break;
+    }
+
+    
 
         return response()->json([
             'status' => 'accepted',
