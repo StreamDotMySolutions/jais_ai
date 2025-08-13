@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('document_jobs', function (Blueprint $table) {
             $table->id();
+            $table->integer('user_id')->nullable();  
             $table->string('file_path');
             $table->enum('status', ['pending', 'processing', 'completed', 'failed'])->default('pending');
             $table->text('result')->nullable();

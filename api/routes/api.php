@@ -68,7 +68,7 @@ Route::middleware('auth:sanctum')->prefix('tokens')->group(function () {
 // to test valid APi and user.status == active
 // http://localhost:8000/api/secure-data
 // Header ~ Authorization: Bearer <api_token>
-Route::middleware(['auth.apikey'])->group(function () {
+Route::middleware(['auth.apikey','auth:sanctum'])->group(function () {
     Route::get('/secure-data', fn () => ['message' => 'You are authenticated and active']);
 
     // user must upload image 
@@ -77,7 +77,6 @@ Route::middleware(['auth.apikey'])->group(function () {
     // user must upload PDF 
     Route::post('/upload-pdf', [DocumentController::class, 'upload']);
     Route::get('/jobs/{id}/result', [DocumentController::class, 'result'])->name('job.result');
-
 });
 
 // Open AI 

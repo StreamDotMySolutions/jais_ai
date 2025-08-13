@@ -120,6 +120,9 @@ class DocumentController extends Controller
     public function upload(Request $request)
     {
 
+        //$userId = $request->user()->id;
+        //\Log::info($userId);
+
         // Untuk kiraan ApiLog
         $startRequest = now();
 
@@ -135,7 +138,7 @@ class DocumentController extends Controller
         $job = DocumentJob::create([
             'file_path' => $path,
             'status' => 'pending',
-            'user_id' => 4,
+            'user_id' =>  $request->user()->id,
         ]);
 
         // Job
