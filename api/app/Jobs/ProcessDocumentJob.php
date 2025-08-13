@@ -17,12 +17,14 @@ class ProcessDocumentJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     protected $jobId;
+    protected $userId;
     protected $startRequest;
 
-    public function __construct($jobId, $startRequest)
+    public function __construct($jobId, $startRequest, $userId)
     {
         $this->jobId = $jobId;
         $this->startRequest = $startRequest;
+        $this->userId = $userId;
     }
 
     public function handle()
@@ -95,7 +97,14 @@ class ProcessDocumentJob implements ShouldQueue
                 'messages' => [
                     [
                         'role' => 'system',
-                        'content' => 'Classify the document and extract key values as JSON.Give the model name and tokens used too'
+                        // 'content' => 'Classify the document and extract key values as JSON.Give the model name and tokens used too'
+                         'content' => 'Classify the document and extract key values as JSON with this format:
+                                        {
+                                            "model_name": "<use exactly gpt-4o-mini>",
+                                            "tokens_used": "<estimated or put 0",
+                                            "document_type": "...",
+                                            "key_values": {...}
+                                        }'
                     ],
                     [
                         'role' => 'user',
@@ -109,28 +118,29 @@ class ProcessDocumentJob implements ShouldQueue
             $resultJson = $response->choices[0]->message->content ?? '{}';
 
             // Ambil data daripada response
-            $userId = $docJob->user_id ?? null; // Ambil dari rekod DocumentJob
+            //$userId = $docJob->user_id ?? null; // Ambil dari rekod DocumentJob
             $model  = $response->model ?? null;
             $tokens = $response->usage->total_tokens ?? 0;
 
             // Convert string JSON ke array
             //$resultJson = $response->choices[0]->message->content ?? '{}';
             $decoded = json_decode($resultJson, true);
+            //\Log::ingo($decoded);
 
             // Ambil value
             $modelFromAi  = $decoded['model_name'] ?? null;
-            $tokensFromAi = $decoded['tokens_used'] ?? null;
+            $tokensFromAi = $decoded['tokens_used'] ?? 0;
             
             $endRequest = now();
             $timeTaken = $endRequest->diffInMilliseconds($startRequest);
 
-            ApiLog::create([
-                'user_id'         => 4, // Pastikan DocumentJob ada user_id
+            $apiLog = ApiLog::create([
+                'user_id'         =>  $this->userId, // Pastikan DocumentJob ada user_id
                 'ai_name'         => 'OpenAI',
                 'model_name'      => $modelFromAi,
                 'module_name'     => 'PDF',
                 'attachment_size' => filesize($pdfPath),
-                'tokens_used'     => $tokensFromAi,
+                'tokens_used'     => $tokensFromAi && 0,
                 'start_request'   => $startRequest,
                 'end_request'     => $endRequest,
                 'time_taken'      => $timeTaken,
@@ -138,11 +148,12 @@ class ProcessDocumentJob implements ShouldQueue
             ]);
 
          
-            
+            \Log::info( 'api log id ialah ' . $apiLog->id);
             // 6. Simpan result
             //$resultJson = $response->choices[0]->message->content ?? '{}';
             $docJob->update([
                 'status' => 'completed',
+                'api_log_id' => $apiLog->id,
                 'result' => $resultJson
             ]);
 

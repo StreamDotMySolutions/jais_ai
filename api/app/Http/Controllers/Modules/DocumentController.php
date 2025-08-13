@@ -121,6 +121,7 @@ class DocumentController extends Controller
     {
 
         //$userId = $request->user()->id;
+        $userId = auth()->id();
         //\Log::info($userId);
 
         // Untuk kiraan ApiLog
@@ -133,16 +134,18 @@ class DocumentController extends Controller
 
         $file = $request->file('file');
         $path = $file->store('uploads');
+        $filename = $file->getClientOriginalName();
 
         // Database
         $job = DocumentJob::create([
+            'file_name' => $filename,
             'file_path' => $path,
             'status' => 'pending',
-            'user_id' =>  $request->user()->id,
+            'user_id' =>  $userId,
         ]);
 
         // Job
-        ProcessDocumentJob::dispatch($job->id, $startRequest);
+        ProcessDocumentJob::dispatch($job->id, $startRequest, $userId);
 
         return response()->json([
             'status' => 'accepted',
