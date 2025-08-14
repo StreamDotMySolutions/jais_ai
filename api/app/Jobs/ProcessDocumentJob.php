@@ -100,8 +100,8 @@ class ProcessDocumentJob implements ShouldQueue
                         // 'content' => 'Classify the document and extract key values as JSON.Give the model name and tokens used too'
                          'content' => 'Classify the document and extract key values as JSON with this format:
                                         {
-                                            "model_name": "<use exactly gpt-4o-mini>",
-                                            "tokens_used": "<estimated>",
+                                            "model_name": "...",
+                                            "tokens_used": "...",
                                             "document_type": "...",
                                             "key_values": {...}
                                         }'
@@ -119,8 +119,8 @@ class ProcessDocumentJob implements ShouldQueue
 
             // Ambil data daripada response
             //$userId = $docJob->user_id ?? null; // Ambil dari rekod DocumentJob
-            $model  = $response->model ?? null;
-            $tokens = $response->usage->total_tokens ?? 0;
+            // $model  = $response->model ?? null;
+            // $tokens = $response->usage->total_tokens ?? 0;
 
             // Convert string JSON ke array
             //$resultJson = $response->choices[0]->message->content ?? '{}';
@@ -130,6 +130,9 @@ class ProcessDocumentJob implements ShouldQueue
             // Ambil value
             $modelFromAi  = $decoded['model_name'] ?? null;
             $tokensFromAi = $decoded['tokens_used'] ?? 0;
+
+            // \Log::info($decoded);
+            // \Log::info( $decoded['tokens_used']);
             
             $endRequest = now();
             $timeTaken = $endRequest->diffInMilliseconds($startRequest);
@@ -140,12 +143,18 @@ class ProcessDocumentJob implements ShouldQueue
                 'model_name'      => $modelFromAi,
                 'module_name'     => 'PDF',
                 'attachment_size' => filesize($pdfPath),
-                'tokens_used'     => $tokensFromAi && 0,
+                'tokens_used'     => $decoded['tokens_used'],
                 'start_request'   => $startRequest,
                 'end_request'     => $endRequest,
                 'time_taken'      => $timeTaken,
                 'request_date'    => now(),
             ]);
+
+            // Get actual tokens from API response
+      
+            // $apiLog->update([
+            //     'tokens_used' =>   $tokensFromApi,
+            // ]);
 
          
             //\Log::info( 'api log id ialah ' . $apiLog->id);

@@ -89,8 +89,8 @@ class ProcessImageJob implements ShouldQueue
                                 //'text' => 'Tolong describe gambar ini'
                                 'text' => 'Classify the image and extract key values as JSON with this format:
                                         {
-                                            "model_name": "<use exactly gpt-4o-mini>",
-                                            "tokens_used": "<estimated>",
+                                            "model_name": "...",
+                                            "tokens_used": "...",
                                             "document_type": "...",
                                             "key_values": {...}
                                         }'
@@ -111,31 +111,41 @@ class ProcessImageJob implements ShouldQueue
             $resultJson = $response->choices[0]->message->content ?? '{}';
 
             // Ambil model & tokens dari metadata API
-            $modelFromAi = $response->model ?? null;
-            $tokensFromAi = $response->usage->total_tokens ?? 0;
+            //$modelFromAi = $response->model ?? null;
+            //$tokensFromAi = $response->tokens_used ?? 0;
+            //$tokensFromAi = $response->usage->total_tokens ?? 0;
+
+            
 
             $endRequest = now();
             $timeTaken = $endRequest->diffInMilliseconds($startRequest);
+
+   
+
+            // 6. Update DocumentJob
+            $data = $resultJson;
+            $clean = preg_replace('/^```(?:json)?\s*/', '', $data); // remove starting ```json or ```
+            $clean = preg_replace('/\s*```$/', '', $clean); // remove ending ```
+            $data = json_decode($clean, true); // decode to associative array
+            
+            \Log::info($clean);
 
             // 5. Simpan log API
             $apiLog = ApiLog::create([
                 'user_id'         => $this->userId,
                 'ai_name'         => 'OpenAI',
-                'model_name'      => $modelFromAi,
+                'model_name'      => $data['model_name'],
                 'module_name'     => 'Image',
                 'attachment_size' => filesize($imagePath),
-                'tokens_used'     => $tokensFromAi,
+                'tokens_used'     => isset($data['tokens_used']) ? (int) $data['tokens_used'] : 0,
                 'start_request'   => $startRequest,
                 'end_request'     => $endRequest,
                 'time_taken'      => $timeTaken,
                 'request_date'    => now(),
             ]);
 
-            // 6. Update DocumentJob
-            $data = $resultJson;
-            $clean = preg_replace('/^```(?:json)?\s*/', '', $data); // remove starting ```json or ```
-            $clean = preg_replace('/\s*```$/', '', $clean); // remove ending ```
-            //$data = json_decode($clean, true); // decode to associative array
+
+            
             $docJob->update([
                 'status'     => 'completed',
                 'api_log_id' => $apiLog->id,

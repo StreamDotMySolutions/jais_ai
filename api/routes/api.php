@@ -83,7 +83,7 @@ Route::middleware(['auth.apikey','auth:sanctum'])->group(function () {
 // to test valid APi and user.status == active
 // http://localhost:8000/api/test-openai-key
 // Header ~ Authorization: Bearer <api_token>
-Route::get('/test-openai-key', [App\Http\Controllers\OpenAITestController::class, 'test']);
+Route::get('/test-openai-key', [App\Http\Controllers\OpenAITestController::class, 'test'])->name('test-openai-key');
 
 //Route::post('/process-document', [DocumentController::class, 'processDocument']);
 
