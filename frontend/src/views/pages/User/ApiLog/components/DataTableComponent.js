@@ -18,9 +18,11 @@ const DataTableComponent = () => {
                     <tr>
                         <th style={{ 'width': '20px'}}>ID</th>
                         <th  style={{ 'width': '20vH'}}>AI</th>
-                        <th  style={{ 'width': '100vH'}}>Model</th>
-                        <th style={{ 'width': '50px'}} className='text-center'>Tokens</th>
-                        <th style={{ 'width': '50px'}} className='text-center'>Time Taken (ms)</th>
+                        <th  style={{ 'width': '30vH'}}>Model</th>
+                        <th  style={{ 'width': '30vH'}}>Module</th>
+                        <th  style={{ 'width': '30vH'}}>Document Size ( MB )</th>
+                        <th style={{ 'width': '20px'}} className='text-center'>Tokens</th>
+                        <th style={{ 'width': '50px'}} className='text-center'>Time Taken (sec)</th>
                         <th className='text-center'>Action</th>
                     </tr>
                 </thead>
@@ -33,11 +35,13 @@ const DataTableComponent = () => {
                         <td><span className="badge bg-dark">{item.id}</span></td>
                         <td className="text-left">{item.ai_name}</td>
                         <td className="text-left">{item.model_name}</td>
-                        <td className="text-center">
-                           {item.tokens_used}
+                        <td className="text-left">{item.module_name}</td>
+                        <td className="text-left">
+                              {(item.attachment_size / (1024 * 1024)).toFixed(2)} MB
                         </td>
+                        <td className="text-center">{item.tokens_used}</td>
                         <td className="text-center">
-                            {item.time_taken}
+                             {(item.time_taken / 1000).toFixed(2)}s
                         </td>
                         <td className="text-center" style={{ width: '200px' }}>
                             View Job
