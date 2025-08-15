@@ -111,7 +111,7 @@ class ProcessImageJob implements ShouldQueue
             $resultJson = $response->choices[0]->message->content ?? '{}';
 
             // Ambil model & tokens dari metadata API
-            //$modelFromAi = $response->model ?? null;
+            $modelFromAi = $response->model ?? null;
             //$tokensFromAi = $response->tokens_used ?? 0;
             //$tokensFromAi = $response->usage->total_tokens ?? 0;
 
@@ -128,13 +128,13 @@ class ProcessImageJob implements ShouldQueue
             $clean = preg_replace('/\s*```$/', '', $clean); // remove ending ```
             $data = json_decode($clean, true); // decode to associative array
             
-            \Log::info($clean);
+            //\Log::info($clean);
 
             // 5. Simpan log API
             $apiLog = ApiLog::create([
                 'user_id'         => $this->userId,
                 'ai_name'         => 'OpenAI',
-                'model_name'      => 'gpt-4o-mini',
+                'model_name'      => $modelFromAi ?? 'gpt-4o-mini',
                 'module_name'     => 'Image',
                 'attachment_size' => filesize($imagePath),
                 'tokens_used'     => isset($data['tokens_used']) ? (int) $data['tokens_used'] : 0,

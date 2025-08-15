@@ -140,7 +140,7 @@ class ProcessDocumentJob implements ShouldQueue
             $apiLog = ApiLog::create([
                 'user_id'         =>  $this->userId, // Pastikan DocumentJob ada user_id
                 'ai_name'         => 'OpenAI',
-                'model_name'      => 'gpt-4o-mini',
+                'model_name'      => $modelFromAi ?? 'gpt-4o-mini',
                 'module_name'     => 'PDF',
                 'attachment_size' => filesize($pdfPath),
                 'tokens_used'     => $decoded['tokens_used'],
