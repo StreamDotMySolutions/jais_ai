@@ -14,4 +14,10 @@ class DocumentJob extends Model
     //     'status',
     //     'result'
     // ];
+
+    public function apiLog()
+    {
+        // Class, fk dalam ApiLog , pk dalam ApiLog
+        return $this->belongsTo(ApiLog::class, 'api_log_id', 'id');
+    }
 }

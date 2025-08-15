@@ -10,4 +10,11 @@ class ApiLog extends Model
     use HasFactory;
 
     protected $guarded = ['id'];
+
+    public function documentJob()
+    {
+
+        // Class, fk dalam ApiLog , pk dalam ApiLog
+        return $this->hasOne(DocumentJob::class, 'api_log_id', 'id');
+    }
 }
