@@ -134,7 +134,7 @@ class ProcessImageJob implements ShouldQueue
             $apiLog = ApiLog::create([
                 'user_id'         => $this->userId,
                 'ai_name'         => 'OpenAI',
-                'model_name'      => $data['model_name'],
+                'model_name'      => 'gpt-4o-mini',
                 'module_name'     => 'Image',
                 'attachment_size' => filesize($imagePath),
                 'tokens_used'     => isset($data['tokens_used']) ? (int) $data['tokens_used'] : 0,
