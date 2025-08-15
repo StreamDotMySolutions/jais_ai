@@ -19,12 +19,16 @@ class ProcessImageJob implements ShouldQueue
     protected $jobId;
     protected $userId;
     protected $startRequest;
+    protected $ip;
+    protected $token;
 
-    public function __construct($jobId, $startRequest, $userId)
+    public function __construct($jobId, $startRequest, $userId,$ip, $token)
     {
         $this->jobId = $jobId;
         $this->startRequest = $startRequest;
         $this->userId = $userId;
+        $this->ip = $ip;
+        $this->token = $token;
     }
 
     public function handle()
@@ -142,6 +146,8 @@ class ProcessImageJob implements ShouldQueue
                 'end_request'     => $endRequest,
                 'time_taken'      => $timeTaken,
                 'request_date'    => now(),
+                'ip'              => $this->ip, // user IP address
+                'token'           => $this->token, // Bearer token from Authorization header
             ]);
 
 

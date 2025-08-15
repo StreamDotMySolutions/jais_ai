@@ -17,16 +17,17 @@ public function up(): void
 
         $table->string('ai_name', 255)->nullable();
         $table->string('model_name', 255)->nullable();
+        $table->string('token', 64)->nullable();
         $table->string('module_name', 255)->nullable();
         $table->unsignedBigInteger('attachment_size')->nullable();
         $table->unsignedInteger('tokens_used')->default(0);
+         $table->ipAddress('ip')->nullable();
 
         $table->timestamp('start_request')->nullable();
         $table->timestamp('end_request')->nullable();
 
         // Generated column - time taken dalam seconds (decimal)
         $table->decimal('time_taken', 8, 3)->nullable();
-
         $table->timestamp('request_date')->useCurrent();
 
         $table->timestamps();

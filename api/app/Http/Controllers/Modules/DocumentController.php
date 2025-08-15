@@ -137,6 +137,10 @@ class DocumentController extends Controller
         $path = $file->store('uploads');
         $filename = $file->getClientOriginalName();
         $mime = $file->getMimeType();
+        
+        // Capture IP and token from the current HTTP request
+        $ip = $request->ip();
+        $token = $request->bearerToken();
 
         // Simpan dalam DB
         $job = DocumentJob::create([
@@ -149,12 +153,12 @@ class DocumentController extends Controller
 
         switch ($mime) {
             case 'application/pdf':
-                ProcessDocumentJob::dispatch($job->id, $startRequest, $userId);
+                ProcessDocumentJob::dispatch($job->id, $startRequest, $userId,$ip,$token);
                 break;
 
             case 'image/jpeg':
             case 'image/png':
-                ProcessImageJob::dispatch($job->id, $startRequest, $userId);
+                ProcessImageJob::dispatch($job->id, $startRequest, $userId, $ip, $token);
                 break;
 
             default:

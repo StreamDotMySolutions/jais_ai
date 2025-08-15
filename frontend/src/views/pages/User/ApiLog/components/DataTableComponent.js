@@ -9,7 +9,7 @@ const DataTableComponent = () => {
     const store = useStore()
     const items = store.getValue('logs'); // get from index.js 
     const url = process.env.REACT_APP_SERVER_URL; 
-    console.log(items.data)
+    //console.log(items.data)
     
     return (
     <div>
@@ -29,7 +29,7 @@ const DataTableComponent = () => {
 
             
                 <tbody>
-                {items.data && items.data.length > 0 ? (
+                 {items?.data?.length > 0 ? (
                     items.data.map((item, index) => (
                     <tr key={index}>
                         <td><span className="badge bg-dark">{item.id}</span></td>
