@@ -13,6 +13,7 @@ use App\Http\Controllers\{
 use App\Http\Controllers\User\{
     AccountController,
     ApiTokenController,
+    ApiLogController,
 };
 
 // AI modules
@@ -62,6 +63,13 @@ Route::middleware('auth:sanctum')->prefix('tokens')->group(function () {
     Route::get('/', [ApiTokenController::class, 'index']);
     Route::post('/', [ApiTokenController::class, 'store']);
     Route::delete('/{id}', [ApiTokenController::class, 'destroy']);
+});
+
+// Api Logs
+// api/logs/index
+
+Route::middleware('auth:sanctum')->prefix('logs')->group(function () {
+    Route::get('/', [ApiTokenController::class, 'index']);
 });
 
 
