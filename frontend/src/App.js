@@ -15,6 +15,7 @@ import DashboardPage from './views/pages/User/DashboardPage';
 // User
 import UserHomePage from './views/pages/User/Home';
 import ApiToken from './views/pages/User/ApiToken';
+import ApiLog from './views/pages/User/ApiLog';
 
 // Admin
 import AdminHomePage from './views/pages/Admin/Home';
@@ -79,6 +80,7 @@ function App() {
           <Route element={<UserLayout />}>
             <Route path="/user/home" element={<UserHomePage />} />
             <Route path="/user/api-token" element={<ApiToken />} />
+            <Route path="/user/api-logs" element={<ApiLog />} />
             <Route path="/user/Profile" element={<Profile />} />
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/sign-out" element={<SignOut />} />

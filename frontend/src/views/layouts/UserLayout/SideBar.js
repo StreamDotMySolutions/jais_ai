@@ -18,6 +18,10 @@ const SideBar = () => {
                     <Link to="/user/api-token" className="nav-link text-dark-custom px-sm-0 px-2">
                         <i className="fs-5 bi-key"></i><span className="ms-1 d-none d-sm-inline">API Token</span>
                     </Link>
+
+                    <Link to="/user/api-logs" className="nav-link text-dark-custom px-sm-0 px-2">
+                        <i className="fs-5 bi-activity"></i><span className="ms-1 d-none d-sm-inline">API Usage</span>
+                    </Link>
                 </li>
 
              
