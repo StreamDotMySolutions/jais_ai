@@ -12,10 +12,10 @@ class ApiLogController extends Controller
     public function index()
     {
         $api_logs = ApiLog::query()
-                        ->where('user_id', auth()->id()) // tapis ikut user login
-                        ->orderBy('id','DESC')
-                        ->paginate(10)
-                        ->withQueryString();
+                            ->where('user_id', auth()->id()) // tapis ikut user login
+                            ->orderBy('id','DESC')
+                            ->paginate(10)
+                            ->withQueryString();
 
         return response()->json([
             'message' => 'Api Logs',

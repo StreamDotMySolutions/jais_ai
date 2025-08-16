@@ -155,7 +155,6 @@ class ProcessDocumentJob implements ShouldQueue
                 'request_date'    => now(),
                 'ip'              => $this->ip, // user IP address
                 'token'           => $this->token, // Bearer token from Authorization header
-
             ]);
 
             // Get actual tokens from API response
