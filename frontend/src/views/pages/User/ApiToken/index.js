@@ -37,7 +37,8 @@ const ApiToken = () => {
             )
             .then( response => { // response block
                 //console.log(response)
-                store.setValue('tokens', response.data ?  response.data : null) // to be used in DataTableComponent
+                store.setValue('tokens', response.data.api_tokens ?  response.data.api_tokens : null) // to be used in DataTableComponent
+                //store.setValue('tokens', response.data ?  response.data : null) // to be used in DataTableComponent
                 store.setValue('refresh', false ) // reset the refresh state to false
             })
             .catch( error => { // error block

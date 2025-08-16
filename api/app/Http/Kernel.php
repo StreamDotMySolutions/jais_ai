@@ -60,6 +60,7 @@ class Kernel extends HttpKernel
         'auth.basic' => \Illuminate\Auth\Middleware\AuthenticateWithBasicAuth::class,
         'auth.session' => \Illuminate\Session\Middleware\AuthenticateSession::class,
         'auth.apikey' => \App\Http\Middleware\ValidateApiKeyAndStatus::class, // custom middleware to check status and valid apiKey
+        'auth.token' => \App\Http\Middleware\ValidateToken::class, // custom middleware to check status and valid apiKey
         
         'cache.headers' => \Illuminate\Http\Middleware\SetCacheHeaders::class,
         'can' => \Illuminate\Auth\Middleware\Authorize::class,

@@ -98,12 +98,12 @@ const DataTableComponent = () => {
 
 
                 <tbody>
-                {items && items.length > 0 ? (
-                    items.map((item, index) => (
+                {items?.data?.length > 0 ? (
+                    items.data.map((item, index) => (
                     <tr key={index}>
                         <td><span className="badge bg-dark">{item.id}</span></td>
                         <td className="text-left">{item.name}</td>
-                         <td className="text-left">{item.api_key}</td>
+                         <td className="text-left">{item.key}</td>
                         <td className="text-center">
                         {new Date(item.created_at).toLocaleString()}
                         </td>

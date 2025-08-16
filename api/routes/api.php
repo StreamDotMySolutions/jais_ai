@@ -86,6 +86,10 @@ Route::middleware(['auth.apikey','auth:sanctum'])->group(function () {
     Route::get('/jobs/{id}/result', [DocumentController::class, 'result'])->name('job.result');
 });
 
+Route::middleware(['auth.token'])->group(function () {
+    Route::get('/secure-access', fn () => ['message' => 'You are authenticated and active']);
+});
+
 // Open AI 
 // to test valid APi and user.status == active
 // http://localhost:8000/api/test-openai-key
