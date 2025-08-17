@@ -4,11 +4,12 @@ import axios from '../../../../../libs/axios'
 import useStore from '../../../../../store';
 
 
-export default function ViewJobModal({filename}) {
+export default function ViewJobModal({id}) {
 
     const store = useStore()
-    const url = process.env.REACT_APP_SERVER_URL; 
+    const url = process.env.REACT_APP_API_URL + '/logs'; // API server
     const [show, setShow] = useState(false)
+    const [isLoading, setIsLoading] = useState(false)
     const handleClose = () => setShow(false)
     const handleShow = () => setShow(true)
 
@@ -24,27 +25,19 @@ export default function ViewJobModal({filename}) {
   
       
       // load ApiLog based on given ID
-      // axios({ 
-      //   method: 'get', 
-      //   url: `${url}/admin/restreams/${id}`,
-      //   })
-      // .then( response => { // success 200
-      //     console.log(response)
-      //     if( response?.data?.restream.hasOwnProperty('name') ){
-      //       store.setValue('name', response?.data?.restream?.name )
-      //     }
-      //     if( response?.data?.restream.hasOwnProperty('rtmp_address') ){
-      //       store.setValue('rtmp_address', response?.data?.restream?.rtmp_address )
-      //     }
-         
-      //     })
-      // .catch( error => {
-      //     console.warn(error)
-      // })
-      // .finally( () => {
-      //   setIsLoading(false)
-      // })
-      
+      axios({ 
+        method: 'get', 
+        url: `${url}/${id}`,
+      })
+      .then( response => { // success 200
+          console.log(response)
+      })
+      .catch( error => {
+          console.warn(error)
+      })
+      .finally( () => {
+        setIsLoading(false)
+      })
     } 
 
     return (
@@ -59,7 +52,7 @@ export default function ViewJobModal({filename}) {
           </Modal.Header>
 
           <Modal.Body>
-           
+            ID is {id}
           </Modal.Body>
           
           <Modal.Footer>

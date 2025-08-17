@@ -71,8 +71,10 @@ Route::middleware('auth:sanctum')->prefix('tokens')->group(function () {
 // api/logs/index
 Route::middleware('auth:sanctum')->prefix('logs')->group(function () {
     Route::get('/', [ApiLogController::class, 'index']);
+    Route::get('/{id}', [ApiLogController::class, 'show']);
 });
 
+ 
 
 // Api Dashboard
 Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {

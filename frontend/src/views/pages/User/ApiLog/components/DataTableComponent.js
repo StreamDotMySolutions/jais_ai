@@ -45,7 +45,7 @@ const DataTableComponent = () => {
                              {(item.time_taken / 1000).toFixed(2)}s
                         </td>
                         <td className="text-center" style={{ width: '200px' }}>
-                            <ViewJobModal />
+                            <ViewJobModal id={item.id} />
                         </td>
                     </tr>
                     ))

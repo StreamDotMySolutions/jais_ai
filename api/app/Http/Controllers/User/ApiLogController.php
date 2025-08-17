@@ -22,4 +22,13 @@ class ApiLogController extends Controller
             'api_logs' => $api_logs
         ]);
     }
+
+    public function show(Request $request, $id)
+    {
+        \Log::info("Show Log ID: " . $id);
+        return response()->json([
+            'message' => 'Api Log View Detailed Job',
+            'id' => $id,
+        ]);
+    }
 }
