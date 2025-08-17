@@ -36,6 +36,9 @@ class ValidateToken
         // Optionally attach user ke request (senang guna)
         $request->merge(['auth_user' => $apiToken->user]);
 
+        // Terus setkan user
+        $request->setUserResolver(fn () => $apiToken->user);
+
         return $next($request);
     }
 }

@@ -119,8 +119,14 @@ class ApiTokenController extends Controller
     //     return response()->json(['message' => 'Token deleted.']);
     // }
 
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+
+        $request->validate([
+            //'id' => 'required',
+            'acknowledge' => 'required|accepted',
+        ]);
+
         $token = \App\Models\ApiToken::find($id);
 
         if (!$token) {

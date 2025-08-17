@@ -12,6 +12,8 @@ use App\Http\Controllers\{
 // role = User
 use App\Http\Controllers\User\{
     AccountController,
+
+    ApiDashboardController,
     ApiTokenController,
     ApiLogController,
 };
@@ -72,17 +74,23 @@ Route::middleware('auth:sanctum')->prefix('logs')->group(function () {
 });
 
 
+// Api Dashboard
+Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
+    Route::get('/', [ApiDashboardController::class, 'index']);
+});
+
 // to test valid APi and user.status == active
 // http://localhost:8000/api/secure-data
 // Header ~ Authorization: Bearer <api_token>
-Route::middleware(['auth.apikey','auth:sanctum'])->group(function () {
+//Route::middleware(['auth.apikey','auth:sanctum'])->group(function () {
+Route::middleware(['auth.token'])->group(function () {
     Route::get('/secure-data', fn () => ['message' => 'You are authenticated and active']);
 
     // user must upload image 
-    Route::post('/process-document', [DocumentController::class, 'processDocument']);
+    //Route::post('/process-document', [DocumentController::class, 'processDocument']);
 
     // user must upload PDF 
-    Route::post('/upload-pdf', [DocumentController::class, 'upload']);
+    Route::post('/upload', [DocumentController::class, 'upload']);
     Route::get('/jobs/{id}/result', [DocumentController::class, 'result'])->name('job.result');
 });
 

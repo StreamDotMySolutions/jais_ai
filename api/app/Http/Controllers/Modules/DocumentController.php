@@ -122,7 +122,10 @@ class DocumentController extends Controller
     
     public function upload(Request $request)
     {
-        $userId = auth()->id();
+        $userId = $request->user()->id;
+
+        \Log::Info($userId);
+
         $startRequest = now();
 
         // Validate jenis fail
