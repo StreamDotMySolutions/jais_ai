@@ -3,6 +3,7 @@ import React, {  } from 'react';
 import { Table } from 'react-bootstrap';
 import useStore from '../../../../../store';
 import PaginatorLink from '../../../../../libs/PaginatorLink';
+import ViewJobModal from '../modals/ViewJobModal';
 
 
 const DataTableComponent = () => {
@@ -44,7 +45,7 @@ const DataTableComponent = () => {
                              {(item.time_taken / 1000).toFixed(2)}s
                         </td>
                         <td className="text-center" style={{ width: '200px' }}>
-                            View Job
+                            <ViewJobModal />
                         </td>
                     </tr>
                     ))
