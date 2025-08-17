@@ -25,10 +25,14 @@ class ApiLogController extends Controller
 
     public function show(Request $request, $id)
     {
-        \Log::info("Show Log ID: " . $id);
-        return response()->json([
-            'message' => 'Api Log View Detailed Job',
-            'id' => $id,
-        ]);
+        $log = ApiLog::find($id);
+
+        if (!$log || !$log->documentJob) {
+            return response()->json([
+                'message' => 'DocumentJob not found for this ApiLog',
+            ], 404);
+        }
+
+        return response()->json($log->documentJob);
     }
 }
