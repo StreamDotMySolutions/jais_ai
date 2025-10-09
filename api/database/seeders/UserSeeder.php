@@ -21,7 +21,7 @@ class UserSeeder extends Seeder
         Role::create(['name' => 'user']);
 
         // system ########################################### start
-        User::truncate();
+        #User::truncate();
         $user = User::create([
             'name' => 'System Administrator',
             'email' => 'system@local',
