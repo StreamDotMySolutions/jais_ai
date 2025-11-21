@@ -1,4 +1,4 @@
-UDPS AI
+JAIS AI
 ---
 1. User Management API 
 2. Api Token Management
