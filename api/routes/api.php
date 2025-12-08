@@ -6,7 +6,8 @@ use Illuminate\Support\Facades\Route;
 // role = Guest
 use App\Http\Controllers\{
     RegisterController,
-    AuthController
+    AuthController,
+    ComplaintController
 };
 
 // role = User
@@ -75,7 +76,6 @@ Route::middleware('auth:sanctum')->prefix('logs')->group(function () {
 });
 
  
-
 // Api Dashboard
 Route::middleware('auth:sanctum')->prefix('dashboard')->group(function () {
     Route::get('/', [ApiDashboardController::class, 'index']);
@@ -107,4 +107,14 @@ Route::middleware(['auth.token'])->group(function () {
 Route::get('/test-openai-key', [App\Http\Controllers\OpenAITestController::class, 'test'])->name('test-openai-key');
 
 //Route::post('/process-document', [DocumentController::class, 'processDocument']);
+
+// Complaints
+Route::get('/complaints', function () {
+            return response()->json([
+                'message' => 'List of complaints',
+                'data' => \App\Models\Complaint::all()
+            ]);
+});
+
+Route::post('/complaints', [App\Http\Controllers\ComplaintController::class, 'store']);
 
