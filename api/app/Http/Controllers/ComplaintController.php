@@ -17,7 +17,7 @@ class ComplaintController extends Controller
             'name' => 'required|string|max:255',
             'occupation' => 'required|string|max:255',
             'identification_number' => 'required|string|max:255',
-            'contact_number' => 'required|integer|max:255',
+            'contact_number' => 'required|string|max:255',
             'address' => 'required|string|max:1000',
             'contents' => 'required|string|max:10000',
         ]);
