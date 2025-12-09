@@ -54,7 +54,7 @@ function Register() {
         .then(response => {
             console.log(response);
             console.log('Form submitted successfully!');
-            store.setValue('registered', true) // for redirect purpose
+            store.setValue('success', true) // for redirect purpose
         })
         .catch(error => {
             if( error.response?.status == 422 ){ // detect 422 errors by Laravel
@@ -77,81 +77,97 @@ function Register() {
     // }, [store.getValue('registered')])
 
 
-    return (
-    <Row className='ms-4 col-10'>
-        <h1>Aduan Online</h1>
-        <hr />
-        <Form onSubmit={handleSubmit}>
-
-            <Row>
-                <Row className='mb-4'>
-                    <InputText 
-                        fieldName='name' 
-                        placeholder='Your name'  
-                        icon='bi-person'
-                        isLoading={isLoading}
-                    />
-                </Row>
-
-                
-                <Row className='mb-4'>
-                    <InputText 
-                        type='text'
-                        fieldName='contact_number' 
-                        placeholder='Nombor telefon'  
-                        icon='bi-phone'
-                        isLoading={isLoading}
-                    />
-                </Row>
-
-                <Row className='mb-4'>
-                    <InputTextarea 
-                        type='text'
-                        fieldName='address' 
-                        placeholder='Lokasi kejadian'  
-                        icon='bi-globe'
-                        rows='5'
-                        isLoading={isLoading}
-                    />
-                </Row>
-
-                <Row className='mb-4'>
-                    <InputText 
-                        type='text'
-                        fieldName='identification_number' 
-                        placeholder='Nombor K/P'  
-                        icon='bi-card-text'
-                        isLoading={isLoading}
-                    />
-                </Row>
-
-                <Row className='mb-4'>
-                    <InputText 
-                        type='text'
-                        fieldName='occupation' 
-                        placeholder='Pekerjaan'  
-                        icon='bi-briefcase'
-                        isLoading={isLoading}
-                    />
-                </Row>
-
-                <Row className='mb-4'>
-                    <InputTextarea 
-                        type='text'
-                        fieldName='contents' 
-                        placeholder='Butiran Aduan'  
-                        icon='bi-pencil'
-                        rows='10'
-                        isLoading={isLoading}
-                    />
-                </Row>
-
+    if (store.getValue('success') === true) {
+        
+        // show thank you message
+        return (
+            <Row className='ms-4 col-10'>
+                <h1>Terima Kasih!</h1>)
+                <hr />
+                <p>Aduan anda telah berjaya dihantar. Kami akan memproses aduan anda secepat mungkin.</p>
             </Row>
+        );
 
-            <SubmitButton isLoading={isLoading} value="Hantar" />
-        </Form>
-    </Row>
-    );
+    } else  {
+    
+        // show the form
+        return (
+                <Row className='ms-4 mb-5 col-10'>
+                    <h1>Aduan Online</h1>
+                    <hr />
+                    <Form onSubmit={handleSubmit}>
+
+                        <Row>
+                            <Row className='mb-4'>
+                                <InputText 
+                                    fieldName='name' 
+                                    placeholder='Your name'  
+                                    icon='bi-person'
+                                    isLoading={isLoading}
+                                />
+                            </Row>
+
+                            
+                            <Row className='mb-4'>
+                                <InputText 
+                                    type='text'
+                                    fieldName='contact_number' 
+                                    placeholder='Nombor telefon'  
+                                    icon='bi-phone'
+                                    isLoading={isLoading}
+                                />
+                            </Row>
+
+                            <Row className='mb-4'>
+                                <InputTextarea 
+                                    type='text'
+                                    fieldName='address' 
+                                    placeholder='Lokasi kejadian'  
+                                    icon='bi-globe'
+                                    rows='5'
+                                    isLoading={isLoading}
+                                />
+                            </Row>
+
+                            <Row className='mb-4'>
+                                <InputText 
+                                    type='text'
+                                    fieldName='identification_number' 
+                                    placeholder='Nombor K/P'  
+                                    icon='bi-card-text'
+                                    isLoading={isLoading}
+                                />
+                            </Row>
+
+                            <Row className='mb-4'>
+                                <InputText 
+                                    type='text'
+                                    fieldName='occupation' 
+                                    placeholder='Pekerjaan'  
+                                    icon='bi-briefcase'
+                                    isLoading={isLoading}
+                                />
+                            </Row>
+
+                            <Row className='mb-4'>
+                                <InputTextarea 
+                                    type='text'
+                                    fieldName='contents' 
+                                    placeholder='Butiran Aduan'  
+                                    icon='bi-pencil'
+                                    rows='10'
+                                    isLoading={isLoading}
+                                />
+                            </Row>
+                        </Row>
+                        <SubmitButton isLoading={isLoading} value="Hantar Aduan" />
+                    </Form>
+                </Row>
+        );
+        
+    } // end of else
+
+    
 }
 
 export default Register;
