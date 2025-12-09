@@ -4,9 +4,9 @@ import { Link } from 'react-router-dom';
 const HomePage = () => {
     return (
         <div>
-            <h1>UDPS Ai</h1>
+            <h1>JAIS Ai</h1>
 
-            <pre>A SAAS Based AI Agent</pre>
+            <pre>Sistem aduan JAIS</pre>
 
         </div>
     );
