@@ -82,7 +82,7 @@ function Register() {
         // show thank you message
         return (
             <Row className='ms-4 col-10'>
-                <h1>Terima Kasih!</h1>)
+                <h1>Terima Kasih!</h1>
                 <hr />
                 <p>Aduan anda telah berjaya dihantar. Kami akan memproses aduan anda secepat mungkin.</p>
             </Row>
