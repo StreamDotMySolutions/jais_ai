@@ -29,6 +29,11 @@ class ComplaintController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'occupation' => 'required|string|max:255',
+            'identification_number' => 'required|string|max:255',
+            'contact_number' => 'required|integer|max:255',
+            'address' => 'required|string|max:1000',
+            'contents' => 'required|string|max:10000',
         ]);
 
         // Create the token
@@ -46,44 +51,7 @@ class ComplaintController extends Controller
         ]);
     }
 
-    // public function store(Request $request)
-    // {
-    //     $request->validate([
-    //         'name' => 'required|string|max:255',
-    //         'abilities' => 'sometimes|array',
-    //     ]);
-
-    //     // Create the token
-    //     $token = $request->user()->createToken(
-    //         $request->name,
-    //         $request->abilities ?? ['*']
-    //     );
-
-    //     // Save the plaintext token in the `api_key` column
-    //     // The token object contains 'accessToken' which is the model
-    //     $token->accessToken->api_key = $token->plainTextToken;
-    //     $token->accessToken->save();
-
-    //     return response()->json([
-    //         'name' => $request->input('name'),
-    //         'token' => $token->plainTextToken
-    //     ]);
-    // }
-
-    // public function destroy(Request $request, $id)
-    // {
-
-    //     $request->validate([
-    //         //'id' => 'required',
-    //         'acknowledge' => 'required|accepted',
-    //     ]);
-
-    //     $token = $request->user()->tokens()->findOrFail($id);
-    //     $token->delete();
-
-    //     return response()->json(['message' => 'Token deleted.']);
-    // }
-
+   
     public function destroy(Request $request, $id)
     {
 
