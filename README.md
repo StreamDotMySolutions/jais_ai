@@ -9,12 +9,13 @@ Install Laragon for Windows
 API Folder
 ---
 0. composer install
-1. cp env.example to .env
+1. cp env.example to .env (Linux) atau cp ".env.example" ".env" (Windows)
 1. php artisan key:generate
 2. create database
 3. php artisan migrate
 4. php artisan db:seed
 5. php artisan serve
+
 6. php artisan config:clear
 7. php artisan cache:clear
 8. php artisan config:cache
@@ -23,5 +24,12 @@ API Folder
 Frontend Folder
 ---
 0. npm install
-1. cp env.example as .env
+1. cp env.example as .env (linux) untuk cp ".env.example" ".env" (Windows)
 2. npm start
+
+
+
+
+
+
+$2y$12$dM2pvXJEvgly0W9qBoEDZ.saRuoGxCUvZDh/S7ysaG9SULbC.pNLG
