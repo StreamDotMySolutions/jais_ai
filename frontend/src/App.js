@@ -31,6 +31,8 @@ import Register from './views/pages/Guest/Register';
 import ContactUs from './views/pages/Guest/ContactUs';
 import SignOut from './views/pages/Guest/SignOut';
 import Complaint from './views/pages/Guest/Complaint';
+import PublicHomePage from './views/pages/Website/PublicHomePage';
+
 
 
 import './App.css';
@@ -42,6 +44,8 @@ function App() {
     <Router>
       <Routes>
         
+        <Route path="/" element={<PublicHomePage />} />
+
         {/* Guest Layout */}
         <Route element={<GuestLayout />}>
           <Route path="/" element={<HomePage/>} />
