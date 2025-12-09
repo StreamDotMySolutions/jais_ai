@@ -88,7 +88,7 @@ export function InputTextarea({fieldName, placeholder, icon, rows, isLoading}){
                         name={fieldName}
                         size='md' 
                         readOnly={isLoading}
-                        required 
+                        //required 
                         isInvalid={errors?.hasOwnProperty(fieldName)}
                         onChange={ (e) => { 
                           store.setValue(fieldName, e.target.value)                         
