@@ -22,7 +22,11 @@ const SideBar = () => {
                     </Link>  */}
 
                     <Link to="/admin/users" className="nav-link text-dark-custom px-sm-0 px-2">
-                        <i className="fs-5 bi-people"></i><span className="ms-1 d-none d-sm-inline">User</span>
+                        <i className="fs-5 bi-people"></i><span className="ms-1 d-none d-sm-inline">Pengguna</span>
+                    </Link>
+
+                    <Link to="/admin/complaints" className="nav-link text-dark-custom px-sm-0 px-2">
+                        <i className="fs-5 bi-pencil"></i><span className="ms-1 d-none d-sm-inline">Aduan</span>
                     </Link>
 {/* 
                     <Link to="/admin/livestream" className="nav-link text-dark-custom px-sm-0 px-2">

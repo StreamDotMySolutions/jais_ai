@@ -21,6 +21,7 @@ import ApiLog from './views/pages/User/ApiLog';
 // role = Admin
 import AdminHomePage from './views/pages/Admin/Home';
 import UserManagement from './views/pages/Admin/Users';
+import ComplaintManagement from './views/pages/Admin/Complaints';
 
 
 // Common
@@ -75,6 +76,7 @@ function App() {
           <Route element={<AdminLayout />}>`
             <Route path="/admin/home" element={<AdminHomePage />} />
             <Route path="/admin/users" element={<UserManagement />} />
+            <Route path="/admin/complaints" element={<ComplaintManagement />} />
           </Route>
         </Route>
       </Routes>
