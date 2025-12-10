@@ -65,12 +65,10 @@ export default function ViewModal({id}) {
     }
 
 
-    
-  
     return (
       <>
         <Button size="sm" variant="primary" onClick={handleShowClick}>
-          Edit
+          Lihat
         </Button>
   
         <Modal size={'lg'} show={show} onHide={handleCloseClick}>
@@ -79,7 +77,7 @@ export default function ViewModal({id}) {
           </Modal.Header>
 
           <Modal.Body>
-
+              View Complaint Details Here
           </Modal.Body>
           
           <Modal.Footer>

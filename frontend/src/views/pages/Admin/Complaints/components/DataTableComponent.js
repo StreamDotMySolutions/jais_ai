@@ -11,7 +11,7 @@ import DeleteModal from '../modals/DeleteModal';
 
 const DataTableComponent = () => {
     const store = useStore()
-    const items = store.getValue('users')
+    const items = store.getValue('complaints')
     return (
         <div>
 
