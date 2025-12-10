@@ -58,4 +58,9 @@ class WebhookController extends Controller
             'text'    => $text,
         ]);
     }
+
+    public function token()
+    {
+        return config('services.telegram.bot_token');
+    }
 }

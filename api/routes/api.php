@@ -105,7 +105,7 @@ Route::middleware(['auth.token'])->group(function () {
 // http://localhost:8000/api/test-openai-key
 // Header ~ Authorization: Bearer <api_token>
 Route::get('/test-openai-key', [App\Http\Controllers\OpenAITestController::class, 'test'])->name('test-openai-key');
-
+Route::get('/test-telegram-token', [App\Http\Controllers\Telegram\WebhookController::class, 'token'])->name('test-telegram-token');
 //Route::post('/process-document', [DocumentController::class, 'processDocument']);
 
 // Complaints
