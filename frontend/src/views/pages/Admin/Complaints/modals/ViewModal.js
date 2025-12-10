@@ -79,7 +79,7 @@ export default function ViewModal({id}) {
           </Modal.Header>
 
           <Modal.Body>
-            
+
           </Modal.Body>
           
           <Modal.Footer>
@@ -89,14 +89,6 @@ export default function ViewModal({id}) {
               onClick={handleCloseClick}>
               Close
             </Button>
-
-            <Button 
-              disabled={isLoading}
-              variant="primary" 
-              onClick={handleSubmitClick}>
-              Submit
-            </Button>
-
           </Modal.Footer>
         </Modal>
       </>
