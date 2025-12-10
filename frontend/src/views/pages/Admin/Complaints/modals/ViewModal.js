@@ -30,24 +30,24 @@ export default function ViewModal({id}) {
       .then( response => { // success 200
           console.log(response)
           
-          if( response?.data?.user.hasOwnProperty('name') ){
-            store.setValue('name', response?.data?.user?.name )
+          if( response?.data?.complaint.hasOwnProperty('name') ){
+            store.setValue('name', response?.data?.complaint?.name )
           }
 
-          if( response?.data?.user.hasOwnProperty('contact_number') ){
-            store.setValue('contact_number', response?.data?.user?.contact_number )
+          if( response?.data?.complaint.hasOwnProperty('contact_number') ){
+            store.setValue('contact_number', response?.data?.complaint?.contact_number )
           }
 
-          if( response?.data?.user.hasOwnProperty('identification_number') ){
-            store.setValue('identification_number', response?.data?.user?.identification_number )
+          if( response?.data?.complaint.hasOwnProperty('identification_number') ){
+            store.setValue('identification_number', response?.data?.complaint?.identification_number )
           }
 
-          if( response?.data?.user.hasOwnProperty('address') ){
-            store.setValue('address', response?.data?.user?.address )
+          if( response?.data?.complaint.hasOwnProperty('address') ){
+            store.setValue('address', response?.data?.complaint?.address )
           }
 
-          if( response?.data?.user.hasOwnProperty('contents') ){
-            store.setValue('contents', response?.data?.user?.contents )
+          if( response?.data?.complaint.hasOwnProperty('contents') ){
+            store.setValue('contents', response?.data?.complaint?.contents )
           }
 
           })
@@ -73,12 +73,34 @@ export default function ViewModal({id}) {
   
         <Modal size={'lg'} show={show} onHide={handleCloseClick}>
           <Modal.Header closeButton>
-            <Modal.Title>Edit User</Modal.Title>
+            <Modal.Title>Aduan ID : {id}</Modal.Title>
           </Modal.Header>
 
-          <Modal.Body>
-              View Complaint Details Here
-          </Modal.Body>
+        <Modal.Body>
+    
+          <strong>Nama:</strong> {store.getValue('name')} <br/>
+          <strong>K/P:</strong> {store.getValue('identification_number')} <br/>
+          <strong>Alamat:</strong> {store.getValue('address')} <br/>
+          <strong>Telefon:</strong> {store.getValue('contact_number')} 
+          <br/><br/>
+
+          <strong>Aduan:</strong>
+          <div className='mb-3 mt-2' style={{
+              backgroundColor: '#FFF9C4',        // kuning cair
+              padding: '12px',
+              borderRadius: '6px',
+              border: '1px solid #F0E68C'
+             }}>
+            
+              
+              {store.getValue('contents')}
+              
+          </div>
+
+
+        </Modal.Body>
+
+
           
           <Modal.Footer>
             <Button 
