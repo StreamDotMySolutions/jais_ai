@@ -35,4 +35,8 @@ return [
         'api_key' => env('OPENAI_API_KEY'),
     ],
 
+    'telegram' => [
+        'bot_token' => env('TELEGRAM_BOT_TOKEN'),
+    ],
+
 ];
