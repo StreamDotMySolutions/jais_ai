@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Telegram;
 use App\Http\Controllers\Controller; 
-
+use App\Models\TelegramMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 
@@ -18,6 +18,13 @@ class WebhookController extends Controller
         $chatId = $update['message']['chat']['id'] ?? null;
         $text   = strtolower(trim($update['message']['text'] ?? ''));
 
+        // save chatid dan message  dalam database untuk AI memory ( nanti )
+        TelegramMessage::create([
+            'chatid'  => $chatId,
+            'messages'=> $text,
+        ]); 
+
+        // Contoh balas "hello" dengan "world"
         if ($chatId && $text === 'hello') {
             $this->sendMessage($chatId, 'world');
         }
