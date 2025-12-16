@@ -126,3 +126,8 @@ Route::get('/telegram/remove-webhook', [App\Http\Controllers\Telegram\WebhookCon
 Route::get('/telegram/webhook-info', [App\Http\Controllers\Telegram\WebhookController::class, 'webhookInfo'])->name('telegram.webhook-info');
 Route::get('/telegram/send-test-message', [App\Http\Controllers\Telegram\WebhookController::class, 'sendTestMessage'])->name('telegram.send-test-message'); 
 Route::get('/telegram/show-token', [App\Http\Controllers\Telegram\WebhookController::class, 'showToken'])->name('telegram.show-token');
+
+// Whatsapp Webhook
+use App\Http\Controllers\WhatsApp\WebhookController as WhatsAppWebhookController;
+Route::get('/whatsapp', [WhatsAppWebhookController::class, 'verify']);
+Route::post('/whatsapp', [WhatsAppWebhookController::class, 'handleWebhook']);
