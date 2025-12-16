@@ -8,9 +8,11 @@ use Illuminate\Support\Facades\Http;
 
 class WebhookController extends Controller
 {
-    public function webhook(Request $request)
+    public function handleWebhook(Request $request)
     {
         $update = $request->all();
+
+        //\Log::info('Telegram Webhook Update:', $update);
 
         // Dapatkan chat_id & mesej user
         $chatId = $update['message']['chat']['id'] ?? null;
@@ -22,6 +24,8 @@ class WebhookController extends Controller
 
         return response()->json(['ok' => true]);
     }
+
+
 
     /** Hantar mesej ke Telegram user 
      * @param int $chatId
@@ -59,8 +63,39 @@ class WebhookController extends Controller
         ]);
     }
 
-    public function token()
+    public function showToken()
     {
         return config('services.telegram.bot_token');
+    }
+
+    public function setWebhook()
+    {
+        $token = config('services.telegram.bot_token');
+        $appUrl = config('app.url');
+        $webhookUrl = "{$appUrl}/api/telegram/webhook";
+
+        $response = Http::post("https://api.telegram.org/bot{$token}/setWebhook", [
+            'url' => $webhookUrl,
+        ]);
+
+        return $response->json();
+    }
+
+    public function removeWebhook()
+    {
+        $token = config('services.telegram.bot_token');
+
+        $response = Http::post("https://api.telegram.org/bot{$token}/deleteWebhook");
+
+        return $response->json();
+    }
+
+    public function webhookInfo()
+    {
+        $token = config('services.telegram.bot_token');
+
+        $response = Http::get("https://api.telegram.org/bot{$token}/getWebhookInfo");
+
+        return $response->json();
     }
 }

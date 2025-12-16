@@ -116,5 +116,13 @@ Route::get('/complaints', function () {
             ]);
 });
 
+// Complaint submission
 Route::post('/complaints', [App\Http\Controllers\ComplaintController::class, 'store']);
 
+// Telegram Webhook
+Route::post('/telegram/webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'handleWebhook'])->name('telegram.webhook');
+Route::get('/telegram/set-webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'setWebhook'])->name('telegram.set-webhook');
+Route::get('/telegram/remove-webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'removeWebhook'])->name('telegram.remove-webhook');
+Route::get('/telegram/webhook-info', [App\Http\Controllers\Telegram\WebhookController::class, 'webhookInfo'])->name('telegram.webhook-info');
+Route::get('/telegram/send-test-message', [App\Http\Controllers\Telegram\WebhookController::class, 'sendTestMessage'])->name('telegram.send-test-message'); 
+Route::get('/telegram/show-token', [App\Http\Controllers\Telegram\WebhookController::class, 'showToken'])->name('telegram.show-token');
