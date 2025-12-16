@@ -5,6 +5,7 @@ use App\Http\Controllers\Controller;
 use App\Models\TelegramMessage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Jobs\SendToLlmJob;   // Import SendToLlmJob
 
 class WebhookController extends Controller
 {
@@ -24,10 +25,28 @@ class WebhookController extends Controller
             'messages'=> $text,
         ]); 
 
-        // Contoh balas "hello" dengan "world"
-        if ($chatId && $text === 'hello') {
-            $this->sendMessage($chatId, 'world');
+        // 2. Detect command Telegram
+        if (str_starts_with($text, '/')) {
+            \Log::info('Telegram command detected, skip LLM', [
+                'text' => $text
+            ]);
+
+            // optional: handle command di sini
+            // $this->handleCommand($message);
+
+            return response()->json(['ok' => true]);
         }
+
+        // 3. Hantar mesej ke LLM secara asynchronous menggunakan Job
+        $chatId  = data_get($request->all(), 'message.chat.id');
+        $message = data_get($request->all(), 'message.text');
+
+        dispatch(new SendToLlmJob($message, $chatId));
+
+        // Contoh balas "hello" dengan "world"
+        // if ($chatId && $text === 'hello') {
+        //     $this->sendMessage($chatId, 'world');
+        // }
 
         return response()->json(['ok' => true]);
     }
