@@ -8,6 +8,7 @@ use App\Models\ComplaintModel;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use App\Jobs\WhatsAppSendToLlmJob;   
+use App\Jobs\SendToLlmJob;
 
 
 class WebhookController extends Controller
@@ -47,9 +48,15 @@ class WebhookController extends Controller
 
 
         // Dispatch ke LLM (WhatsApp)
-        dispatch(new WhatsAppSendToLlmJob(
+        // dispatch(new WhatsAppSendToLlmJob(
+        //     message: $message,
+        //     phone: $from,
+        // ));
+
+        dispatch(new SendToLlmJob(
             message: $message,
-            phone: $from,
+            from: $from,
+            channel: 'whatsapp'
         ));
 
   

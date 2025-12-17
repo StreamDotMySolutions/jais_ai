@@ -15,12 +15,14 @@ class SendToLlmJob implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public string $message;
-    public int $chatId;
+    public string $from;
+    public string $channel;
 
-    public function __construct(string $message, int $chatId)
+    public function __construct(string $message, string $from, string $channel)
     {
         $this->message = $message;
-        $this->chatId  = $chatId;
+        $this->from    = $from;
+        $this->channel = $channel;
     }
 
     public function handle(): void
@@ -57,10 +59,51 @@ class SendToLlmJob implements ShouldQueue
             return;
         }
 
-        // 2. Balas ke Telegram
+
+        switch ($this->channel) {
+            case 'telegram':
+                $this->sendToTelegram($reply);
+                break;
+            case 'whatsapp':
+                $this->sendToWhatsApp($reply);
+                break;
+            default:
+                Log::error('Unknown channel for SendToLlmJob', [
+                    'channel' => $this->channel,
+                ]);
+                break;
+        }
+    }
+
+    private function sendToTelegram(string $reply)
+    {
         Http::post("https://api.telegram.org/bot" . config('services.telegram.bot_token') . "/sendMessage", [
-            'chat_id' => $this->chatId,
+            'chat_id' => $this->from,
             'text' => $reply,
         ]);
+    }
+
+    private function sendToWhatsApp(string $reply)
+    {
+        \Log::info('Sending WhatsApp reply', [
+            'to' => $this->from,
+            'reply' => $reply,
+        ]);
+        
+        // Implementation for sending to WhatsApp
+        Http::withToken(config('services.whatsapp.token'))
+            ->post(
+                'https://graph.facebook.com/v19.0/' .
+                config('services.whatsapp.phone_number_id') .
+                '/messages',
+                [
+                    'messaging_product' => 'whatsapp',
+                    'to'   => $this->from,
+                    'type' => 'text',
+                    'text' => [
+                        'body' => $reply,
+                    ],
+                ]
+            );
     }
 }

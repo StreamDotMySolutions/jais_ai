@@ -41,7 +41,11 @@ class WebhookController extends Controller
         $chatId  = data_get($request->all(), 'message.chat.id');
         $message = data_get($request->all(), 'message.text');
 
-        dispatch(new SendToLlmJob($message, $chatId));
+        dispatch(new SendToLlmJob(
+                $message = $message, 
+                $from = $chatId, 
+                $channel = 'telegram'
+        ));
 
         // Contoh balas "hello" dengan "world"
         // if ($chatId && $text === 'hello') {
