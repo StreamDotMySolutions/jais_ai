@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\ComplaintModel;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
+use App\Jobs\WhatsAppSendToLlmJob;   
 
 
 class WebhookController extends Controller
@@ -44,10 +45,19 @@ class WebhookController extends Controller
             return response()->json(['status' => 'ignored']);
         }
 
+
+        // Dispatch ke LLM (WhatsApp)
+        dispatch(new WhatsAppSendToLlmJob(
+            message: $message,
+            phone: $from,
+        ));
+
+  
+
         // LOGIC HELLO → WORLD
-        if ($message === 'hello') {
-            $this->sendMessage($from, 'world');
-        }
+        // if ($message === 'hello') {
+        //     $this->sendMessage($from, 'world');
+        // }
 
         return response()->json(['status' => 'ok']);
 
