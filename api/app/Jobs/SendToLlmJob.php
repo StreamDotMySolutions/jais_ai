@@ -36,12 +36,24 @@ class SendToLlmJob implements ShouldQueue
             return;
         }
 
+        // $llmResponse = Http::withHeaders([
+        //     'Authorization' => 'Bearer ' . $openaiKey,
+        // ])->post('https://api.openai.com/v1/chat/completions', [
+        //     'model' => 'gpt-4.1-mini',
+        //     'messages' => [
+        //         ['role' => 'system', 'content' => 'You are a helpful assistant. Use Bahasa Melayu by default then switch to English if the user uses English. Keep the answers concise and to the point.'],
+        //         ['role' => 'user', 'content' => $this->message],
+        //     ],
+        // ]);
+
+        $systemPrompt = config('llm.complaint_system_prompt');
+
         $llmResponse = Http::withHeaders([
             'Authorization' => 'Bearer ' . $openaiKey,
         ])->post('https://api.openai.com/v1/chat/completions', [
             'model' => 'gpt-4.1-mini',
             'messages' => [
-                ['role' => 'system', 'content' => 'You are a helpful assistant. Use Bahasa Melayu by default then switch to English if the user uses English. Keep the answers concise and to the point.'],
+                ['role' => 'system', 'content' => $systemPrompt],
                 ['role' => 'user', 'content' => $this->message],
             ],
         ]);
@@ -89,7 +101,7 @@ class SendToLlmJob implements ShouldQueue
             'to' => $this->from,
             'reply' => $reply,
         ]);
-        
+
         // Implementation for sending to WhatsApp
         Http::withToken(config('services.whatsapp.token'))
             ->post(
