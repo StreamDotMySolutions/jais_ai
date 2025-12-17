@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use App\Jobs\WhatsAppSendToLlmJob;   
 use App\Jobs\SendToLlmJob;
+use App\Models\ChatMessage;
 
 
 class WebhookController extends Controller
@@ -46,6 +47,24 @@ class WebhookController extends Controller
             return response()->json(['status' => 'ignored']);
         }
 
+        // detect command WhatsApp
+        if (str_starts_with($message, '/')) {
+            \Log::info('WhatsApp command detected, skip LLM', [
+                'message' => $message
+            ]);     
+            // optional: handle command di sini
+            // $this->handleCommand($message);  
+
+            return response()->json(['status' => 'command detected']);
+        }
+        
+        // Save chat message to database for AI memory (future use)
+        ChatMessage::create([
+            'channel' => 'whatsapp',
+            'chat_id' => $from,
+            'role'    => 'user',
+            'content' => $message,
+        ]);
 
         // Dispatch ke LLM (WhatsApp)
         // dispatch(new WhatsAppSendToLlmJob(
@@ -66,33 +85,33 @@ class WebhookController extends Controller
         //     $this->sendMessage($from, 'world');
         // }
 
-        return response()->json(['status' => 'ok']);
+        //return response()->json(['status' => 'ok']);
 
     }
 
-    public function sendMessage($to, $message)
-    {
+    // public function sendMessage($to, $message)
+    // {
      
-        $token = env('WHATSAPP_ACCESS_TOKEN');
-        $phone_id = env('WHATSAPP_PHONE_NUMBER_ID');
+    //     $token = env('WHATSAPP_ACCESS_TOKEN');
+    //     $phone_id = env('WHATSAPP_PHONE_NUMBER_ID');
 
-           $url = "https://graph.facebook.com/v15.0/{$phone_id}/messages";
+    //        $url = "https://graph.facebook.com/v15.0/{$phone_id}/messages";
 
-        $response = Http::withToken($token)->post($url, [
-            'messaging_product' => 'whatsapp',
-            'to' => $to,
-            'text' => [
-                'body' => $message
-            ]
-        ]);
+    //     $response = Http::withToken($token)->post($url, [
+    //         'messaging_product' => 'whatsapp',
+    //         'to' => $to,
+    //         'text' => [
+    //             'body' => $message
+    //         ]
+    //     ]);
 
-        \Log::info('WhatsApp Send Message Response:', ['response' => $response->json()]);
-    }
+    //     \Log::info('WhatsApp Send Message Response:', ['response' => $response->json()]);
+    // }
 
-    public function test()
-    {
-        return response()->json(['message' => 'WhatsApp Webhook is working!'], 200);
-    }
+    // public function test()
+    // {
+    //     return response()->json(['message' => 'WhatsApp Webhook is working!'], 200);
+    // }
 
 
  

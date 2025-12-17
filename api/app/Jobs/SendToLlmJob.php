@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Models\ChatMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -27,35 +28,65 @@ class SendToLlmJob implements ShouldQueue
 
     public function handle(): void
     {
-        // 1. Hantar ke LLM
-        // Prefer OPENAI_API_KEY from .env, fallback to services config
-        $openaiKey = env('OPENAI_API_KEY') ?: config('services.openai.api_key');
 
-        if (empty($openaiKey)) {
-            Log::error('OpenAI API key not configured. Set OPENAI_API_KEY in .env or services.openai.key in config.');
+        \Log::info($this->channel . ' SendToLlmJob started', [
+            'from'    => $this->from,
+            'message' => $this->message,
+        ]);
+
+        // 0️⃣ Detect arahan sistem dan bypass LLM
+        if ($this->isStoreComplaintCommand($this->message)) {
+            $this->handleStoreComplaint($this->message);
             return;
         }
 
-        // $llmResponse = Http::withHeaders([
-        //     'Authorization' => 'Bearer ' . $openaiKey,
-        // ])->post('https://api.openai.com/v1/chat/completions', [
-        //     'model' => 'gpt-4.1-mini',
-        //     'messages' => [
-        //         ['role' => 'system', 'content' => 'You are a helpful assistant. Use Bahasa Melayu by default then switch to English if the user uses English. Keep the answers concise and to the point.'],
-        //         ['role' => 'user', 'content' => $this->message],
-        //     ],
-        // ]);
+        // 0. Simpan mesej USER (memori)
+        ChatMessage::create([
+            'channel' => $this->channel,
+            'chat_id' => $this->from,
+            'role'    => 'user',
+            'content' => $this->message,
+        ]);
 
-        $systemPrompt = config('llm.complaint_system_prompt');
+        // 1. Ambil OpenAI API key
+        $openaiKey = env('OPENAI_API_KEY') ?: config('services.openai.api_key');
 
+        if (!$openaiKey) {
+            Log::error('OpenAI API key not configured');
+            return;
+        }
+
+        // 2. Ambil 10 mesej terakhir sebagai memori
+        $chatHistory = ChatMessage::where('channel', $this->channel)
+            ->where('chat_id', $this->from)
+            ->latest()
+            ->take(10)
+            ->get(['role', 'content'])
+            ->reverse()
+            ->map(fn ($m) => [
+                'role' => $m->role,
+                'content' => $m->content,
+            ])
+            ->toArray();
+
+        // 3. Bina payload OpenAI (STRUKTUR BETUL)
+        $messages = array_merge(
+            [
+                [
+                    'role' => 'system',
+                    'content' => config('llm.complaint_system_prompt'),
+                ],
+            ],
+            $chatHistory
+        );
+
+        // 4. Hantar ke OpenAI
         $llmResponse = Http::withHeaders([
             'Authorization' => 'Bearer ' . $openaiKey,
+            'Content-Type'  => 'application/json',
         ])->post('https://api.openai.com/v1/chat/completions', [
             'model' => 'gpt-4.1-mini',
-            'messages' => [
-                ['role' => 'system', 'content' => $systemPrompt],
-                ['role' => 'user', 'content' => $this->message],
-            ],
+            'messages' => $messages,
         ]);
 
         if (!$llmResponse->ok()) {
@@ -71,38 +102,56 @@ class SendToLlmJob implements ShouldQueue
             return;
         }
 
+        // if reply starts with /store_complaint, skip reply
+        if (str_starts_with($reply, '/store_complaint')) {
+            Log::info('Store complaint command detected, skip reply', [
+                'reply' => $reply,
+            ]);
 
-        switch ($this->channel) {
-            case 'telegram':
-                $this->sendToTelegram($reply);
-                break;
-            case 'whatsapp':
-                $this->sendToWhatsApp($reply);
-                break;
-            default:
-                Log::error('Unknown channel for SendToLlmJob', [
-                    'channel' => $this->channel,
-                ]);
-                break;
+            // clear ChatMessage for this chat_id and channel
+            ChatMessage::where('channel', $this->channel)
+                ->where('chat_id', $this->from)
+                ->delete();
+            
+
+            // send reply to user
+            $this->sendReply('Aduan anda telah diterima. Terima kasih.');
+            return;
         }
-    }
 
-    private function sendToTelegram(string $reply)
-    {
-        Http::post("https://api.telegram.org/bot" . config('services.telegram.bot_token') . "/sendMessage", [
+        // 5. Simpan jawapan ASSISTANT (memori)
+        ChatMessage::create([
+            'channel' => $this->channel,
             'chat_id' => $this->from,
-            'text' => $reply,
+            'role'    => 'assistant',
+            'content' => $reply,
         ]);
+
+        // 6. Hantar ke channel
+        match ($this->channel) {
+            'telegram' => $this->sendToTelegram($reply),
+            'whatsapp' => $this->sendToWhatsApp($reply),
+            default => Log::error('Unknown channel', [
+                'channel' => $this->channel,
+            ]),
+        };
     }
 
-    private function sendToWhatsApp(string $reply)
+    private function sendToTelegram(string $reply): void
     {
-        \Log::info('Sending WhatsApp reply', [
-            'to' => $this->from,
-            'reply' => $reply,
-        ]);
+        Http::post(
+            'https://api.telegram.org/bot' .
+            config('services.telegram.bot_token') .
+            '/sendMessage',
+            [
+                'chat_id' => $this->from,
+                'text' => $reply,
+            ]
+        );
+    }
 
-        // Implementation for sending to WhatsApp
+    private function sendToWhatsApp(string $reply): void
+    {
         Http::withToken(config('services.whatsapp.token'))
             ->post(
                 'https://graph.facebook.com/v19.0/' .
@@ -117,5 +166,37 @@ class SendToLlmJob implements ShouldQueue
                     ],
                 ]
             );
+    }
+
+    private function isStoreComplaintCommand(string $message): bool
+    {
+        return str_starts_with(trim($message), '/store_complaint');
+    }
+
+    private function handleStoreComplaint(string $message): void
+    {
+        // Simpan sebagai system message (opsyenal, untuk audit)
+        ChatMessage::create([
+            'channel' => $this->channel,
+            'chat_id' => $this->from,
+            'role'    => 'system',
+            'content' => $message,
+        ]);
+
+        // Jawapan tetap (TIDAK ulang butiran)
+        $ack = 'Aduan anda telah diterima. Terima kasih.';
+
+        $this->sendReply($ack);
+    }
+
+    private function sendReply(string $text): void
+    {
+        match ($this->channel) {
+            'telegram' => $this->sendToTelegram($text),
+            'whatsapp' => $this->sendToWhatsApp($text),
+            default => Log::error('Unknown channel for sending reply', [
+                'channel' => $this->channel,
+            ]),
+        };
     }
 }

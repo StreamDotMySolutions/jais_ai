@@ -13,10 +13,12 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('telegram_messages', function (Blueprint $table) {
+        Schema::create('chat_messages', function (Blueprint $table) {
             $table->id();
-            $table->bigInteger('chatid');
-            $table->text('messages');
+            $table->string('channel');
+            $table->string('chat_id')->index();
+            $table->enum('role', ['user', 'assistant', 'system']);
+            $table->text('content');
             $table->timestamps();
         });
     }
@@ -28,6 +30,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('telegram_messages');
+        Schema::dropIfExists('chat_messages');
     }
 };

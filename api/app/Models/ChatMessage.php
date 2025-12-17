@@ -5,19 +5,21 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class TelegramMessage extends Model
+class ChatMessage extends Model
 {
     use HasFactory;
 
-    protected $table = 'telegram_messages';
+    protected $table = 'chat_messages';
 
     protected $fillable = [
-        'chatid',
-        'messages',
+        'channel',
+        'chat_id',
+        'role',
+        'content',
     ];
 
     protected $casts = [
-        'chatid' => 'string',
-        'messages' => 'string',
+        'chat_id' => 'string',
+        'content' => 'string',
     ];
 }

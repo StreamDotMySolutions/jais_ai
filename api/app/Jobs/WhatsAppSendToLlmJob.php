@@ -67,6 +67,14 @@ class WhatsAppSendToLlmJob implements ShouldQueue
             return;
         }
 
+        // if reply starts with /store_complaint, skip reply
+        if (str_starts_with($reply, '/store_complaint')) {
+            Log::info('Store complaint command detected, skip WhatsApp reply', [
+                'reply' => $reply,
+            ]);
+            return;
+        }
+
         // 3. Hantar balasan ke WhatsApp
         $this->replyToWhatsApp($reply);
     }
