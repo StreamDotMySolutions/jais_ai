@@ -108,6 +108,32 @@ class SendToLlmJob implements ShouldQueue
                 'reply' => $reply,
             ]);
 
+            // 1. Remove the command part
+            $jsonString = trim(substr($reply, strlen('/store_complaint')));
+
+            // 2. Decode JSON into array
+            $data = json_decode($jsonString, true);
+
+            // 3. Safety check (LLM can hallucinate)
+            if (! is_array($data)) {
+                // log error or silently ignore
+                return;
+            }
+
+            \Log::info('Storing complaint from WhatsApp', [
+                'data' => $data,
+            ]);
+
+            // 4. Store in Complaint DB
+            \App\Models\Complaint::create([
+                'contact_number' => $this->from,
+                'contents'       => $data['contents'] ?? null,
+                // optional:
+                 'address'    => $data['location'] ?? null,
+                 'name'        => $data['name'] ?? null,
+            ]);
+
+
             // clear ChatMessage for this chat_id and channel
             ChatMessage::where('channel', $this->channel)
                 ->where('chat_id', $this->from)

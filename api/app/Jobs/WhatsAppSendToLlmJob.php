@@ -72,6 +72,33 @@ class WhatsAppSendToLlmJob implements ShouldQueue
             Log::info('Store complaint command detected, skip WhatsApp reply', [
                 'reply' => $reply,
             ]);
+
+            // 1. Remove the command part
+            $jsonString = trim(substr($reply, strlen('/store_complaint')));
+
+            // 2. Decode JSON into array
+            $data = json_decode($jsonString, true);
+
+            // 3. Safety check (LLM can hallucinate)
+            if (! is_array($data)) {
+                // log error or silently ignore
+                return;
+            }
+
+            \Log::info('Storing complaint from WhatsApp', [
+                'data' => $data,
+            ]);
+
+            // 4. Store in DB
+            \App\Models\Complaint::create([
+                'contact_number' => $data['phone_no'] ?? $this->phone,
+                'contents'       => $data['contents'] ?? null,
+                // optional:
+                 'location'    => $data['location'] ?? null,
+                 'name'        => $data['name'] ?? null,
+            ]);
+
+
             return;
         }
 
