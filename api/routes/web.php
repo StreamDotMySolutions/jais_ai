@@ -16,3 +16,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     return view('welcome');
 });
+
+// Privacy URL needed by WhatsApp Business API
+Route::get('/privacy', function () {
+    return view('privacy');
+});

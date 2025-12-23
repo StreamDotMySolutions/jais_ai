@@ -26,6 +26,8 @@ use App\Http\Controllers\Modules\{
 };
 
 
+
+
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
     $user = $request->user(); // Get the authenticated user
