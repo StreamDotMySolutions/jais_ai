@@ -14,12 +14,14 @@ return new class extends Migration
         Schema::create('complaints', function (Blueprint $table) {
             $table->id();
            
+            $table->string('channel')->nullable(); // telegram / whatsapp / web
             $table->string('name')->nullable();
             $table->string('occupation')->nullable();
             $table->string('identification_number')->nullable(); 
             $table->string('contact_number')->nullable();
             $table->text('address')->nullable();
             $table->text('contents')->nullable();
+            $table->enum('status', ['received', 'processed', 'closed'])->default('received');
 
             $table->timestamps();
         });

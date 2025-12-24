@@ -98,52 +98,21 @@ class SendToLlmJob implements ShouldQueue
 
         $reply = data_get($llmResponse->json(), 'choices.0.message.content');
 
+        // Jika tiada reply, hentikan di sini
         if (!$reply) {
             return;
         }
 
-        // if reply starts with /store_complaint, skip reply
-        if (str_starts_with($reply, '/store_complaint')) {
-            Log::info('Store complaint command detected, skip reply', [
-                'reply' => $reply,
-            ]);
-
-            // 1. Remove the command part
-            $jsonString = trim(substr($reply, strlen('/store_complaint')));
-
-            // 2. Decode JSON into array
-            $data = json_decode($jsonString, true);
-
-            // 3. Safety check (LLM can hallucinate)
-            if (! is_array($data)) {
-                // log error or silently ignore
-                return;
-            }
-
-            \Log::info('Storing complaint from WhatsApp', [
-                'data' => $data,
-            ]);
-
-            // 4. Store in Complaint DB
-            \App\Models\Complaint::create([
-                'contact_number' => $this->from,
-                'contents'       => $data['contents'] ?? null,
-                // optional:
-                 'address'    => $data['location'] ?? null,
-                 'name'        => $data['name'] ?? null,
-            ]);
-
-
-            // clear ChatMessage for this chat_id and channel
-            ChatMessage::where('channel', $this->channel)
-                ->where('chat_id', $this->from)
-                ->delete();
-            
-
-            // send reply to user
-            $this->sendReply('Aduan anda telah diterima. Terima kasih.');
+        // Detect /store_complaint command in reply
+        if($this->isStoreComplaintCommand($reply)) {
+            $this->handleStoreComplaint($reply);
             return;
-        }
+        }   
+
+        // if reply starts with /store_complaint, skip reply
+        // if (str_starts_with($reply, '/store_complaint')) {
+        //     return;
+        // }
 
         // 5. Simpan jawapan ASSISTANT (memori)
         ChatMessage::create([
@@ -158,6 +127,69 @@ class SendToLlmJob implements ShouldQueue
             'telegram' => $this->sendToTelegram($reply),
             'whatsapp' => $this->sendToWhatsApp($reply),
             default => Log::error('Unknown channel', [
+                'channel' => $this->channel,
+            ]),
+        };
+    }
+
+
+    // Detect if the message is a /store_complaint command
+    private function isStoreComplaintCommand(string $message): bool
+    {
+        return str_starts_with(trim($message), '/store_complaint');
+    }
+
+    // Handle the /store_complaint command
+    private function handleStoreComplaint(string $message): void
+    {
+       Log::info('Store complaint command detected, skip reply', [
+                'reply' => $message,
+            ]);
+
+        // 1. Remove the command part
+        $jsonString = trim(substr($message, strlen('/store_complaint')));
+
+        // 2. Decode JSON into array
+        $data = json_decode($jsonString, true);
+
+        // 3. Safety check (LLM can hallucinate)
+        if (! is_array($data)) {
+            // log error or silently ignore
+            return;
+        }
+
+        \Log::info('Storing complaint from WhatsApp', [
+            'data' => $data,
+        ]);
+
+        // 4. Store in Complaint DB
+        \App\Models\Complaint::create([
+            'contact_number' => $this->from,
+            'contents'       => $data['contents'] ?? null,
+            // optional:
+                'address'    => $data['location'] ?? null,
+                'name'        => $data['name'] ?? null,
+                'channel'     => $this->channel,
+                'status'      => 'received',
+        ]);
+
+
+        // clear ChatMessage for this chat_id and channel
+        ChatMessage::where('channel', $this->channel)
+            ->where('chat_id', $this->from)
+            ->delete();
+        
+
+        // send reply to user
+        $this->sendReply('Aduan anda telah diterima. Terima kasih.');
+    }
+
+    private function sendReply(string $text): void
+    {
+        match ($this->channel) {
+            'telegram' => $this->sendToTelegram($text),
+            'whatsapp' => $this->sendToWhatsApp($text),
+            default => Log::error('Unknown channel for sending reply', [
                 'channel' => $this->channel,
             ]),
         };
@@ -192,37 +224,5 @@ class SendToLlmJob implements ShouldQueue
                     ],
                 ]
             );
-    }
-
-    private function isStoreComplaintCommand(string $message): bool
-    {
-        return str_starts_with(trim($message), '/store_complaint');
-    }
-
-    private function handleStoreComplaint(string $message): void
-    {
-        // Simpan sebagai system message (opsyenal, untuk audit)
-        ChatMessage::create([
-            'channel' => $this->channel,
-            'chat_id' => $this->from,
-            'role'    => 'system',
-            'content' => $message,
-        ]);
-
-        // Jawapan tetap (TIDAK ulang butiran)
-        $ack = 'Aduan anda telah diterima. Terima kasih.';
-
-        $this->sendReply($ack);
-    }
-
-    private function sendReply(string $text): void
-    {
-        match ($this->channel) {
-            'telegram' => $this->sendToTelegram($text),
-            'whatsapp' => $this->sendToWhatsApp($text),
-            default => Log::error('Unknown channel for sending reply', [
-                'channel' => $this->channel,
-            ]),
-        };
     }
 }
