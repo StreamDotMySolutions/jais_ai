@@ -55,6 +55,10 @@ function App() {
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/contact-us" element={<ContactUs />} />
            <Route path="/complaint" element={<Complaint />} />
+        </Route>
+
+        {/* Auth Layout */}
+        <Route element={<HomeLayout />}>
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/register" element={<Register />} />
         </Route>
