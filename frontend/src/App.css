@@ -1798,6 +1798,17 @@
   margin-top: 1rem;
 }
 
+.app-form-section h5 {
+  margin: 0 0 0.3rem;
+  color: #1f2f26;
+}
+
+.app-form-section p {
+  margin: 0;
+  color: #6b7a83;
+  font-size: 0.9rem;
+}
+
 .app-detail-header {
   display: flex;
   justify-content: space-between;

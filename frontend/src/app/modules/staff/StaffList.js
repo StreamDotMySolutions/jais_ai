@@ -13,12 +13,14 @@ const emptyForm = {
     district_id: '',
     email: '',
     password: '',
+    role: '',
 };
 
 const StaffList = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const [staff, setStaff] = useState([]);
     const [districts, setDistricts] = useState([]);
+    const [roles, setRoles] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState(emptyForm);
@@ -64,6 +66,19 @@ const StaffList = () => {
             .catch(() => {});
     }, [apiUrl]);
 
+    useEffect(() => {
+        if (!apiUrl) {
+            return;
+        }
+        axios.get(`${apiUrl}/roles`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                setRoles(response?.data?.data || []);
+            })
+            .catch(() => {});
+    }, [apiUrl]);
+
     const openCreate = () => {
         setForm(emptyForm);
         setEditingId(null);
@@ -83,6 +98,7 @@ const StaffList = () => {
             district_id: item.district_id || '',
             email: item.user?.email || '',
             password: '',
+            role: item.user?.roles?.[0]?.name || '',
         });
         setEditingId(item.id);
         setShowModal(true);
@@ -109,6 +125,9 @@ const StaffList = () => {
         }
         if (!payload.email) {
             delete payload.email;
+        }
+        if (!payload.role) {
+            delete payload.role;
         }
 
         const request = editingId
@@ -260,6 +279,10 @@ const StaffList = () => {
                                     ))}
                                 </select>
                             </label>
+                            <div className="app-span-full app-form-section">
+                                <h5>Register Akaun</h5>
+                                <p>Sila isi maklumat di bawah untuk auto register akaun.</p>
+                            </div>
                             <label className="app-form-field">
                                 <span>E-mel Akaun (optional)</span>
                                 <input value={form.email} onChange={(e) => updateField('email', e.target.value)} />
@@ -267,6 +290,17 @@ const StaffList = () => {
                             <label className="app-form-field">
                                 <span>Kata Laluan (optional)</span>
                                 <input type="password" value={form.password} onChange={(e) => updateField('password', e.target.value)} />
+                            </label>
+                            <label className="app-form-field">
+                                <span>Role Akaun (optional)</span>
+                                <select value={form.role} onChange={(e) => updateField('role', e.target.value)}>
+                                    <option value="">Pilih Role</option>
+                                    {roles.map((role) => (
+                                        <option key={role.id} value={role.name}>
+                                            {role.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </label>
                             <div className="app-form-actions app-span-full">
                                 <button className="app-button" type="submit">

@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class StaffController extends Controller
 {
@@ -18,7 +19,7 @@ class StaffController extends Controller
         }
 
         $staff = Staff::query()
-            ->with(['user:id,name,email', 'district:id,name'])
+            ->with(['user:id,name,email', 'user.roles', 'district:id,name'])
             ->orderBy('name')
             ->get();
 
@@ -47,7 +48,12 @@ class StaffController extends Controller
             'district_id' => 'nullable|exists:districts,id',
             'email' => 'nullable|string|max:255|unique:users,email',
             'password' => 'nullable|string|min:6',
+            'role' => 'nullable|string|exists:roles,name',
         ]);
+
+        if (! empty($validated['email']) && ! empty($validated['password']) && empty($validated['role'])) {
+            return response()->json(['message' => 'Role diperlukan untuk akaun pengguna.'], 422);
+        }
 
         $staff = DB::transaction(function () use ($validated) {
             $userId = null;
@@ -57,7 +63,9 @@ class StaffController extends Controller
                     'email' => $validated['email'],
                     'password' => Hash::make($validated['password']),
                 ]);
-                $user->assignRole('pegawai');
+                if (! empty($validated['role'])) {
+                    $user->assignRole($validated['role']);
+                }
                 $userId = $user->id;
             }
 
@@ -100,7 +108,12 @@ class StaffController extends Controller
             'district_id' => 'nullable|exists:districts,id',
             'email' => 'nullable|string|max:255|unique:users,email,' . ($staff->user_id ?? 'NULL'),
             'password' => 'nullable|string|min:6',
+            'role' => 'nullable|string|exists:roles,name',
         ]);
+
+        if (! empty($validated['email']) && ! empty($validated['password']) && empty($validated['role'])) {
+            return response()->json(['message' => 'Role diperlukan untuk akaun pengguna.'], 422);
+        }
 
         DB::transaction(function () use ($staff, $validated) {
             if (! empty($validated['email'])) {
@@ -114,13 +127,18 @@ class StaffController extends Controller
                             'password' => Hash::make($validated['password']),
                         ]);
                     }
+                    if (! empty($validated['role'])) {
+                        $staff->user->syncRoles([$validated['role']]);
+                    }
                 } elseif (! empty($validated['password'])) {
                     $user = User::create([
                         'name' => $validated['name'],
                         'email' => $validated['email'],
                         'password' => Hash::make($validated['password']),
                     ]);
-                    $user->assignRole('pegawai');
+                    if (! empty($validated['role'])) {
+                        $user->assignRole($validated['role']);
+                    }
                     $staff->user_id = $user->id;
                 }
             }

@@ -9,7 +9,8 @@ use App\Http\Controllers\{
     AuthController,
     ComplaintController,
     ReferenceController,
-    StaffController
+    StaffController,
+    RoleController
 };
 
 // role = User
@@ -145,6 +146,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/staff', [StaffController::class, 'index']);
     Route::post('/staff', [StaffController::class, 'store']);
     Route::put('/staff/{staff}', [StaffController::class, 'update'])->whereNumber('staff');
+    Route::get('/roles', [RoleController::class, 'index']);
 });
 
 // Districts (public reference list)
