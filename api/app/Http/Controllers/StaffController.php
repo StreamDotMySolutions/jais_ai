@@ -1,0 +1,146 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Staff;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+
+class StaffController extends Controller
+{
+    public function index(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $staff = Staff::query()
+            ->with(['user:id,name,email', 'district:id,name'])
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'message' => 'Staff list',
+            'data' => $staff,
+        ]);
+    }
+
+    public function store(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'ic_number' => 'nullable|string|max:255',
+            'staff_id' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:2000',
+            'marital_status' => 'nullable|string|max:255',
+            'position' => 'nullable|string|max:255',
+            'department' => 'nullable|string|max:255',
+            'district_id' => 'nullable|exists:districts,id',
+            'email' => 'nullable|string|max:255|unique:users,email',
+            'password' => 'nullable|string|min:6',
+        ]);
+
+        $staff = DB::transaction(function () use ($validated) {
+            $userId = null;
+            if (! empty($validated['email']) && ! empty($validated['password'])) {
+                $user = User::create([
+                    'name' => $validated['name'],
+                    'email' => $validated['email'],
+                    'password' => Hash::make($validated['password']),
+                ]);
+                $user->assignRole('pegawai');
+                $userId = $user->id;
+            }
+
+            return Staff::create([
+                'user_id' => $userId,
+                'name' => $validated['name'],
+                'ic_number' => $validated['ic_number'] ?? null,
+                'staff_id' => $validated['staff_id'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'marital_status' => $validated['marital_status'] ?? null,
+                'position' => $validated['position'] ?? null,
+                'department' => $validated['department'] ?? null,
+                'district_id' => $validated['district_id'] ?? null,
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Staff created',
+            'data' => $staff->load(['user:id,name,email', 'district:id,name']),
+        ]);
+    }
+
+    public function update(Request $request, Staff $staff)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'ic_number' => 'nullable|string|max:255',
+            'staff_id' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:2000',
+            'marital_status' => 'nullable|string|max:255',
+            'position' => 'nullable|string|max:255',
+            'department' => 'nullable|string|max:255',
+            'district_id' => 'nullable|exists:districts,id',
+            'email' => 'nullable|string|max:255|unique:users,email,' . ($staff->user_id ?? 'NULL'),
+            'password' => 'nullable|string|min:6',
+        ]);
+
+        DB::transaction(function () use ($staff, $validated) {
+            if (! empty($validated['email'])) {
+                if ($staff->user_id) {
+                    $staff->user()->update([
+                        'email' => $validated['email'],
+                        'name' => $validated['name'],
+                    ]);
+                    if (! empty($validated['password'])) {
+                        $staff->user()->update([
+                            'password' => Hash::make($validated['password']),
+                        ]);
+                    }
+                } elseif (! empty($validated['password'])) {
+                    $user = User::create([
+                        'name' => $validated['name'],
+                        'email' => $validated['email'],
+                        'password' => Hash::make($validated['password']),
+                    ]);
+                    $user->assignRole('pegawai');
+                    $staff->user_id = $user->id;
+                }
+            }
+
+            $staff->update([
+                'name' => $validated['name'],
+                'ic_number' => $validated['ic_number'] ?? null,
+                'staff_id' => $validated['staff_id'] ?? null,
+                'phone' => $validated['phone'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'marital_status' => $validated['marital_status'] ?? null,
+                'position' => $validated['position'] ?? null,
+                'department' => $validated['department'] ?? null,
+                'district_id' => $validated['district_id'] ?? null,
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Staff updated',
+            'data' => $staff->load(['user:id,name,email', 'district:id,name']),
+        ]);
+    }
+}

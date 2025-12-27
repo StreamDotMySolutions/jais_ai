@@ -5,6 +5,7 @@ const AppSidebar = ({ role }) => {
     const navItems = [
         { to: '/app/dashboard', label: 'Dashboard', icon: 'bi-grid' },
         { to: '/app/complaints', label: 'Senarai Aduan', icon: 'bi-clipboard-check' },
+        { to: '/app/staff', label: 'Staff', icon: 'bi-people', roles: ['admin', 'system'] },
         { to: '/app/api-token', label: 'Api Token', icon: 'bi-key', roles: ['admin', 'user', 'system'] },
         { to: '/app/api-logs', label: 'Api Logs', icon: 'bi-activity', roles: ['admin', 'user', 'system'] },
         { to: '/app/users', label: 'Pengguna', icon: 'bi-people', roles: ['admin', 'system'] },

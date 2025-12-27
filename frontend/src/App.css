@@ -1577,6 +1577,11 @@
   padding: 0.9rem 1.2rem;
 }
 
+.app-staff-header,
+.app-staff-row {
+  grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr 1.2fr 0.6fr;
+}
+
 .app-table-header {
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -1887,6 +1892,18 @@
   margin: 0;
   color: #4b5a60;
   line-height: 1.6;
+}
+
+.app-detail-meta {
+  margin-top: 0.8rem;
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #5a6b61;
+}
+
+.app-detail-meta strong {
+  color: #1f2f26;
 }
 
 .app-back {

@@ -204,7 +204,7 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                     </div>
 
                     <div className="complaint-section">
-                        <h3>Maklumat Aduan</h3>
+                        <h3>Alamat</h3>
                         <Row className='mb-4'>
                             <InputTextarea 
                                 type='text'

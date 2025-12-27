@@ -31,6 +31,7 @@ class ComplaintController extends Controller
     public function show(Request $request, Complaint $complaint)
     {
         $user = $request->user();
+        $complaint->load(['submittedBy:id,name,email,office_type,district_id', 'submittedBy.staff']);
         $approvalsCount = DB::table('complaint_approvals')
             ->where('complaint_id', $complaint->id)
             ->where('decision', 'approved')

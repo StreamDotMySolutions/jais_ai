@@ -23,4 +23,9 @@ class Complaint extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function submittedBy()
+    {
+        return $this->belongsTo(User::class, 'submitted_by_user_id');
+    }
 }

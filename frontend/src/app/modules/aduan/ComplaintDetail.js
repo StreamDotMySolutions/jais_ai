@@ -363,6 +363,13 @@ const ComplaintDetail = () => {
             <div className="app-card">
                 <h4>Ringkasan Aduan</h4>
                 <p className="app-detail-summary">{complaint.summary || '-'}</p>
+                <div className="app-detail-meta">
+                    <span>Penerima Aduan:</span>
+                    <strong>
+                        {complaint.submitted_by?.staff?.name || complaint.submitted_by?.name || '-'}
+                        {complaint.submitted_by?.staff?.staff_id ? ` (${complaint.submitted_by.staff.staff_id})` : ''}
+                    </strong>
+                </div>
             </div>
 
             {(role === 'pegawai' || role === 'admin' || role === 'system') && (

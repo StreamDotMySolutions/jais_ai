@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
             OffenseSeeder::class,
             KhalwatDetailSeeder::class,
             JudiDetailSeeder::class,
+            StaffSeeder::class,
             //ModuleSeeder::class,
         ]);
     }
