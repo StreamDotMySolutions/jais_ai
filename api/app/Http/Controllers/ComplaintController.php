@@ -114,6 +114,69 @@ class ComplaintController extends Controller
             'current_stage' => $complaint->current_stage,
         ]);
     }
+
+    public function updateCaseType(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'case_type' => 'required|string|in:AJ,AK',
+        ]);
+
+        $complaint->update([
+            'case_type' => $request->case_type,
+        ]);
+
+        return response()->json([
+            'message' => 'Case type updated',
+            'case_type' => $complaint->case_type,
+        ]);
+    }
+
+    public function updateAjPayload(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'payload' => 'required|array',
+        ]);
+
+        $complaint->update([
+            'aj_payload' => $request->payload,
+        ]);
+
+        return response()->json([
+            'message' => 'AJ payload updated',
+            'aj_payload' => $complaint->aj_payload,
+        ]);
+    }
+
+    public function updateAkPayload(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'payload' => 'required|array',
+        ]);
+
+        $complaint->update([
+            'ak_payload' => $request->payload,
+        ]);
+
+        return response()->json([
+            'message' => 'AK payload updated',
+            'ak_payload' => $complaint->ak_payload,
+        ]);
+    }
     public function lookup(Request $request)
     {
         $request->validate([

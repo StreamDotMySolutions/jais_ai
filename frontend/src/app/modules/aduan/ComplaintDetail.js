@@ -15,9 +15,48 @@ const ComplaintDetail = () => {
         approvals_required: 2,
         has_approved: false,
     });
+    const [referenceData, setReferenceData] = useState({
+        offenseTypes: [],
+        offenses: [],
+        khalwatDetails: [],
+        judiDetails: [],
+    });
+    const [activeStep, setActiveStep] = useState(0);
+    const [ajPayload, setAjPayload] = useState({
+        offense_id: '',
+        offense_type_id: '',
+        khalwat_detail_id: '',
+        judi_detail_id: '',
+        notes: '',
+    });
+    const [akPayload, setAkPayload] = useState({
+        offense_id: '',
+        offense_type_id: '',
+        email_cc: [],
+        investigation_datetime: '',
+        investigator_name: '',
+        file_received_date: '',
+        ip_status: '',
+        ip_due_date: '',
+        prosecution_date: '',
+        notes: '',
+    });
     const [actionMessage, setActionMessage] = useState('');
+    const [payloadMessage, setPayloadMessage] = useState('');
     const [statusInput, setStatusInput] = useState('');
+    const [caseTypeMessage, setCaseTypeMessage] = useState('');
     const role = localStorage.getItem('role') || 'awam';
+    const emailOptions = [
+        'bpn.siasatan@gmail.com',
+        'bpn.gombak@gmail.com',
+        'bpn.hululangat@gmail.com',
+        'bpn.huluselangor@gmail.com',
+        'bpn.klang@gmail.com',
+        'bpn.kualalangat22@gmail.com',
+        'bpn.kualaselangor@gmail.com',
+        'bpn.sabakbernam@gmail.com',
+        'jais.sepang@gmail.com',
+    ];
 
     useEffect(() => {
         if (!apiUrl) {
@@ -48,6 +87,35 @@ const ComplaintDetail = () => {
             return;
         }
 
+        Promise.all([
+            axios.get(`${apiUrl}/references/offense-types`),
+            axios.get(`${apiUrl}/references/offenses`),
+            axios.get(`${apiUrl}/references/khalwat-details`),
+            axios.get(`${apiUrl}/references/judi-details`),
+        ])
+            .then(([typesRes, offenseRes, khalwatRes, judiRes]) => {
+                setReferenceData({
+                    offenseTypes: typesRes?.data?.data || [],
+                    offenses: offenseRes?.data?.data || [],
+                    khalwatDetails: khalwatRes?.data?.data || [],
+                    judiDetails: judiRes?.data?.data || [],
+                });
+            })
+            .catch(() => {
+                setReferenceData({
+                    offenseTypes: [],
+                    offenses: [],
+                    khalwatDetails: [],
+                    judiDetails: [],
+                });
+            });
+    }, [apiUrl]);
+
+    useEffect(() => {
+        if (!apiUrl) {
+            return;
+        }
+
         axios.get(`${apiUrl}/complaints`)
             .then((response) => {
                 const ids = (response?.data?.data || []).map((item) => item.id);
@@ -57,6 +125,20 @@ const ComplaintDetail = () => {
                 setSortedIds([]);
             });
     }, [apiUrl]);
+
+    useEffect(() => {
+        if (!complaint) {
+            return;
+        }
+
+        setActiveStep(0);
+        if (complaint.aj_payload) {
+            setAjPayload((prev) => ({ ...prev, ...complaint.aj_payload }));
+        }
+        if (complaint.ak_payload) {
+            setAkPayload((prev) => ({ ...prev, ...complaint.ak_payload }));
+        }
+    }, [complaint]);
 
     const submitApproval = () => {
         if (!apiUrl) {
@@ -101,6 +183,65 @@ const ComplaintDetail = () => {
             });
     };
 
+    const updateCaseType = (nextType) => {
+        if (!apiUrl || !nextType || nextType === complaint?.case_type) {
+            return;
+        }
+        const token = localStorage.getItem('token');
+        setCaseTypeMessage('');
+        axios.post(`${apiUrl}/complaints/${id}/case-type`, {
+            case_type: nextType,
+        }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then(() => {
+                setComplaint((prev) => prev ? { ...prev, case_type: nextType } : prev);
+                setActiveStep(0);
+                setCaseTypeMessage('Kategori aduan dikemaskini.');
+            })
+            .catch((err) => {
+                setCaseTypeMessage(err?.response?.data?.message || 'Gagal kemaskini kategori.');
+            });
+    };
+
+    const submitAjPayload = () => {
+        if (!apiUrl) {
+            return;
+        }
+        const token = localStorage.getItem('token');
+        setPayloadMessage('');
+        axios.post(`${apiUrl}/complaints/${id}/aj`, {
+            payload: ajPayload,
+        }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then(() => {
+                setPayloadMessage('Maklumat AJ dikemaskini.');
+            })
+            .catch((err) => {
+                setPayloadMessage(err?.response?.data?.message || 'Gagal kemaskini AJ.');
+            });
+    };
+
+    const submitAkPayload = () => {
+        if (!apiUrl) {
+            return;
+        }
+        const token = localStorage.getItem('token');
+        setPayloadMessage('');
+        axios.post(`${apiUrl}/complaints/${id}/ak`, {
+            payload: akPayload,
+        }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then(() => {
+                setPayloadMessage('Maklumat AK dikemaskini.');
+            })
+            .catch((err) => {
+                setPayloadMessage(err?.response?.data?.message || 'Gagal kemaskini AK.');
+            });
+    };
+
     const handleNext = () => {
         const currentIndex = sortedIds.indexOf(Number(id));
         if (currentIndex === -1 || currentIndex === sortedIds.length - 1) {
@@ -118,6 +259,22 @@ const ComplaintDetail = () => {
         const prevId = sortedIds[currentIndex - 1];
         navigate(`/app/complaints/${prevId}`);
     };
+
+    const ajSteps = [
+        { key: 'ppa', label: 'Tindakan Aduan' },
+        { key: 'laporan', label: 'Laporan Pemeriksaan' },
+        { key: 'barang', label: 'Butiran Barang Kes' },
+        { key: 'siasatan', label: 'Butiran Siasatan' },
+        { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
+    ];
+    const akSteps = [
+        { key: 'tindakan', label: 'Tindakan Aduan' },
+        { key: 'siasatan', label: 'Butiran Siasatan' },
+        { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
+    ];
+    const currentCaseType = complaint?.case_type || 'AJ';
+    const steps = currentCaseType === 'AK' ? akSteps : ajSteps;
+    const activeKey = steps[activeStep]?.key;
 
     if (isLoading) {
         return <div className="app-card">Memuatkan aduan...</div>;
@@ -209,41 +366,269 @@ const ComplaintDetail = () => {
             </div>
 
             {(role === 'pegawai' || role === 'admin' || role === 'system') && (
+                <div className="app-card app-category-card">
+                    <div>
+                        <h4>Kategori Aduan</h4>
+                        <p>Pilih kategori aduan untuk menentukan kes atau keluarga.</p>
+                    </div>
+                    <div className="app-case-toggle">
+                        <label className={complaint.case_type === 'AJ' ? 'active' : ''}>
+                            <input
+                                type="radio"
+                                name="case_type"
+                                value="AJ"
+                                checked={complaint.case_type === 'AJ'}
+                                onChange={() => updateCaseType('AJ')}
+                            />
+                            <span>KES - Aduan Jenayah (AJ)</span>
+                        </label>
+                        <label className={complaint.case_type === 'AK' ? 'active' : ''}>
+                            <input
+                                type="radio"
+                                name="case_type"
+                                value="AK"
+                                checked={complaint.case_type === 'AK'}
+                                onChange={() => updateCaseType('AK')}
+                            />
+                            <span>KELUARGA - Aduan Keluarga (AK)</span>
+                        </label>
+                    </div>
+                    {caseTypeMessage && <div className="app-detail-note">{caseTypeMessage}</div>}
+                </div>
+            )}
+
+            {(role === 'pegawai' || role === 'admin' || role === 'system') && (
                 <div className="app-card">
                     <h4>Tindakan Pegawai</h4>
-                    <div className="app-actions-grid">
-                        <div>
-                            <div className="app-detail-row">
-                                <span>Pengesahan</span>
-                                <strong>{approvalMeta.approvals_count} / {approvalMeta.approvals_required}</strong>
-                            </div>
+                    <div className="app-stepper">
+                        {steps.map((step, index) => (
                             <button
-                                className="app-button"
+                                key={step.key}
                                 type="button"
-                                onClick={submitApproval}
-                                disabled={approvalMeta.has_approved}
+                                className={`app-step ${activeStep === index ? 'active' : ''}`}
+                                onClick={() => setActiveStep(index)}
                             >
-                                {approvalMeta.has_approved ? 'Telah Disahkan' : 'Sahkan Aduan'}
+                                <span>{step.label}</span>
                             </button>
-                        </div>
-                        <div>
-                            <label className="app-filter-label">Kemaskini Status</label>
-                            <div className="app-status-row">
-                                <select value={statusInput} onChange={(event) => setStatusInput(event.target.value)}>
-                                    <option value="">Pilih Status</option>
-                                    <option value="baru">Baharu</option>
-                                    <option value="dalam_tindakan">Dalam Tindakan</option>
-                                    <option value="kiv">KIV</option>
-                                    <option value="selesai">Selesai</option>
-                                    <option value="disahkan">Disahkan</option>
-                                </select>
-                                <button className="app-button app-button-ghost" type="button" onClick={submitStatus}>
-                                    Simpan
+                        ))}
+                    </div>
+
+                    {complaint.case_type === 'AJ' && activeKey === 'ppa' && (
+                        <div className="app-tab-panel">
+                            <div className="app-form-grid">
+                                <label className="app-form-field">
+                                    <span>Kesalahan Disyaki</span>
+                                    <select
+                                        value={ajPayload.offense_id}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, offense_id: event.target.value }))}
+                                    >
+                                        <option value="">-- Pilih Kesalahan Disyaki --</option>
+                                        {referenceData.offenses.map((item) => (
+                                            <option key={item.id} value={item.id}>
+                                                {item.section ? `${item.section} - ` : ''}{item.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Jenis Kesalahan</span>
+                                    <select
+                                        value={ajPayload.offense_type_id}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, offense_type_id: event.target.value }))}
+                                    >
+                                        <option value="">-- Pilih Jenis Kesalahan --</option>
+                                        {referenceData.offenseTypes.map((item) => (
+                                            <option key={item.id} value={item.id}>
+                                                {item.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Perincian Khalwat</span>
+                                    <select
+                                        value={ajPayload.khalwat_detail_id}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, khalwat_detail_id: event.target.value }))}
+                                    >
+                                        <option value="">-- Pilih Perincian --</option>
+                                        {referenceData.khalwatDetails.map((item) => (
+                                            <option key={item.id} value={item.id}>
+                                                {item.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Perincian Judi</span>
+                                    <select
+                                        value={ajPayload.judi_detail_id}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, judi_detail_id: event.target.value }))}
+                                    >
+                                        <option value="">-- Pilih Perincian --</option>
+                                        {referenceData.judiDetails.map((item) => (
+                                            <option key={item.id} value={item.id}>
+                                                {item.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Catatan Pegawai</span>
+                                    <textarea
+                                        rows="3"
+                                        value={ajPayload.notes || ''}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, notes: event.target.value }))}
+                                    />
+                                </label>
+                            </div>
+                            <div className="app-form-actions">
+                                <button className="app-button" type="button" onClick={submitAjPayload}>
+                                    Simpan AJ
                                 </button>
                             </div>
                         </div>
-                    </div>
-                    {actionMessage && <div className="app-detail-note">{actionMessage}</div>}
+                    )}
+
+                    {complaint.case_type === 'AK' && activeKey === 'tindakan' && (
+                        <div className="app-tab-panel">
+                            <div className="app-form-grid">
+                                <label className="app-form-field">
+                                    <span>Kesalahan Disyaki</span>
+                                    <select
+                                        value={akPayload.offense_id}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, offense_id: event.target.value }))}
+                                    >
+                                        <option value="">-- Pilih Kesalahan Disyaki --</option>
+                                        {referenceData.offenses.map((item) => (
+                                            <option key={item.id} value={item.id}>
+                                                {item.section ? `${item.section} - ` : ''}{item.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Jenis Kesalahan</span>
+                                    <select
+                                        value={akPayload.offense_type_id}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, offense_type_id: event.target.value }))}
+                                    >
+                                        <option value="">-- Pilih Jenis Kesalahan --</option>
+                                        {referenceData.offenseTypes.map((item) => (
+                                            <option key={item.id} value={item.id}>
+                                                {item.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh & Masa Temujanji Siasatan</span>
+                                    <input
+                                        type="datetime-local"
+                                        value={akPayload.investigation_datetime || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, investigation_datetime: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Nama Pegawai Penyiasat</span>
+                                    <input
+                                        type="text"
+                                        value={akPayload.investigator_name || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, investigator_name: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Fail Diterima</span>
+                                    <input
+                                        type="date"
+                                        value={akPayload.file_received_date || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, file_received_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Status IP</span>
+                                    <input
+                                        type="text"
+                                        value={akPayload.ip_status || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, ip_status: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Akhir Penyempurnaan IP</span>
+                                    <input
+                                        type="date"
+                                        value={akPayload.ip_due_date || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, ip_due_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Dihantar ke Pendakwaan</span>
+                                    <input
+                                        type="date"
+                                        value={akPayload.prosecution_date || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, prosecution_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Email Salinan Aduan</span>
+                                    <div className="app-checkbox-grid">
+                                        {emailOptions.map((email) => (
+                                            <label key={email} className="app-checkbox">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={akPayload.email_cc?.includes(email) || false}
+                                                    onChange={(event) => {
+                                                        const nextEmails = new Set(akPayload.email_cc || []);
+                                                        if (event.target.checked) {
+                                                            nextEmails.add(email);
+                                                        } else {
+                                                            nextEmails.delete(email);
+                                                        }
+                                                        setAkPayload((prev) => ({ ...prev, email_cc: Array.from(nextEmails) }));
+                                                    }}
+                                                />
+                                                <span>{email}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </label>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Catatan</span>
+                                    <textarea
+                                        rows="3"
+                                        value={akPayload.notes || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, notes: event.target.value }))}
+                                    />
+                                </label>
+                            </div>
+                            <div className="app-form-actions">
+                                <button className="app-button" type="button" onClick={submitAkPayload}>
+                                    Simpan AK
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {((complaint.case_type === 'AJ' && activeKey !== 'ppa') ||
+                        (complaint.case_type === 'AK' && activeKey !== 'tindakan')) && (
+                        <div className="app-tab-panel">
+                            <div className="app-empty">Seksi ini akan ditambah seterusnya.</div>
+                        </div>
+                    )}
+
+                    {payloadMessage && <div className="app-detail-note">{payloadMessage}</div>}
                 </div>
             )}
         </div>

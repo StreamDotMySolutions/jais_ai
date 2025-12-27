@@ -14,6 +14,8 @@ class Complaint extends Model
         'created_at' => 'datetime:d-m-Y H:i:s', // Format as datetime
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'aj_payload' => 'array',
+        'ak_payload' => 'array',
     ];
 
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Row, Form } from 'react-bootstrap';
 import axios from 'axios';
 import useStore from '../../../store';
-import { appendFormData, InputRadio, InputSelect, InputText, InputTextarea } from '../../../libs/FormInput';
+import { appendFormData, InputSelect, InputText, InputTextarea } from '../../../libs/FormInput';
 import SubmitButton from '../../../libs/SubmitButton';
 
 function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = 'portal' }) {
@@ -25,6 +25,7 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         store.setValue('complaint_date', date);
         store.setValue('complaint_time', time);
         store.setValue('reference_no', 'Akan dijana sistem');
+        store.setValue('case_type', 'AJ');
     }, []);
 
     useEffect(() => {
@@ -142,6 +143,33 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                         {errorMessage}
                     </div>
                 )}
+                <div className="complaint-category">
+                    <div>
+                        <h3>Kategori Aduan</h3>
+                        <p>Pilih kategori aduan untuk menentukan kes atau keluarga.</p>
+                    </div>
+                    <div className="complaint-category-options">
+                        {[
+                            { value: 'AJ', label: 'KES - Aduan Jenayah (AJ)' },
+                            { value: 'AK', label: 'KELUARGA - Aduan Keluarga (AK)' },
+                        ].map((option) => (
+                            <label
+                                key={option.value}
+                                className={`complaint-category-card ${store.getValue('case_type') === option.value ? 'active' : ''}`}
+                            >
+                                <input
+                                    type="radio"
+                                    name="case_type"
+                                    value={option.value}
+                                    checked={store.getValue('case_type') === option.value}
+                                    onChange={() => store.setValue('case_type', option.value)}
+                                />
+                                <span>{option.label}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
                 <div className="complaint-grid">
                     <div className="complaint-section">
                         <h3>Maklumat Pengadu</h3>
@@ -171,17 +199,6 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                                 placeholder='No HP'  
                                 icon='bi-phone'
                                 isLoading={isLoading}
-                            />
-                        </Row>
-
-                        <Row className='mb-4'>
-                            <InputRadio
-                                fieldName='case_type'
-                                label='Jenis Aduan'
-                                options={[
-                                    { label: 'Aduan Keluarga (AK)', value: 'AK' },
-                                    { label: 'Lain Aduan (AJ)', value: 'AJ' },
-                                ]}
                             />
                         </Row>
                     </div>

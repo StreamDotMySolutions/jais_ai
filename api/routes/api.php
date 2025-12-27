@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\{
     RegisterController,
     AuthController,
-    ComplaintController
+    ComplaintController,
+    ReferenceController
 };
 
 // role = User
@@ -131,6 +132,12 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/status', [App\Http\Controllers\ComplaintController::class, 'updateStatus'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/case-type', [App\Http\Controllers\ComplaintController::class, 'updateCaseType'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/aj', [App\Http\Controllers\ComplaintController::class, 'updateAjPayload'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/ak', [App\Http\Controllers\ComplaintController::class, 'updateAkPayload'])
+        ->whereNumber('complaint');
 });
 
 // Districts (public reference list)
@@ -143,6 +150,12 @@ Route::get('/districts', function () {
             ->get(['id', 'name']),
     ]);
 });
+
+// Reference tables
+Route::get('/references/offense-types', [ReferenceController::class, 'offenseTypes']);
+Route::get('/references/offenses', [ReferenceController::class, 'offenses']);
+Route::get('/references/khalwat-details', [ReferenceController::class, 'khalwatDetails']);
+Route::get('/references/judi-details', [ReferenceController::class, 'judiDetails']);
 
 // Telegram Webhook
 Route::post('/telegram/webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'handleWebhook'])->name('telegram.webhook');
