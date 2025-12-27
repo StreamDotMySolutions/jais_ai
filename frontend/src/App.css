@@ -1582,6 +1582,49 @@
   grid-template-columns: 1.4fr 0.9fr 0.9fr 0.9fr 1.2fr 0.6fr;
 }
 
+.app-role-header,
+.app-role-row {
+  grid-template-columns: 1.4fr 0.8fr 0.8fr 0.8fr;
+}
+
+.app-role-actions {
+  display: inline-flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.app-link-danger {
+  color: #b42318;
+}
+
+.app-link-danger:hover {
+  color: #8e1b12;
+}
+
+.app-menu-header,
+.app-menu-row {
+  grid-template-columns: 1.1fr 1.4fr 0.8fr 0.8fr 1.4fr 0.8fr;
+}
+
+.app-menu-roles {
+  color: #6b7a83;
+  font-size: 0.9rem;
+}
+
+.app-menu-row {
+  cursor: grab;
+}
+
+.app-menu-row.is-dragging {
+  opacity: 0.6;
+  background: #f2f7f4;
+}
+
+.app-muted {
+  font-size: 0.85rem;
+  color: #6b7a83;
+}
+
 .app-table-header {
   font-size: 0.75rem;
   text-transform: uppercase;

@@ -19,6 +19,8 @@ import AppDashboard from './app/modules/dashboard/Dashboard';
 import AppComplaintList from './app/modules/aduan/ComplaintList';
 import AppComplaintDetail from './app/modules/aduan/ComplaintDetail';
 import StaffList from './app/modules/staff/StaffList';
+import RoleList from './app/modules/roles/RoleList';
+import MenuList from './app/modules/menus/MenuList';
 
 // Common
 import Profile from './views/pages/Global/Profile';
@@ -72,6 +74,8 @@ function App() {
             <Route path="/app/complaints" element={<AppComplaintList />} />
             <Route path="/app/complaints/:id" element={<AppComplaintDetail />} />
             <Route path="/app/staff" element={<StaffList />} />
+            <Route path="/app/roles" element={<RoleList />} />
+            <Route path="/app/menus" element={<MenuList />} />
             <Route path="/app/api-token" element={<ApiToken />} />
             <Route path="/app/api-logs" element={<ApiLog />} />
             <Route path="/app/profile" element={<Profile />} />

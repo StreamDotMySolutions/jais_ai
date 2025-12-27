@@ -10,7 +10,8 @@ use App\Http\Controllers\{
     ComplaintController,
     ReferenceController,
     StaffController,
-    RoleController
+    RoleController,
+    MenuController
 };
 
 // role = User
@@ -147,6 +148,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/staff', [StaffController::class, 'store']);
     Route::put('/staff/{staff}', [StaffController::class, 'update'])->whereNumber('staff');
     Route::get('/roles', [RoleController::class, 'index']);
+    Route::post('/roles', [RoleController::class, 'store']);
+    Route::put('/roles/{role}', [RoleController::class, 'update'])->whereNumber('role');
+    Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->whereNumber('role');
+    Route::get('/menus/my', [MenuController::class, 'myMenus']);
+    Route::get('/menus', [MenuController::class, 'index']);
+    Route::post('/menus', [MenuController::class, 'store']);
+    Route::post('/menus/reorder', [MenuController::class, 'reorder']);
+    Route::put('/menus/{menu}', [MenuController::class, 'update'])->whereNumber('menu');
+    Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->whereNumber('menu');
 });
 
 // Districts (public reference list)

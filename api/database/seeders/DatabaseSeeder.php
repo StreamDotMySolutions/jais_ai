@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             KhalwatDetailSeeder::class,
             JudiDetailSeeder::class,
             StaffSeeder::class,
+            MenuSeeder::class,
             //ModuleSeeder::class,
         ]);
     }

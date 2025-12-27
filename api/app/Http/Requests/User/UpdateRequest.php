@@ -9,8 +9,10 @@ class UpdateRequest extends FormRequest
 {
     public function rules(): array
     {
+        $roleTable = config('permission.table_names.roles');
+
         return [
-            'role_id' => ['sometimes','required', Rule::exists('roles', 'id')],
+            'role_id' => ['sometimes','required', Rule::exists($roleTable, 'id')],
             'email' => [
                     'required',
                     'email',

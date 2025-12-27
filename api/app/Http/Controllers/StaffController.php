@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
+use Illuminate\Validation\Rule;
 
 class StaffController extends Controller
 {
@@ -48,7 +49,7 @@ class StaffController extends Controller
             'district_id' => 'nullable|exists:districts,id',
             'email' => 'nullable|string|max:255|unique:users,email',
             'password' => 'nullable|string|min:6',
-            'role' => 'nullable|string|exists:roles,name',
+            'role' => ['nullable', 'string', Rule::exists(config('permission.table_names.roles'), 'name')],
         ]);
 
         if (! empty($validated['email']) && ! empty($validated['password']) && empty($validated['role'])) {
@@ -108,7 +109,7 @@ class StaffController extends Controller
             'district_id' => 'nullable|exists:districts,id',
             'email' => 'nullable|string|max:255|unique:users,email,' . ($staff->user_id ?? 'NULL'),
             'password' => 'nullable|string|min:6',
-            'role' => 'nullable|string|exists:roles,name',
+            'role' => ['nullable', 'string', Rule::exists(config('permission.table_names.roles'), 'name')],
         ]);
 
         if (! empty($validated['email']) && ! empty($validated['password']) && empty($validated['role'])) {

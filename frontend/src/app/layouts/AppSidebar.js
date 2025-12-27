@@ -1,22 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 
 const AppSidebar = ({ role }) => {
-    const navItems = [
-        { to: '/app/dashboard', label: 'Dashboard', icon: 'bi-grid' },
-        { to: '/app/complaints', label: 'Senarai Aduan', icon: 'bi-clipboard-check' },
-        { to: '/app/staff', label: 'Staff', icon: 'bi-people', roles: ['admin', 'system'] },
-        { to: '/app/api-token', label: 'Api Token', icon: 'bi-key', roles: ['admin', 'user', 'system'] },
-        { to: '/app/api-logs', label: 'Api Logs', icon: 'bi-activity', roles: ['admin', 'user', 'system'] },
-        { to: '/app/users', label: 'Pengguna', icon: 'bi-people', roles: ['admin', 'system'] },
-    ];
+    const apiUrl = process.env.REACT_APP_API_URL;
+    const [menus, setMenus] = useState([]);
 
-    const canView = (item) => {
-        if (!item.roles) {
-            return true;
+    useEffect(() => {
+        if (!apiUrl) {
+            return;
         }
-        return item.roles.includes(role);
-    };
+        const token = localStorage.getItem('token');
+        axios.get(`${apiUrl}/menus/my`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                setMenus(response?.data?.data || []);
+            })
+            .catch(() => {
+                setMenus([]);
+            });
+    }, [apiUrl, role]);
 
     return (
         <div className="app-sidebar">
@@ -26,9 +30,9 @@ const AppSidebar = ({ role }) => {
             </div>
 
             <nav className="app-nav">
-                {navItems.filter(canView).map((item) => (
-                    <Link key={item.to} to={item.to} className="app-nav-link">
-                        <i className={`bi ${item.icon}`}></i>
+                {menus.map((item) => (
+                    <Link key={item.id} to={item.path} className="app-nav-link">
+                        <i className={`bi ${item.icon || 'bi-dot'}`}></i>
                         {item.label}
                     </Link>
                 ))}
