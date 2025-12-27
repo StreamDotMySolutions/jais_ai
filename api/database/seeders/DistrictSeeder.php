@@ -10,21 +10,24 @@ class DistrictSeeder extends Seeder
     public function run(): void
     {
         $districts = [
-            'Petaling',
-            'Gombak',
-            'Hulu Langat',
-            'Klang',
-            'Kuala Langat',
-            'Sepang',
-            'Kuala Selangor',
-            'Hulu Selangor',
-            'Sabak Bernam',
+            ['code' => 'PET', 'name' => 'Petaling'],
+            ['code' => 'GOM', 'name' => 'Gombak'],
+            ['code' => 'HLA', 'name' => 'Hulu Langat'],
+            ['code' => 'KLG', 'name' => 'Klang'],
+            ['code' => 'KUL', 'name' => 'Kuala Langat'],
+            ['code' => 'SEP', 'name' => 'Sepang'],
+            ['code' => 'KSE', 'name' => 'Kuala Selangor'],
+            ['code' => 'HLS', 'name' => 'Hulu Selangor'],
+            ['code' => 'SBN', 'name' => 'Sabak Bernam'],
         ];
 
-        foreach ($districts as $name) {
+        foreach ($districts as $district) {
             District::firstOrCreate(
-                ['name' => $name],
-                ['is_active' => true]
+                ['code' => $district['code']],
+                [
+                    'name' => $district['name'],
+                    'is_active' => true,
+                ]
             );
         }
     }

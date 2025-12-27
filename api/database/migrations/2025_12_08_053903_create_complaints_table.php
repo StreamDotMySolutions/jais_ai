@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('complaints', function (Blueprint $table) {
             $table->id();
             $table->string('reference_no')->nullable()->unique();
+            $table->string('case_type')->nullable(); // AJ | AK
             $table->unsignedSmallInteger('complaint_year');
             $table->date('complaint_date');
             $table->time('complaint_time');

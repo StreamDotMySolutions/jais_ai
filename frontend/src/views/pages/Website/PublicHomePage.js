@@ -60,12 +60,14 @@ export default function PublicHomePage() {
                 </div>
               </div>
               <div className="col-md-4">
-                <div className="card h-100 shadow-sm">
-                  <div className="card-body">
-                    <h5 className="fw-bold">Semak Status Aduan</h5>
-                    <p className="text-muted small">Jejak status aduan secara telus dan masa nyata.</p>
+                <Link to="/semak-status" className="text-decoration-none text-reset">
+                  <div className="card h-100 shadow-sm">
+                    <div className="card-body">
+                      <h5 className="fw-bold">Semak Status Aduan</h5>
+                      <p className="text-muted small">Jejak status aduan secara telus dan masa nyata.</p>
+                    </div>
                   </div>
-                </div>
+                </Link>
               </div>
               <div className="col-md-4">
                 <div className="card h-100 shadow-sm">

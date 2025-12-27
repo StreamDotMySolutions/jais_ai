@@ -54,6 +54,7 @@ function SignIn() {
             //console.log(response);
             localStorage.setItem('token', response.data.token) // token to be used with axios interceptor
             localStorage.setItem('role', response.data.role) // token to be used with profile
+            localStorage.setItem('user_name', response.data.user?.name || 'Pengguna')
             store.setValue('authenticated', true) // for redirect purpose
             console.log('Form submitted successfully!');
         })
@@ -81,13 +82,15 @@ function SignIn() {
         // Switch based on the role
         switch (role) {
             case 'system':
-                return <Navigate to='/system/home' replace />; // Redirect admin to /system
+                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
             case 'admin':
-                return <Navigate to='/admin/home' replace />; // Redirect admin to /admin
+                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
             case 'pegawai':
-                return <Navigate to='/pegawai/home' replace />; // Redirect pegawai to /pegawai
+                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
             case 'user':
-                return <Navigate to='/user/home' replace />; // Redirect user to /dashboard
+                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
+            case 'awam':
+                return <Navigate to='/app/dashboard' replace />; // Redirect public user to app
             default:
                 return <Navigate to='/' replace />; // Default redirect (e.g., home or error)
         }

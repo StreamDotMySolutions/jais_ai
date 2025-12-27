@@ -114,12 +114,24 @@ Route::get('/test-telegram-token', [App\Http\Controllers\Telegram\WebhookControl
 Route::get('/complaints', function () {
             return response()->json([
                 'message' => 'List of complaints',
-                'data' => \App\Models\Complaint::all()
+                'data' => \App\Models\Complaint::orderByDesc('id')->get()
             ]);
 });
 
+Route::middleware('auth:sanctum')->get('/complaints/my', [App\Http\Controllers\ComplaintController::class, 'myComplaints']);
+
 // Complaint submission
 Route::post('/complaints', [App\Http\Controllers\ComplaintController::class, 'store']);
+Route::get('/complaints/reference', [App\Http\Controllers\ComplaintController::class, 'lookup']);
+Route::get('/complaints/{complaint}', [App\Http\Controllers\ComplaintController::class, 'show'])
+    ->whereNumber('complaint');
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/complaints/{complaint}/approve', [App\Http\Controllers\ComplaintController::class, 'approve'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/status', [App\Http\Controllers\ComplaintController::class, 'updateStatus'])
+        ->whereNumber('complaint');
+});
 
 // Districts (public reference list)
 Route::get('/districts', function () {
