@@ -22,6 +22,10 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             DistrictSeeder::class,
             DistrictNormalizeSeeder::class,
+            OffenseTypeSeeder::class,
+            OffenseSeeder::class,
+            KhalwatDetailSeeder::class,
+            JudiDetailSeeder::class,
             //ModuleSeeder::class,
         ]);
     }
