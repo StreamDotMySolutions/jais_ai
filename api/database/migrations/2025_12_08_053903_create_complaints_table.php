@@ -13,15 +13,24 @@ return new class extends Migration
     {
         Schema::create('complaints', function (Blueprint $table) {
             $table->id();
-           
-            $table->string('channel')->nullable(); // telegram / whatsapp / web
-            $table->string('name')->nullable();
-            $table->string('occupation')->nullable();
-            $table->string('identification_number')->nullable(); 
-            $table->string('contact_number')->nullable();
-            $table->text('address')->nullable();
-            $table->text('contents')->nullable();
-            $table->enum('status', ['received', 'processed', 'closed'])->default('received');
+            $table->string('reference_no')->nullable()->unique();
+            $table->unsignedSmallInteger('complaint_year');
+            $table->date('complaint_date');
+            $table->time('complaint_time');
+            $table->string('complainant_name');
+            $table->string('identification_number');
+            $table->string('contact_number');
+            $table->text('address');
+            $table->string('district_name')->nullable();
+            $table->text('summary');
+            $table->string('channel')->default('web'); // telegram / whatsapp / web
+
+            $table->foreignId('submitted_by_user_id')->nullable()->constrained('users')->nullOnDelete();
+            $table->foreignId('district_id')->nullable()->constrained('districts')->nullOnDelete();
+            $table->foreignId('classification_id')->nullable()->constrained('complaint_classifications')->nullOnDelete();
+            $table->foreignId('status_id')->nullable()->constrained('complaint_statuses')->nullOnDelete();
+            $table->string('current_stage')->default('baru');
+            $table->timestamp('submitted_at')->nullable();
 
             $table->timestamps();
         });

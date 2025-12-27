@@ -84,6 +84,8 @@ function SignIn() {
                 return <Navigate to='/system/home' replace />; // Redirect admin to /system
             case 'admin':
                 return <Navigate to='/admin/home' replace />; // Redirect admin to /admin
+            case 'pegawai':
+                return <Navigate to='/pegawai/home' replace />; // Redirect pegawai to /pegawai
             case 'user':
                 return <Navigate to='/user/home' replace />; // Redirect user to /dashboard
             default:

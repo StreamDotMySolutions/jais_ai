@@ -121,6 +121,17 @@ Route::get('/complaints', function () {
 // Complaint submission
 Route::post('/complaints', [App\Http\Controllers\ComplaintController::class, 'store']);
 
+// Districts (public reference list)
+Route::get('/districts', function () {
+    return response()->json([
+        'message' => 'District list',
+        'data' => \App\Models\District::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']),
+    ]);
+});
+
 // Telegram Webhook
 Route::post('/telegram/webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'handleWebhook'])->name('telegram.webhook');
 Route::get('/telegram/set-webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'setWebhook'])->name('telegram.set-webhook');

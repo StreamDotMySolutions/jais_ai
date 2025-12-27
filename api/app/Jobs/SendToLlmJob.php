@@ -10,6 +10,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class SendToLlmJob implements ShouldQueue
 {
@@ -164,13 +165,19 @@ class SendToLlmJob implements ShouldQueue
 
         // 4. Store in Complaint DB
         \App\Models\Complaint::create([
+            'reference_no' => $this->generateReferenceNo(),
+            'complaint_year' => (int) now()->format('Y'),
+            'complaint_date' => now()->toDateString(),
+            'complaint_time' => now()->format('H:i:s'),
+            'complainant_name' => $data['name'] ?? 'Tidak dinyatakan',
+            'identification_number' => $data['identification_number'] ?? 'Tidak dinyatakan',
             'contact_number' => $this->from,
-            'contents'       => $data['contents'] ?? null,
-            // optional:
-                'address'    => $data['location'] ?? null,
-                'name'        => $data['name'] ?? null,
-                'channel'     => $this->channel,
-                'status'      => 'received',
+            'address' => $data['location'] ?? 'Tidak dinyatakan',
+            'district_name' => $data['district'] ?? null,
+            'summary' => $data['contents'] ?? 'Tidak dinyatakan',
+            'channel' => $this->channel,
+            'current_stage' => 'baru',
+            'submitted_at' => now(),
         ]);
 
 
@@ -193,6 +200,18 @@ class SendToLlmJob implements ShouldQueue
                 'channel' => $this->channel,
             ]),
         };
+    }
+
+    private function generateReferenceNo(): string
+    {
+        $year = now()->format('Y');
+        $prefix = "JAIS-{$year}-";
+
+        do {
+            $referenceNo = $prefix . Str::upper(Str::random(6));
+        } while (\App\Models\Complaint::where('reference_no', $referenceNo)->exists());
+
+        return $referenceNo;
     }
 
     private function sendToTelegram(string $reply): void

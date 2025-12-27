@@ -16,44 +16,67 @@ class UserSeeder extends Seeder
     public function run()
     {
         // Roles
-        Role::create(['name' => 'system']);
-        Role::create(['name' => 'admin']);
-        Role::create(['name' => 'user']);
+        $guard = 'web';
+        Role::firstOrCreate(['name' => 'system', 'guard_name' => $guard]);
+        Role::firstOrCreate(['name' => 'admin', 'guard_name' => $guard]);
+        Role::firstOrCreate(['name' => 'pegawai', 'guard_name' => $guard]);
+        Role::firstOrCreate(['name' => 'user', 'guard_name' => $guard]);
+        Role::firstOrCreate(['name' => 'awam', 'guard_name' => $guard]);
 
         // system ########################################### start
         #User::truncate();
-        $user = User::create([
-            'name' => 'System Administrator',
-            'email' => 'system@local',
-            'password' => Hash::make('password'),
-        ]);
+        $user = User::updateOrCreate(
+            ['email' => 'system@local'],
+            [
+                'name' => 'System Administrator',
+                'office_type' => 'hq',
+                'password' => Hash::make('password'),
+            ]
+        );
         $user->markEmailAsVerified();
-
-        $user->assignRole('system');
+        $user->syncRoles(['system']);
         unset($user);
         // system ########################################### end
 
         // admin ########################################### start
-        $user = User::create([
-            'name' => 'Administrator',
-            'email' => 'admin@local',
-            'password' => Hash::make('password'),
-            ]);
+        $user = User::updateOrCreate(
+            ['email' => 'admin@local'],
+            [
+                'name' => 'Administrator',
+                'office_type' => 'hq',
+                'password' => Hash::make('password'),
+            ]
+        );
         $user->markEmailAsVerified();
-        $user->assignRole('admin');
+        $user->syncRoles(['admin']);
         unset($user);
         // admin ########################################### end
 
+        // pegawai ########################################### start
+        $user = User::updateOrCreate(
+            ['email' => 'pegawai@local'],
+            [
+                'name' => 'Pegawai HQ',
+                'office_type' => 'hq',
+                'password' => Hash::make('password'),
+            ]
+        );
+        $user->markEmailAsVerified();
+        $user->syncRoles(['pegawai']);
+        unset($user);
+        // pegawai ########################################### end
+
 
         // user ########################################### start
-        $user = User::create([
-            'name' => 'User',
-            'email' => 'user@local',
-            'password' => Hash::make('password'),
-        ]);
+        $user = User::updateOrCreate(
+            ['email' => 'user@local'],
+            [
+                'name' => 'User',
+                'password' => Hash::make('password'),
+            ]
+        );
         $user->markEmailAsVerified();
-
-        $user->assignRole('user');
+        $user->syncRoles(['user']);
         unset($user);
         // user ########################################### end
 

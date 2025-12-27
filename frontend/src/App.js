@@ -7,6 +7,8 @@ import GuestLayout from './views/layouts/GuestLayout/GuestLayout';
 import HomeLayout from './views/layouts/HomeLayout/HomeLayout';
 import UserLayout from './views/layouts/UserLayout/UserLayout';
 import AdminLayout from './views/layouts/AdminLayout/AdminLayout';
+import PublicLayout from './views/layouts/PublicLayout/PublicLayout';
+import PegawaiLayout from './views/layouts/PegawaiLayout/PegawaiLayout';
 
 // role = Guest
 import LoginPage from './views/pages/LoginPage';
@@ -22,6 +24,9 @@ import ApiLog from './views/pages/User/ApiLog';
 import AdminHomePage from './views/pages/Admin/Home';
 import UserManagement from './views/pages/Admin/Users';
 import ComplaintManagement from './views/pages/Admin/Complaints';
+
+// role = Pegawai
+import PegawaiHomePage from './views/pages/Pegawai/Home';
 
 
 // Common
@@ -54,13 +59,17 @@ function App() {
           <Route path="/logout" element={<LoginPage />} />
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/contact-us" element={<ContactUs />} />
-           <Route path="/complaint" element={<Complaint />} />
         </Route>
 
         {/* Auth Layout */}
         <Route element={<HomeLayout />}>
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/register" element={<Register />} />
+        </Route>
+
+        {/* Public Layout */}
+        <Route element={<PublicLayout />}>
+          <Route path="/complaint" element={<Complaint />} />
         </Route>
 
         {/* User Layout */}
@@ -81,6 +90,13 @@ function App() {
             <Route path="/admin/home" element={<AdminHomePage />} />
             <Route path="/admin/users" element={<UserManagement />} />
             <Route path="/admin/complaints" element={<ComplaintManagement />} />
+          </Route>
+        </Route>
+
+        {/* Pegawai Layout */}
+        <Route element={<ProtectedRoute role={'pegawai'} />}>
+          <Route element={<PegawaiLayout />}>
+            <Route path="/pegawai/home" element={<PegawaiHomePage />} />
           </Route>
         </Route>
       </Routes>
