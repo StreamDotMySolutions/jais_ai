@@ -38,7 +38,7 @@ class ReferenceController extends Controller
         $items = DB::table('ref_khalwat_details')
             ->where('is_active', 1)
             ->orderBy('sort_order')
-            ->get(['id', 'code', 'name']);
+            ->get(['id', 'name']);
 
         return response()->json([
             'message' => 'Khalwat details',
@@ -51,10 +51,36 @@ class ReferenceController extends Controller
         $items = DB::table('ref_judi_details')
             ->where('is_active', 1)
             ->orderBy('sort_order')
-            ->get(['id', 'code', 'name']);
+            ->get(['id', 'name']);
 
         return response()->json([
             'message' => 'Judi details',
+            'data' => $items,
+        ]);
+    }
+
+    public function complaintStatuses(): JsonResponse
+    {
+        $items = DB::table('complaint_statuses')
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->get(['id', 'code', 'name']);
+
+        return response()->json([
+            'message' => 'Complaint statuses',
+            'data' => $items,
+        ]);
+    }
+
+    public function complaintEmailRecipients(): JsonResponse
+    {
+        $items = DB::table('ref_complaint_email_recipients')
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->get(['id', 'email', 'label']);
+
+        return response()->json([
+            'message' => 'Complaint email recipients',
             'data' => $items,
         ]);
     }

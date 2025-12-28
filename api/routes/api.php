@@ -175,6 +175,8 @@ Route::get('/references/offense-types', [ReferenceController::class, 'offenseTyp
 Route::get('/references/offenses', [ReferenceController::class, 'offenses']);
 Route::get('/references/khalwat-details', [ReferenceController::class, 'khalwatDetails']);
 Route::get('/references/judi-details', [ReferenceController::class, 'judiDetails']);
+Route::get('/references/complaint-statuses', [ReferenceController::class, 'complaintStatuses']);
+Route::get('/references/complaint-email-recipients', [ReferenceController::class, 'complaintEmailRecipients']);
 
 // Telegram Webhook
 Route::post('/telegram/webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'handleWebhook'])->name('telegram.webhook');

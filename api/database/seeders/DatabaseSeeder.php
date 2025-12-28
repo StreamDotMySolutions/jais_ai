@@ -26,8 +26,13 @@ class DatabaseSeeder extends Seeder
             OffenseSeeder::class,
             KhalwatDetailSeeder::class,
             JudiDetailSeeder::class,
+            ComplaintClassificationSeeder::class,
+            ComplaintStatusSeeder::class,
+            ComplaintEmailRecipientSeeder::class,
             StaffSeeder::class,
             MenuSeeder::class,
+            ComplaintSeeder::class,
+            ComplaintBackfillSeeder::class,
             //ModuleSeeder::class,
         ]);
     }

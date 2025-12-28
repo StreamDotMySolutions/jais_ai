@@ -12,6 +12,7 @@ const ComplaintList = () => {
     const role = localStorage.getItem('role') || 'awam';
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [districtOptions, setDistrictOptions] = useState([]);
+    const [statusOptions, setStatusOptions] = useState([{ value: '', label: 'Semua' }]);
     const [filters, setFilters] = useState({
         keyword: '',
         status: '',
@@ -74,13 +75,24 @@ const ComplaintList = () => {
             });
     }, [apiUrl]);
 
-    const statusOptions = [
-        { value: '', label: 'Semua' },
-        { value: 'baru', label: 'Baharu' },
-        { value: 'dalam_tindakan', label: 'Dalam Tindakan' },
-        { value: 'kiv', label: 'KIV' },
-        { value: 'selesai', label: 'Selesai' },
-    ];
+    useEffect(() => {
+        if (!apiUrl) {
+            return;
+        }
+
+        axios.get(`${apiUrl}/references/complaint-statuses`)
+            .then((response) => {
+                const data = response?.data?.data || [];
+                const options = data.map((item) => ({
+                    value: item.code,
+                    label: item.name,
+                }));
+                setStatusOptions([{ value: '', label: 'Semua' }, ...options]);
+            })
+            .catch(() => {
+                setStatusOptions([{ value: '', label: 'Semua' }]);
+            });
+    }, [apiUrl]);
 
     const handleSearch = (event) => {
         event.preventDefault();

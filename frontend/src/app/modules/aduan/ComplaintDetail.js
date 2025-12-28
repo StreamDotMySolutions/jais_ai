@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import SearchSelect from '../../../libs/SearchSelect';
 
 const ComplaintDetail = () => {
     const navigate = useNavigate();
@@ -20,6 +21,7 @@ const ComplaintDetail = () => {
         offenses: [],
         khalwatDetails: [],
         judiDetails: [],
+        emailRecipients: [],
     });
     const [activeStep, setActiveStep] = useState(0);
     const [ajPayload, setAjPayload] = useState({
@@ -46,18 +48,6 @@ const ComplaintDetail = () => {
     const [statusInput, setStatusInput] = useState('');
     const [caseTypeMessage, setCaseTypeMessage] = useState('');
     const role = localStorage.getItem('role') || 'awam';
-    const emailOptions = [
-        'bpn.siasatan@gmail.com',
-        'bpn.gombak@gmail.com',
-        'bpn.hululangat@gmail.com',
-        'bpn.huluselangor@gmail.com',
-        'bpn.klang@gmail.com',
-        'bpn.kualalangat22@gmail.com',
-        'bpn.kualaselangor@gmail.com',
-        'bpn.sabakbernam@gmail.com',
-        'jais.sepang@gmail.com',
-    ];
-
     useEffect(() => {
         if (!apiUrl) {
             setError('API URL tidak diset.');
@@ -92,13 +82,15 @@ const ComplaintDetail = () => {
             axios.get(`${apiUrl}/references/offenses`),
             axios.get(`${apiUrl}/references/khalwat-details`),
             axios.get(`${apiUrl}/references/judi-details`),
+            axios.get(`${apiUrl}/references/complaint-email-recipients`),
         ])
-            .then(([typesRes, offenseRes, khalwatRes, judiRes]) => {
+            .then(([typesRes, offenseRes, khalwatRes, judiRes, emailRes]) => {
                 setReferenceData({
                     offenseTypes: typesRes?.data?.data || [],
                     offenses: offenseRes?.data?.data || [],
                     khalwatDetails: khalwatRes?.data?.data || [],
                     judiDetails: judiRes?.data?.data || [],
+                    emailRecipients: emailRes?.data?.data || [],
                 });
             })
             .catch(() => {
@@ -107,6 +99,7 @@ const ComplaintDetail = () => {
                     offenses: [],
                     khalwatDetails: [],
                     judiDetails: [],
+                    emailRecipients: [],
                 });
             });
     }, [apiUrl]);
@@ -275,6 +268,30 @@ const ComplaintDetail = () => {
     const currentCaseType = complaint?.case_type || 'AJ';
     const steps = currentCaseType === 'AK' ? akSteps : ajSteps;
     const activeKey = steps[activeStep]?.key;
+    const offenseOptions = useMemo(() => (
+        referenceData.offenses.map((item) => ({
+            value: String(item.id),
+            label: `${item.section ? `${item.section} - ` : ''}${item.name}`,
+        }))
+    ), [referenceData.offenses]);
+    const offenseTypeOptions = useMemo(() => (
+        referenceData.offenseTypes.map((item) => ({
+            value: String(item.id),
+            label: item.name,
+        }))
+    ), [referenceData.offenseTypes]);
+    const khalwatOptions = useMemo(() => (
+        referenceData.khalwatDetails.map((item) => ({
+            value: String(item.id),
+            label: item.name,
+        }))
+    ), [referenceData.khalwatDetails]);
+    const judiOptions = useMemo(() => (
+        referenceData.judiDetails.map((item) => ({
+            value: String(item.id),
+            label: item.name,
+        }))
+    ), [referenceData.judiDetails]);
 
     if (isLoading) {
         return <div className="app-card">Memuatkan aduan...</div>;
@@ -423,65 +440,45 @@ const ComplaintDetail = () => {
                     {complaint.case_type === 'AJ' && activeKey === 'ppa' && (
                         <div className="app-tab-panel">
                             <div className="app-form-grid">
-                                <label className="app-form-field">
-                                    <span>Kesalahan Disyaki</span>
-                                    <select
-                                        value={ajPayload.offense_id}
-                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, offense_id: event.target.value }))}
-                                    >
-                                        <option value="">-- Pilih Kesalahan Disyaki --</option>
-                                        {referenceData.offenses.map((item) => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.section ? `${item.section} - ` : ''}{item.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
+                                <div className="app-form-field">
+                                    <SearchSelect
+                                        label="Kesalahan Disyaki"
+                                        value={ajPayload.offense_id || ''}
+                                        options={offenseOptions}
+                                        placeholder="-- Pilih Kesalahan Disyaki --"
+                                        onChange={(value) => setAjPayload((prev) => ({ ...prev, offense_id: value }))}
+                                    />
+                                </div>
 
-                                <label className="app-form-field">
-                                    <span>Jenis Kesalahan</span>
-                                    <select
-                                        value={ajPayload.offense_type_id}
-                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, offense_type_id: event.target.value }))}
-                                    >
-                                        <option value="">-- Pilih Jenis Kesalahan --</option>
-                                        {referenceData.offenseTypes.map((item) => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
+                                <div className="app-form-field">
+                                    <SearchSelect
+                                        label="Jenis Kesalahan"
+                                        value={ajPayload.offense_type_id || ''}
+                                        options={offenseTypeOptions}
+                                        placeholder="-- Pilih Jenis Kesalahan --"
+                                        onChange={(value) => setAjPayload((prev) => ({ ...prev, offense_type_id: value }))}
+                                    />
+                                </div>
 
-                                <label className="app-form-field">
-                                    <span>Perincian Khalwat</span>
-                                    <select
-                                        value={ajPayload.khalwat_detail_id}
-                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, khalwat_detail_id: event.target.value }))}
-                                    >
-                                        <option value="">-- Pilih Perincian --</option>
-                                        {referenceData.khalwatDetails.map((item) => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
+                                <div className="app-form-field">
+                                    <SearchSelect
+                                        label="Perincian Khalwat"
+                                        value={ajPayload.khalwat_detail_id || ''}
+                                        options={khalwatOptions}
+                                        placeholder="-- Pilih Perincian --"
+                                        onChange={(value) => setAjPayload((prev) => ({ ...prev, khalwat_detail_id: value }))}
+                                    />
+                                </div>
 
-                                <label className="app-form-field">
-                                    <span>Perincian Judi</span>
-                                    <select
-                                        value={ajPayload.judi_detail_id}
-                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, judi_detail_id: event.target.value }))}
-                                    >
-                                        <option value="">-- Pilih Perincian --</option>
-                                        {referenceData.judiDetails.map((item) => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
+                                <div className="app-form-field">
+                                    <SearchSelect
+                                        label="Perincian Judi"
+                                        value={ajPayload.judi_detail_id || ''}
+                                        options={judiOptions}
+                                        placeholder="-- Pilih Perincian --"
+                                        onChange={(value) => setAjPayload((prev) => ({ ...prev, judi_detail_id: value }))}
+                                    />
+                                </div>
 
                                 <label className="app-form-field app-span-full">
                                     <span>Catatan Pegawai</span>
@@ -503,35 +500,25 @@ const ComplaintDetail = () => {
                     {complaint.case_type === 'AK' && activeKey === 'tindakan' && (
                         <div className="app-tab-panel">
                             <div className="app-form-grid">
-                                <label className="app-form-field">
-                                    <span>Kesalahan Disyaki</span>
-                                    <select
-                                        value={akPayload.offense_id}
-                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, offense_id: event.target.value }))}
-                                    >
-                                        <option value="">-- Pilih Kesalahan Disyaki --</option>
-                                        {referenceData.offenses.map((item) => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.section ? `${item.section} - ` : ''}{item.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
+                                <div className="app-form-field">
+                                    <SearchSelect
+                                        label="Kesalahan Disyaki"
+                                        value={akPayload.offense_id || ''}
+                                        options={offenseOptions}
+                                        placeholder="-- Pilih Kesalahan Disyaki --"
+                                        onChange={(value) => setAkPayload((prev) => ({ ...prev, offense_id: value }))}
+                                    />
+                                </div>
 
-                                <label className="app-form-field">
-                                    <span>Jenis Kesalahan</span>
-                                    <select
-                                        value={akPayload.offense_type_id}
-                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, offense_type_id: event.target.value }))}
-                                    >
-                                        <option value="">-- Pilih Jenis Kesalahan --</option>
-                                        {referenceData.offenseTypes.map((item) => (
-                                            <option key={item.id} value={item.id}>
-                                                {item.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
+                                <div className="app-form-field">
+                                    <SearchSelect
+                                        label="Jenis Kesalahan"
+                                        value={akPayload.offense_type_id || ''}
+                                        options={offenseTypeOptions}
+                                        placeholder="-- Pilih Jenis Kesalahan --"
+                                        onChange={(value) => setAkPayload((prev) => ({ ...prev, offense_type_id: value }))}
+                                    />
+                                </div>
 
                                 <label className="app-form-field">
                                     <span>Tarikh & Masa Temujanji Siasatan</span>
@@ -590,22 +577,22 @@ const ComplaintDetail = () => {
                                 <label className="app-form-field app-span-full">
                                     <span>Email Salinan Aduan</span>
                                     <div className="app-checkbox-grid">
-                                        {emailOptions.map((email) => (
-                                            <label key={email} className="app-checkbox">
+                                        {referenceData.emailRecipients.map((item) => (
+                                            <label key={item.email} className="app-checkbox">
                                                 <input
                                                     type="checkbox"
-                                                    checked={akPayload.email_cc?.includes(email) || false}
+                                                    checked={akPayload.email_cc?.includes(item.email) || false}
                                                     onChange={(event) => {
                                                         const nextEmails = new Set(akPayload.email_cc || []);
                                                         if (event.target.checked) {
-                                                            nextEmails.add(email);
+                                                            nextEmails.add(item.email);
                                                         } else {
-                                                            nextEmails.delete(email);
+                                                            nextEmails.delete(item.email);
                                                         }
                                                         setAkPayload((prev) => ({ ...prev, email_cc: Array.from(nextEmails) }));
                                                     }}
                                                 />
-                                                <span>{email}</span>
+                                                <span>{item.label || item.email}</span>
                                             </label>
                                         ))}
                                     </div>
