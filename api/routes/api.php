@@ -155,6 +155,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/menus', [MenuController::class, 'index']);
     Route::post('/menus', [MenuController::class, 'store']);
     Route::post('/menus/reorder', [MenuController::class, 'reorder']);
+    Route::post('/menus/bulk-roles', [MenuController::class, 'bulkRoles']);
     Route::put('/menus/{menu}', [MenuController::class, 'update'])->whereNumber('menu');
     Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->whereNumber('menu');
 });

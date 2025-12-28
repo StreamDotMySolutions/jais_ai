@@ -156,4 +156,32 @@ class MenuController extends Controller
             'message' => 'Menu order updated',
         ]);
     }
+
+    public function bulkRoles(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'menu_ids' => 'required|array',
+            'menu_ids.*' => 'integer|exists:sys_menus,id',
+            'role_ids' => 'nullable|array',
+            'role_ids.*' => 'integer|exists:' . config('permission.table_names.roles') . ',id',
+        ]);
+
+        $menuIds = $validated['menu_ids'];
+        $roleIds = $validated['role_ids'] ?? [];
+
+        \DB::transaction(function () use ($menuIds, $roleIds) {
+            Menu::whereIn('id', $menuIds)->get()->each(function ($menu) use ($roleIds) {
+                $menu->roles()->sync($roleIds);
+            });
+        });
+
+        return response()->json([
+            'message' => 'Bulk roles updated',
+        ]);
+    }
 }

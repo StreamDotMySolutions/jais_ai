@@ -23,6 +23,9 @@ const MenuList = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [draggingId, setDraggingId] = useState(null);
     const [isReordering, setIsReordering] = useState(false);
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [showBulk, setShowBulk] = useState(false);
+    const [bulkRoles, setBulkRoles] = useState([]);
 
     const loadMenus = () => {
         if (!apiUrl) {
@@ -130,6 +133,52 @@ const MenuList = () => {
             });
     };
 
+    const openBulk = () => {
+        if (selectedIds.length === 0) {
+            setError('Sila pilih sekurang-kurangnya satu menu.');
+            return;
+        }
+        setBulkRoles([]);
+        setShowBulk(true);
+    };
+
+    const closeBulk = () => {
+        setShowBulk(false);
+        setBulkRoles([]);
+    };
+
+    const toggleBulkRole = (roleId) => {
+        setBulkRoles((prev) => {
+            const next = new Set(prev);
+            if (next.has(roleId)) {
+                next.delete(roleId);
+            } else {
+                next.add(roleId);
+            }
+            return Array.from(next);
+        });
+    };
+
+    const applyBulkRoles = (event) => {
+        event.preventDefault();
+        if (!apiUrl) {
+            return;
+        }
+        const payload = { menu_ids: selectedIds, role_ids: bulkRoles };
+        setError('');
+        axios.post(`${apiUrl}/menus/bulk-roles`, payload, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then(() => {
+                closeBulk();
+                setSelectedIds([]);
+                loadMenus();
+            })
+            .catch((err) => {
+                setError(err?.response?.data?.message || 'Gagal apply role secara pukal.');
+            });
+    };
+
     const saveOrder = (orderIds) => {
         if (!apiUrl) {
             return;
@@ -198,6 +247,26 @@ const MenuList = () => {
         );
     });
 
+    const toggleSelectAll = (checked) => {
+        if (checked) {
+            setSelectedIds(filtered.map((menu) => menu.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const toggleSelect = (menuId) => {
+        setSelectedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(menuId)) {
+                next.delete(menuId);
+            } else {
+                next.add(menuId);
+            }
+            return Array.from(next);
+        });
+    };
+
     return (
         <div className="app-complaints">
             <div className="app-complaints-header">
@@ -206,21 +275,24 @@ const MenuList = () => {
                     <h3>Senarai Menu</h3>
                     <p>Tambah menu dan tetapkan role yang boleh akses.</p>
                 </div>
-                    <div className="app-complaints-actions">
-                        <div className="app-search">
-                            <i className="bi bi-search"></i>
-                            <input
-                                value={keyword}
-                                onChange={(event) => setKeyword(event.target.value)}
-                                placeholder="Cari menu..."
-                            />
-                        </div>
-                        {isReordering && <span className="app-muted">Menyimpan...</span>}
-                        <button type="button" className="app-button" onClick={openCreate}>
-                            <i className="bi bi-plus-lg"></i>
-                            Tambah Menu
-                        </button>
+                <div className="app-complaints-actions">
+                    <div className="app-search">
+                        <i className="bi bi-search"></i>
+                        <input
+                            value={keyword}
+                            onChange={(event) => setKeyword(event.target.value)}
+                            placeholder="Cari menu..."
+                        />
                     </div>
+                    {isReordering && <span className="app-muted">Menyimpan...</span>}
+                    <button type="button" className="app-button app-button-ghost" onClick={openBulk}>
+                        Set Role
+                    </button>
+                    <button type="button" className="app-button" onClick={openCreate}>
+                        <i className="bi bi-plus-lg"></i>
+                        Tambah Menu
+                    </button>
+                </div>
             </div>
 
             {error && <div className="app-form-error">{error}</div>}
@@ -234,6 +306,13 @@ const MenuList = () => {
                 ) : (
                     <div className="app-table">
                         <div className="app-table-header app-menu-header">
+                            <span>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedIds.length > 0 && selectedIds.length === filtered.length}
+                                    onChange={(event) => toggleSelectAll(event.target.checked)}
+                                />
+                            </span>
                             <span>Nama</span>
                             <span>Path</span>
                             <span>Icon</span>
@@ -262,6 +341,13 @@ const MenuList = () => {
                                     }}
                                     onDragEnd={() => setDraggingId(null)}
                                 >
+                                    <div>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.includes(menu.id)}
+                                            onChange={() => toggleSelect(menu.id)}
+                                        />
+                                    </div>
                                     <div className="app-code">{menu.label}</div>
                                     <div>{menu.path}</div>
                                     <div>{menu.icon || '-'}</div>
@@ -347,6 +433,46 @@ const MenuList = () => {
                             <div className="app-form-actions app-span-full">
                                 <button className="app-button" type="submit">
                                     {editing ? 'Simpan Perubahan' : 'Tambah Menu'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showBulk && (
+                <div className="app-modal">
+                    <div className="app-modal-backdrop" onClick={closeBulk}></div>
+                    <div className="app-modal-content">
+                        <div className="app-modal-header">
+                            <div>
+                                <h4>Set Role (Pukal)</h4>
+                                <p>Role akan ditukar untuk {selectedIds.length} menu terpilih.</p>
+                            </div>
+                            <button type="button" className="app-modal-close" onClick={closeBulk}>
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        {error && <div className="app-form-error">{error}</div>}
+                        <form onSubmit={applyBulkRoles} className="app-form-grid">
+                            <label className="app-form-field app-span-full">
+                                <span>Role Akses</span>
+                                <div className="app-checkbox-grid">
+                                    {roles.map((role) => (
+                                        <label key={role.id} className="app-checkbox">
+                                            <input
+                                                type="checkbox"
+                                                checked={bulkRoles.includes(role.id)}
+                                                onChange={() => toggleBulkRole(role.id)}
+                                            />
+                                            <span>{role.name}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </label>
+                            <div className="app-form-actions app-span-full">
+                                <button className="app-button" type="submit">
+                                    Simpan Role
                                 </button>
                             </div>
                         </form>

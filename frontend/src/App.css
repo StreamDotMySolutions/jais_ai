@@ -1603,7 +1603,7 @@
 
 .app-menu-header,
 .app-menu-row {
-  grid-template-columns: 1.1fr 1.4fr 0.8fr 0.8fr 1.4fr 0.8fr;
+  grid-template-columns: 0.3fr 1.1fr 1.4fr 0.8fr 0.8fr 1.4fr 0.8fr;
 }
 
 .app-menu-roles {
