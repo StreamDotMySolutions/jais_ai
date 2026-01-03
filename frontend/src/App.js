@@ -21,6 +21,7 @@ import AppComplaintDetail from './app/modules/aduan/ComplaintDetail';
 import StaffList from './app/modules/staff/StaffList';
 import RoleList from './app/modules/roles/RoleList';
 import MenuList from './app/modules/menus/MenuList';
+import UserList from './app/modules/users/UserList';
 
 // Common
 import Profile from './views/pages/Global/Profile';
@@ -71,10 +72,34 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
             <Route path="/app/dashboard" element={<AppDashboard />} />
-            <Route path="/app/complaints" element={<AppComplaintList />} />
+            <Route
+              path="/app/complaints"
+              element={<AppComplaintList />}
+            />
+            <Route
+              path="/app/complaints/aj"
+              element={<AppComplaintList caseType="AJ" title="Senarai Aduan Jenayah" description="Senarai aduan kategori jenayah (AJ)." />}
+            />
+            <Route
+              path="/app/complaints/ak"
+              element={<AppComplaintList caseType="AK" title="Senarai Aduan Keluarga" description="Senarai aduan kategori keluarga (AK)." />}
+            />
+            <Route
+              path="/app/complaints/pending-approval"
+              element={<AppComplaintList title="Aduan Untuk Disahkan" description="Senarai aduan yang menunggu pengesahan anda." fetchEndpoint="/complaints/pending-approval" />}
+            />
+            <Route
+              path="/app/complaints/pickup-queue"
+              element={<AppComplaintList title="Aduan Untuk Diambil" description="Senarai aduan yang menunggu PIC ambil." fetchEndpoint="/complaints/pickup-queue" enablePickup />}
+            />
+            <Route
+              path="/app/complaints/my-pic"
+              element={<AppComplaintList title="Aduan Saya (PIC)" description="Senarai aduan yang telah anda ambil." fetchEndpoint="/complaints/my-pic" />}
+            />
             <Route path="/app/complaints/:id" element={<AppComplaintDetail />} />
             <Route path="/app/staff" element={<StaffList />} />
             <Route path="/app/roles" element={<RoleList />} />
+            <Route path="/app/users" element={<UserList />} />
             <Route path="/app/menus" element={<MenuList />} />
             <Route path="/app/api-token" element={<ApiToken />} />
             <Route path="/app/api-logs" element={<ApiLog />} />

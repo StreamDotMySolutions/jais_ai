@@ -11,7 +11,8 @@ use App\Http\Controllers\{
     ReferenceController,
     StaffController,
     RoleController,
-    MenuController
+    MenuController,
+    UserController
 };
 
 // role = User
@@ -115,12 +116,7 @@ Route::get('/test-telegram-token', [App\Http\Controllers\Telegram\WebhookControl
 //Route::post('/process-document', [DocumentController::class, 'processDocument']);
 
 // Complaints
-Route::get('/complaints', function () {
-            return response()->json([
-                'message' => 'List of complaints',
-                'data' => \App\Models\Complaint::orderByDesc('id')->get()
-            ]);
-});
+Route::get('/complaints', [App\Http\Controllers\ComplaintController::class, 'index']);
 
 Route::middleware('auth:sanctum')->get('/complaints/my', [App\Http\Controllers\ComplaintController::class, 'myComplaints']);
 
@@ -133,11 +129,20 @@ Route::get('/complaints/{complaint}', [App\Http\Controllers\ComplaintController:
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/approve', [App\Http\Controllers\ComplaintController::class, 'approve'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/pickup', [App\Http\Controllers\ComplaintController::class, 'pickup'])
+        ->whereNumber('complaint');
+    Route::get('/complaints/pending-approval', [App\Http\Controllers\ComplaintController::class, 'pendingApprovals']);
+    Route::get('/complaints/pickup-queue', [App\Http\Controllers\ComplaintController::class, 'pickupQueue']);
+    Route::get('/complaints/my-pic', [App\Http\Controllers\ComplaintController::class, 'myPicComplaints']);
     Route::post('/complaints/{complaint}/status', [App\Http\Controllers\ComplaintController::class, 'updateStatus'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/case-type', [App\Http\Controllers\ComplaintController::class, 'updateCaseType'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/assignees', [App\Http\Controllers\ComplaintController::class, 'updateAssignees'])
+        ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj', [App\Http\Controllers\ComplaintController::class, 'updateAjPayload'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/aj-report', [App\Http\Controllers\ComplaintController::class, 'updateAjReport'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/ak', [App\Http\Controllers\ComplaintController::class, 'updateAkPayload'])
         ->whereNumber('complaint');
@@ -145,6 +150,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/staff', [StaffController::class, 'index']);
+    Route::get('/staff/options', [StaffController::class, 'options']);
     Route::post('/staff', [StaffController::class, 'store']);
     Route::put('/staff/{staff}', [StaffController::class, 'update'])->whereNumber('staff');
     Route::get('/roles', [RoleController::class, 'index']);
@@ -158,6 +164,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/menus/bulk-roles', [MenuController::class, 'bulkRoles']);
     Route::put('/menus/{menu}', [MenuController::class, 'update'])->whereNumber('menu');
     Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->whereNumber('menu');
+    Route::get('/users', [UserController::class, 'index']);
+    Route::post('/users', [UserController::class, 'store']);
+    Route::put('/users/{user}', [UserController::class, 'update'])->whereNumber('user');
 });
 
 // Districts (public reference list)

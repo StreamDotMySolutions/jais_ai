@@ -20,6 +20,8 @@ class UserSeeder extends Seeder
         Role::firstOrCreate(['name' => 'system', 'guard_name' => $guard]);
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => $guard]);
         Role::firstOrCreate(['name' => 'pegawai', 'guard_name' => $guard]);
+        Role::firstOrCreate(['name' => 'pegawai_hq', 'guard_name' => $guard]);
+        Role::firstOrCreate(['name' => 'pegawai_daerah', 'guard_name' => $guard]);
         Role::firstOrCreate(['name' => 'user', 'guard_name' => $guard]);
         Role::firstOrCreate(['name' => 'awam', 'guard_name' => $guard]);
 
@@ -62,7 +64,7 @@ class UserSeeder extends Seeder
             ]
         );
         $user->markEmailAsVerified();
-        $user->syncRoles(['pegawai']);
+        $user->syncRoles(['pegawai_hq']);
         unset($user);
         // pegawai ########################################### end
 

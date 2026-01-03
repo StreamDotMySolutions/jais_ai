@@ -55,6 +55,16 @@ const ComplaintStatus = () => {
                             value={referenceNo}
                             onChange={(event) => setReferenceNo(event.target.value)}
                         />
+                        {referenceNo && (
+                            <button
+                                type="button"
+                                className="status-clear"
+                                aria-label="Kosongkan carian"
+                                onClick={() => setReferenceNo('')}
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        )}
                     </div>
                     <button className="status-button" type="submit" disabled={isLoading}>
                         {isLoading ? 'Mencari...' : 'Semak Status'}

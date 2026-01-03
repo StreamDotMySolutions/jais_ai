@@ -18,23 +18,40 @@ class RoleController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $roles = Role::query()
-            ->orderBy('name')
-            ->get(['id', 'name', 'guard_name']);
+        $perPage = (int) $request->query('per_page', 10);
+        if ($perPage <= 0 || $perPage > 100) {
+            $perPage = 10;
+        }
+        $keyword = trim((string) $request->query('keyword', ''));
 
+        $query = Role::query()->orderBy('name');
+        if ($keyword !== '') {
+            $query->where('name', 'like', '%' . $keyword . '%');
+        }
+
+        $roles = $query->paginate($perPage);
+
+        $roleIds = collect($roles->items())->pluck('id');
         $counts = DB::table(config('permission.table_names.model_has_roles'))
             ->select('role_id', DB::raw('count(*) as total'))
+            ->whereIn('role_id', $roleIds)
             ->groupBy('role_id')
             ->pluck('total', 'role_id');
 
-        $roles->transform(function ($role) use ($counts) {
+        $items = collect($roles->items())->map(function ($role) use ($counts) {
             $role->users_count = (int) ($counts[$role->id] ?? 0);
             return $role;
         });
 
         return response()->json([
             'message' => 'Role list',
-            'data' => $roles,
+            'data' => $items,
+            'meta' => [
+                'current_page' => $roles->currentPage(),
+                'last_page' => $roles->lastPage(),
+                'per_page' => $roles->perPage(),
+                'total' => $roles->total(),
+            ],
         ]);
     }
 

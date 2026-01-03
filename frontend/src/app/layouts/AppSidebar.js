@@ -1,27 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
 
-const AppSidebar = ({ role }) => {
-    const apiUrl = process.env.REACT_APP_API_URL;
-    const [menus, setMenus] = useState([]);
-
-    useEffect(() => {
-        if (!apiUrl) {
-            return;
-        }
-        const token = localStorage.getItem('token');
-        axios.get(`${apiUrl}/menus/my`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then((response) => {
-                setMenus(response?.data?.data || []);
-            })
-            .catch(() => {
-                setMenus([]);
-            });
-    }, [apiUrl, role]);
-
+const AppSidebar = ({ menus = [], isLoading = false }) => {
+    const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
     return (
         <div className="app-sidebar">
             <div className="app-brand">
@@ -30,6 +11,12 @@ const AppSidebar = ({ role }) => {
             </div>
 
             <nav className="app-nav">
+                {isLoading && menus.length === 0 && skeletonItems.map((item) => (
+                    <div key={`skeleton-${item}`} className="app-nav-link app-skeleton-row">
+                        <span className="app-skeleton-circle"></span>
+                        <span className="app-skeleton-line"></span>
+                    </div>
+                ))}
                 {menus.map((item) => (
                     <Link key={item.id} to={item.path} className="app-nav-link">
                         <i className={`bi ${item.icon || 'bi-dot'}`}></i>

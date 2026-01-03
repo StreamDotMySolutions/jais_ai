@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
+import PaginationBar from '../../components/PaginationBar';
+import SortableHeader from '../../components/SortableHeader';
+import { sortRows } from '../../utils/sort';
 
 const emptyForm = {
     label: '',
@@ -26,6 +29,16 @@ const MenuList = () => {
     const [selectedIds, setSelectedIds] = useState([]);
     const [showBulk, setShowBulk] = useState(false);
     const [bulkRoles, setBulkRoles] = useState([]);
+    const [page, setPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+    const [pagination, setPagination] = useState({
+        current_page: 1,
+        last_page: 1,
+        per_page: 10,
+        total: 0,
+    });
+    const [sortKey, setSortKey] = useState('');
+    const [sortDir, setSortDir] = useState('asc');
 
     const loadMenus = () => {
         if (!apiUrl) {
@@ -34,11 +47,26 @@ const MenuList = () => {
             return;
         }
         setIsLoading(true);
+        const params = {
+            page,
+            per_page: perPage,
+        };
+        if (keyword) {
+            params.keyword = keyword;
+        }
         axios.get(`${apiUrl}/menus`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            params,
         })
             .then((response) => {
                 setMenus(response?.data?.data || []);
+                setPagination(response?.data?.meta || {
+                    current_page: page,
+                    last_page: 1,
+                    per_page: perPage,
+                    total: 0,
+                });
+                setSelectedIds([]);
                 setError('');
             })
             .catch((err) => {
@@ -49,7 +77,7 @@ const MenuList = () => {
 
     useEffect(() => {
         loadMenus();
-    }, [apiUrl]);
+    }, [apiUrl, page, perPage, keyword]);
 
     useEffect(() => {
         if (!apiUrl) {
@@ -236,20 +264,43 @@ const MenuList = () => {
             });
     };
 
-    const filtered = menus.filter((menu) => {
-        if (!keyword) {
-            return true;
+    const canReorder = !keyword && !sortKey && page === 1;
+    const sortColumns = [
+        { key: 'label', label: 'Nama', sortable: true },
+        { key: 'path', label: 'Path', sortable: true },
+        { key: 'icon', label: 'Icon', sortable: true },
+        { key: 'status', label: 'Status', sortable: true },
+        { key: 'roles', label: 'Role', sortable: true },
+        { key: '', label: '', sortable: false },
+    ];
+    const sortAccessors = useMemo(() => ({
+        label: (item) => item.label || '',
+        path: (item) => item.path || '',
+        icon: (item) => item.icon || '',
+        status: (item) => (item.is_active ? 'Aktif' : 'Tidak Aktif'),
+        roles: (item) => item.roles?.map((role) => role.name).join(', ') || '',
+    }), []);
+    const sortedMenus = useMemo(
+        () => sortRows(menus, sortKey, sortDir, sortAccessors),
+        [menus, sortKey, sortDir, sortAccessors]
+    );
+    const displayMenus = sortKey ? sortedMenus : menus;
+
+    const handleSort = (key) => {
+        if (!key) {
+            return;
         }
-        const search = keyword.toLowerCase();
-        return (
-            (menu.label || '').toLowerCase().includes(search) ||
-            (menu.path || '').toLowerCase().includes(search)
-        );
-    });
+        if (sortKey === key) {
+            setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortKey(key);
+            setSortDir('asc');
+        }
+    };
 
     const toggleSelectAll = (checked) => {
         if (checked) {
-            setSelectedIds(filtered.map((menu) => menu.id));
+            setSelectedIds(displayMenus.map((menu) => menu.id));
         } else {
             setSelectedIds([]);
         }
@@ -280,9 +331,25 @@ const MenuList = () => {
                         <i className="bi bi-search"></i>
                         <input
                             value={keyword}
-                            onChange={(event) => setKeyword(event.target.value)}
+                            onChange={(event) => {
+                                setKeyword(event.target.value);
+                                setPage(1);
+                            }}
                             placeholder="Cari menu..."
                         />
+                        {keyword && (
+                            <button
+                                type="button"
+                                className="app-search-clear"
+                                aria-label="Kosongkan carian"
+                                onClick={() => {
+                                    setKeyword('');
+                                    setPage(1);
+                                }}
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        )}
                     </div>
                     {isReordering && <span className="app-muted">Menyimpan...</span>}
                     <button type="button" className="app-button app-button-ghost" onClick={openBulk}>
@@ -296,23 +363,15 @@ const MenuList = () => {
             </div>
 
             {error && <div className="app-form-error">{error}</div>}
-            {keyword && (
-                <div className="app-detail-note">Kosongkan carian untuk susun menu menggunakan drag.</div>
+            {!canReorder && (
+                <div className="app-detail-note">Susun menu hanya di halaman pertama tanpa carian atau susunan.</div>
             )}
 
             <div className="app-card app-complaints-card">
                 {isLoading ? (
-                    <div className="app-empty">Memuatkan menu...</div>
-                ) : (
-                    <div className="app-table">
+                    <div className="app-table app-table-skeleton">
                         <div className="app-table-header app-menu-header">
-                            <span>
-                                <input
-                                    type="checkbox"
-                                    checked={selectedIds.length > 0 && selectedIds.length === filtered.length}
-                                    onChange={(event) => toggleSelectAll(event.target.checked)}
-                                />
-                            </span>
+                            <span></span>
                             <span>Nama</span>
                             <span>Path</span>
                             <span>Icon</span>
@@ -320,22 +379,52 @@ const MenuList = () => {
                             <span>Role</span>
                             <span></span>
                         </div>
-                        {filtered.length === 0 ? (
+                        {Array.from({ length: 6 }, (_, index) => (
+                            <div key={`menu-skeleton-${index}`} className="app-table-row">
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line"></span>
+                                <span className="app-skeleton-line"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="app-table">
+                        <SortableHeader
+                            className="app-table-header app-menu-header"
+                            columns={[
+                                { key: 'select', label: (
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.length > 0 && selectedIds.length === displayMenus.length}
+                                        onChange={(event) => toggleSelectAll(event.target.checked)}
+                                    />
+                                ), sortable: false },
+                                ...sortColumns,
+                            ]}
+                            sortKey={sortKey}
+                            sortDir={sortDir}
+                            onSort={handleSort}
+                        />
+                        {displayMenus.length === 0 ? (
                             <div className="app-empty">Tiada menu ditemui.</div>
                         ) : (
-                            filtered.map((menu) => (
+                            displayMenus.map((menu) => (
                                 <div
                                     className={`app-table-row app-menu-row ${draggingId === menu.id ? 'is-dragging' : ''}`}
                                     key={menu.id}
-                                    draggable={!keyword}
+                                    draggable={canReorder}
                                     onDragStart={() => setDraggingId(menu.id)}
                                     onDragOver={(event) => {
-                                        if (!keyword) {
+                                        if (canReorder) {
                                             event.preventDefault();
                                         }
                                     }}
                                     onDrop={() => {
-                                        if (!keyword && draggingId) {
+                                        if (canReorder && draggingId) {
                                             reorderMenus(draggingId, menu.id);
                                         }
                                     }}
@@ -369,6 +458,22 @@ const MenuList = () => {
                     </div>
                 )}
             </div>
+
+            {!isLoading && (
+                <PaginationBar
+                    page={pagination.current_page}
+                    lastPage={pagination.last_page}
+                    total={pagination.total}
+                    perPage={pagination.per_page}
+                    startIndex={pagination.total === 0 ? 0 : ((pagination.current_page - 1) * pagination.per_page) + 1}
+                    endIndex={Math.min(pagination.current_page * pagination.per_page, pagination.total)}
+                    onPageChange={(nextPage) => setPage(nextPage)}
+                    onPerPageChange={(size) => {
+                        setPerPage(size);
+                        setPage(1);
+                    }}
+                />
+            )}
 
             {showModal && (
                 <div className="app-modal">

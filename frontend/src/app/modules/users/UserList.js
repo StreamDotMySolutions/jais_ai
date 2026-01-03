@@ -6,32 +6,26 @@ import { sortRows } from '../../utils/sort';
 
 const emptyForm = {
     name: '',
-    ic_number: '',
-    staff_id: '',
-    phone: '',
-    address: '',
-    marital_status: '',
-    position: '',
-    grade: '',
-    department: '',
-    office_type: '',
-    district_id: '',
     email: '',
     password: '',
     role: '',
+    status: '1',
+    office_type: '',
+    district_id: '',
 };
 
-const StaffList = () => {
+const UserList = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
-    const [staff, setStaff] = useState([]);
-    const [districts, setDistricts] = useState([]);
+    const token = localStorage.getItem('token');
+    const [users, setUsers] = useState([]);
     const [roles, setRoles] = useState([]);
+    const [districts, setDistricts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState(emptyForm);
     const [editingId, setEditingId] = useState(null);
-    const [error, setError] = useState('');
     const [keyword, setKeyword] = useState('');
+    const [error, setError] = useState('');
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
     const [total, setTotal] = useState(0);
@@ -39,17 +33,14 @@ const StaffList = () => {
     const [sortKey, setSortKey] = useState('');
     const [sortDir, setSortDir] = useState('asc');
 
-    const token = localStorage.getItem('token');
-
-    const loadStaff = () => {
+    const loadUsers = () => {
         if (!apiUrl) {
             setError('API URL tidak diset.');
             setIsLoading(false);
             return;
         }
-
         setIsLoading(true);
-        axios.get(`${apiUrl}/staff`, {
+        axios.get(`${apiUrl}/users`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             params: {
                 page,
@@ -58,39 +49,28 @@ const StaffList = () => {
             },
         })
             .then((response) => {
-                setStaff(response?.data?.data || []);
+                setUsers(response?.data?.data || []);
                 setTotal(response?.data?.meta?.total ?? 0);
                 setLastPage(response?.data?.meta?.last_page ?? 1);
                 setError('');
             })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Gagal memuatkan senarai staff.');
+                setError(err?.response?.data?.message || 'Gagal memuatkan pengguna.');
             })
             .finally(() => setIsLoading(false));
     };
 
     useEffect(() => {
-        loadStaff();
+        loadUsers();
     }, [apiUrl, page, perPage]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setPage(1);
-            loadStaff();
+            loadUsers();
         }, 300);
         return () => clearTimeout(timer);
     }, [keyword]);
-
-    useEffect(() => {
-        if (!apiUrl) {
-            return;
-        }
-        axios.get(`${apiUrl}/districts`)
-            .then((response) => {
-                setDistricts(response?.data?.data || []);
-            })
-            .catch(() => {});
-    }, [apiUrl]);
 
     useEffect(() => {
         if (!apiUrl) {
@@ -105,6 +85,17 @@ const StaffList = () => {
             .catch(() => {});
     }, [apiUrl]);
 
+    useEffect(() => {
+        if (!apiUrl) {
+            return;
+        }
+        axios.get(`${apiUrl}/districts`)
+            .then((response) => {
+                setDistricts(response?.data?.data || []);
+            })
+            .catch(() => {});
+    }, [apiUrl]);
+
     const openCreate = () => {
         setForm(emptyForm);
         setEditingId(null);
@@ -114,19 +105,12 @@ const StaffList = () => {
     const openEdit = (item) => {
         setForm({
             name: item.name || '',
-            ic_number: item.ic_number || '',
-            staff_id: item.staff_id || '',
-            phone: item.phone || '',
-            address: item.address || '',
-            marital_status: item.marital_status || '',
-            position: item.position || '',
-            grade: item.grade || '',
-            department: item.department || '',
+            email: item.email || '',
+            password: '',
+            role: item.roles?.[0]?.name || '',
+            status: item.status ? '1' : '0',
             office_type: item.office_type || '',
             district_id: item.district_id || '',
-            email: item.user?.email || '',
-            password: '',
-            role: item.user?.roles?.[0]?.name || '',
         });
         setEditingId(item.id);
         setShowModal(true);
@@ -141,38 +125,39 @@ const StaffList = () => {
         setForm((prev) => ({ ...prev, [field]: value }));
     };
 
-    const saveStaff = (event) => {
+    const saveUser = (event) => {
         event.preventDefault();
         if (!apiUrl) {
             return;
         }
         setError('');
-        const payload = { ...form };
-        if (!payload.password) {
-            delete payload.password;
-        }
-        if (!payload.email) {
-            delete payload.email;
-        }
-        if (!payload.role) {
-            delete payload.role;
+        const payload = {
+            name: form.name,
+            email: form.email,
+            role: form.role || null,
+            status: form.status === '1' ? 1 : 0,
+            office_type: form.office_type || null,
+            district_id: form.district_id || null,
+        };
+        if (form.password) {
+            payload.password = form.password;
         }
 
         const request = editingId
-            ? axios.put(`${apiUrl}/staff/${editingId}`, payload, {
+            ? axios.put(`${apiUrl}/users/${editingId}`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             })
-            : axios.post(`${apiUrl}/staff`, payload, {
+            : axios.post(`${apiUrl}/users`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             });
 
         request
             .then(() => {
                 closeModal();
-                loadStaff();
+                loadUsers();
             })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Gagal simpan staff.');
+                setError(err?.response?.data?.message || 'Gagal simpan pengguna.');
             });
     };
 
@@ -180,26 +165,22 @@ const StaffList = () => {
     const endIndex = Math.min(page * perPage, total);
     const sortColumns = [
         { key: 'name', label: 'Nama', sortable: true },
-        { key: 'staff_id', label: 'ID Kakitangan', sortable: true },
-        { key: 'phone', label: 'Telefon', sortable: true },
-        { key: 'grade', label: 'Gred', sortable: true },
+        { key: 'email', label: 'Emel', sortable: true },
+        { key: 'role', label: 'Role', sortable: true },
         { key: 'office_type', label: 'Pejabat', sortable: true },
-        { key: 'district', label: 'Daerah', sortable: true },
-        { key: 'account', label: 'Akaun', sortable: true },
+        { key: 'status', label: 'Status', sortable: true },
         { key: '', label: '', sortable: false },
     ];
     const sortAccessors = useMemo(() => ({
         name: (item) => item.name || '',
-        staff_id: (item) => item.staff_id || '',
-        phone: (item) => item.phone || '',
-        grade: (item) => item.grade || '',
+        email: (item) => item.email || '',
+        role: (item) => item.roles?.[0]?.name || '',
         office_type: (item) => item.office_type === 'hq' ? 'HQ' : item.office_type === 'daerah' ? 'Daerah' : '',
-        district: (item) => item.district?.name || '',
-        account: (item) => item.user?.email || '',
+        status: (item) => item.status ? 'Aktif' : 'Tidak Aktif',
     }), []);
-    const sortedStaff = useMemo(
-        () => sortRows(staff, sortKey, sortDir, sortAccessors),
-        [staff, sortKey, sortDir, sortAccessors]
+    const sortedUsers = useMemo(
+        () => sortRows(users, sortKey, sortDir, sortAccessors),
+        [users, sortKey, sortDir, sortAccessors]
     );
 
     const handleSort = (key) => {
@@ -218,9 +199,9 @@ const StaffList = () => {
         <div className="app-complaints">
             <div className="app-complaints-header">
                 <div>
-                    <span className="app-eyebrow">Pengurusan Kakitangan</span>
-                    <h3>Senarai Kakitangan</h3>
-                    <p>Tambah dan kemaskini maklumat kakitangan serta akaun pengguna.</p>
+                    <span className="app-eyebrow">Pengurusan Pengguna</span>
+                    <h3>Senarai Pengguna</h3>
+                    <p>Tambah dan kemaskini akaun pengguna sistem.</p>
                 </div>
                 <div className="app-complaints-actions">
                     <div className="app-search">
@@ -228,7 +209,7 @@ const StaffList = () => {
                         <input
                             value={keyword}
                             onChange={(event) => setKeyword(event.target.value)}
-                            placeholder="Cari nama atau ID staff..."
+                            placeholder="Cari nama atau emel..."
                         />
                         {keyword && (
                             <button
@@ -243,35 +224,52 @@ const StaffList = () => {
                     </div>
                     <button type="button" className="app-button" onClick={openCreate}>
                         <i className="bi bi-plus-lg"></i>
-                        Tambah Kakitangan
+                        Tambah Pengguna
                     </button>
                 </div>
             </div>
 
             <div className="app-card app-complaints-card">
                 {isLoading ? (
-                    <div className="app-empty">Memuatkan senarai staff...</div>
+                    <div className="app-table app-table-skeleton">
+                        <div className="app-table-header app-user-header">
+                            <span>Nama</span>
+                            <span>Emel</span>
+                            <span>Role</span>
+                            <span>Pejabat</span>
+                            <span>Status</span>
+                            <span></span>
+                        </div>
+                        {Array.from({ length: 6 }, (_, index) => (
+                            <div key={`user-skeleton-${index}`} className="app-table-row app-user-row">
+                                <span className="app-skeleton-line"></span>
+                                <span className="app-skeleton-line"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                            </div>
+                        ))}
+                    </div>
                 ) : (
                     <div className="app-table">
                         <SortableHeader
-                            className="app-table-header app-staff-header"
+                            className="app-table-header app-user-header"
                             columns={sortColumns}
                             sortKey={sortKey}
                             sortDir={sortDir}
                             onSort={handleSort}
                         />
-                        {staff.length === 0 ? (
-                            <div className="app-empty">Tiada staff ditemui.</div>
+                        {users.length === 0 ? (
+                            <div className="app-empty">Tiada pengguna ditemui.</div>
                         ) : (
-                            sortedStaff.map((item) => (
-                                <div className="app-table-row app-staff-row" key={item.id}>
+                            sortedUsers.map((item) => (
+                                <div className="app-table-row app-user-row" key={item.id}>
                                     <div className="app-code">{item.name}</div>
-                                    <div>{item.staff_id || '-'}</div>
-                                    <div>{item.phone || '-'}</div>
-                                    <div>{item.grade || '-'}</div>
+                                    <div>{item.email}</div>
+                                    <div>{item.roles?.[0]?.name || '-'}</div>
                                     <div>{item.office_type === 'hq' ? 'HQ' : item.office_type === 'daerah' ? 'Daerah' : '-'}</div>
-                                    <div>{item.district?.name || '-'}</div>
-                                    <div>{item.user?.email || 'Belum daftar'}</div>
+                                    <div>{item.status ? 'Aktif' : 'Tidak Aktif'}</div>
                                     <button
                                         type="button"
                                         className="app-link"
@@ -285,7 +283,7 @@ const StaffList = () => {
                     </div>
                 )}
             </div>
-            {!isLoading && staff.length > 0 && (
+            {!isLoading && users.length > 0 && (
                 <PaginationBar
                     page={page}
                     lastPage={lastPage}
@@ -307,50 +305,37 @@ const StaffList = () => {
                     <div className="app-modal-content">
                         <div className="app-modal-header">
                             <div>
-                                <h4>{editingId ? 'Kemaskini Kakitangan' : 'Tambah Kakitangan'}</h4>
-                                <p>Isi maklumat kakitangan dan pilihan akaun pengguna.</p>
+                                <h4>{editingId ? 'Kemaskini Pengguna' : 'Tambah Pengguna'}</h4>
+                                <p>Lengkapkan maklumat akaun.</p>
                             </div>
                             <button type="button" className="app-modal-close" onClick={closeModal}>
                                 <i className="bi bi-x-lg"></i>
                             </button>
                         </div>
                         {error && <div className="app-form-error">{error}</div>}
-                        <form onSubmit={saveStaff} className="app-form-grid">
+                        <form onSubmit={saveUser} className="app-form-grid">
                             <label className="app-form-field">
                                 <span>Nama</span>
                                 <input value={form.name} onChange={(e) => updateField('name', e.target.value)} required />
                             </label>
                             <label className="app-form-field">
-                                <span>No IC</span>
-                                <input value={form.ic_number} onChange={(e) => updateField('ic_number', e.target.value)} />
+                                <span>Emel</span>
+                                <input value={form.email} onChange={(e) => updateField('email', e.target.value)} required />
                             </label>
                             <label className="app-form-field">
-                                <span>ID Kakitangan</span>
-                                <input value={form.staff_id} onChange={(e) => updateField('staff_id', e.target.value)} />
+                                <span>Kata Laluan {editingId ? '(optional)' : ''}</span>
+                                <input type="password" value={form.password} onChange={(e) => updateField('password', e.target.value)} />
                             </label>
                             <label className="app-form-field">
-                                <span>No HP</span>
-                                <input value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
-                            </label>
-                            <label className="app-form-field">
-                                <span>Alamat</span>
-                                <input value={form.address} onChange={(e) => updateField('address', e.target.value)} />
-                            </label>
-                            <label className="app-form-field">
-                                <span>Status Kahwin</span>
-                                <input value={form.marital_status} onChange={(e) => updateField('marital_status', e.target.value)} />
-                            </label>
-                            <label className="app-form-field">
-                                <span>Jawatan</span>
-                                <input value={form.position} onChange={(e) => updateField('position', e.target.value)} />
-                            </label>
-                            <label className="app-form-field">
-                                <span>Gred</span>
-                                <input value={form.grade} onChange={(e) => updateField('grade', e.target.value)} />
-                            </label>
-                            <label className="app-form-field">
-                                <span>Jabatan</span>
-                                <input value={form.department} onChange={(e) => updateField('department', e.target.value)} />
+                                <span>Role</span>
+                                <select value={form.role} onChange={(e) => updateField('role', e.target.value)}>
+                                    <option value="">Pilih Role</option>
+                                    {roles.map((role) => (
+                                        <option key={role.id} value={role.name}>
+                                            {role.name}
+                                        </option>
+                                    ))}
+                                </select>
                             </label>
                             <label className="app-form-field">
                                 <span>Jenis Pejabat</span>
@@ -371,32 +356,16 @@ const StaffList = () => {
                                     ))}
                                 </select>
                             </label>
-                            <div className="app-span-full app-form-section">
-                                <h5>Register Akaun</h5>
-                                <p>Sila isi maklumat di bawah untuk auto register akaun.</p>
-                            </div>
                             <label className="app-form-field">
-                                <span>E-mel Akaun (optional)</span>
-                                <input value={form.email} onChange={(e) => updateField('email', e.target.value)} />
-                            </label>
-                            <label className="app-form-field">
-                                <span>Kata Laluan (optional)</span>
-                                <input type="password" value={form.password} onChange={(e) => updateField('password', e.target.value)} />
-                            </label>
-                            <label className="app-form-field">
-                                <span>Role Akaun (optional)</span>
-                                <select value={form.role} onChange={(e) => updateField('role', e.target.value)}>
-                                    <option value="">Pilih Role</option>
-                                    {roles.map((role) => (
-                                        <option key={role.id} value={role.name}>
-                                            {role.name}
-                                        </option>
-                                    ))}
+                                <span>Status</span>
+                                <select value={form.status} onChange={(e) => updateField('status', e.target.value)}>
+                                    <option value="1">Aktif</option>
+                                    <option value="0">Tidak Aktif</option>
                                 </select>
                             </label>
                             <div className="app-form-actions app-span-full">
                                 <button className="app-button" type="submit">
-                                    {editingId ? 'Simpan Perubahan' : 'Tambah Kakitangan'}
+                                    {editingId ? 'Simpan Perubahan' : 'Tambah Pengguna'}
                                 </button>
                             </div>
                         </form>
@@ -407,4 +376,4 @@ const StaffList = () => {
     );
 };
 
-export default StaffList;
+export default UserList;

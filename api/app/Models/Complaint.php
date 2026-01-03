@@ -14,8 +14,12 @@ class Complaint extends Model
         'created_at' => 'datetime:d-m-Y H:i:s', // Format as datetime
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
-        'aj_payload' => 'array',
-        'ak_payload' => 'array',
+        'received_at' => 'datetime:Y-m-d H:i',
+        'approver_assigned_at' => 'datetime:Y-m-d H:i',
+        'approver_confirmed_at' => 'datetime:Y-m-d H:i',
+        'ak_email_cc' => 'array',
+        'ak_investigation_datetime' => 'datetime:Y-m-d H:i',
+        'pic_assigned_at' => 'datetime:Y-m-d H:i',
     ];
 
 
@@ -27,5 +31,30 @@ class Complaint extends Model
     public function submittedBy()
     {
         return $this->belongsTo(User::class, 'submitted_by_user_id');
+    }
+
+    public function receivedBy()
+    {
+        return $this->belongsTo(User::class, 'received_by_user_id');
+    }
+
+    public function approverStaff()
+    {
+        return $this->belongsTo(Staff::class, 'approver_staff_id');
+    }
+
+    public function picUser()
+    {
+        return $this->belongsTo(User::class, 'pic_user_id');
+    }
+
+    public function oyds()
+    {
+        return $this->hasMany(ComplaintOyd::class);
+    }
+
+    public function seizureItems()
+    {
+        return $this->hasMany(ComplaintSeizureItem::class);
     }
 }

@@ -40,7 +40,7 @@ class AuthController extends Controller
         $request->authenticate(); // check AuthRequest->authenticate
 
         // find user
-        $user = User::where('id', Auth::user()->id)->first();
+        $user = User::with('staff:id,user_id,staff_id,name')->where('id', Auth::user()->id)->first();
 
         if ($user) {
             // create token in User Model
@@ -53,6 +53,7 @@ class AuthController extends Controller
                 'message' => 'Authentication Success',
                 'token' => $token,
                 'user' => $user,
+                'staff' => $user->staff,
                 'role' => $role,
             ]);
 

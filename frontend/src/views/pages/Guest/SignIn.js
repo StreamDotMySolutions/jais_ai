@@ -55,6 +55,7 @@ function SignIn() {
             localStorage.setItem('token', response.data.token) // token to be used with axios interceptor
             localStorage.setItem('role', response.data.role) // token to be used with profile
             localStorage.setItem('user_name', response.data.user?.name || 'Pengguna')
+            localStorage.setItem('staff_id', response.data.staff?.id ? String(response.data.staff.id) : '')
             store.setValue('authenticated', true) // for redirect purpose
             console.log('Form submitted successfully!');
         })

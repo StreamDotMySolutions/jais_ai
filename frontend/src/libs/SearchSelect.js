@@ -58,13 +58,25 @@ const SearchSelect = ({
             </button>
             {isOpen && (
                 <div className="app-search-select-menu">
-                    <input
-                        type="text"
-                        className="app-search-select-input"
-                        placeholder={searchPlaceholder}
-                        value={query}
-                        onChange={(event) => setQuery(event.target.value)}
-                    />
+                    <div className="app-search-select-input-wrap">
+                        <input
+                            type="text"
+                            className="app-search-select-input"
+                            placeholder={searchPlaceholder}
+                            value={query}
+                            onChange={(event) => setQuery(event.target.value)}
+                        />
+                        {query && (
+                            <button
+                                type="button"
+                                className="app-search-select-clear"
+                                aria-label="Kosongkan carian"
+                                onClick={() => setQuery('')}
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        )}
+                    </div>
                     <div className="app-search-select-list">
                         <button
                             type="button"

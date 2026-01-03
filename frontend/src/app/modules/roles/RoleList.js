@@ -1,5 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
+import PaginationBar from '../../components/PaginationBar';
+import SortableHeader from '../../components/SortableHeader';
+import { sortRows } from '../../utils/sort';
 
 const RoleList = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
@@ -11,6 +14,37 @@ const RoleList = () => {
     const [name, setName] = useState('');
     const [error, setError] = useState('');
     const [keyword, setKeyword] = useState('');
+    const [page, setPage] = useState(1);
+    const [perPage, setPerPage] = useState(10);
+    const [pagination, setPagination] = useState({
+        current_page: 1,
+        last_page: 1,
+        per_page: 10,
+        total: 0,
+    });
+    const [sortKey, setSortKey] = useState('');
+    const [sortDir, setSortDir] = useState('asc');
+
+    const sortedRoles = useMemo(
+        () => sortRows(roles, sortKey, sortDir, {
+            name: (item) => item.name || '',
+            guard: (item) => item.guard_name || '',
+            users_count: (item) => Number(item.users_count || 0),
+        }),
+        [roles, sortKey, sortDir]
+    );
+
+    const handleSort = (key) => {
+        if (!key) {
+            return;
+        }
+        if (sortKey === key) {
+            setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+        } else {
+            setSortKey(key);
+            setSortDir('asc');
+        }
+    };
 
     const loadRoles = () => {
         if (!apiUrl) {
@@ -20,11 +54,25 @@ const RoleList = () => {
         }
 
         setIsLoading(true);
+        const params = {
+            page,
+            per_page: perPage,
+        };
+        if (keyword) {
+            params.keyword = keyword;
+        }
         axios.get(`${apiUrl}/roles`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            params,
         })
             .then((response) => {
                 setRoles(response?.data?.data || []);
+                setPagination(response?.data?.meta || {
+                    current_page: page,
+                    last_page: 1,
+                    per_page: perPage,
+                    total: 0,
+                });
                 setError('');
             })
             .catch((err) => {
@@ -35,7 +83,7 @@ const RoleList = () => {
 
     useEffect(() => {
         loadRoles();
-    }, [apiUrl]);
+    }, [apiUrl, page, perPage, keyword]);
 
     const openCreate = () => {
         setEditing(null);
@@ -102,13 +150,6 @@ const RoleList = () => {
             });
     };
 
-    const filtered = roles.filter((role) => {
-        if (!keyword) {
-            return true;
-        }
-        return role.name.toLowerCase().includes(keyword.toLowerCase());
-    });
-
     return (
         <div className="app-complaints">
             <div className="app-complaints-header">
@@ -122,9 +163,25 @@ const RoleList = () => {
                         <i className="bi bi-search"></i>
                         <input
                             value={keyword}
-                            onChange={(event) => setKeyword(event.target.value)}
+                            onChange={(event) => {
+                                setKeyword(event.target.value);
+                                setPage(1);
+                            }}
                             placeholder="Cari role..."
                         />
+                        {keyword && (
+                            <button
+                                type="button"
+                                className="app-search-clear"
+                                aria-label="Kosongkan carian"
+                                onClick={() => {
+                                    setKeyword('');
+                                    setPage(1);
+                                }}
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        )}
                     </div>
                     <button type="button" className="app-button" onClick={openCreate}>
                         <i className="bi bi-plus-lg"></i>
@@ -137,19 +194,40 @@ const RoleList = () => {
 
             <div className="app-card app-complaints-card">
                 {isLoading ? (
-                    <div className="app-empty">Memuatkan role...</div>
-                ) : (
-                    <div className="app-table">
+                    <div className="app-table app-table-skeleton">
                         <div className="app-table-header app-role-header">
                             <span>Nama Role</span>
                             <span>Guard</span>
                             <span>Bil. Pengguna</span>
                             <span></span>
                         </div>
-                        {filtered.length === 0 ? (
+                        {Array.from({ length: 6 }, (_, index) => (
+                            <div key={`role-skeleton-${index}`} className="app-table-row">
+                                <span className="app-skeleton-line"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="app-table">
+                        <SortableHeader
+                            className="app-table-header app-role-header"
+                            columns={[
+                                { key: 'name', label: 'Nama Role', sortable: true },
+                                { key: 'guard', label: 'Guard', sortable: true },
+                                { key: 'users_count', label: 'Bil. Pengguna', sortable: true },
+                                { key: '', label: '', sortable: false },
+                            ]}
+                            sortKey={sortKey}
+                            sortDir={sortDir}
+                            onSort={handleSort}
+                        />
+                        {roles.length === 0 ? (
                             <div className="app-empty">Tiada role ditemui.</div>
                         ) : (
-                            filtered.map((role) => (
+                            sortedRoles.map((role) => (
                                 <div className="app-table-row app-role-row" key={role.id}>
                                     <div className="app-code">{role.name}</div>
                                     <div>{role.guard_name}</div>
@@ -168,6 +246,22 @@ const RoleList = () => {
                     </div>
                 )}
             </div>
+
+            {!isLoading && (
+                <PaginationBar
+                    page={pagination.current_page}
+                    lastPage={pagination.last_page}
+                    total={pagination.total}
+                    perPage={pagination.per_page}
+                    startIndex={pagination.total === 0 ? 0 : ((pagination.current_page - 1) * pagination.per_page) + 1}
+                    endIndex={Math.min(pagination.current_page * pagination.per_page, pagination.total)}
+                    onPageChange={(nextPage) => setPage(nextPage)}
+                    onPerPageChange={(size) => {
+                        setPerPage(size);
+                        setPage(1);
+                    }}
+                />
+            )}
 
             {showModal && (
                 <div className="app-modal">

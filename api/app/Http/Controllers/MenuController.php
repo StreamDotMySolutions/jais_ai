@@ -39,14 +39,35 @@ class MenuController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $menus = Menu::query()
+        $perPage = (int) $request->query('per_page', 10);
+        if ($perPage <= 0 || $perPage > 100) {
+            $perPage = 10;
+        }
+        $keyword = trim((string) $request->query('keyword', ''));
+
+        $query = Menu::query()
             ->with('roles:id,name')
-            ->orderBy('sort_order')
-            ->get();
+            ->orderBy('sort_order');
+
+        if ($keyword !== '') {
+            $query->where(function ($subQuery) use ($keyword) {
+                $subQuery
+                    ->where('label', 'like', '%' . $keyword . '%')
+                    ->orWhere('path', 'like', '%' . $keyword . '%');
+            });
+        }
+
+        $menus = $query->paginate($perPage);
 
         return response()->json([
             'message' => 'Menu list',
-            'data' => $menus,
+            'data' => $menus->items(),
+            'meta' => [
+                'current_page' => $menus->currentPage(),
+                'last_page' => $menus->lastPage(),
+                'per_page' => $menus->perPage(),
+                'total' => $menus->total(),
+            ],
         ]);
     }
 
@@ -59,7 +80,7 @@ class MenuController extends Controller
 
         $validated = $request->validate([
             'label' => 'required|string|max:255',
-            'path' => 'required|string|max:255|unique:menus,path',
+            'path' => 'required|string|max:255|unique:' . config('permission.table_names.menus', 'sys_menus') . ',path',
             'icon' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
@@ -94,7 +115,7 @@ class MenuController extends Controller
 
         $validated = $request->validate([
             'label' => 'required|string|max:255',
-            'path' => 'required|string|max:255|unique:menus,path,' . $menu->id,
+            'path' => 'required|string|max:255|unique:' . config('permission.table_names.menus', 'sys_menus') . ',path,' . $menu->id,
             'icon' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
