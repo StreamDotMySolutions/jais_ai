@@ -202,7 +202,6 @@ const ComplaintDetail = () => {
             return;
         }
 
-        setActiveStep(0);
         setAjPayload({
             ...ajPayloadDefault,
             offense_id: complaint.aj_offense_id ? String(complaint.aj_offense_id) : '',
@@ -257,6 +256,10 @@ const ComplaintDetail = () => {
         });
         setApproverStaffId(complaint.approver_staff_id ? String(complaint.approver_staff_id) : '');
     }, [complaint]);
+
+    useEffect(() => {
+        setActiveStep(0);
+    }, [id]);
 
     const updateReportField = (field, value) => {
         setAjReport((prev) => ({ ...prev, [field]: value }));
@@ -1313,12 +1316,6 @@ const ComplaintDetail = () => {
                                             </div>
                                         </div>
                                     )}
-                                </div>
-                                {reportMessage && <div className="app-detail-note">{reportMessage}</div>}
-                                <div className="app-report-actions">
-                                    <button className="app-button" type="button" onClick={submitAjReport}>
-                                        Simpan Laporan
-                                    </button>
                                 </div>
                                 {reportMessage && <div className="app-detail-note">{reportMessage}</div>}
                                 <div className="app-report-actions">
