@@ -24,12 +24,14 @@ class ComplaintController extends Controller
 
         // Store the complaint
         $complaint = Complaint::create([        
+            'channel'    => 'web',
             'name'    => $request->name,
             'occupation'    => $request->occupation,
             'identification_number'    => $request->identification_number,
             'contact_number'    => $request->contact_number,
             'address'    => $request->address,
             'contents'    => $request->contents,
+            'status'    => 'received',
         ]);
 
         return response()->json([
