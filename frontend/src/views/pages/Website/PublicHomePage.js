@@ -11,13 +11,14 @@ export default function PublicHomePage() {
       <header className="bg-success text-white shadow sticky-top">
         <div className="container-fluid d-flex justify-content-between align-items-center p-3">
           <div className="fw-bold fs-5">UDPS AI · Aduan JAIS</div>
-          <nav className="d-flex gap-3 small fw-medium">
+          <nav className="d-flex gap-3 small fw-medium align-items-center">
             {/* Menggunakan Link untuk navigasi */}
-            <Link to="/" className="btn btn-link text-white text-decoration-none">Home</Link>
-            <Link to="/complaint" className="btn btn-link text-white text-decoration-none">Buat Aduan</Link>
-            {/* Pautan Semak Status belum ada dalam Route anda, ini contoh sahaja */}
-            <Link to="/semak-status" className="btn btn-link text-white text-decoration-none">Semak Status</Link>
-            <Link to="/sign-in" className="btn btn-light text-success px-3 py-1 rounded">Login</Link>
+            <Link to="/" className="btn btn-link text-white text-decoration-none">Utama</Link>
+            <Link to="/about-us" className="btn btn-link text-white text-decoration-none">Mengenai Kami</Link>
+            <Link to="/complaint" className="btn btn-link text-white text-decoration-none">Aduan Online</Link>
+            <Link to="/contact-us" className="btn btn-link text-white text-decoration-none">Hubungi Kami</Link>
+            <Link to="/sign-in" className="btn btn-light text-success px-3 py-1 rounded">Log Masuk</Link>
+            <Link to="/register" className="btn btn-outline-light px-3 py-1 rounded">Daftar</Link>
           </nav>
         </div>
       </header>
@@ -59,12 +60,14 @@ export default function PublicHomePage() {
                 </div>
               </div>
               <div className="col-md-4">
-                <div className="card h-100 shadow-sm">
-                  <div className="card-body">
-                    <h5 className="fw-bold">Semak Status Aduan</h5>
-                    <p className="text-muted small">Jejak status aduan secara telus dan masa nyata.</p>
+                <Link to="/semak-status" className="text-decoration-none text-reset">
+                  <div className="card h-100 shadow-sm">
+                    <div className="card-body">
+                      <h5 className="fw-bold">Semak Status Aduan</h5>
+                      <p className="text-muted small">Jejak status aduan secara telus dan masa nyata.</p>
+                    </div>
                   </div>
-                </div>
+                </Link>
               </div>
               <div className="col-md-4">
                 <div className="card h-100 shadow-sm">

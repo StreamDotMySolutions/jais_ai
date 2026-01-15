@@ -20,6 +20,19 @@ class DatabaseSeeder extends Seeder
         // ]);
         $this->call([
             UserSeeder::class,
+            DistrictSeeder::class,
+            DistrictNormalizeSeeder::class,
+            OffenseTypeSeeder::class,
+            OffenseSeeder::class,
+            KhalwatDetailSeeder::class,
+            JudiDetailSeeder::class,
+            ComplaintClassificationSeeder::class,
+            ComplaintStatusSeeder::class,
+            ComplaintEmailRecipientSeeder::class,
+            StaffSeeder::class,
+            MenuSeeder::class,
+            ComplaintSeeder::class,
+            ComplaintBackfillSeeder::class,
             //ModuleSeeder::class,
         ]);
     }

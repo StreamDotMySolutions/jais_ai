@@ -41,7 +41,7 @@ export function TextEditor({fieldName}){
       );
 }
 
-export function InputText({fieldName, placeholder, icon, isLoading, type='text'}){
+export function InputText({fieldName, placeholder, icon, isLoading, type='text', readOnly=false}){
     const store = useStore()
     const errors = store.getValue('errors')
 
@@ -54,7 +54,7 @@ export function InputText({fieldName, placeholder, icon, isLoading, type='text'}
                         value={store.getValue(fieldName) ||  ''}
                         name={fieldName}
                         size='md' 
-                        readOnly={isLoading}
+                        readOnly={isLoading || readOnly}
                         //required 
                         isInvalid={errors?.hasOwnProperty(fieldName)}
                         onChange={ (e) => { 
@@ -128,7 +128,7 @@ export function InputSelect({fieldName, placeholder, icon, isLoading, options}){
                           store.setValue(fieldName, e.target.value)                         
                         } }
                     >
-                        <option>{placeholder}</option>
+                        <option value="" disabled>{placeholder}</option>
                         {options?.map((option,index) => (
                             <option 
                                 value={option.id}

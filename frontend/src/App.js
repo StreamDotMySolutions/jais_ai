@@ -2,27 +2,26 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import ProtectedRoute from './libs/ProtectedRoute';
 
+import AppLayout from './app/layouts/AppLayout';
+
 // Layouts
 import GuestLayout from './views/layouts/GuestLayout/GuestLayout';
 import HomeLayout from './views/layouts/HomeLayout/HomeLayout';
-import UserLayout from './views/layouts/UserLayout/UserLayout';
-import AdminLayout from './views/layouts/AdminLayout/AdminLayout';
+import PublicLayout from './views/layouts/PublicLayout/PublicLayout';
 
 // role = Guest
 import LoginPage from './views/pages/LoginPage';
-import DashboardPage from './views/pages/User/DashboardPage';
-
-
-// role = User
-import UserHomePage from './views/pages/User/Home';
 import ApiToken from './views/pages/User/ApiToken';
 import ApiLog from './views/pages/User/ApiLog';
 
-// role = Admin
-import AdminHomePage from './views/pages/Admin/Home';
-import UserManagement from './views/pages/Admin/Users';
-import ComplaintManagement from './views/pages/Admin/Complaints';
-
+// App modules
+import AppDashboard from './app/modules/dashboard/Dashboard';
+import AppComplaintList from './app/modules/aduan/ComplaintList';
+import AppComplaintDetail from './app/modules/aduan/ComplaintDetail';
+import StaffList from './app/modules/staff/StaffList';
+import RoleList from './app/modules/roles/RoleList';
+import MenuList from './app/modules/menus/MenuList';
+import UserList from './app/modules/users/UserList';
 
 // Common
 import Profile from './views/pages/Global/Profile';
@@ -33,6 +32,7 @@ import ContactUs from './views/pages/Guest/ContactUs';
 import SignOut from './views/pages/Guest/SignOut';
 import Complaint from './views/pages/Guest/Complaint';
 import PublicHomePage from './views/pages/Website/PublicHomePage';
+import ComplaintStatus from './views/pages/Website/ComplaintStatus';
 
 
 
@@ -54,29 +54,56 @@ function App() {
           <Route path="/logout" element={<LoginPage />} />
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/contact-us" element={<ContactUs />} />
-           <Route path="/complaint" element={<Complaint />} />
+        </Route>
+
+        {/* Auth Layout */}
+        <Route element={<HomeLayout />}>
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/register" element={<Register />} />
         </Route>
 
-        {/* User Layout */}
-        <Route element={<ProtectedRoute role={'user'} />}>
-          <Route element={<UserLayout />}>
-            <Route path="/user/home" element={<UserHomePage />} />
-            <Route path="/user/api-token" element={<ApiToken />} />
-            <Route path="/user/api-logs" element={<ApiLog />} />
-            <Route path="/user/Profile" element={<Profile />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/sign-out" element={<SignOut />} />
-          </Route>  
+        {/* Public Layout */}
+        <Route element={<PublicLayout />}>
+          <Route path="/complaint" element={<Complaint />} />
+          <Route path="/semak-status" element={<ComplaintStatus />} />
         </Route>
 
-        {/* Admin Layout */}
-        <Route element={<ProtectedRoute role={'admin'} />}>`
-          <Route element={<AdminLayout />}>`
-            <Route path="/admin/home" element={<AdminHomePage />} />
-            <Route path="/admin/users" element={<UserManagement />} />
-            <Route path="/admin/complaints" element={<ComplaintManagement />} />
+        {/* User Layout */}
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route path="/app/dashboard" element={<AppDashboard />} />
+            <Route
+              path="/app/complaints"
+              element={<AppComplaintList />}
+            />
+            <Route
+              path="/app/complaints/aj"
+              element={<AppComplaintList caseType="AJ" title="Senarai Aduan Jenayah" description="Senarai aduan kategori jenayah (AJ)." />}
+            />
+            <Route
+              path="/app/complaints/ak"
+              element={<AppComplaintList caseType="AK" title="Senarai Aduan Keluarga" description="Senarai aduan kategori keluarga (AK)." />}
+            />
+            <Route
+              path="/app/complaints/pending-approval"
+              element={<AppComplaintList title="Aduan Untuk Disahkan" description="Senarai aduan yang menunggu pengesahan anda." fetchEndpoint="/complaints/pending-approval" />}
+            />
+            <Route
+              path="/app/complaints/pickup-queue"
+              element={<AppComplaintList title="Aduan Untuk Diambil" description="Senarai aduan yang menunggu PIC ambil." fetchEndpoint="/complaints/pickup-queue" enablePickup />}
+            />
+            <Route
+              path="/app/complaints/my-pic"
+              element={<AppComplaintList title="Aduan Saya (PIC)" description="Senarai aduan yang telah anda ambil." fetchEndpoint="/complaints/my-pic" />}
+            />
+            <Route path="/app/complaints/:id" element={<AppComplaintDetail />} />
+            <Route path="/app/staff" element={<StaffList />} />
+            <Route path="/app/roles" element={<RoleList />} />
+            <Route path="/app/users" element={<UserList />} />
+            <Route path="/app/menus" element={<MenuList />} />
+            <Route path="/app/api-token" element={<ApiToken />} />
+            <Route path="/app/api-logs" element={<ApiLog />} />
+            <Route path="/app/profile" element={<Profile />} />
           </Route>
         </Route>
       </Routes>

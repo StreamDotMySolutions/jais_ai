@@ -42,7 +42,7 @@ class RegisterController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        $user->assignRole('user'); // default role is user
+        $user->assignRole('awam'); // default role for public users
 
         return response()->json([
             'status' => 'success',

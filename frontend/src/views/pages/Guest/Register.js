@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Row, Button, Form } from 'react-bootstrap';
+import { Form } from 'react-bootstrap';
 import axios from 'axios';
 import useStore from '../../../store';
 import { appendFormData, InputText } from '../../../libs/FormInput';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import SubmitButton from '../../../libs/SubmitButton';
 
 function Register() {
@@ -74,55 +74,109 @@ function Register() {
 
 
     return (
-        <Row className='ms-4 col-8 border border-1 p-4 rounded'>
-        <h1>Register</h1>
-        <Form onSubmit={handleSubmit}>
+        <div className="auth-shell">
+            <div className={`auth-card ${isLoading ? 'is-loading' : ''}`}>
+                <div className="auth-hero">
+                    <div>
+                        <span className="auth-badge">JAIS AI</span>
+                        <h2 className="auth-hero-title">Daftar Akaun Baharu</h2>
+                        <p className="auth-hero-subtitle">
+                            Akaun anda memberi akses kepada modul aduan, token API, dan papan pemuka JAIS AI.
+                        </p>
+                    </div>
 
-            <Row>
-                <Row className='mb-4'>
-                    <InputText 
-                        fieldName='name' 
-                        placeholder='Your name'  
-                        icon='bi-people'
-                        isLoading={isLoading}
-                    />
-                </Row>
+                    <div className="auth-hero-list">
+                        <div className="auth-hero-item">
+                            <span className="auth-hero-icon"><i className="bi bi-person-check"></i></span>
+                            <div>
+                                <div className="auth-hero-label">Pengesahan cepat</div>
+                                <div className="auth-hero-text">Daftar sekali untuk akses semua modul.</div>
+                            </div>
+                        </div>
+                        <div className="auth-hero-item">
+                            <span className="auth-hero-icon"><i className="bi bi-shield-lock"></i></span>
+                            <div>
+                                <div className="auth-hero-label">Privasi terjaga</div>
+                                <div className="auth-hero-text">Maklumat anda disulitkan dan dilindungi.</div>
+                            </div>
+                        </div>
+                        <div className="auth-hero-item">
+                            <span className="auth-hero-icon"><i className="bi bi-clipboard-check"></i></span>
+                            <div>
+                                <div className="auth-hero-label">Rekod telus</div>
+                                <div className="auth-hero-text">Semua aktiviti direkod untuk audit.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-                <Row className='mb-4'>
-                    <InputText 
-                        type='text'
-                        fieldName='email' 
-                        placeholder='Valid email address'  
-                        icon='bi-envelope'
-                        isLoading={isLoading}
-                    />
-                </Row>
+                <div className="auth-form">
+                    <div className="auth-form-header">
+                        <span className="auth-kicker">Akaun baharu</span>
+                        <h1 className="auth-title">Daftar</h1>
+                        <p className="auth-subtitle">Isi maklumat asas untuk mengaktifkan akaun anda.</p>
+                    </div>
 
-                <Row className='mb-4'>
-                    <InputText 
-                        type='password'
-                        fieldName='password' 
-                        placeholder='Password'  
-                        icon='bi-lock'
-                        isLoading={isLoading}
-                    />
-                </Row>
+                    <Form onSubmit={handleSubmit}>
+                        <div className="auth-field">
+                            <label className="auth-label">Nama penuh</label>
+                            <InputText 
+                                fieldName='name' 
+                                placeholder='Nama seperti IC'  
+                                icon='bi-people'
+                                isLoading={isLoading}
+                            />
+                        </div>
 
-                <Row className='mb-4'>
-                    <InputText 
-                        type='password'
-                        password='password_confirmation'
-                        fieldName='password_confirmation' 
-                        placeholder='Confirm Password'  
-                        icon='bi-lock'
-                        isLoading={isLoading}
-                    />
-                </Row>
-            </Row>
+                        <div className="auth-field">
+                            <label className="auth-label">Emel</label>
+                            <InputText 
+                                type='text'
+                                fieldName='email' 
+                                placeholder='nama@domain.gov.my'  
+                                icon='bi-envelope'
+                                isLoading={isLoading}
+                            />
+                        </div>
 
-            <SubmitButton isLoading={isLoading} value="Register" />
-        </Form>
-        </Row>
+                        <div className="auth-field">
+                            <label className="auth-label">Kata laluan</label>
+                            <InputText 
+                                type='password'
+                                fieldName='password' 
+                                placeholder='Minimum 8 aksara'  
+                                icon='bi-lock'
+                                isLoading={isLoading}
+                            />
+                        </div>
+
+                        <div className="auth-field">
+                            <label className="auth-label">Sahkan kata laluan</label>
+                            <InputText 
+                                type='password'
+                                password='password_confirmation'
+                                fieldName='password_confirmation' 
+                                placeholder='Ulang kata laluan'  
+                                icon='bi-lock'
+                                isLoading={isLoading}
+                            />
+                        </div>
+
+                        <div className="auth-meta">
+                            <span className="auth-meta-text">Sudah ada akaun?</span>
+                            <Link className="auth-link" to="/sign-in">Log masuk</Link>
+                        </div>
+
+                        <SubmitButton isLoading={isLoading} value="Daftar Akaun" />
+                    </Form>
+
+                    <div className="auth-divider"></div>
+                    <div className="auth-note">
+                        Pendaftaran tertakluk kepada polisi keselamatan JAIS AI.
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 

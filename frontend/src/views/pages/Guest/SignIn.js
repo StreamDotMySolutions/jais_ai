@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Row,Alert, Form } from 'react-bootstrap';
+import { Alert, Form } from 'react-bootstrap';
 import axios from 'axios';
 import { appendFormData, InputText } from '../../../libs/FormInput';
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import SubmitButton from '../../../libs/SubmitButton';
 import useStore from '../../../store';
 import AuthStore from '../../../stores/AuthStore'
@@ -54,6 +54,8 @@ function SignIn() {
             //console.log(response);
             localStorage.setItem('token', response.data.token) // token to be used with axios interceptor
             localStorage.setItem('role', response.data.role) // token to be used with profile
+            localStorage.setItem('user_name', response.data.user?.name || 'Pengguna')
+            localStorage.setItem('staff_id', response.data.staff?.id ? String(response.data.staff.id) : '')
             store.setValue('authenticated', true) // for redirect purpose
             console.log('Form submitted successfully!');
         })
@@ -81,11 +83,15 @@ function SignIn() {
         // Switch based on the role
         switch (role) {
             case 'system':
-                return <Navigate to='/system/home' replace />; // Redirect admin to /system
+                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
             case 'admin':
-                return <Navigate to='/admin/home' replace />; // Redirect admin to /admin
+                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
+            case 'pegawai':
+                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
             case 'user':
-                return <Navigate to='/user/home' replace />; // Redirect user to /dashboard
+                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
+            case 'awam':
+                return <Navigate to='/app/dashboard' replace />; // Redirect public user to app
             default:
                 return <Navigate to='/' replace />; // Default redirect (e.g., home or error)
         }
@@ -93,40 +99,89 @@ function SignIn() {
 
 
     return (
-        <Row className='ms-4 col-8 border border-1 p-4 rounded'  style={{ backgroundColor: isLoading ? '#eaeaea' : 'transparent' }} >
-        <h1>Sign In</h1>
+        <div className="auth-shell">
+            <div className={`auth-card ${isLoading ? 'is-loading' : ''}`}>
+                <div className="auth-hero">
+                    <div>
+                        <span className="auth-badge">JAIS AI</span>
+                        <h2 className="auth-hero-title">Portal Identiti Digital</h2>
+                        <p className="auth-hero-subtitle">
+                            Akses selamat untuk urus akaun, token API, dan log penggunaan anda.
+                        </p>
+                    </div>
 
-     
-        <Form onSubmit={handleSubmit}>
+                    <div className="auth-hero-list">
+                        <div className="auth-hero-item">
+                            <span className="auth-hero-icon"><i className="bi bi-shield-check"></i></span>
+                            <div>
+                                <div className="auth-hero-label">Keselamatan diperkukuh</div>
+                                <div className="auth-hero-text">Sesi dilindungi dan audit log disimpan.</div>
+                            </div>
+                        </div>
+                        <div className="auth-hero-item">
+                            <span className="auth-hero-icon"><i className="bi bi-key"></i></span>
+                            <div>
+                                <div className="auth-hero-label">Token API terurus</div>
+                                <div className="auth-hero-text">Cipta, pantau, dan nyahaktif token dengan cepat.</div>
+                            </div>
+                        </div>
+                        <div className="auth-hero-item">
+                            <span className="auth-hero-icon"><i className="bi bi-bar-chart"></i></span>
+                            <div>
+                                <div className="auth-hero-label">Log penggunaan jelas</div>
+                                <div className="auth-hero-text">Pantau panggilan API dan prestasi masa nyata.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-            <Row>
-                {message && <Alert variant={messageType}>{message}</Alert>}
-                <Row className='mb-4'>
-                    <InputText 
-                        type='text'
-                        fieldName='email' 
-                        placeholder='Your email address'  
-                        icon='bi-envelope'
-                        isLoading={isLoading}
-                    />
-                </Row>
+                <div className="auth-form">
+                    <div className="auth-form-header">
+                        <span className="auth-kicker">Akses selamat</span>
+                        <h1 className="auth-title">Log Masuk</h1>
+                        <p className="auth-subtitle">Teruskan sesi anda untuk mengurus modul JAIS AI.</p>
+                    </div>
 
-                <Row className='mb-4'>
-                    <InputText 
-                        type='password'
-                        fieldName='password' 
-                        placeholder='Password'  
-                        icon='bi-lock'
-                        isLoading={isLoading}
-                    />
-                </Row>
+                    {message && <Alert className="auth-alert" variant={messageType}>{message}</Alert>}
 
-              
-            </Row>
+                    <Form onSubmit={handleSubmit}>
+                        <div className="auth-field">
+                            <label className="auth-label">Emel</label>
+                            <InputText 
+                                type='text'
+                                fieldName='email' 
+                                placeholder='nama@domain.gov.my'  
+                                icon='bi-envelope'
+                                isLoading={isLoading}
+                            />
+                        </div>
 
-            <SubmitButton isLoading={isLoading} value="Sign In" />
-        </Form>
-        </Row>
+                        <div className="auth-field">
+                            <label className="auth-label">Kata laluan</label>
+                            <InputText 
+                                type='password'
+                                fieldName='password' 
+                                placeholder='Masukkan kata laluan'  
+                                icon='bi-lock'
+                                isLoading={isLoading}
+                            />
+                        </div>
+
+                        <div className="auth-meta">
+                            <span className="auth-meta-text">Belum ada akaun?</span>
+                            <Link className="auth-link" to="/register">Daftar sekarang</Link>
+                        </div>
+
+                        <SubmitButton isLoading={isLoading} value="Log Masuk" />
+                    </Form>
+
+                    <div className="auth-divider"></div>
+                    <div className="auth-note">
+                        Dengan log masuk, anda bersetuju dengan polisi keselamatan JAIS AI.
+                    </div>
+                </div>
+            </div>
+        </div>
     );
 }
 

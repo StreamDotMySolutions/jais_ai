@@ -29,7 +29,8 @@ Frontend Folder
 
 
 
-
+Link download Laragon:
+https://io.bikegremlin.com/35435/laragon-6-php-8-4-install/
 
 
 $2y$12$dM2pvXJEvgly0W9qBoEDZ.saRuoGxCUvZDh/S7ysaG9SULbC.pNLG
