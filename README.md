@@ -27,10 +27,15 @@ Frontend Folder
 1. cp env.example as .env (linux) untuk cp ".env.example" ".env" (Windows)
 2. npm start
 
+NGROK
+---
+1. Register NGROK static domain
+2. Run Laravel at port 8000
+3. ngrok http --url=parrot-poetic-squirrel.ngrok-free.app 8000
 
+META BUSINESS
+---
 
 Link download Laragon:
 https://io.bikegremlin.com/35435/laragon-6-php-8-4-install/
 
-
-$2y$12$dM2pvXJEvgly0W9qBoEDZ.saRuoGxCUvZDh/S7ysaG9SULbC.pNLG
