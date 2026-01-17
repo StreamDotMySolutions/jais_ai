@@ -367,10 +367,12 @@ const ComplaintList = ({
                 </form>
             )}
 
-            <div className="app-card app-complaints-card">
-                {isLoading && (
-                    <div className="app-table app-table-skeleton">
-                        <div className="app-table-header">
+            <div className={`app-complaints-body ${selectedComplaint ? 'has-drawer' : ''}`}>
+                <div className="app-complaints-main">
+                    <div className="app-card app-complaints-card">
+                    {isLoading && (
+                        <div className="app-table app-table-skeleton">
+                            <div className="app-table-header">
                             <span>No Aduan</span>
                             <span>Tarikh</span>
                             <span>Pengadu</span>
@@ -406,7 +408,10 @@ const ComplaintList = ({
                             onSort={handleSort}
                         />
                         {sortedComplaints.map((item) => (
-                            <div key={item.id} className="app-table-row">
+                            <div
+                                key={item.id}
+                                className={`app-table-row ${selectedComplaint?.id === item.id ? 'is-selected' : ''}`}
+                            >
                                 <span className="app-code">
                                     <button
                                         type="button"
@@ -440,24 +445,86 @@ const ComplaintList = ({
                             </div>
                         ))}
                     </div>
+                    )}
+                    </div>
+                    {pickupMessage && <div className="app-detail-note">{pickupMessage}</div>}
+                    {!isLoading && !error && pagination.total > 0 && (
+                        <PaginationBar
+                            page={pagination.current_page}
+                            lastPage={pagination.last_page}
+                            total={pagination.total}
+                            perPage={pagination.per_page}
+                            startIndex={startIndex}
+                            endIndex={endIndex}
+                            onPageChange={(nextPage) => setPage(nextPage)}
+                            onPerPageChange={(size) => {
+                                setPerPage(size);
+                                setPage(1);
+                            }}
+                        />
+                    )}
+                </div>
+
+                {selectedComplaint && (
+                    <div className="app-drawer app-drawer--push">
+                        <aside className="app-drawer-panel">
+                            <div className="app-drawer-header">
+                                <div>
+                                    <span className="app-eyebrow">Ringkasan Aduan</span>
+                                    <h4>{selectedComplaint.reference_no || '-'}</h4>
+                                    <span className="app-status-pill">{selectedComplaint.current_stage || 'baru'}</span>
+                                </div>
+                                <button
+                                    className="app-modal-close"
+                                    type="button"
+                                    onClick={() => setSelectedComplaint(null)}
+                                >
+                                    <i className="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+
+                            <div className="app-drawer-section">
+                                <h5>Maklumat Pengadu</h5>
+                                <p><strong>{selectedComplaint.complainant_name || '-'}</strong></p>
+                                <p>No K/P: {selectedComplaint.identification_number || '-'}</p>
+                                <p>No HP: {selectedComplaint.contact_number || '-'}</p>
+                            </div>
+
+                            <div className="app-drawer-section">
+                                <h5>Maklumat Aduan</h5>
+                                <p>Tarikh/Masa: {selectedComplaint.complaint_date || '-'} {selectedComplaint.complaint_time || ''}</p>
+                                <p>Alamat: {selectedComplaint.address || '-'}</p>
+                                <p>Daerah: {selectedComplaint.district_name || '-'}</p>
+                            </div>
+
+                            <div className="app-drawer-section">
+                                <h5>Ringkasan Aduan</h5>
+                                <p>{selectedComplaint.summary || '-'}</p>
+                            </div>
+
+                            <div className="app-drawer-actions">
+                                <a
+                                    href={`/app/complaints/${selectedComplaint.id}`}
+                                    className="app-icon-button"
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    aria-label="Buka di tab baru"
+                                    title="Buka di tab baru"
+                                >
+                                    <i className="bi bi-box-arrow-up-right"></i>
+                                </a>
+                                <button
+                                    className="app-button"
+                                    type="button"
+                                    onClick={() => navigate(`/app/complaints/${selectedComplaint.id}`)}
+                                >
+                                    Kemaskini Aduan
+                                </button>
+                            </div>
+                        </aside>
+                    </div>
                 )}
             </div>
-            {pickupMessage && <div className="app-detail-note">{pickupMessage}</div>}
-            {!isLoading && !error && pagination.total > 0 && (
-                <PaginationBar
-                    page={pagination.current_page}
-                    lastPage={pagination.last_page}
-                    total={pagination.total}
-                    perPage={pagination.per_page}
-                    startIndex={startIndex}
-                    endIndex={endIndex}
-                    onPageChange={(nextPage) => setPage(nextPage)}
-                    onPerPageChange={(size) => {
-                        setPerPage(size);
-                        setPage(1);
-                    }}
-                />
-            )}
 
             {isFormOpen && (
                 <div className="app-modal">
@@ -484,55 +551,6 @@ const ComplaintList = ({
                 </div>
             )}
 
-            {selectedComplaint && (
-                <div className="app-drawer app-drawer--side">
-                    <aside className="app-drawer-panel">
-                        <div className="app-drawer-header">
-                            <div>
-                                <span className="app-eyebrow">Ringkasan Aduan</span>
-                                <h4>{selectedComplaint.reference_no || '-'}</h4>
-                                <span className="app-status-pill">{selectedComplaint.current_stage || 'baru'}</span>
-                            </div>
-                            <button
-                                className="app-modal-close"
-                                type="button"
-                                onClick={() => setSelectedComplaint(null)}
-                            >
-                                <i className="bi bi-x-lg"></i>
-                            </button>
-                        </div>
-
-                        <div className="app-drawer-section">
-                            <h5>Maklumat Pengadu</h5>
-                            <p><strong>{selectedComplaint.complainant_name || '-'}</strong></p>
-                            <p>No K/P: {selectedComplaint.identification_number || '-'}</p>
-                            <p>No HP: {selectedComplaint.contact_number || '-'}</p>
-                        </div>
-
-                        <div className="app-drawer-section">
-                            <h5>Maklumat Aduan</h5>
-                            <p>Tarikh/Masa: {selectedComplaint.complaint_date || '-'} {selectedComplaint.complaint_time || ''}</p>
-                            <p>Alamat: {selectedComplaint.address || '-'}</p>
-                            <p>Daerah: {selectedComplaint.district_name || '-'}</p>
-                        </div>
-
-                        <div className="app-drawer-section">
-                            <h5>Ringkasan Aduan</h5>
-                            <p>{selectedComplaint.summary || '-'}</p>
-                        </div>
-
-                        <div className="app-drawer-actions">
-                            <button
-                                className="app-button"
-                                type="button"
-                                onClick={() => navigate(`/app/complaints/${selectedComplaint.id}`)}
-                            >
-                                Kemaskini Aduan
-                            </button>
-                        </div>
-                    </aside>
-                </div>
-            )}
         </div>
     );
 };
