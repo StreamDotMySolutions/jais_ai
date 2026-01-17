@@ -1,12 +1,39 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
 
 const Dashboard = () => {
+    const apiUrl = process.env.REACT_APP_API_URL;
     const [isLoading, setIsLoading] = useState(true);
+    const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+    const [pendingApprovalLoading, setPendingApprovalLoading] = useState(true);
 
     useEffect(() => {
         const timer = setTimeout(() => setIsLoading(false), 650);
         return () => clearTimeout(timer);
     }, []);
+
+    useEffect(() => {
+        if (!apiUrl) {
+            setPendingApprovalLoading(false);
+            return;
+        }
+        const token = localStorage.getItem('token');
+        setPendingApprovalLoading(true);
+        axios.get(`${apiUrl}/complaints/pending-approval`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            params: { per_page: 1 },
+        })
+            .then((response) => {
+                setPendingApprovalCount(response?.data?.meta?.total ?? response?.data?.data?.length ?? 0);
+            })
+            .catch(() => {
+                setPendingApprovalCount(0);
+            })
+            .finally(() => {
+                setPendingApprovalLoading(false);
+            });
+    }, [apiUrl]);
 
     return (
         <div className="app-dashboard">
@@ -163,7 +190,7 @@ const Dashboard = () => {
                         )}
                     </div>
                     <div className="app-actions">
-                        {isLoading ? (
+                        {isLoading || pendingApprovalLoading ? (
                             Array.from({ length: 3 }, (_, index) => (
                                 <div key={`notice-skeleton-${index}`} className="app-skeleton-stack">
                                     <span className="app-skeleton-line app-skeleton-line--md"></span>
@@ -172,6 +199,10 @@ const Dashboard = () => {
                             ))
                         ) : (
                             <>
+                                <Link className="app-action-link" to="/app/complaints/pending-approval">
+                                    <strong>{pendingApprovalCount} aduan</strong>
+                                    <p>Menunggu pengesahan anda.</p>
+                                </Link>
                                 <div>
                                     <strong>12 aduan</strong>
                                     <p>Perlu ditugaskan kepada PIC daerah.</p>

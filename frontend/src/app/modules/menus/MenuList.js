@@ -155,6 +155,7 @@ const MenuList = () => {
             .then(() => {
                 closeModal();
                 loadMenus();
+                window.dispatchEvent(new Event('menus:updated'));
             })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal simpan menu.');
@@ -201,6 +202,7 @@ const MenuList = () => {
                 closeBulk();
                 setSelectedIds([]);
                 loadMenus();
+                window.dispatchEvent(new Event('menus:updated'));
             })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal apply role secara pukal.');
@@ -217,6 +219,7 @@ const MenuList = () => {
         })
             .then(() => {
                 setError('');
+                window.dispatchEvent(new Event('menus:updated'));
             })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal kemaskini susunan.');
@@ -258,7 +261,10 @@ const MenuList = () => {
         axios.delete(`${apiUrl}/menus/${menu.id}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
-            .then(() => loadMenus())
+            .then(() => {
+                loadMenus();
+                window.dispatchEvent(new Event('menus:updated'));
+            })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal padam menu.');
             });

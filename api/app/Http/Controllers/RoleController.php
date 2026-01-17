@@ -69,11 +69,13 @@ class RoleController extends Controller
                 'max:255',
                 Rule::unique(config('permission.table_names.roles'), 'name'),
             ],
+            'is_active' => 'nullable|boolean',
         ]);
 
         $role = Role::create([
             'name' => $validated['name'],
             'guard_name' => 'web',
+            'is_active' => $validated['is_active'] ?? true,
         ]);
 
         return response()->json([
@@ -100,11 +102,17 @@ class RoleController extends Controller
                 'max:255',
                 Rule::unique(config('permission.table_names.roles'), 'name')->ignore($role->id),
             ],
+            'is_active' => 'nullable|boolean',
         ]);
 
-        $role->update([
+        $payload = [
             'name' => $validated['name'],
-        ]);
+        ];
+        if (array_key_exists('is_active', $validated)) {
+            $payload['is_active'] = $validated['is_active'];
+        }
+
+        $role->update($payload);
 
         return response()->json([
             'message' => 'Role updated',

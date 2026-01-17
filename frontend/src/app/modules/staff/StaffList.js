@@ -10,10 +10,12 @@ const emptyForm = {
     staff_id: '',
     phone: '',
     address: '',
+    office_address: '',
     marital_status: '',
     position: '',
     grade: '',
     department: '',
+    department_code: '',
     office_type: '',
     district_id: '',
     email: '',
@@ -118,10 +120,12 @@ const StaffList = () => {
             staff_id: item.staff_id || '',
             phone: item.phone || '',
             address: item.address || '',
+            office_address: item.office_address || '',
             marital_status: item.marital_status || '',
             position: item.position || '',
             grade: item.grade || '',
             department: item.department || '',
+            department_code: item.department_code || '',
             office_type: item.office_type || '',
             district_id: item.district_id || '',
             email: item.user?.email || '',
@@ -333,8 +337,12 @@ const StaffList = () => {
                                 <input value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
                             </label>
                             <label className="app-form-field">
-                                <span>Alamat</span>
+                                <span>Alamat Rumah</span>
                                 <input value={form.address} onChange={(e) => updateField('address', e.target.value)} />
+                            </label>
+                            <label className="app-form-field">
+                                <span>Alamat Pejabat</span>
+                                <input value={form.office_address} onChange={(e) => updateField('office_address', e.target.value)} />
                             </label>
                             <label className="app-form-field">
                                 <span>Status Kahwin</span>
@@ -353,6 +361,10 @@ const StaffList = () => {
                                 <input value={form.department} onChange={(e) => updateField('department', e.target.value)} />
                             </label>
                             <label className="app-form-field">
+                                <span>Kod Jabatan</span>
+                                <input value={form.department_code} onChange={(e) => updateField('department_code', e.target.value)} />
+                            </label>
+                            <label className="app-form-field">
                                 <span>Jenis Pejabat</span>
                                 <select value={form.office_type} onChange={(e) => updateField('office_type', e.target.value)}>
                                     <option value="">Pilih Jenis</option>
@@ -360,17 +372,19 @@ const StaffList = () => {
                                     <option value="daerah">Daerah</option>
                                 </select>
                             </label>
-                            <label className="app-form-field">
-                                <span>Daerah</span>
-                                <select value={form.district_id} onChange={(e) => updateField('district_id', e.target.value)}>
-                                    <option value="">Pilih Daerah</option>
-                                    {districts.map((district) => (
-                                        <option key={district.id} value={district.id}>
-                                            {district.name}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
+                            {form.office_type === 'daerah' && (
+                                <label className="app-form-field">
+                                    <span>Daerah</span>
+                                    <select value={form.district_id} onChange={(e) => updateField('district_id', e.target.value)}>
+                                        <option value="">Pilih Daerah</option>
+                                        {districts.map((district) => (
+                                            <option key={district.id} value={district.id}>
+                                                {district.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                            )}
                             <div className="app-span-full app-form-section">
                                 <h5>Register Akaun</h5>
                                 <p>Sila isi maklumat di bawah untuk auto register akaun.</p>

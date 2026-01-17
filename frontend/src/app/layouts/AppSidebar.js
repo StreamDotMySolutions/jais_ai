@@ -1,13 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const AppSidebar = ({ menus = [], isLoading = false }) => {
+const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false }) => {
     const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
     return (
         <div className="app-sidebar">
             <div className="app-brand">
                 <span className="app-brand-mark">JAIS</span>
-                <span className="app-brand-sub">Aduan</span>
+                <span className="app-brand-sub">{isCollapsed ? '' : 'Aduan'}</span>
             </div>
 
             <nav className="app-nav">
@@ -18,9 +18,9 @@ const AppSidebar = ({ menus = [], isLoading = false }) => {
                     </div>
                 ))}
                 {menus.map((item) => (
-                    <Link key={item.id} to={item.path} className="app-nav-link">
+                    <Link key={item.id} to={item.path} className="app-nav-link" title={item.label}>
                         <i className={`bi ${item.icon || 'bi-dot'}`}></i>
-                        {item.label}
+                        <span className="app-nav-label">{item.label}</span>
                     </Link>
                 ))}
             </nav>
@@ -28,11 +28,11 @@ const AppSidebar = ({ menus = [], isLoading = false }) => {
             <div className="app-side-footer">
                 <div className="app-status">
                     <span className="app-dot"></span>
-                    Sistem Aktif
+                    <span className="app-nav-label">Sistem Aktif</span>
                 </div>
                 <a href="/" target="_blank" rel="noreferrer" className="app-exit">
                     <i className="bi bi-box-arrow-left"></i>
-                    Laman Awam
+                    <span className="app-nav-label">Laman Awam</span>
                 </a>
             </div>
         </div>

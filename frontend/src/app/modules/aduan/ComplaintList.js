@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ComplaintForm from './ComplaintForm';
 import PaginationBar from '../../components/PaginationBar';
@@ -14,6 +14,7 @@ const ComplaintList = ({
     enablePickup = false,
 }) => {
     const apiUrl = process.env.REACT_APP_API_URL;
+    const navigate = useNavigate();
     const [complaints, setComplaints] = useState([]);
     const [quickQuery, setQuickQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +49,7 @@ const ComplaintList = ({
         per_page: 10,
         total: 0,
     });
+    const [selectedComplaint, setSelectedComplaint] = useState(null);
 
     const fetchComplaints = () => {
         if (!apiUrl) {
@@ -406,9 +408,13 @@ const ComplaintList = ({
                         {sortedComplaints.map((item) => (
                             <div key={item.id} className="app-table-row">
                                 <span className="app-code">
-                                    <Link to={`/app/complaints/${item.id}`} className="app-link">
+                                    <button
+                                        type="button"
+                                        className="app-link app-link-button"
+                                        onClick={() => setSelectedComplaint(item)}
+                                    >
                                         {item.reference_no || '-'}
-                                    </Link>
+                                    </button>
                                 </span>
                                 <span>{item.complaint_date || '-'}</span>
                                 <span>{item.complainant_name || '-'}</span>
@@ -475,6 +481,56 @@ const ComplaintList = ({
                             }}
                         />
                     </div>
+                </div>
+            )}
+
+            {selectedComplaint && (
+                <div className="app-drawer app-drawer--side">
+                    <aside className="app-drawer-panel">
+                        <div className="app-drawer-header">
+                            <div>
+                                <span className="app-eyebrow">Ringkasan Aduan</span>
+                                <h4>{selectedComplaint.reference_no || '-'}</h4>
+                                <span className="app-status-pill">{selectedComplaint.current_stage || 'baru'}</span>
+                            </div>
+                            <button
+                                className="app-modal-close"
+                                type="button"
+                                onClick={() => setSelectedComplaint(null)}
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+
+                        <div className="app-drawer-section">
+                            <h5>Maklumat Pengadu</h5>
+                            <p><strong>{selectedComplaint.complainant_name || '-'}</strong></p>
+                            <p>No K/P: {selectedComplaint.identification_number || '-'}</p>
+                            <p>No HP: {selectedComplaint.contact_number || '-'}</p>
+                        </div>
+
+                        <div className="app-drawer-section">
+                            <h5>Maklumat Aduan</h5>
+                            <p>Tarikh/Masa: {selectedComplaint.complaint_date || '-'} {selectedComplaint.complaint_time || ''}</p>
+                            <p>Alamat: {selectedComplaint.address || '-'}</p>
+                            <p>Daerah: {selectedComplaint.district_name || '-'}</p>
+                        </div>
+
+                        <div className="app-drawer-section">
+                            <h5>Ringkasan Aduan</h5>
+                            <p>{selectedComplaint.summary || '-'}</p>
+                        </div>
+
+                        <div className="app-drawer-actions">
+                            <button
+                                className="app-button"
+                                type="button"
+                                onClick={() => navigate(`/app/complaints/${selectedComplaint.id}`)}
+                            >
+                                Kemaskini Aduan
+                            </button>
+                        </div>
+                    </aside>
                 </div>
             )}
         </div>

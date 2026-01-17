@@ -18,6 +18,10 @@ import ApiLog from './views/pages/User/ApiLog';
 import AppDashboard from './app/modules/dashboard/Dashboard';
 import AppComplaintList from './app/modules/aduan/ComplaintList';
 import AppComplaintDetail from './app/modules/aduan/ComplaintDetail';
+import ComplaintPrintBorang5 from './app/modules/aduan/ComplaintPrintBorang5';
+import ComplaintPrintLaporanTindakan from './app/modules/aduan/ComplaintPrintLaporanTindakan';
+import ComplaintPrintTindakanAduan from './app/modules/aduan/ComplaintPrintTindakanAduan';
+import AppointmentCalendar from './app/modules/appointments/AppointmentCalendar';
 import StaffList from './app/modules/staff/StaffList';
 import RoleList from './app/modules/roles/RoleList';
 import MenuList from './app/modules/menus/MenuList';
@@ -70,8 +74,13 @@ function App() {
 
         {/* User Layout */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/app/complaints/:id/print/borang-5" element={<ComplaintPrintBorang5 />} />
+          <Route path="/app/complaints/:id/print/tindakan-aduan" element={<ComplaintPrintTindakanAduan />} />
+          <Route path="/app/complaints/:id/print/laporan-tindakan" element={<ComplaintPrintLaporanTindakan />} />
+          <Route path="/app/appointments/popup" element={<AppointmentCalendar isPopup />} />
           <Route element={<AppLayout />}>
             <Route path="/app/dashboard" element={<AppDashboard />} />
+            <Route path="/app/appointments" element={<AppointmentCalendar />} />
             <Route
               path="/app/complaints"
               element={<AppComplaintList />}

@@ -12,6 +12,7 @@ const RoleList = () => {
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState(null);
     const [name, setName] = useState('');
+    const [isActive, setIsActive] = useState(true);
     const [error, setError] = useState('');
     const [keyword, setKeyword] = useState('');
     const [page, setPage] = useState(1);
@@ -30,6 +31,7 @@ const RoleList = () => {
             name: (item) => item.name || '',
             guard: (item) => item.guard_name || '',
             users_count: (item) => Number(item.users_count || 0),
+            status: (item) => (item.is_active === false ? '0' : '1'),
         }),
         [roles, sortKey, sortDir]
     );
@@ -88,6 +90,7 @@ const RoleList = () => {
     const openCreate = () => {
         setEditing(null);
         setName('');
+        setIsActive(true);
         setError('');
         setShowModal(true);
     };
@@ -95,6 +98,7 @@ const RoleList = () => {
     const openEdit = (role) => {
         setEditing(role);
         setName(role.name);
+        setIsActive(role.is_active !== false);
         setError('');
         setShowModal(true);
     };
@@ -103,6 +107,7 @@ const RoleList = () => {
         setShowModal(false);
         setEditing(null);
         setName('');
+        setIsActive(true);
         setError('');
     };
 
@@ -112,11 +117,12 @@ const RoleList = () => {
             return;
         }
         setError('');
+        const payload = { name, is_active: isActive };
         const request = editing
-            ? axios.put(`${apiUrl}/roles/${editing.id}`, { name }, {
+            ? axios.put(`${apiUrl}/roles/${editing.id}`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             })
-            : axios.post(`${apiUrl}/roles`, { name }, {
+            : axios.post(`${apiUrl}/roles`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             });
 
@@ -212,13 +218,14 @@ const RoleList = () => {
                     </div>
                 ) : (
                     <div className="app-table">
-                        <SortableHeader
+                            <SortableHeader
                             className="app-table-header app-role-header"
                             columns={[
                                 { key: 'name', label: 'Nama Role', sortable: true },
                                 { key: 'guard', label: 'Guard', sortable: true },
                                 { key: 'users_count', label: 'Bil. Pengguna', sortable: true },
-                                { key: '', label: '', sortable: false },
+                                { key: 'status', label: 'Status', sortable: true },
+                                { key: '', label: 'Tindakan', sortable: false },
                             ]}
                             sortKey={sortKey}
                             sortDir={sortDir}
@@ -232,12 +239,13 @@ const RoleList = () => {
                                     <div className="app-code">{role.name}</div>
                                     <div>{role.guard_name}</div>
                                     <div>{role.users_count ?? 0}</div>
+                                    <div>{role.is_active === false ? 'Tidak aktif' : 'Aktif'}</div>
                                     <div className="app-role-actions">
-                                        <button type="button" className="app-link" onClick={() => openEdit(role)}>
-                                            Kemaskini
+                                        <button type="button" className="app-icon-button" onClick={() => openEdit(role)} title="Kemaskini">
+                                            <i className="bi bi-pencil-square"></i>
                                         </button>
-                                        <button type="button" className="app-link app-link-danger" onClick={() => deleteRole(role)}>
-                                            Padam
+                                        <button type="button" className="app-icon-button app-icon-button-danger" onClick={() => deleteRole(role)} title="Padam">
+                                            <i className="bi bi-trash3"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -285,6 +293,13 @@ const RoleList = () => {
                                     onChange={(event) => setName(event.target.value)}
                                     required
                                 />
+                            </label>
+                            <label className="app-form-field">
+                                <span>Status</span>
+                                <select value={isActive ? '1' : '0'} onChange={(event) => setIsActive(event.target.value === '1')}>
+                                    <option value="1">Aktif</option>
+                                    <option value="0">Tidak aktif</option>
+                                </select>
                             </label>
                             <div className="app-form-actions app-span-full">
                                 <button className="app-button" type="submit">

@@ -8,6 +8,7 @@ use App\Http\Controllers\{
     RegisterController,
     AuthController,
     ComplaintController,
+    AppointmentController,
     ReferenceController,
     StaffController,
     RoleController,
@@ -127,6 +128,8 @@ Route::get('/complaints/{complaint}', [App\Http\Controllers\ComplaintController:
     ->whereNumber('complaint');
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/appointments', [AppointmentController::class, 'index']);
+    Route::get('/appointments/check', [AppointmentController::class, 'check']);
     Route::post('/complaints/{complaint}/approve', [App\Http\Controllers\ComplaintController::class, 'approve'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/pickup', [App\Http\Controllers\ComplaintController::class, 'pickup'])

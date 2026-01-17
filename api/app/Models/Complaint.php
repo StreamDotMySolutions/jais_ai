@@ -57,4 +57,9 @@ class Complaint extends Model
     {
         return $this->hasMany(ComplaintSeizureItem::class);
     }
+
+    public function appointment()
+    {
+        return $this->hasOne(Appointment::class);
+    }
 }

@@ -11,8 +11,9 @@ const AppLayout = () => {
     const [menus, setMenus] = useState([]);
     const [menuLoaded, setMenuLoaded] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-    useEffect(() => {
+    const loadMenus = () => {
         if (!apiUrl) {
             setMenuLoaded(true);
             return;
@@ -30,6 +31,16 @@ const AppLayout = () => {
             .finally(() => {
                 setMenuLoaded(true);
             });
+    };
+
+    useEffect(() => {
+        loadMenus();
+    }, [apiUrl]);
+
+    useEffect(() => {
+        const handleMenuUpdate = () => loadMenus();
+        window.addEventListener('menus:updated', handleMenuUpdate);
+        return () => window.removeEventListener('menus:updated', handleMenuUpdate);
     }, [apiUrl]);
 
     useEffect(() => {
@@ -37,6 +48,10 @@ const AppLayout = () => {
             return;
         }
         const currentPath = location.pathname;
+        const bypassPaths = ['/app/appointments'];
+        if (bypassPaths.some((path) => currentPath === path || currentPath.startsWith(`${path}/`))) {
+            return;
+        }
         const canAccess = menus.some((menu) => (
             currentPath === menu.path || currentPath.startsWith(`${menu.path}/`)
         ));
@@ -56,21 +71,30 @@ const AppLayout = () => {
     };
 
     return (
-        <div className="app-shell">
-            <aside className={`app-shell-sidebar ${sidebarOpen ? 'is-open' : ''}`}>
-                <AppSidebar role={role} menus={menus} isLoading={!menuLoaded} />
+        <div className={`app-shell ${sidebarCollapsed ? 'is-collapsed' : ''}`}>
+            <aside className={`app-shell-sidebar ${sidebarOpen ? 'is-open' : ''} ${sidebarCollapsed ? 'is-collapsed' : ''}`}>
+                <AppSidebar role={role} menus={menus} isLoading={!menuLoaded} isCollapsed={sidebarCollapsed} />
             </aside>
             {sidebarOpen && <button className="app-sidebar-backdrop" type="button" onClick={() => setSidebarOpen(false)}></button>}
             <div className="app-shell-main">
                 <header className="app-topbar">
                     <div>
-                        <button className="app-menu-toggle" type="button" onClick={() => setSidebarOpen((prev) => !prev)}>
-                            <i className="bi bi-list"></i>
-                        </button>
+                        <div className="app-topbar-controls">
+                            <button className="app-menu-toggle" type="button" onClick={() => setSidebarOpen((prev) => !prev)}>
+                                <i className="bi bi-list"></i>
+                            </button>
+                            <button
+                                className="app-collapse-toggle"
+                                type="button"
+                                onClick={() => setSidebarCollapsed((prev) => !prev)}
+                                aria-label="Toggle sidebar"
+                            >
+                                <i className={`bi ${sidebarCollapsed ? 'bi-chevron-right' : 'bi-chevron-left'}`}></i>
+                            </button>
+                        </div>
                         {menuLoaded ? (
                             <>
-                                <div className="app-eyebrow">JAIS AI</div>
-                                <h2 className="app-title">Portal Aduan</h2>
+                                <div className="app-title-skeleton app-title-skeleton--empty"></div>
                             </>
                         ) : (
                             <div className="app-title-skeleton">

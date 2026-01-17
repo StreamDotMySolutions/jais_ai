@@ -4,11 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller; 
 use Illuminate\Http\Request;
+use App\Models\Appointment;
 use App\Models\Complaint;
 use App\Models\ComplaintOyd;
 use App\Models\ComplaintSeizureItem;
 use App\Models\Staff;
 use App\Models\District;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -110,6 +112,7 @@ class ComplaintController extends Controller
             'receivedBy:id,name,email',
             'approverStaff:id,name,staff_id',
             'picUser:id,name',
+            'appointment:id,complaint_id,start_at,end_at,status',
             'oyds:id,complaint_id,name,id_number,investigator_name,file_no',
             'seizureItems:id,complaint_id,item_no,description,storage',
         ]);
@@ -465,12 +468,31 @@ class ComplaintController extends Controller
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
 
+        $appointmentMessage = null;
         $complaint->update($payload);
+
+        if (! empty($payload['ak_investigation_datetime'])) {
+            $startAt = Carbon::parse($payload['ak_investigation_datetime']);
+            $endAt = (clone $startAt)->addHour();
+
+            Appointment::updateOrCreate(
+                ['complaint_id' => $complaint->id],
+                [
+                    'title' => $complaint->reference_no,
+                    'start_at' => $startAt,
+                    'end_at' => $endAt,
+                    'status' => 'booked',
+                    'created_by_user_id' => $user->id,
+                ]
+            );
+            $appointmentMessage = 'Temujanji siasatan telah ditempah.';
+        }
 
         return response()->json([
             'message' => 'AK payload updated',
+            'appointment_message' => $appointmentMessage,
             'ak_payload' => $request->payload,
-            'data' => $complaint->load(['receivedBy:id,name', 'approverStaff:id,name,staff_id']),
+            'data' => $complaint->load(['receivedBy:id,name', 'approverStaff:id,name,staff_id', 'appointment:id,complaint_id,start_at,end_at,status']),
         ]);
     }
     public function lookup(Request $request)

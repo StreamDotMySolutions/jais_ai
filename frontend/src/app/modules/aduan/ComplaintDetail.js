@@ -3,6 +3,19 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import SearchSelect from '../../../libs/SearchSelect';
 
+const AJ_STEPS = [
+    { key: 'ppa', label: 'Tindakan Aduan' },
+    { key: 'laporan', label: 'Laporan Pemeriksaan' },
+    { key: 'barang', label: 'Butiran Barang Kes' },
+    { key: 'siasatan', label: 'Butiran Siasatan' },
+    { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
+];
+const AK_STEPS = [
+    { key: 'tindakan', label: 'Tindakan Aduan' },
+    { key: 'siasatan', label: 'Butiran Siasatan' },
+    { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
+];
+
 const ComplaintDetail = () => {
     const navigate = useNavigate();
     const { id } = useParams();
@@ -75,6 +88,12 @@ const ComplaintDetail = () => {
     const [assigneeMessage, setAssigneeMessage] = useState('');
     const [staffOptions, setStaffOptions] = useState([]);
     const [approverStaffId, setApproverStaffId] = useState('');
+    const [reportSections, setReportSections] = useState({
+        issuer: true,
+        arrest: true,
+        oyds: true,
+        seizure: true,
+    });
     const role = localStorage.getItem('role') || 'awam';
     const emailRecipients = [
         { label: 'bpn.siasatan@gmail.com', email: 'bpn.siasatan@gmail.com' },
@@ -179,6 +198,20 @@ const ComplaintDetail = () => {
     }, [apiUrl]);
 
     useEffect(() => {
+        const handleMessage = (event) => {
+            if (event.origin !== window.location.origin) {
+                return;
+            }
+            if (event.data?.type === 'appointment-slot' && event.data?.value) {
+                setAkPayload((prev) => ({ ...prev, investigation_datetime: event.data.value }));
+            }
+        };
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, []);
+
+
+    useEffect(() => {
         if (!apiUrl) {
             return;
         }
@@ -257,10 +290,6 @@ const ComplaintDetail = () => {
         setApproverStaffId(complaint.approver_staff_id ? String(complaint.approver_staff_id) : '');
     }, [complaint]);
 
-    useEffect(() => {
-        setActiveStep(0);
-    }, [id]);
-
     const updateReportField = (field, value) => {
         setAjReport((prev) => ({ ...prev, [field]: value }));
     };
@@ -307,6 +336,19 @@ const ComplaintDetail = () => {
             const next = prev.seizure_items.filter((_, i) => i !== index);
             return { ...prev, seizure_items: next.length ? next : [{ item_no: '', description: '', storage: '' }] };
         });
+    };
+
+    const openAppointmentCalendar = () => {
+        const baseDate = akPayload.investigation_datetime
+            ? new Date(akPayload.investigation_datetime)
+            : new Date();
+        const dateKey = baseDate.toLocaleDateString('en-CA', { timeZone: 'Asia/Kuala_Lumpur' });
+        const url = `/app/appointments/popup?date=${dateKey}`;
+        window.open(url, 'temujanjiKalendar', 'width=1100,height=780,scrollbars=yes');
+    };
+
+    const toggleReportSection = (key) => {
+        setReportSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
 
     const submitApproval = () => {
@@ -489,18 +531,6 @@ const ComplaintDetail = () => {
         navigate(`/app/complaints/${prevId}`);
     };
 
-    const ajSteps = [
-        { key: 'ppa', label: 'Tindakan Aduan' },
-        { key: 'laporan', label: 'Laporan Pemeriksaan' },
-        { key: 'barang', label: 'Butiran Barang Kes' },
-        { key: 'siasatan', label: 'Butiran Siasatan' },
-        { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
-    ];
-    const akSteps = [
-        { key: 'tindakan', label: 'Tindakan Aduan' },
-        { key: 'siasatan', label: 'Butiran Siasatan' },
-        { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
-    ];
     const currentCaseType = complaint?.case_type || 'AJ';
     const localUserName = (localStorage.getItem('user_name') || '').trim().toLowerCase();
     const localStaffId = localStorage.getItem('staff_id') || '';
@@ -513,7 +543,11 @@ const ComplaintDetail = () => {
             || (localUserName && approverName && localUserName === approverName)
         )
     );
-    const steps = currentCaseType === 'AK' ? akSteps : ajSteps;
+    const steps = currentCaseType === 'AK' ? AK_STEPS : AJ_STEPS;
+
+    useEffect(() => {
+        setActiveStep(0);
+    }, [id, currentCaseType]);
     const activeKey = steps[activeStep]?.key;
     const offenseOptions = useMemo(() => (
         referenceData.offenses.map((item) => ({
@@ -601,29 +635,73 @@ const ComplaintDetail = () => {
                     </Link>
                     <span className="app-detail-kicker">No Aduan</span>
                     <div className="app-detail-number">
-                        <h3>{complaint.reference_no || '-'}</h3>
-                        <span className="app-status-pill">{complaint.current_stage || 'baru'}</span>
+                        <div className="app-detail-number-main">
+                            <h3>{complaint.reference_no || '-'}</h3>
+                            <span className="app-status-pill">{complaint.current_stage || 'baru'}</span>
+                        </div>
+                        <div className="app-detail-number-actions">
+                            <button
+                                className="app-button app-button-ghost"
+                                type="button"
+                                onClick={() => window.open(
+                                    `/app/complaints/${id}/print/borang-5`,
+                                    'borang5',
+                                    'width=980,height=720,scrollbars=yes,resizable=yes'
+                                )}
+                            >
+                                <i className="bi bi-printer"></i>
+                                Borang 5
+                            </button>
+                            <i className="bi bi-arrow-right-short app-detail-button-sep" aria-hidden="true"></i>
+                            <button
+                                className="app-button app-button-ghost"
+                                type="button"
+                                onClick={() => window.open(
+                                    `/app/complaints/${id}/print/tindakan-aduan`,
+                                    'tindakanAduan',
+                                    'width=980,height=720,scrollbars=yes,resizable=yes'
+                                )}
+                            >
+                                <i className="bi bi-printer"></i>
+                                Tindakan Aduan
+                            </button>
+                            <i className="bi bi-arrow-right-short app-detail-button-sep" aria-hidden="true"></i>
+                            <button
+                                className="app-button app-button-ghost"
+                                type="button"
+                                onClick={() => window.open(
+                                    `/app/complaints/${id}/print/laporan-tindakan`,
+                                    'laporanTindakan',
+                                    'width=980,height=720,scrollbars=yes,resizable=yes'
+                                )}
+                            >
+                                <i className="bi bi-printer"></i>
+                                Laporan Tindakan
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div className="app-detail-actions">
-                    <button
-                        className="app-button app-button-ghost"
-                        type="button"
-                        onClick={handlePrev}
-                        disabled={sortedIds.indexOf(Number(id)) <= 0}
-                    >
-                        <i className="bi bi-arrow-left"></i>
-                        Sebelum
-                    </button>
-                    <button
-                        className="app-button"
-                        type="button"
-                        onClick={handleNext}
-                        disabled={sortedIds.indexOf(Number(id)) === sortedIds.length - 1}
-                    >
-                        Seterusnya
-                        <i className="bi bi-arrow-right"></i>
-                    </button>
+                    <div className="app-detail-actions-row">
+                        <button
+                            className="app-button app-button-ghost"
+                            type="button"
+                            onClick={handlePrev}
+                            disabled={sortedIds.indexOf(Number(id)) <= 0}
+                        >
+                            <i className="bi bi-arrow-left"></i>
+                            Sebelum
+                        </button>
+                        <button
+                            className="app-button"
+                            type="button"
+                            onClick={handleNext}
+                            disabled={sortedIds.indexOf(Number(id)) === sortedIds.length - 1}
+                        >
+                            Seterusnya
+                            <i className="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -915,6 +993,15 @@ const ComplaintDetail = () => {
                                         value={akPayload.investigation_datetime || ''}
                                         onChange={(event) => setAkPayload((prev) => ({ ...prev, investigation_datetime: event.target.value }))}
                                     />
+                                    <div className="app-field-actions">
+                                        <button
+                                            className="app-button app-button-ghost"
+                                            type="button"
+                                            onClick={openAppointmentCalendar}
+                                        >
+                                            Lihat Kalendar Temujanji
+                                        </button>
+                                    </div>
                                 </label>
 
                                 <label className="app-form-field">
@@ -1060,51 +1147,70 @@ const ComplaintDetail = () => {
                         <div className="app-tab-panel">
                             <div className="app-report-stack">
                                 <div className="app-report-section">
-                                    <h5>Maklumat Pengeluar Arahan</h5>
-                                    <div className="app-form-field">
-                                        <span>Pegawai Yang Mengeluarkan Arahan</span>
-                                        <select
-                                            value={ajReport.directive_staff_id}
-                                            onChange={(event) => updateReportField('directive_staff_id', event.target.value)}
-                                        >
-                                            <option value="">-- Pilih Pegawai --</option>
-                                            {staffOptions.map((staff) => (
-                                                <option key={staff.id} value={String(staff.id)}>
-                                                    {staff.staff_id ? `${staff.name} (${staff.staff_id})` : staff.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <small className="app-hint">Pilih pegawai yang memberi arahan tindakan bagi aduan ini.</small>
-                                    </div>
+                                    <button
+                                        className="app-report-toggle"
+                                        type="button"
+                                        onClick={() => toggleReportSection('issuer')}
+                                        aria-expanded={reportSections.issuer}
+                                    >
+                                        <h5>Maklumat Pengeluar Arahan</h5>
+                                        <i className={`bi ${reportSections.issuer ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                    {reportSections.issuer && (
+                                        <div className="app-form-field">
+                                            <span>Pegawai Yang Mengeluarkan Arahan</span>
+                                            <select
+                                                value={ajReport.directive_staff_id}
+                                                onChange={(event) => updateReportField('directive_staff_id', event.target.value)}
+                                            >
+                                                <option value="">-- Pilih Pegawai --</option>
+                                                {staffOptions.map((staff) => (
+                                                    <option key={staff.id} value={String(staff.id)}>
+                                                        {staff.staff_id ? `${staff.name} (${staff.staff_id})` : staff.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <small className="app-hint">Pilih pegawai yang memberi arahan tindakan bagi aduan ini.</small>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="app-report-section">
-                                    <div className="app-form-grid app-report-grid">
-                                        <div className="app-form-field app-span-full">
-                                            <h5>Status Tangkapan</h5>
-                                            <div className="app-radio-cards">
-                                                <label className={ajReport.arrest_status === 'ada' ? 'active' : ''}>
-                                                    <input
-                                                        type="radio"
-                                                        name="aj_arrest_status"
-                                                        value="ada"
-                                                        checked={ajReport.arrest_status === 'ada'}
-                                                        onChange={() => updateReportField('arrest_status', 'ada')}
-                                                    />
-                                                    <span>Ada Tangkapan</span>
-                                                </label>
-                                                <label className={ajReport.arrest_status === 'tiada' ? 'active' : ''}>
-                                                    <input
-                                                        type="radio"
-                                                        name="aj_arrest_status"
-                                                        value="tiada"
-                                                        checked={ajReport.arrest_status === 'tiada'}
-                                                        onChange={() => updateReportField('arrest_status', 'tiada')}
-                                                    />
-                                                    <span>Tiada Tangkapan</span>
-                                                </label>
+                                    <button
+                                        className="app-report-toggle"
+                                        type="button"
+                                        onClick={() => toggleReportSection('arrest')}
+                                        aria-expanded={reportSections.arrest}
+                                    >
+                                        <h5>Status Tangkapan</h5>
+                                        <i className={`bi ${reportSections.arrest ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                    {reportSections.arrest && (
+                                        <div className="app-form-grid app-report-grid">
+                                            <div className="app-form-field app-span-full">
+                                                <div className="app-radio-cards">
+                                                    <label className={ajReport.arrest_status === 'ada' ? 'active' : ''}>
+                                                        <input
+                                                            type="radio"
+                                                            name="aj_arrest_status"
+                                                            value="ada"
+                                                            checked={ajReport.arrest_status === 'ada'}
+                                                            onChange={() => updateReportField('arrest_status', 'ada')}
+                                                        />
+                                                        <span>Ada Tangkapan</span>
+                                                    </label>
+                                                    <label className={ajReport.arrest_status === 'tiada' ? 'active' : ''}>
+                                                        <input
+                                                            type="radio"
+                                                            name="aj_arrest_status"
+                                                            value="tiada"
+                                                            checked={ajReport.arrest_status === 'tiada'}
+                                                            onChange={() => updateReportField('arrest_status', 'tiada')}
+                                                        />
+                                                        <span>Tiada Tangkapan</span>
+                                                    </label>
+                                                </div>
                                             </div>
-                                        </div>
 
                                         <label className="app-form-field">
                                             <span>No. Report / Balai Polis</span>
@@ -1201,124 +1307,149 @@ const ComplaintDetail = () => {
                                             />
                                         </label>
                                     </div>
+                                    )}
                                 </div>
 
                                 <div className="app-report-section">
-                                    <div className="app-inline-header">
+                                    <button
+                                        className="app-report-toggle"
+                                        type="button"
+                                        onClick={() => toggleReportSection('oyds')}
+                                        aria-expanded={reportSections.oyds}
+                                    >
                                         <h5>Maklumat OYDS</h5>
-                                    </div>
-                                    <div className="app-inline-table app-oyds-table app-inline-clean">
-                                        <div className="app-inline-table-header">
-                                            <span>Nama OYDS</span>
-                                            <span>No. K/P atau Passport</span>
-                                            <span>Nama Pegawai Penyiasat</span>
-                                            <span>Nombor Daftar Fail</span>
-                                        </div>
-                                        {ajReport.oyds.map((row, index) => (
-                                            <div className="app-inline-table-row" key={`oyds-${index}`}>
-                                                <input
-                                                    type="text"
-                                                    value={row.name}
-                                                    onChange={(event) => updateOyds(index, 'name', event.target.value)}
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={row.id_number}
-                                                    onChange={(event) => updateOyds(index, 'id_number', event.target.value)}
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={row.investigator_name}
-                                                    onChange={(event) => updateOyds(index, 'investigator_name', event.target.value)}
-                                                />
-                                                <input
-                                                    type="text"
-                                                    value={row.file_no}
-                                                    onChange={(event) => updateOyds(index, 'file_no', event.target.value)}
-                                                />
+                                        <i className={`bi ${reportSections.oyds ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                    {reportSections.oyds && (
+                                        <div className="app-inline-table app-oyds-table app-inline-clean">
+                                            <div className="app-inline-table-header">
+                                                <span>Nama OYDS</span>
+                                                <span>No. K/P atau Passport</span>
+                                                <span>Nama Pegawai Penyiasat</span>
+                                                <span>Nombor Daftar Fail</span>
                                             </div>
-                                        ))}
-                                        <div className="app-inline-add">
-                                            <button type="button" className="app-link" onClick={addOyds}>
-                                                + Add New
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="app-report-section">
-                                    <h5>Butiran Barang Kes</h5>
-                                    <div className="app-form-field">
-                                        <span>Sitaan Barang</span>
-                                        <label className="app-inline-radio">
-                                            <input
-                                                type="radio"
-                                                name="aj_seizure_status"
-                                                value="ada"
-                                                checked={ajReport.seizure_status === 'ada'}
-                                                onChange={() => updateReportField('seizure_status', 'ada')}
-                                            />
-                                            <span>Ada Barang Sitaan</span>
-                                        </label>
-                                        <label className="app-inline-radio">
-                                            <input
-                                                type="radio"
-                                                name="aj_seizure_status"
-                                                value="tiada"
-                                                checked={ajReport.seizure_status === 'tiada'}
-                                                onChange={() => updateReportField('seizure_status', 'tiada')}
-                                            />
-                                            <span>Tiada Barang Sitaan</span>
-                                        </label>
-                                    </div>
-
-                                    {ajReport.seizure_status === 'ada' && (
-                                        <div className="app-inline-section">
-                                            <div className="app-inline-header">
-                                                <h5>Maklumat Barang Kes</h5>
-                                                <button type="button" className="app-button app-button-ghost" onClick={addSeizureItem}>
-                                                    + Tambah Barang
-                                                </button>
-                                            </div>
-                                            <div className="app-inline-table app-barang-table">
-                                                <div className="app-inline-table-header">
-                                                    <span>No. Barang</span>
-                                                    <span>Maklumat Barang</span>
-                                                    <span>Stor Simpanan</span>
-                                                    <span></span>
+                                            {ajReport.oyds.map((row, index) => (
+                                                <div className="app-inline-table-row" key={`oyds-${index}`}>
+                                                    <input
+                                                        type="text"
+                                                        value={row.name}
+                                                        onChange={(event) => updateOyds(index, 'name', event.target.value)}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={row.id_number}
+                                                        onChange={(event) => updateOyds(index, 'id_number', event.target.value)}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={row.investigator_name}
+                                                        onChange={(event) => updateOyds(index, 'investigator_name', event.target.value)}
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={row.file_no}
+                                                        onChange={(event) => updateOyds(index, 'file_no', event.target.value)}
+                                                    />
                                                 </div>
-                                                {ajReport.seizure_items.map((row, index) => (
-                                                    <div className="app-inline-table-row" key={`barang-${index}`}>
-                                                        <input
-                                                            type="text"
-                                                            value={row.item_no}
-                                                            onChange={(event) => updateSeizureItem(index, 'item_no', event.target.value)}
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            value={row.description}
-                                                            onChange={(event) => updateSeizureItem(index, 'description', event.target.value)}
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            value={row.storage}
-                                                            onChange={(event) => updateSeizureItem(index, 'storage', event.target.value)}
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            className="app-link app-link-danger"
-                                                            onClick={() => removeSeizureItem(index)}
-                                                        >
-                                                            Buang
-                                                        </button>
-                                                    </div>
-                                                ))}
+                                            ))}
+                                            <div className="app-inline-add">
+                                                <button type="button" className="app-link" onClick={addOyds}>
+                                                    + Add New
+                                                </button>
                                             </div>
                                         </div>
                                     )}
                                 </div>
-                                {reportMessage && <div className="app-detail-note">{reportMessage}</div>}
-                                <div className="app-report-actions">
+
+                                <div className="app-report-section">
+                                    <button
+                                        className="app-report-toggle"
+                                        type="button"
+                                        onClick={() => toggleReportSection('seizure')}
+                                        aria-expanded={reportSections.seizure}
+                                    >
+                                        <h5>Butiran Barang Kes</h5>
+                                        <i className={`bi ${reportSections.seizure ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                    {reportSections.seizure && (
+                                        <>
+                                            <div className="app-form-field">
+                                                <span>Sitaan Barang</span>
+                                                <label className="app-inline-radio">
+                                                    <input
+                                                        type="radio"
+                                                        name="aj_seizure_status"
+                                                        value="ada"
+                                                        checked={ajReport.seizure_status === 'ada'}
+                                                        onChange={() => updateReportField('seizure_status', 'ada')}
+                                                    />
+                                                    <span>Ada Barang Sitaan</span>
+                                                </label>
+                                                <label className="app-inline-radio">
+                                                    <input
+                                                        type="radio"
+                                                        name="aj_seizure_status"
+                                                        value="tiada"
+                                                        checked={ajReport.seizure_status === 'tiada'}
+                                                        onChange={() => updateReportField('seizure_status', 'tiada')}
+                                                    />
+                                                    <span>Tiada Barang Sitaan</span>
+                                                </label>
+                                            </div>
+
+                                            {ajReport.seizure_status === 'ada' && (
+                                                <div className="app-inline-section">
+                                                    <div className="app-inline-header">
+                                                        <h5>Maklumat Barang Kes</h5>
+                                                        <button type="button" className="app-button app-button-ghost" onClick={addSeizureItem}>
+                                                            + Tambah Barang
+                                                        </button>
+                                                    </div>
+                                                    <div className="app-inline-table app-barang-table">
+                                                        <div className="app-inline-table-header">
+                                                            <span>No. Barang</span>
+                                                            <span>Maklumat Barang</span>
+                                                            <span>Stor Simpanan</span>
+                                                            <span></span>
+                                                        </div>
+                                                        {ajReport.seizure_items.map((row, index) => (
+                                                            <div className="app-inline-table-row" key={`barang-${index}`}>
+                                                                <input
+                                                                    type="text"
+                                                                    value={row.item_no}
+                                                                    onChange={(event) => updateSeizureItem(index, 'item_no', event.target.value)}
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={row.description}
+                                                                    onChange={(event) => updateSeizureItem(index, 'description', event.target.value)}
+                                                                />
+                                                                <input
+                                                                    type="text"
+                                                                    value={row.storage}
+                                                                    onChange={(event) => updateSeizureItem(index, 'storage', event.target.value)}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    className="app-link app-link-danger"
+                                                                    onClick={() => removeSeizureItem(index)}
+                                                                >
+                                                                    Buang
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                                <div className="app-report-sticky">
+                                    {reportMessage && (
+                                        <div className="app-report-sticky-message">
+                                            {reportMessage}
+                                        </div>
+                                    )}
                                     <button className="app-button" type="button" onClick={submitAjReport}>
                                         Simpan Laporan
                                     </button>
