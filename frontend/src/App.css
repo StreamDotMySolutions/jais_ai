@@ -1664,6 +1664,13 @@
   color: #8b1f1f;
 }
 
+.app-row-actions {
+  display: inline-flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
 .app-complaints {
   display: flex;
   flex-direction: column;
@@ -2013,6 +2020,11 @@
   grid-template-columns: 0.3fr 1.1fr 1.4fr 0.8fr 0.8fr 1.4fr 0.8fr;
 }
 
+.app-beredar-header,
+.app-beredar-row {
+  grid-template-columns: 0.8fr 1.6fr 1.2fr 0.8fr 0.6fr;
+}
+
 .app-menu-roles {
   color: #6b7a83;
   font-size: 0.9rem;
@@ -2260,6 +2272,10 @@
   gap: 1rem 1.5rem;
 }
 
+.app-form-grid-single {
+  grid-template-columns: 1fr;
+}
+
 .app-span-full {
   grid-column: 1 / -1;
 }
@@ -2274,6 +2290,12 @@
 .app-form-field span {
   font-weight: 600;
   color: #2b3a31;
+}
+
+.app-detail-value {
+  color: #1f2f26;
+  font-weight: 600;
+  padding: 0.2rem 0;
 }
 
 .app-form-field small.app-hint {
@@ -2872,6 +2894,25 @@
   margin-top: 1rem;
 }
 
+.app-form-alert {
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.app-form-alert-success {
+  background: #e9f6ef;
+  color: #0f5132;
+  border: 1px solid #bfe3cd;
+}
+
+.app-form-alert-danger {
+  background: #fceced;
+  color: #842029;
+  border: 1px solid #f5c2c7;
+}
+
 .app-inline-section {
   margin-top: 1rem;
   display: grid;
@@ -3004,7 +3045,7 @@
 
 .app-oyds-table .app-inline-table-header,
 .app-oyds-table .app-inline-table-row {
-  grid-template-columns: 1.4fr 1fr 1.2fr 1fr;
+  grid-template-columns: 1.4fr 1fr 1fr 1.2fr 1fr 0.4fr;
 }
 
 .app-barang-table .app-inline-table-header,

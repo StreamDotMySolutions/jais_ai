@@ -26,6 +26,9 @@ import StaffList from './app/modules/staff/StaffList';
 import RoleList from './app/modules/roles/RoleList';
 import MenuList from './app/modules/menus/MenuList';
 import UserList from './app/modules/users/UserList';
+import ArahanBeredar from './app/modules/beredar/ArahanBeredar';
+import ArahanBeredarList from './app/modules/beredar/ArahanBeredarList';
+import ArahanBeredarDetail from './app/modules/beredar/ArahanBeredarDetail';
 
 // Common
 import Profile from './views/pages/Global/Profile';
@@ -112,6 +115,10 @@ function App() {
             <Route path="/app/menus" element={<MenuList />} />
             <Route path="/app/api-token" element={<ApiToken />} />
             <Route path="/app/api-logs" element={<ApiLog />} />
+            <Route path="/app/arahan-beredar" element={<ArahanBeredarList />} />
+            <Route path="/app/arahan-beredar/new" element={<ArahanBeredar />} />
+            <Route path="/app/arahan-beredar/:id" element={<ArahanBeredarDetail />} />
+            <Route path="/app/arahan-beredar/:id/edit" element={<ArahanBeredar mode="edit" />} />
             <Route path="/app/profile" element={<Profile />} />
           </Route>
         </Route>

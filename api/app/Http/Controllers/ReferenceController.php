@@ -84,4 +84,17 @@ class ReferenceController extends Controller
             'data' => $items,
         ]);
     }
+
+    public function arahanBeredarSections(): JsonResponse
+    {
+        $items = DB::table('ref_arahan_beredar_sections')
+            ->where('is_active', 1)
+            ->orderBy('sort_order')
+            ->get(['id', 'code', 'name']);
+
+        return response()->json([
+            'message' => 'Arahan beredar sections',
+            'data' => $items,
+        ]);
+    }
 }

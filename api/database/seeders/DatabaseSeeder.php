@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             ComplaintClassificationSeeder::class,
             ComplaintStatusSeeder::class,
             ComplaintEmailRecipientSeeder::class,
+            RefArahanBeredarSectionSeeder::class,
             StaffSeeder::class,
             MenuSeeder::class,
             ComplaintSeeder::class,

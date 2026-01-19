@@ -55,7 +55,9 @@ function SignIn() {
             localStorage.setItem('token', response.data.token) // token to be used with axios interceptor
             localStorage.setItem('role', response.data.role) // token to be used with profile
             localStorage.setItem('user_name', response.data.user?.name || 'Pengguna')
-            localStorage.setItem('staff_id', response.data.staff?.id ? String(response.data.staff.id) : '')
+            localStorage.setItem('user_email', response.data.user?.email || '')
+            localStorage.setItem('staff_no', response.data.staff?.staff_id || '')
+            localStorage.setItem('staff_ic', response.data.staff?.ic_number || '')
             store.setValue('authenticated', true) // for redirect purpose
             console.log('Form submitted successfully!');
         })
@@ -78,23 +80,7 @@ function SignIn() {
 
     // handle redirect after login
     if (store.getValue('authenticated') === true) {
-        const role = localStorage.getItem('role'); // Get the user role
-
-        // Switch based on the role
-        switch (role) {
-            case 'system':
-                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
-            case 'admin':
-                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
-            case 'pegawai':
-                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
-            case 'user':
-                return <Navigate to='/app/dashboard' replace />; // Redirect to app dashboard
-            case 'awam':
-                return <Navigate to='/app/dashboard' replace />; // Redirect public user to app
-            default:
-                return <Navigate to='/' replace />; // Default redirect (e.g., home or error)
-        }
+        return <Navigate to='/app/dashboard' replace />;
     }
 
 

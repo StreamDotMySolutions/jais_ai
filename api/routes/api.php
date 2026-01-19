@@ -15,6 +15,7 @@ use App\Http\Controllers\{
     MenuController,
     UserController
 };
+use App\Http\Controllers\ArahanBeredarController;
 
 // role = User
 use App\Http\Controllers\User\{
@@ -130,6 +131,12 @@ Route::get('/complaints/{complaint}', [App\Http\Controllers\ComplaintController:
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/appointments', [AppointmentController::class, 'index']);
     Route::get('/appointments/check', [AppointmentController::class, 'check']);
+    Route::get('/arahan-beredar', [ArahanBeredarController::class, 'index']);
+    Route::post('/arahan-beredar', [ArahanBeredarController::class, 'store']);
+    Route::get('/arahan-beredar/{arahanBeredar}', [ArahanBeredarController::class, 'show'])
+        ->whereNumber('arahanBeredar');
+    Route::put('/arahan-beredar/{arahanBeredar}', [ArahanBeredarController::class, 'update'])
+        ->whereNumber('arahanBeredar');
     Route::post('/complaints/{complaint}/approve', [App\Http\Controllers\ComplaintController::class, 'approve'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/pickup', [App\Http\Controllers\ComplaintController::class, 'pickup'])
@@ -190,6 +197,7 @@ Route::get('/references/khalwat-details', [ReferenceController::class, 'khalwatD
 Route::get('/references/judi-details', [ReferenceController::class, 'judiDetails']);
 Route::get('/references/complaint-statuses', [ReferenceController::class, 'complaintStatuses']);
 Route::get('/references/complaint-email-recipients', [ReferenceController::class, 'complaintEmailRecipients']);
+Route::get('/references/arahan-beredar-sections', [ReferenceController::class, 'arahanBeredarSections']);
 
 // Telegram Webhook
 Route::post('/telegram/webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'handleWebhook'])->name('telegram.webhook');
