@@ -17,12 +17,12 @@
 }
 
 :root {
-  --jais-green: #1a6a4b;
-  --jais-green-dark: #13513a;
-  --jais-ink: #0d1b2a;
-  --jais-cream: #f5f3ea;
-  --jais-rose: #f6e8e5;
-  --jais-shadow: 0 30px 60px rgba(13, 27, 42, 0.12);
+  --jais-green: #0b1c5c;
+  --jais-green-dark: #07123a;
+  --jais-ink: #0b122a;
+  --jais-cream: #f8f6ef;
+  --jais-rose: #fff1b8;
+  --jais-shadow: 0 30px 60px rgba(11, 28, 92, 0.16);
   --pegawai-bg: #f5f7f9;
   --pegawai-border: #e3e8ec;
 }
@@ -30,7 +30,7 @@
 .auth-shell {
   min-height: calc(100vh - 2rem);
   padding: 2rem 1.5rem;
-  background: radial-gradient(circle at top left, #e6f4ee 0%, #f4f7f9 35%, #f7f2ec 100%);
+  background: radial-gradient(circle at top left, #eef2ff 0%, #f5f7fb 35%, #fff6dc 100%);
   font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
   position: relative;
   overflow: hidden;
@@ -43,7 +43,7 @@
   width: 280px;
   height: 280px;
   border-radius: 50%;
-  background: linear-gradient(160deg, rgba(26, 106, 75, 0.25), rgba(246, 232, 229, 0.2));
+  background: linear-gradient(160deg, rgba(11, 28, 92, 0.22), rgba(255, 209, 64, 0.22));
   filter: blur(0.5px);
   z-index: 0;
 }
@@ -77,7 +77,7 @@
 
 .auth-hero {
   padding: 3.5rem 3rem;
-  background: linear-gradient(160deg, #1a6a4b 0%, #1f7a55 55%, #24543f 100%);
+  background: linear-gradient(160deg, #0b1c5c 0%, #0f2a7a 55%, #0a143d 100%);
   color: #ffffff;
   display: flex;
   flex-direction: column;
@@ -294,7 +294,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #f5f7f9;
+  background: #f3f5fb;
 }
 
 .public-header {
@@ -304,7 +304,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 12px 32px rgba(11, 28, 92, 0.2);
 }
 
 .public-brand {
@@ -320,7 +320,7 @@
 }
 
 .public-link {
-  color: #f4f8f6;
+  color: #eef2ff;
   text-decoration: none;
   font-size: 0.92rem;
   font-weight: 500;
@@ -331,15 +331,16 @@
 }
 
 .public-link-solid {
-  background: #ffffff;
-  color: var(--jais-green);
+  background: #ffd140;
+  color: #0b1c5c;
   padding: 0.35rem 0.8rem;
   border-radius: 10px;
   font-weight: 600;
 }
 
 .public-link-outline {
-  border: 1px solid rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 209, 64, 0.85);
+  color: #fff5cf;
   padding: 0.35rem 0.8rem;
   border-radius: 10px;
 }
@@ -351,9 +352,42 @@
 
 .public-footer {
   background: var(--jais-green);
-  color: #eaf3ef;
+  color: #e6ebff;
   padding: 1.2rem 0;
   font-size: 0.85rem;
+}
+
+.public-hero {
+  background: #ffffff;
+}
+
+.public-cta {
+  background: #0b1c5c;
+  color: #ffffff;
+  border: 1px solid #0b1c5c;
+  border-radius: 12px;
+  padding: 0.75rem 1.6rem;
+  font-weight: 600;
+}
+
+.public-cta:hover {
+  background: #122b7a;
+  border-color: #122b7a;
+  color: #ffffff;
+}
+
+.public-cta-outline {
+  background: transparent;
+  color: #0b1c5c;
+  border: 1px solid #0b1c5c;
+  border-radius: 12px;
+  padding: 0.75rem 1.6rem;
+  font-weight: 600;
+}
+
+.public-cta-outline:hover {
+  background: rgba(11, 28, 92, 0.08);
+  color: #0b1c5c;
 }
 
 .status-shell {
@@ -1093,8 +1127,8 @@
 }
 
 .app-shell-sidebar {
-  background: #0f2b1f;
-  color: #dfe9e3;
+  background: #0b1c5c;
+  color: #e6ebff;
   padding: 2rem 1.5rem;
 }
 
@@ -1142,9 +1176,9 @@
 
 .app-nav-link {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.7rem;
-  color: #dfe9e3;
+  color: #e6ebff;
   text-decoration: none;
   font-weight: 500;
   padding: 0.7rem 0.9rem;
@@ -1158,7 +1192,8 @@
 }
 
 .app-nav-label {
-  white-space: nowrap;
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .app-shell.is-collapsed .app-nav-label {
@@ -1927,8 +1962,18 @@
   padding: 0.9rem 1.2rem;
 }
 
+.app-table-actions .app-table-header,
+.app-table-actions .app-table-row {
+  grid-template-columns: 1.2fr 0.8fr 1fr 0.9fr 0.8fr 0.9fr 1.6fr 0.9fr;
+}
+
 .app-complaints-body.has-drawer .app-table-header,
 .app-complaints-body.has-drawer .app-table-row {
+  grid-template-columns: 1.2fr 0.8fr 1fr 0.9fr;
+}
+
+.app-complaints-body.has-drawer .app-table-actions .app-table-header,
+.app-complaints-body.has-drawer .app-table-actions .app-table-row {
   grid-template-columns: 1.2fr 0.8fr 1fr 0.9fr;
 }
 

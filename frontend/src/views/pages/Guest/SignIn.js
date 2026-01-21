@@ -90,9 +90,9 @@ function SignIn() {
                 <div className="auth-hero">
                     <div>
                         <span className="auth-badge">JAIS AI</span>
-                        <h2 className="auth-hero-title">Portal Identiti Digital</h2>
+                        <h2 className="auth-hero-title">Portal Aduan JAIS</h2>
                         <p className="auth-hero-subtitle">
-                            Akses selamat untuk urus akaun, token API, dan log penggunaan anda.
+                            Akses selamat untuk mengurus aduan, status kes, dan rekod tindakan.
                         </p>
                     </div>
 
@@ -100,22 +100,22 @@ function SignIn() {
                         <div className="auth-hero-item">
                             <span className="auth-hero-icon"><i className="bi bi-shield-check"></i></span>
                             <div>
-                                <div className="auth-hero-label">Keselamatan diperkukuh</div>
-                                <div className="auth-hero-text">Sesi dilindungi dan audit log disimpan.</div>
+                                <div className="auth-hero-label">Rekod terpusat</div>
+                                <div className="auth-hero-text">Semua aduan direkod dan dijejak secara telus.</div>
                             </div>
                         </div>
                         <div className="auth-hero-item">
                             <span className="auth-hero-icon"><i className="bi bi-key"></i></span>
                             <div>
-                                <div className="auth-hero-label">Token API terurus</div>
-                                <div className="auth-hero-text">Cipta, pantau, dan nyahaktif token dengan cepat.</div>
+                                <div className="auth-hero-label">Agihan pantas</div>
+                                <div className="auth-hero-text">Tugasan dihantar kepada pegawai berkaitan dengan segera.</div>
                             </div>
                         </div>
                         <div className="auth-hero-item">
                             <span className="auth-hero-icon"><i className="bi bi-bar-chart"></i></span>
                             <div>
-                                <div className="auth-hero-label">Log penggunaan jelas</div>
-                                <div className="auth-hero-text">Pantau panggilan API dan prestasi masa nyata.</div>
+                                <div className="auth-hero-label">Jejak tindakan</div>
+                                <div className="auth-hero-text">Setiap tindakan dan keputusan direkod untuk audit.</div>
                             </div>
                         </div>
                     </div>

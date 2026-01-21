@@ -118,14 +118,14 @@ Route::get('/test-telegram-token', [App\Http\Controllers\Telegram\WebhookControl
 //Route::post('/process-document', [DocumentController::class, 'processDocument']);
 
 // Complaints
-Route::get('/complaints', [App\Http\Controllers\ComplaintController::class, 'index']);
+Route::middleware('auth:sanctum')->get('/complaints', [App\Http\Controllers\ComplaintController::class, 'index']);
 
 Route::middleware('auth:sanctum')->get('/complaints/my', [App\Http\Controllers\ComplaintController::class, 'myComplaints']);
 
 // Complaint submission
 Route::post('/complaints', [App\Http\Controllers\ComplaintController::class, 'store']);
 Route::get('/complaints/reference', [App\Http\Controllers\ComplaintController::class, 'lookup']);
-Route::get('/complaints/{complaint}', [App\Http\Controllers\ComplaintController::class, 'show'])
+Route::middleware('auth:sanctum')->get('/complaints/{complaint}', [App\Http\Controllers\ComplaintController::class, 'show'])
     ->whereNumber('complaint');
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -155,6 +155,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/aj-report', [App\Http\Controllers\ComplaintController::class, 'updateAjReport'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/ak', [App\Http\Controllers\ComplaintController::class, 'updateAkPayload'])
+        ->whereNumber('complaint');
+    Route::delete('/complaints/{complaint}', [App\Http\Controllers\ComplaintController::class, 'destroy'])
         ->whereNumber('complaint');
 });
 

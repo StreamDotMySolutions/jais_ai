@@ -95,6 +95,7 @@ const ComplaintDetail = () => {
         seizure: true,
     });
     const role = localStorage.getItem('role') || 'awam';
+    const isPegawaiRole = ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
     const emailRecipients = [
         { label: 'bpn.siasatan@gmail.com', email: 'bpn.siasatan@gmail.com' },
         { label: 'bpn.gombak@gmail.com', email: 'bpn.gombak@gmail.com' },
@@ -753,7 +754,7 @@ const ComplaintDetail = () => {
                 </div>
             </div>
 
-            {(role === 'pegawai' || role === 'admin' || role === 'system') && (
+            {isPegawaiRole && (
                 <div className="app-card app-category-card">
                     <div>
                         <h4>Kategori Aduan</h4>
@@ -785,7 +786,7 @@ const ComplaintDetail = () => {
                 </div>
             )}
 
-            {(role === 'pegawai' || role === 'admin' || role === 'system') && (
+            {isPegawaiRole && (
                 <div className="app-card">
                     <h4>Tindakan Pegawai</h4>
                     <div className="app-stepper">

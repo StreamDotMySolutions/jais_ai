@@ -20,7 +20,13 @@ class ComplaintController extends Controller
 {
     public function index(Request $request)
     {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
         $query = Complaint::query()->orderByDesc('id');
+        $this->applyComplaintAccessScope($query, $user);
         $this->applyComplaintFilters($query, $request);
 
         return $this->respondWithPagination($query, $request, 'List of complaints');
@@ -42,7 +48,7 @@ class ComplaintController extends Controller
     public function pendingApprovals(Request $request)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -67,7 +73,7 @@ class ComplaintController extends Controller
     public function pickupQueue(Request $request)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -90,7 +96,7 @@ class ComplaintController extends Controller
     public function myPicComplaints(Request $request)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -106,6 +112,14 @@ class ComplaintController extends Controller
     public function show(Request $request, Complaint $complaint)
     {
         $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $complaint->load([
             'submittedBy:id,name,email,office_type,district_id',
             'submittedBy.staff',
@@ -158,7 +172,7 @@ class ComplaintController extends Controller
     public function approve(Request $request, Complaint $complaint)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         $complaint->load('approverStaff:id,name');
@@ -210,7 +224,7 @@ class ComplaintController extends Controller
     public function updateStatus(Request $request, Complaint $complaint)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -231,7 +245,7 @@ class ComplaintController extends Controller
     public function updateCaseType(Request $request, Complaint $complaint)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -252,7 +266,7 @@ class ComplaintController extends Controller
     public function updateAssignees(Request $request, Complaint $complaint)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -283,7 +297,7 @@ class ComplaintController extends Controller
     public function pickup(Request $request, Complaint $complaint)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -336,7 +350,7 @@ class ComplaintController extends Controller
     public function updateAjPayload(Request $request, Complaint $complaint)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -375,7 +389,7 @@ class ComplaintController extends Controller
     public function updateAjReport(Request $request, Complaint $complaint)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -445,7 +459,7 @@ class ComplaintController extends Controller
     public function updateAkPayload(Request $request, Complaint $complaint)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -493,6 +507,31 @@ class ComplaintController extends Controller
             'appointment_message' => $appointmentMessage,
             'ak_payload' => $request->payload,
             'data' => $complaint->load(['receivedBy:id,name', 'approverStaff:id,name,staff_id', 'appointment:id,complaint_id,start_at,end_at,status']),
+        ]);
+    }
+
+    public function destroy(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasRole('pegawai_hq')) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($complaint->current_stage !== 'baru') {
+            return response()->json(['message' => 'Hanya aduan status baru boleh dipadam.'], 422);
+        }
+
+        DB::transaction(function () use ($complaint) {
+            DB::table('complaint_approvals')->where('complaint_id', $complaint->id)->delete();
+            DB::table('complaint_assignments')->where('complaint_id', $complaint->id)->delete();
+            Appointment::where('complaint_id', $complaint->id)->delete();
+            ComplaintOyd::where('complaint_id', $complaint->id)->delete();
+            ComplaintSeizureItem::where('complaint_id', $complaint->id)->delete();
+            $complaint->delete();
+        });
+
+        return response()->json([
+            'message' => 'Aduan dipadam.',
         ]);
     }
     public function lookup(Request $request)
@@ -660,6 +699,61 @@ class ComplaintController extends Controller
         if ($caseType !== '') {
             $query->where('case_type', strtoupper($caseType));
         }
+    }
+
+    private function applyComplaintAccessScope($query, $user): void
+    {
+        if ($user->hasAnyRole(['system', 'admin', 'pegawai', 'pegawai_hq'])) {
+            return;
+        }
+
+        if ($user->hasRole('pegawai_daerah')) {
+            $districtId = $this->resolveUserDistrictId($user);
+            if ($districtId) {
+                $query->where('district_id', $districtId);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+            return;
+        }
+
+        if ($user->hasAnyRole(['awam', 'user'])) {
+            $query->where('submitted_by_user_id', $user->id);
+            return;
+        }
+
+        $query->whereRaw('1 = 0');
+    }
+
+    private function canViewComplaint(Complaint $complaint, $user): bool
+    {
+        if ($user->hasAnyRole(['system', 'admin', 'pegawai', 'pegawai_hq'])) {
+            return true;
+        }
+
+        if ($user->hasRole('pegawai_daerah')) {
+            $districtId = $this->resolveUserDistrictId($user);
+            return $districtId && (int) $complaint->district_id === (int) $districtId;
+        }
+
+        if ($user->hasAnyRole(['awam', 'user'])) {
+            return (int) $complaint->submitted_by_user_id === (int) $user->id;
+        }
+
+        return false;
+    }
+
+    private function resolveUserDistrictId($user): ?int
+    {
+        if (! empty($user->district_id)) {
+            return (int) $user->district_id;
+        }
+
+        if ($user->staff && ! empty($user->staff->district_id)) {
+            return (int) $user->staff->district_id;
+        }
+
+        return null;
     }
 
     private function respondWithPagination($query, Request $request, string $message)

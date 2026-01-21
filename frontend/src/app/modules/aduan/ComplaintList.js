@@ -20,6 +20,7 @@ const ComplaintList = ({
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const role = localStorage.getItem('role') || 'awam';
+    const canDelete = role === 'pegawai_hq';
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [districtOptions, setDistrictOptions] = useState([]);
     const [statusOptions, setStatusOptions] = useState([{ value: '', label: 'Semua' }]);
@@ -39,6 +40,7 @@ const ComplaintList = ({
     });
     const [showFilters, setShowFilters] = useState(true);
     const [pickupMessage, setPickupMessage] = useState('');
+    const [actionMessage, setActionMessage] = useState('');
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
     const [sortKey, setSortKey] = useState('');
@@ -146,6 +148,7 @@ const ComplaintList = ({
         { key: 'case_type', label: 'Kategori', sortable: true },
         { key: 'current_stage', label: 'Status', sortable: true },
         { key: 'summary', label: 'Ringkasan', sortable: false },
+        { key: 'actions', label: 'Tindakan', sortable: false },
     ];
 
     const sortAccessors = useMemo(() => ({
@@ -166,12 +169,37 @@ const ComplaintList = ({
         if (!key) {
             return;
         }
+        if (key === 'actions') {
+            return;
+        }
         if (sortKey === key) {
             setSortDir((prev) => (prev === 'asc' ? 'desc' : 'asc'));
         } else {
             setSortKey(key);
             setSortDir('asc');
         }
+    };
+
+    const handleDelete = (complaintId) => {
+        if (!apiUrl) {
+            return;
+        }
+        const confirmed = window.confirm('Padam aduan ini? Tindakan ini tidak boleh diundur.');
+        if (!confirmed) {
+            return;
+        }
+        const token = localStorage.getItem('token');
+        setActionMessage('');
+        axios.delete(`${apiUrl}/complaints/${complaintId}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                setActionMessage(response?.data?.message || 'Aduan dipadam.');
+                fetchComplaints();
+            })
+            .catch((err) => {
+                setActionMessage(err?.response?.data?.message || 'Gagal memadam aduan.');
+            });
     };
 
     useEffect(() => {
@@ -371,7 +399,7 @@ const ComplaintList = ({
                 <div className="app-complaints-main">
                     <div className="app-card app-complaints-card">
                     {isLoading && (
-                        <div className="app-table app-table-skeleton">
+                        <div className="app-table app-table-actions app-table-skeleton">
                             <div className="app-table-header">
                             <span>No Aduan</span>
                             <span>Tarikh</span>
@@ -380,6 +408,7 @@ const ComplaintList = ({
                             <span>Kategori</span>
                             <span>Status</span>
                             <span>Ringkasan</span>
+                            <span>Tindakan</span>
                         </div>
                         {Array.from({ length: 6 }, (_, index) => (
                             <div key={`skeleton-row-${index}`} className="app-table-row">
@@ -390,6 +419,7 @@ const ComplaintList = ({
                                 <span className="app-skeleton-line app-skeleton-line--sm"></span>
                                 <span className="app-skeleton-line app-skeleton-line--sm"></span>
                                 <span className="app-skeleton-line"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
                             </div>
                         ))}
                     </div>
@@ -399,10 +429,10 @@ const ComplaintList = ({
                     <div className="app-empty">Tiada aduan ditemui.</div>
                 )}
                 {!isLoading && !error && complaints.length > 0 && (
-                    <div className="app-table">
+                    <div className="app-table app-table-actions">
                         <SortableHeader
                             className="app-table-header"
-                            columns={enablePickup ? [...sortColumns, { key: '', label: '', sortable: false }] : sortColumns}
+                            columns={sortColumns}
                             sortKey={sortKey}
                             sortDir={sortDir}
                             onSort={handleSort}
@@ -433,21 +463,44 @@ const ComplaintList = ({
                                 <span className="app-summary">
                                     {item.summary || '-'}
                                 </span>
-                                {enablePickup && (
+                                <span className="app-row-actions">
                                     <button
                                         type="button"
-                                        className="app-button app-button-ghost"
-                                        onClick={() => handlePickup(item.id)}
+                                        className="app-icon-button"
+                                        onClick={() => navigate(`/app/complaints/${item.id}`)}
+                                        aria-label="Kemaskini"
+                                        title="Kemaskini"
                                     >
-                                        Ambil Aduan
+                                        <i className="bi bi-pencil"></i>
                                     </button>
-                                )}
+                                    {canDelete && item.current_stage === 'baru' && (
+                                        <button
+                                            type="button"
+                                            className="app-icon-button app-icon-button-danger"
+                                            onClick={() => handleDelete(item.id)}
+                                            aria-label="Padam"
+                                            title="Padam"
+                                        >
+                                            <i className="bi bi-trash"></i>
+                                        </button>
+                                    )}
+                                    {enablePickup && (
+                                        <button
+                                            type="button"
+                                            className="app-button app-button-ghost"
+                                            onClick={() => handlePickup(item.id)}
+                                        >
+                                            Ambil Aduan
+                                        </button>
+                                    )}
+                                </span>
                             </div>
                         ))}
                     </div>
                     )}
                     </div>
                     {pickupMessage && <div className="app-detail-note">{pickupMessage}</div>}
+                    {actionMessage && <div className="app-detail-note">{actionMessage}</div>}
                     {!isLoading && !error && pagination.total > 0 && (
                         <PaginationBar
                             page={pagination.current_page}
