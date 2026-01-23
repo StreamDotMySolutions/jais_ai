@@ -73,7 +73,13 @@ const AppLayout = () => {
     return (
         <div className={`app-shell ${sidebarCollapsed ? 'is-collapsed' : ''}`}>
             <aside className={`app-shell-sidebar ${sidebarOpen ? 'is-open' : ''} ${sidebarCollapsed ? 'is-collapsed' : ''}`}>
-                <AppSidebar role={role} menus={menus} isLoading={!menuLoaded} isCollapsed={sidebarCollapsed} />
+                <AppSidebar
+                    role={role}
+                    menus={menus}
+                    isLoading={!menuLoaded}
+                    isCollapsed={sidebarCollapsed}
+                    onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+                />
             </aside>
             {sidebarOpen && <button className="app-sidebar-backdrop" type="button" onClick={() => setSidebarOpen(false)}></button>}
             <div className="app-shell-main">
@@ -82,14 +88,6 @@ const AppLayout = () => {
                         <div className="app-topbar-controls">
                             <button className="app-menu-toggle" type="button" onClick={() => setSidebarOpen((prev) => !prev)}>
                                 <i className="bi bi-list"></i>
-                            </button>
-                            <button
-                                className="app-collapse-toggle"
-                                type="button"
-                                onClick={() => setSidebarCollapsed((prev) => !prev)}
-                                aria-label="Toggle sidebar"
-                            >
-                                <i className={`bi ${sidebarCollapsed ? 'bi-chevron-right' : 'bi-chevron-left'}`}></i>
                             </button>
                         </div>
                         {menuLoaded ? (

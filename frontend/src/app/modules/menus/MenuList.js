@@ -10,6 +10,7 @@ const emptyForm = {
     icon: '',
     sort_order: 0,
     is_active: true,
+    parent_id: '',
     role_ids: [],
 };
 
@@ -17,6 +18,7 @@ const MenuList = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
     const [menus, setMenus] = useState([]);
+    const [menuOptions, setMenuOptions] = useState([]);
     const [roles, setRoles] = useState([]);
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState(null);
@@ -83,6 +85,20 @@ const MenuList = () => {
         if (!apiUrl) {
             return;
         }
+        axios.get(`${apiUrl}/menus`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            params: { per_page: 200 },
+        })
+            .then((response) => {
+                setMenuOptions(response?.data?.data || []);
+            })
+            .catch(() => {});
+    }, [apiUrl]);
+
+    useEffect(() => {
+        if (!apiUrl) {
+            return;
+        }
         axios.get(`${apiUrl}/roles`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -107,6 +123,7 @@ const MenuList = () => {
             icon: menu.icon || '',
             sort_order: menu.sort_order || 0,
             is_active: menu.is_active,
+            parent_id: menu.parent_id ? String(menu.parent_id) : '',
             role_ids: menu.roles?.map((role) => role.id) || [],
         });
         setError('');
@@ -142,7 +159,10 @@ const MenuList = () => {
             return;
         }
         setError('');
-        const payload = { ...form };
+        const payload = {
+            ...form,
+            parent_id: form.parent_id ? Number(form.parent_id) : null,
+        };
         const request = editing
             ? axios.put(`${apiUrl}/menus/${editing.id}`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -273,6 +293,7 @@ const MenuList = () => {
     const canReorder = !keyword && !sortKey && page === 1;
     const sortColumns = [
         { key: 'label', label: 'Nama', sortable: true },
+        { key: 'parent', label: 'Menu Utama', sortable: true },
         { key: 'path', label: 'Path', sortable: true },
         { key: 'icon', label: 'Icon', sortable: true },
         { key: 'status', label: 'Status', sortable: true },
@@ -281,6 +302,7 @@ const MenuList = () => {
     ];
     const sortAccessors = useMemo(() => ({
         label: (item) => item.label || '',
+        parent: (item) => item.parent?.label || '',
         path: (item) => item.path || '',
         icon: (item) => item.icon || '',
         status: (item) => (item.is_active ? 'Aktif' : 'Tidak Aktif'),
@@ -379,6 +401,7 @@ const MenuList = () => {
                         <div className="app-table-header app-menu-header">
                             <span></span>
                             <span>Nama</span>
+                            <span>Menu Utama</span>
                             <span>Path</span>
                             <span>Icon</span>
                             <span>Status</span>
@@ -388,6 +411,7 @@ const MenuList = () => {
                         {Array.from({ length: 6 }, (_, index) => (
                             <div key={`menu-skeleton-${index}`} className="app-table-row">
                                 <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line"></span>
                                 <span className="app-skeleton-line"></span>
                                 <span className="app-skeleton-line"></span>
                                 <span className="app-skeleton-line app-skeleton-line--sm"></span>
@@ -444,6 +468,7 @@ const MenuList = () => {
                                         />
                                     </div>
                                     <div className="app-code">{menu.label}</div>
+                                    <div>{menu.parent?.label || '-'}</div>
                                     <div>{menu.path}</div>
                                     <div>{menu.icon || '-'}</div>
                                     <div>{menu.is_active ? 'Aktif' : 'Tidak Aktif'}</div>
@@ -507,6 +532,22 @@ const MenuList = () => {
                             <label className="app-form-field">
                                 <span>Icon (bi-)</span>
                                 <input value={form.icon} onChange={(e) => updateField('icon', e.target.value)} />
+                            </label>
+                            <label className="app-form-field">
+                                <span>Menu Utama</span>
+                                <select
+                                    value={form.parent_id}
+                                    onChange={(e) => updateField('parent_id', e.target.value)}
+                                >
+                                    <option value="">Tiada (Menu Utama)</option>
+                                    {menuOptions
+                                        .filter((item) => !editing || item.id !== editing.id)
+                                        .map((item) => (
+                                            <option key={item.id} value={String(item.id)}>
+                                                {item.label}
+                                            </option>
+                                        ))}
+                                </select>
                             </label>
                             <label className="app-form-field">
                                 <span>Susunan</span>

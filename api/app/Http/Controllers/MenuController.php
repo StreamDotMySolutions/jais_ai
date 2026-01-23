@@ -24,7 +24,7 @@ class MenuController extends Controller
                 $query->whereIn("{$rolesTable}.id", $roleIds);
             })
             ->orderBy('sort_order')
-            ->get(['id', 'label', 'path', 'icon']);
+            ->get(['id', 'parent_id', 'label', 'path', 'icon']);
 
         return response()->json([
             'message' => 'Menu list',
@@ -46,7 +46,7 @@ class MenuController extends Controller
         $keyword = trim((string) $request->query('keyword', ''));
 
         $query = Menu::query()
-            ->with('roles:id,name')
+            ->with('roles:id,name', 'parent:id,label')
             ->orderBy('sort_order');
 
         if ($keyword !== '') {
@@ -84,6 +84,7 @@ class MenuController extends Controller
             'icon' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
+            'parent_id' => 'nullable|integer|exists:' . config('permission.table_names.menus', 'sys_menus') . ',id',
             'role_ids' => 'nullable|array',
             'role_ids.*' => 'integer|exists:' . config('permission.table_names.roles') . ',id',
         ]);
@@ -94,6 +95,7 @@ class MenuController extends Controller
             'icon' => $validated['icon'] ?? null,
             'sort_order' => $validated['sort_order'] ?? 0,
             'is_active' => $validated['is_active'] ?? true,
+            'parent_id' => $validated['parent_id'] ?? null,
         ]);
 
         if (! empty($validated['role_ids'])) {
@@ -119,9 +121,14 @@ class MenuController extends Controller
             'icon' => 'nullable|string|max:255',
             'sort_order' => 'nullable|integer|min:0',
             'is_active' => 'nullable|boolean',
+            'parent_id' => 'nullable|integer|exists:' . config('permission.table_names.menus', 'sys_menus') . ',id',
             'role_ids' => 'nullable|array',
             'role_ids.*' => 'integer|exists:' . config('permission.table_names.roles') . ',id',
         ]);
+
+        if (! empty($validated['parent_id']) && (int) $validated['parent_id'] === (int) $menu->id) {
+            return response()->json(['message' => 'Menu tidak boleh menjadi parent kepada dirinya sendiri.'], 422);
+        }
 
         $menu->update([
             'label' => $validated['label'],
@@ -129,6 +136,7 @@ class MenuController extends Controller
             'icon' => $validated['icon'] ?? null,
             'sort_order' => $validated['sort_order'] ?? 0,
             'is_active' => $validated['is_active'] ?? true,
+            'parent_id' => $validated['parent_id'] ?? null,
         ]);
 
         if (array_key_exists('role_ids', $validated)) {

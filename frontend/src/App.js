@@ -29,6 +29,7 @@ import UserList from './app/modules/users/UserList';
 import ArahanBeredar from './app/modules/beredar/ArahanBeredar';
 import ArahanBeredarList from './app/modules/beredar/ArahanBeredarList';
 import ArahanBeredarDetail from './app/modules/beredar/ArahanBeredarDetail';
+import ReportDashboard from './app/modules/reports/ReportDashboard';
 
 // Common
 import Profile from './views/pages/Global/Profile';
@@ -119,6 +120,7 @@ function App() {
             <Route path="/app/arahan-beredar/new" element={<ArahanBeredar />} />
             <Route path="/app/arahan-beredar/:id" element={<ArahanBeredarDetail />} />
             <Route path="/app/arahan-beredar/:id/edit" element={<ArahanBeredar mode="edit" />} />
+            <Route path="/app/reports" element={<ReportDashboard />} />
             <Route path="/app/profile" element={<Profile />} />
           </Route>
         </Route>

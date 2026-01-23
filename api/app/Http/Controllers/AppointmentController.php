@@ -11,7 +11,7 @@ class AppointmentController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
@@ -40,7 +40,7 @@ class AppointmentController extends Controller
     public function check(Request $request)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

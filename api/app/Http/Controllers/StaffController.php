@@ -54,7 +54,7 @@ class StaffController extends Controller
     public function options(Request $request)
     {
         $user = $request->user();
-        if (! $user || ! $user->hasAnyRole(['pegawai', 'admin', 'system'])) {
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 

@@ -13,6 +13,16 @@ class Menu extends Model
     protected $guarded = ['id'];
     protected $table = 'sys_menus';
 
+    public function parent()
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(self::class, 'parent_id');
+    }
+
     public function roles()
     {
         return $this->belongsToMany(Role::class, 'sys_menu_role');

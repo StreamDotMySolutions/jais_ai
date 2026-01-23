@@ -12,18 +12,20 @@ class MenuSeeder extends Seeder
     {
         $menus = [
             ['label' => 'Dashboard', 'path' => '/app/dashboard', 'icon' => 'bi-grid', 'sort_order' => 1],
-            ['label' => 'Senarai Aduan', 'path' => '/app/complaints', 'icon' => 'bi-clipboard-check', 'sort_order' => 2],
-            ['label' => 'Aduan Jenayah', 'path' => '/app/complaints/aj', 'icon' => 'bi-exclamation-triangle', 'sort_order' => 3],
-            ['label' => 'Aduan Keluarga', 'path' => '/app/complaints/ak', 'icon' => 'bi-people', 'sort_order' => 4],
-            ['label' => 'Aduan Untuk Disahkan', 'path' => '/app/complaints/pending-approval', 'icon' => 'bi-check2-square', 'sort_order' => 5],
-            ['label' => 'Aduan Untuk Diambil', 'path' => '/app/complaints/pickup-queue', 'icon' => 'bi-inbox', 'sort_order' => 6],
-            ['label' => 'Aduan Saya (PIC)', 'path' => '/app/complaints/my-pic', 'icon' => 'bi-person-check', 'sort_order' => 7],
-            ['label' => 'Kakitangan', 'path' => '/app/staff', 'icon' => 'bi-people', 'sort_order' => 8],
-            ['label' => 'Pengguna', 'path' => '/app/users', 'icon' => 'bi-person-lines-fill', 'sort_order' => 9],
-            ['label' => 'Roles', 'path' => '/app/roles', 'icon' => 'bi-shield-check', 'sort_order' => 10],
-            ['label' => 'Menu', 'path' => '/app/menus', 'icon' => 'bi-list-nested', 'sort_order' => 11],
-            ['label' => 'Api Token', 'path' => '/app/api-token', 'icon' => 'bi-key', 'sort_order' => 12],
-            ['label' => 'Api Logs', 'path' => '/app/api-logs', 'icon' => 'bi-activity', 'sort_order' => 13],
+            ['label' => 'Aduan', 'path' => '/app/aduan', 'icon' => 'bi-clipboard-check', 'sort_order' => 2],
+            ['label' => 'Senarai Aduan', 'path' => '/app/complaints', 'icon' => 'bi-clipboard-check', 'sort_order' => 3],
+            ['label' => 'Aduan Jenayah', 'path' => '/app/complaints/aj', 'icon' => 'bi-exclamation-triangle', 'sort_order' => 4],
+            ['label' => 'Aduan Keluarga', 'path' => '/app/complaints/ak', 'icon' => 'bi-people', 'sort_order' => 5],
+            ['label' => 'Aduan Untuk Disahkan', 'path' => '/app/complaints/pending-approval', 'icon' => 'bi-check2-square', 'sort_order' => 6],
+            ['label' => 'Aduan Untuk Diambil', 'path' => '/app/complaints/pickup-queue', 'icon' => 'bi-inbox', 'sort_order' => 7],
+            ['label' => 'Aduan Saya (PIC)', 'path' => '/app/complaints/my-pic', 'icon' => 'bi-person-check', 'sort_order' => 8],
+            ['label' => 'Laporan', 'path' => '/app/reports', 'icon' => 'bi-clipboard-data', 'sort_order' => 9],
+            ['label' => 'Kakitangan', 'path' => '/app/staff', 'icon' => 'bi-people', 'sort_order' => 10],
+            ['label' => 'Pengguna', 'path' => '/app/users', 'icon' => 'bi-person-lines-fill', 'sort_order' => 11],
+            ['label' => 'Roles', 'path' => '/app/roles', 'icon' => 'bi-shield-check', 'sort_order' => 12],
+            ['label' => 'Menu', 'path' => '/app/menus', 'icon' => 'bi-list-nested', 'sort_order' => 13],
+            ['label' => 'Api Token', 'path' => '/app/api-token', 'icon' => 'bi-key', 'sort_order' => 14],
+            ['label' => 'Api Logs', 'path' => '/app/api-logs', 'icon' => 'bi-activity', 'sort_order' => 15],
         ];
 
         $roleMap = Role::query()->pluck('id', 'name');
@@ -46,12 +48,35 @@ class MenuSeeder extends Seeder
                 continue;
             }
 
+            if (in_array($menu['path'], [
+                '/app/complaints',
+                '/app/complaints/aj',
+                '/app/complaints/ak',
+                '/app/complaints/pending-approval',
+                '/app/complaints/pickup-queue',
+                '/app/complaints/my-pic',
+            ], true)) {
+                $parentMenu = DB::table('sys_menus')->where('path', '/app/aduan')->first();
+                if ($parentMenu) {
+                    DB::table('sys_menus')->where('id', $menuRecord->id)->update([
+                        'parent_id' => $parentMenu->id,
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+
             $allowedRoles = ['system', 'admin', 'pegawai', 'user', 'awam'];
+            if ($menu['path'] === '/app/complaints') {
+                $allowedRoles = ['system', 'admin', 'pegawai', 'pegawai_hq', 'pegawai_daerah', 'user', 'awam'];
+            }
             if (in_array($menu['path'], ['/app/staff', '/app/roles', '/app/menus'], true)) {
                 $allowedRoles = ['system', 'admin'];
             }
             if (in_array($menu['path'], ['/app/api-token', '/app/api-logs'], true)) {
                 $allowedRoles = ['system', 'admin', 'user'];
+            }
+            if ($menu['path'] === '/app/aduan') {
+                $allowedRoles = ['system', 'admin', 'pegawai', 'pegawai_hq', 'pegawai_daerah'];
             }
             if ($menu['path'] === '/app/complaints/pending-approval') {
                 $allowedRoles = ['system', 'admin', 'pegawai_hq'];
@@ -64,6 +89,9 @@ class MenuSeeder extends Seeder
             }
             if ($menu['path'] === '/app/users') {
                 $allowedRoles = ['system', 'admin'];
+            }
+            if ($menu['path'] === '/app/reports') {
+                $allowedRoles = ['system', 'admin', 'pegawai', 'pegawai_hq', 'pegawai_daerah'];
             }
 
             foreach ($allowedRoles as $roleName) {

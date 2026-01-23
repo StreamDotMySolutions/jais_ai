@@ -1146,11 +1146,18 @@
 
 .app-brand {
   display: flex;
-  align-items: baseline;
-  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
   font-weight: 700;
   color: #ffffff;
   margin-bottom: 2rem;
+}
+
+.app-brand-text {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
 }
 
 .app-brand-mark {
@@ -1203,6 +1210,51 @@
 .app-nav-link:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
+}
+
+.app-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.app-nav-group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f1f4ff;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.app-nav-group-header:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.app-nav-caret {
+  margin-left: auto;
+  font-size: 0.85rem;
+}
+
+.app-nav-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-left: 0.4rem;
+}
+
+.app-shell.is-collapsed .app-nav-group-header {
+  justify-content: center;
+  padding: 0.7rem;
+}
+
+.app-shell.is-collapsed .app-nav-caret {
+  display: none;
 }
 
 .app-link-button {
@@ -1570,6 +1622,16 @@
   border-radius: 20px;
   padding: 1.5rem;
   border: 1px solid var(--pegawai-border);
+}
+
+.app-placeholder-card {
+  margin-top: 1rem;
+  padding: 1.5rem;
+  border-radius: 16px;
+  border: 1px dashed #c9d5ce;
+  background: #f6faf7;
+  color: #5c6b62;
+  text-align: center;
 }
 
 .app-card-header {
@@ -2062,7 +2124,7 @@
 
 .app-menu-header,
 .app-menu-row {
-  grid-template-columns: 0.3fr 1.1fr 1.4fr 0.8fr 0.8fr 1.4fr 0.8fr;
+  grid-template-columns: 0.3fr 1.1fr 1.1fr 1.4fr 0.8fr 0.8fr 1.4fr 0.8fr;
 }
 
 .app-beredar-header,
