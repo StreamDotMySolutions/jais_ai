@@ -4,6 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import ListPageLayout from '../../components/ListPageLayout';
 import PaginationBar from '../../components/PaginationBar';
 
+const downloadBlob = (blob, filename) => {
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename || 'export.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 5000);
+};
+
 const WaranList = () => {
     const navigate = useNavigate();
     const [quickQuery, setQuickQuery] = useState('');
@@ -44,6 +55,58 @@ const WaranList = () => {
         per_page: 10,
         total: 0,
     });
+
+    const exportCsv = () => {
+        if (!apiUrl) {
+            setError('API URL tidak diset.');
+            return;
+        }
+        const effectiveKeyword = quickQuery || filters.keyword;
+        axios.get(`${apiUrl}/i-waran/export/csv`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            responseType: 'blob',
+            params: {
+                ...(effectiveKeyword ? { keyword: effectiveKeyword } : {}),
+                ...(filters.status ? { status: filters.status } : {}),
+                ...(filters.district ? { district_id: filters.district } : {}),
+                ...(filters.fromDate ? { from_date: filters.fromDate } : {}),
+                ...(filters.toDate ? { to_date: filters.toDate } : {}),
+            },
+        })
+            .then((response) => {
+                const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'text/csv' });
+                downloadBlob(blob, `i-waran-export-${new Date().toISOString().slice(0, 10)}.csv`);
+            })
+            .catch(() => {
+                setError('Gagal export CSV.');
+            });
+    };
+
+    const exportXlsx = () => {
+        if (!apiUrl) {
+            setError('API URL tidak diset.');
+            return;
+        }
+        const effectiveKeyword = quickQuery || filters.keyword;
+        axios.get(`${apiUrl}/i-waran/export/xlsx`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            responseType: 'blob',
+            params: {
+                ...(effectiveKeyword ? { keyword: effectiveKeyword } : {}),
+                ...(filters.status ? { status: filters.status } : {}),
+                ...(filters.district ? { district_id: filters.district } : {}),
+                ...(filters.fromDate ? { from_date: filters.fromDate } : {}),
+                ...(filters.toDate ? { to_date: filters.toDate } : {}),
+            },
+        })
+            .then((response) => {
+                const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                downloadBlob(blob, `i-waran-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+            })
+            .catch(() => {
+                setError('Gagal export Excel.');
+            });
+    };
 
     const loadRecords = () => {
         if (!apiUrl) {
@@ -166,6 +229,14 @@ const WaranList = () => {
                         <button className="app-button" type="button" onClick={() => navigate('/app/i-waran/new')}>
                             <i className="bi bi-plus-lg"></i>
                             Tambah Waran
+                        </button>
+                        <button className="app-button app-button-ghost" type="button" onClick={exportCsv}>
+                            <i className="bi bi-download"></i>
+                            Export CSV
+                        </button>
+                        <button className="app-button app-button-ghost" type="button" onClick={exportXlsx}>
+                            <i className="bi bi-file-earmark-spreadsheet"></i>
+                            Export Excel
                         </button>
                     </>
                 )}

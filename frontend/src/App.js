@@ -32,6 +32,10 @@ import ArahanBeredarDetail from './app/modules/beredar/ArahanBeredarDetail';
 import ReportPlaceholder from './app/modules/reports/ReportPlaceholder';
 import WaranFormStepper from './app/modules/waran/WaranFormStepper';
 import WaranList from './app/modules/waran/WaranList';
+import WaranDetail from './app/modules/waran/WaranDetail';
+import WaranReport from './app/modules/waran/WaranReport';
+import WaranPrint from './app/modules/waran/WaranPrint';
+import ToastProvider from './app/components/ToastProvider';
 
 // Common
 import Profile from './views/pages/Global/Profile';
@@ -53,6 +57,7 @@ import HomePage from './views/pages/HomePage';
 function App() {
   return (
     <Router>
+      <ToastProvider>
       <Routes>
         
         <Route path="/" element={<PublicHomePage />} />
@@ -128,10 +133,12 @@ function App() {
             <Route path="/app/arahan-beredar/:id/edit" element={<ArahanBeredar mode="edit" />} />
             <Route path="/app/i-waran" element={<WaranList />} />
             <Route path="/app/i-waran/new" element={<WaranFormStepper />} />
+            <Route path="/app/i-waran/:id" element={<WaranDetail />} />
+            <Route path="/app/i-waran/:id/print" element={<WaranPrint />} />
             <Route path="/app/i-waran/:id/edit" element={<WaranFormStepper mode="edit" />} />
             <Route
               path="/app/i-waran/report"
-              element={<ReportPlaceholder title="Laporan i-WARAN" description="Ringkasan laporan i-WARAN mengikut status, daerah, dan tarikh." />}
+              element={<WaranReport />}
             />
             <Route
               path="/app/complaints/report"
@@ -149,6 +156,7 @@ function App() {
           </Route>
         </Route>
       </Routes>
+      </ToastProvider>
     </Router>
   );
 }

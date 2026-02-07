@@ -46,4 +46,9 @@ class IwaranWarrant extends Model
     {
         return $this->belongsTo(RefIwaranHasil::class, 'hasil_perlaksanaan_id');
     }
+
+    public function attachments()
+    {
+        return $this->hasMany(IwaranWaranAttachment::class, 'iwaran_waran_id')->latest();
+    }
 }

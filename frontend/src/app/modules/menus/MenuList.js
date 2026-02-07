@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import PaginationBar from '../../components/PaginationBar';
 import SortableHeader from '../../components/SortableHeader';
+import ConfirmModal from '../../components/ConfirmModal';
 import { sortRows } from '../../utils/sort';
 
 const emptyForm = {
@@ -41,6 +42,8 @@ const MenuList = () => {
     });
     const [sortKey, setSortKey] = useState('');
     const [sortDir, setSortDir] = useState('asc');
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [reorderConfirm, setReorderConfirm] = useState(null);
 
     const loadMenus = () => {
         if (!apiUrl) {
@@ -254,28 +257,22 @@ const MenuList = () => {
         if (sourceId === targetId) {
             return;
         }
-        const current = [...menus];
-        const sourceIndex = current.findIndex((menu) => menu.id === sourceId);
-        const targetIndex = current.findIndex((menu) => menu.id === targetId);
+        const nextMenus = [...menus];
+        const sourceIndex = nextMenus.findIndex((menu) => menu.id === sourceId);
+        const targetIndex = nextMenus.findIndex((menu) => menu.id === targetId);
         if (sourceIndex === -1 || targetIndex === -1) {
             return;
         }
-        const [moved] = current.splice(sourceIndex, 1);
-        current.splice(targetIndex, 0, moved);
-        const confirmMove = window.confirm(`Simpan susunan baharu untuk "${moved.label}"?`);
-        if (!confirmMove) {
-            return;
-        }
-        setMenus(current);
-        saveOrder(current.map((menu) => menu.id));
+        const [moved] = nextMenus.splice(sourceIndex, 1);
+        nextMenus.splice(targetIndex, 0, moved);
+        setReorderConfirm({
+            movedLabel: moved.label,
+            nextMenus,
+        });
     };
 
     const deleteMenu = (menu) => {
         if (!apiUrl) {
-            return;
-        }
-        const confirmed = window.confirm(`Padam menu "${menu.label}"?`);
-        if (!confirmed) {
             return;
         }
         axios.delete(`${apiUrl}/menus/${menu.id}`, {
@@ -348,6 +345,37 @@ const MenuList = () => {
 
     return (
         <div className="app-complaints">
+            <ConfirmModal
+                isOpen={!!reorderConfirm}
+                title="Simpan Susunan Menu"
+                description={reorderConfirm ? `Simpan susunan baharu untuk \"${reorderConfirm.movedLabel}\"?` : ''}
+                confirmText="Simpan"
+                cancelText="Batal"
+                variant="primary"
+                onCancel={() => setReorderConfirm(null)}
+                onConfirm={() => {
+                    if (reorderConfirm?.nextMenus) {
+                        setMenus(reorderConfirm.nextMenus);
+                        saveOrder(reorderConfirm.nextMenus.map((menu) => menu.id));
+                    }
+                    setReorderConfirm(null);
+                }}
+            />
+            <ConfirmModal
+                isOpen={!!deleteTarget}
+                title="Padam Menu"
+                description={deleteTarget ? `Padam menu \"${deleteTarget.label}\"? Tindakan ini tidak boleh dikembalikan.` : ''}
+                confirmText="Padam"
+                cancelText="Batal"
+                variant="danger"
+                onCancel={() => setDeleteTarget(null)}
+                onConfirm={() => {
+                    if (deleteTarget) {
+                        deleteMenu(deleteTarget);
+                    }
+                    setDeleteTarget(null);
+                }}
+            />
             <div className="app-complaints-header">
                 <div>
                     <span className="app-eyebrow">Pengurusan Menu</span>
@@ -479,7 +507,7 @@ const MenuList = () => {
                                         <button type="button" className="app-link" onClick={() => openEdit(menu)}>
                                             Kemaskini
                                         </button>
-                                        <button type="button" className="app-link app-link-danger" onClick={() => deleteMenu(menu)}>
+                                        <button type="button" className="app-link app-link-danger" onClick={() => setDeleteTarget(menu)}>
                                             Padam
                                         </button>
                                     </div>

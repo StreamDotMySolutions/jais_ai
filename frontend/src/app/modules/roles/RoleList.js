@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import PaginationBar from '../../components/PaginationBar';
 import SortableHeader from '../../components/SortableHeader';
+import ConfirmModal from '../../components/ConfirmModal';
 import { sortRows } from '../../utils/sort';
 
 const RoleList = () => {
@@ -25,6 +26,7 @@ const RoleList = () => {
     });
     const [sortKey, setSortKey] = useState('');
     const [sortDir, setSortDir] = useState('asc');
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const sortedRoles = useMemo(
         () => sortRows(roles, sortKey, sortDir, {
@@ -140,11 +142,6 @@ const RoleList = () => {
         if (!apiUrl) {
             return;
         }
-        const confirmed = window.confirm(`Padam role "${role.name}"?`);
-        if (!confirmed) {
-            return;
-        }
-
         axios.delete(`${apiUrl}/roles/${role.id}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -158,6 +155,21 @@ const RoleList = () => {
 
     return (
         <div className="app-complaints">
+            <ConfirmModal
+                isOpen={!!deleteTarget}
+                title="Padam Role"
+                description={deleteTarget ? `Padam role \"${deleteTarget.name}\"? Tindakan ini tidak boleh dikembalikan.` : ''}
+                confirmText="Padam"
+                cancelText="Batal"
+                variant="danger"
+                onCancel={() => setDeleteTarget(null)}
+                onConfirm={() => {
+                    if (deleteTarget) {
+                        deleteRole(deleteTarget);
+                    }
+                    setDeleteTarget(null);
+                }}
+            />
             <div className="app-complaints-header">
                 <div>
                     <span className="app-eyebrow">Pengurusan Role</span>
@@ -244,7 +256,7 @@ const RoleList = () => {
                                         <button type="button" className="app-icon-button" onClick={() => openEdit(role)} title="Kemaskini">
                                             <i className="bi bi-pencil-square"></i>
                                         </button>
-                                        <button type="button" className="app-icon-button app-icon-button-danger" onClick={() => deleteRole(role)} title="Padam">
+                                        <button type="button" className="app-icon-button app-icon-button-danger" onClick={() => setDeleteTarget(role)} title="Padam">
                                             <i className="bi bi-trash3"></i>
                                         </button>
                                     </div>

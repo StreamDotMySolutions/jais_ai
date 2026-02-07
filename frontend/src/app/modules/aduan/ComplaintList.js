@@ -4,6 +4,7 @@ import axios from 'axios';
 import ComplaintForm from './ComplaintForm';
 import PaginationBar from '../../components/PaginationBar';
 import SortableHeader from '../../components/SortableHeader';
+import ConfirmModal from '../../components/ConfirmModal';
 import { sortRows } from '../../utils/sort';
 
 const ComplaintList = ({
@@ -55,6 +56,7 @@ const ComplaintList = ({
         total: 0,
     });
     const [selectedComplaint, setSelectedComplaint] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const showCaseTabs = !caseType && !fetchEndpoint && !isCase;
 
@@ -195,10 +197,6 @@ const ComplaintList = ({
         if (!apiUrl) {
             return;
         }
-        const confirmed = window.confirm('Padam aduan ini? Tindakan ini tidak boleh diundur.');
-        if (!confirmed) {
-            return;
-        }
         const token = localStorage.getItem('token');
         setActionMessage('');
         axios.delete(`${apiUrl}/complaints/${complaintId}`, {
@@ -276,6 +274,21 @@ const ComplaintList = ({
 
     return (
         <div className="app-complaints">
+            <ConfirmModal
+                isOpen={!!deleteTarget}
+                title="Padam Aduan"
+                description={deleteTarget ? `Padam aduan \"${deleteTarget.reference_no || deleteTarget.id}\"? Tindakan ini tidak boleh diundur.` : ''}
+                confirmText="Padam"
+                cancelText="Batal"
+                variant="danger"
+                onCancel={() => setDeleteTarget(null)}
+                onConfirm={() => {
+                    if (deleteTarget?.id) {
+                        handleDelete(deleteTarget.id);
+                    }
+                    setDeleteTarget(null);
+                }}
+            />
             <div className="app-complaints-header">
                 <div>
                     <div className="app-complaints-title">
@@ -550,7 +563,7 @@ const ComplaintList = ({
                                         <button
                                             type="button"
                                             className="app-icon-button app-icon-button-danger"
-                                            onClick={() => handleDelete(item.id)}
+                                            onClick={() => setDeleteTarget(item)}
                                             aria-label="Padam"
                                             title="Padam"
                                         >

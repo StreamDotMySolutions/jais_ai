@@ -134,8 +134,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/appointments/check', [AppointmentController::class, 'check']);
     Route::get('/i-waran', [IwaranWarrantController::class, 'index']);
     Route::post('/i-waran', [IwaranWarrantController::class, 'store']);
+    Route::get('/i-waran/report/summary', [IwaranWarrantController::class, 'reportSummary']);
+    Route::get('/i-waran/export/csv', [IwaranWarrantController::class, 'exportCsv']);
+    Route::get('/i-waran/export/xlsx', [IwaranWarrantController::class, 'exportXlsx']);
+    Route::get('/i-waran/report/export/csv', [IwaranWarrantController::class, 'exportReportCsv']);
+    Route::get('/i-waran/report/export/xlsx', [IwaranWarrantController::class, 'exportReportXlsx']);
     Route::get('/i-waran/{iwaranWarrant}', [IwaranWarrantController::class, 'show'])->whereNumber('iwaranWarrant');
+    Route::get('/i-waran/{iwaranWarrant}/export/xlsx', [IwaranWarrantController::class, 'exportSingleXlsx'])
+        ->whereNumber('iwaranWarrant');
     Route::put('/i-waran/{iwaranWarrant}', [IwaranWarrantController::class, 'update'])->whereNumber('iwaranWarrant');
+    Route::delete('/i-waran/{iwaranWarrant}', [IwaranWarrantController::class, 'destroy'])->whereNumber('iwaranWarrant');
+    Route::post('/i-waran/{iwaranWarrant}/attachments', [IwaranWarrantController::class, 'uploadAttachments'])
+        ->whereNumber('iwaranWarrant');
+    Route::get('/i-waran/attachments/{attachment}/download', [IwaranWarrantController::class, 'downloadAttachment'])
+        ->whereNumber('attachment')
+        ->name('iwaran.attachments.download');
+    Route::delete('/i-waran/attachments/{attachment}', [IwaranWarrantController::class, 'deleteAttachment'])
+        ->whereNumber('attachment');
     Route::get('/arahan-beredar', [ArahanBeredarController::class, 'index']);
     Route::post('/arahan-beredar', [ArahanBeredarController::class, 'store']);
     Route::get('/arahan-beredar/{arahanBeredar}', [ArahanBeredarController::class, 'show'])
