@@ -97,4 +97,47 @@ class ReferenceController extends Controller
             'data' => $items,
         ]);
     }
+
+    public function iwaranJenisKes(): JsonResponse
+    {
+        $query = DB::table('ref_iwaran_jenis_kes')
+            ->where('is_active', 1)
+            ->orderBy('nama');
+
+        $kategori = request()->get('kategori');
+        if ($kategori) {
+            $query->where('kategori', $kategori);
+        }
+
+        return response()->json([
+            'message' => 'Jenis kes i-WARAN',
+            'data' => $query->get(['id', 'kategori', 'nama']),
+        ]);
+    }
+
+    public function iwaranHasil(): JsonResponse
+    {
+        $items = DB::table('ref_iwaran_hasil')
+            ->where('is_active', 1)
+            ->orderBy('nama')
+            ->get(['id', 'nama']);
+
+        return response()->json([
+            'message' => 'Hasil perlaksanaan i-WARAN',
+            'data' => $items,
+        ]);
+    }
+
+    public function mahkamah(): JsonResponse
+    {
+        $items = DB::table('ref_mahkamah')
+            ->where('is_active', 1)
+            ->orderBy('nama')
+            ->get(['id', 'nama', 'daerah_id', 'emel']);
+
+        return response()->json([
+            'message' => 'Senarai mahkamah',
+            'data' => $items,
+        ]);
+    }
 }

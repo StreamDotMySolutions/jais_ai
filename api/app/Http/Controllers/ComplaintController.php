@@ -206,9 +206,18 @@ class ComplaintController extends Controller
             ->where('decision', 'approved')
             ->count();
 
+        $isCase = false;
+        if ($complaint->aj_offense_type) {
+            $offenseCode = DB::table('ref_offense_types')
+                ->where('id', $complaint->aj_offense_type)
+                ->value('code');
+            $isCase = strtoupper((string) $offenseCode) === 'BT';
+        }
+
         $complaint->update([
             'approver_confirmed_at' => now(),
             'current_stage' => 'disahkan',
+            'is_case' => $isCase,
         ]);
 
         $this->assignPpaToDistrict($complaint, $user->id);
@@ -229,7 +238,7 @@ class ComplaintController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|string|in:baru,dalam_tindakan,kiv,selesai,disahkan',
+            'status' => 'required|string|in:baru,tunggu_pengesahan,dalam_tindakan,kiv,selesai,disahkan',
         ]);
 
         $complaint->update([
@@ -279,6 +288,7 @@ class ComplaintController extends Controller
             if ((int) $request->approver_staff_id !== (int) $complaint->approver_staff_id) {
                 $payload['approver_staff_id'] = $request->approver_staff_id;
                 $payload['approver_assigned_at'] = now();
+                $payload['current_stage'] = 'tunggu_pengesahan';
             }
         }
         $payload['received_by_user_id'] = $user->id;
@@ -680,6 +690,12 @@ class ComplaintController extends Controller
             $query->whereRaw('LOWER(current_stage) = ?', [strtolower($status)]);
         }
 
+        $pendingApproval = $request->query('pending_approval');
+        if ($pendingApproval !== null && $pendingApproval !== '') {
+            $query->whereNotNull('approver_staff_id')
+                ->whereNull('approver_confirmed_at');
+        }
+
         $districtId = $request->query('district_id');
         if ($districtId !== null && $districtId !== '') {
             $query->where('district_id', (int) $districtId);
@@ -698,6 +714,11 @@ class ComplaintController extends Controller
         $caseType = trim((string) $request->query('case_type', ''));
         if ($caseType !== '') {
             $query->where('case_type', strtoupper($caseType));
+        }
+
+        $isCase = $request->query('is_case');
+        if ($isCase !== null && $isCase !== '') {
+            $query->where('is_case', filter_var($isCase, FILTER_VALIDATE_BOOLEAN));
         }
     }
 

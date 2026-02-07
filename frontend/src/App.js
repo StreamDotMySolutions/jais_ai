@@ -29,7 +29,9 @@ import UserList from './app/modules/users/UserList';
 import ArahanBeredar from './app/modules/beredar/ArahanBeredar';
 import ArahanBeredarList from './app/modules/beredar/ArahanBeredarList';
 import ArahanBeredarDetail from './app/modules/beredar/ArahanBeredarDetail';
-import ReportDashboard from './app/modules/reports/ReportDashboard';
+import ReportPlaceholder from './app/modules/reports/ReportPlaceholder';
+import WaranFormStepper from './app/modules/waran/WaranFormStepper';
+import WaranList from './app/modules/waran/WaranList';
 
 // Common
 import Profile from './views/pages/Global/Profile';
@@ -109,6 +111,10 @@ function App() {
               path="/app/complaints/my-pic"
               element={<AppComplaintList title="Aduan Saya (PIC)" description="Senarai aduan yang telah anda ambil." fetchEndpoint="/complaints/my-pic" />}
             />
+            <Route
+              path="/app/case"
+              element={<AppComplaintList title="Aduan Kes" description="Senarai aduan yang disahkan sebagai kes." isCase />}
+            />
             <Route path="/app/complaints/:id" element={<AppComplaintDetail />} />
             <Route path="/app/staff" element={<StaffList />} />
             <Route path="/app/roles" element={<RoleList />} />
@@ -120,7 +126,25 @@ function App() {
             <Route path="/app/arahan-beredar/new" element={<ArahanBeredar />} />
             <Route path="/app/arahan-beredar/:id" element={<ArahanBeredarDetail />} />
             <Route path="/app/arahan-beredar/:id/edit" element={<ArahanBeredar mode="edit" />} />
-            <Route path="/app/reports" element={<ReportDashboard />} />
+            <Route path="/app/i-waran" element={<WaranList />} />
+            <Route path="/app/i-waran/new" element={<WaranFormStepper />} />
+            <Route path="/app/i-waran/:id/edit" element={<WaranFormStepper mode="edit" />} />
+            <Route
+              path="/app/i-waran/report"
+              element={<ReportPlaceholder title="Laporan i-WARAN" description="Ringkasan laporan i-WARAN mengikut status, daerah, dan tarikh." />}
+            />
+            <Route
+              path="/app/complaints/report"
+              element={<ReportPlaceholder title="Laporan Aduan" description="Ringkasan laporan aduan mengikut tarikh, status, dan daerah." />}
+            />
+            <Route
+              path="/app/appointments/report"
+              element={<ReportPlaceholder title="Laporan Temujanji" description="Ringkasan temujanji siasatan mengikut tarikh dan pegawai." />}
+            />
+            <Route
+              path="/app/arahan-beredar/report"
+              element={<ReportPlaceholder title="Laporan Arahan Beredar" description="Ringkasan rekod arahan beredar untuk pemantauan dalaman." />}
+            />
             <Route path="/app/profile" element={<Profile />} />
           </Route>
         </Route>

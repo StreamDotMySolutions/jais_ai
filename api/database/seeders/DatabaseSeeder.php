@@ -30,10 +30,14 @@ class DatabaseSeeder extends Seeder
             ComplaintStatusSeeder::class,
             ComplaintEmailRecipientSeeder::class,
             RefArahanBeredarSectionSeeder::class,
+            RefIwaranJenisKesSeeder::class,
+            RefIwaranHasilSeeder::class,
+            RefMahkamahSeeder::class,
             StaffSeeder::class,
             MenuSeeder::class,
             ComplaintSeeder::class,
             ComplaintBackfillSeeder::class,
+            IwaranWarrantSeeder::class,
             //ModuleSeeder::class,
         ]);
     }

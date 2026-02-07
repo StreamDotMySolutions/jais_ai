@@ -8,6 +8,7 @@ import { sortRows } from '../../utils/sort';
 
 const ComplaintList = ({
     caseType = '',
+    isCase = false,
     title = 'Senarai Aduan',
     description = 'Semak dan urus aduan yang diterima.',
     fetchEndpoint = '',
@@ -43,6 +44,8 @@ const ComplaintList = ({
     const [actionMessage, setActionMessage] = useState('');
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
+    const [statusTab, setStatusTab] = useState('all');
+    const [pendingApproval, setPendingApproval] = useState(false);
     const [sortKey, setSortKey] = useState('');
     const [sortDir, setSortDir] = useState('asc');
     const [pagination, setPagination] = useState({
@@ -52,6 +55,8 @@ const ComplaintList = ({
         total: 0,
     });
     const [selectedComplaint, setSelectedComplaint] = useState(null);
+
+    const showCaseTabs = !caseType && !fetchEndpoint && !isCase;
 
     const fetchComplaints = () => {
         if (!apiUrl) {
@@ -89,6 +94,12 @@ const ComplaintList = ({
         }
         if (caseType) {
             params.case_type = caseType;
+        }
+        if (isCase) {
+            params.is_case = true;
+        }
+        if (pendingApproval) {
+            params.pending_approval = 1;
         }
 
         axios.get(endpoint, {
@@ -134,7 +145,7 @@ const ComplaintList = ({
 
     useEffect(() => {
         fetchComplaints();
-    }, [apiUrl, role, fetchEndpoint, caseType, page, perPage, filters, quickQuery]);
+    }, [apiUrl, role, fetchEndpoint, caseType, page, perPage, filters, quickQuery, pendingApproval]);
 
     useEffect(() => {
         setPage(1);
@@ -239,6 +250,8 @@ const ComplaintList = ({
     const handleSearch = (event) => {
         event.preventDefault();
         setFilters(draftFilters);
+        setStatusTab(draftFilters.status || 'all');
+        setPendingApproval(false);
         setPage(1);
     };
 
@@ -253,6 +266,8 @@ const ComplaintList = ({
         setDraftFilters(empty);
         setFilters(empty);
         setQuickQuery('');
+        setStatusTab('all');
+        setPendingApproval(false);
         setPage(1);
     };
 
@@ -397,7 +412,65 @@ const ComplaintList = ({
 
             <div className={`app-complaints-body ${selectedComplaint ? 'has-drawer' : ''}`}>
                 <div className="app-complaints-main">
-                    <div className="app-card app-complaints-card">
+            <div className="app-card app-complaints-card">
+                    {showCaseTabs && (
+                        <div className="app-list-tabs-row">
+                            <div className="app-list-tabs">
+                                <button
+                                    type="button"
+                                    className={`app-list-tab${statusTab === 'all' ? ' active' : ''}`}
+                                    onClick={() => {
+                                        setStatusTab('all');
+                                        setPendingApproval(false);
+                                        setFilters((prev) => ({ ...prev, status: '' }));
+                                        setDraftFilters((prev) => ({ ...prev, status: '' }));
+                                        setPage(1);
+                                    }}
+                                >
+                                    Semua
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`app-list-tab${statusTab === 'baru' ? ' active' : ''}`}
+                                    onClick={() => {
+                                        setStatusTab('baru');
+                                        setPendingApproval(false);
+                                        setFilters((prev) => ({ ...prev, status: 'baru' }));
+                                        setDraftFilters((prev) => ({ ...prev, status: 'baru' }));
+                                        setPage(1);
+                                    }}
+                                >
+                                    Baru
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`app-list-tab${statusTab === 'pending' ? ' active' : ''}`}
+                                    onClick={() => {
+                                        setStatusTab('pending');
+                                        setPendingApproval(true);
+                                        setFilters((prev) => ({ ...prev, status: '' }));
+                                        setDraftFilters((prev) => ({ ...prev, status: '' }));
+                                        setPage(1);
+                                    }}
+                                >
+                                    Menunggu Pengesahan
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`app-list-tab${statusTab === 'disahkan' ? ' active' : ''}`}
+                                    onClick={() => {
+                                        setStatusTab('disahkan');
+                                        setPendingApproval(false);
+                                        setFilters((prev) => ({ ...prev, status: 'disahkan' }));
+                                        setDraftFilters((prev) => ({ ...prev, status: 'disahkan' }));
+                                        setPage(1);
+                                    }}
+                                >
+                                    Disahkan
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     {isLoading && (
                         <div className="app-table app-table-actions app-table-skeleton">
                             <div className="app-table-header">

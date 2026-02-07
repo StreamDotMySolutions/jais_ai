@@ -1,20 +1,20 @@
 import React from 'react';
 
-const ReportDashboard = () => {
+const ReportPlaceholder = ({ title, description }) => {
     return (
         <div className="app-section">
             <div className="app-section-header">
                 <div>
                     <div className="app-section-eyebrow">PENGURUSAN LAPORAN</div>
-                    <h2>Laporan</h2>
-                    <p>Pilih jenis laporan di menu kiri untuk jana maklumat terperinci.</p>
+                    <h2>{title}</h2>
+                    <p>{description}</p>
                 </div>
             </div>
 
             <div className="app-card">
                 <div className="app-tab-panel">
                     <div className="app-placeholder-card">
-                        <p>Sila pilih laporan yang ingin dijana.</p>
+                        <p>Seksyen ini akan ditambah seterusnya.</p>
                     </div>
                 </div>
             </div>
@@ -22,4 +22,4 @@ const ReportDashboard = () => {
     );
 };
 
-export default ReportDashboard;
+export default ReportPlaceholder;

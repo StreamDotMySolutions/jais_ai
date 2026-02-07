@@ -15,6 +15,7 @@ use App\Http\Controllers\{
     MenuController,
     UserController
 };
+use App\Http\Controllers\IwaranWarrantController;
 use App\Http\Controllers\ArahanBeredarController;
 
 // role = User
@@ -131,6 +132,10 @@ Route::middleware('auth:sanctum')->get('/complaints/{complaint}', [App\Http\Cont
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/appointments', [AppointmentController::class, 'index']);
     Route::get('/appointments/check', [AppointmentController::class, 'check']);
+    Route::get('/i-waran', [IwaranWarrantController::class, 'index']);
+    Route::post('/i-waran', [IwaranWarrantController::class, 'store']);
+    Route::get('/i-waran/{iwaranWarrant}', [IwaranWarrantController::class, 'show'])->whereNumber('iwaranWarrant');
+    Route::put('/i-waran/{iwaranWarrant}', [IwaranWarrantController::class, 'update'])->whereNumber('iwaranWarrant');
     Route::get('/arahan-beredar', [ArahanBeredarController::class, 'index']);
     Route::post('/arahan-beredar', [ArahanBeredarController::class, 'store']);
     Route::get('/arahan-beredar/{arahanBeredar}', [ArahanBeredarController::class, 'show'])
@@ -200,6 +205,9 @@ Route::get('/references/judi-details', [ReferenceController::class, 'judiDetails
 Route::get('/references/complaint-statuses', [ReferenceController::class, 'complaintStatuses']);
 Route::get('/references/complaint-email-recipients', [ReferenceController::class, 'complaintEmailRecipients']);
 Route::get('/references/arahan-beredar-sections', [ReferenceController::class, 'arahanBeredarSections']);
+Route::get('/references/iwaran-jenis-kes', [ReferenceController::class, 'iwaranJenisKes']);
+Route::get('/references/iwaran-hasil', [ReferenceController::class, 'iwaranHasil']);
+Route::get('/references/mahkamah', [ReferenceController::class, 'mahkamah']);
 
 // Telegram Webhook
 Route::post('/telegram/webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'handleWebhook'])->name('telegram.webhook');

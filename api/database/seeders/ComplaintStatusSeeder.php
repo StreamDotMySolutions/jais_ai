@@ -11,9 +11,10 @@ class ComplaintStatusSeeder extends Seeder
     {
         $statuses = [
             ['code' => 'baru', 'name' => 'Baharu', 'is_final' => 0, 'sort_order' => 1],
-            ['code' => 'dalam_tindakan', 'name' => 'Dalam Tindakan', 'is_final' => 0, 'sort_order' => 2],
-            ['code' => 'kiv', 'name' => 'KIV', 'is_final' => 0, 'sort_order' => 3],
-            ['code' => 'selesai', 'name' => 'Selesai', 'is_final' => 1, 'sort_order' => 4],
+            ['code' => 'tunggu_pengesahan', 'name' => 'Menunggu Pengesahan', 'is_final' => 0, 'sort_order' => 2],
+            ['code' => 'dalam_tindakan', 'name' => 'Dalam Tindakan', 'is_final' => 0, 'sort_order' => 3],
+            ['code' => 'kiv', 'name' => 'KIV', 'is_final' => 0, 'sort_order' => 4],
+            ['code' => 'selesai', 'name' => 'Selesai', 'is_final' => 1, 'sort_order' => 5],
         ];
 
         foreach ($statuses as $status) {

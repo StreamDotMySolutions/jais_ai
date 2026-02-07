@@ -81,7 +81,7 @@ const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onTogg
                                             <Link
                                                 key={child.id}
                                                 to={child.path}
-                                                className="app-nav-link"
+                                                className="app-nav-link app-nav-link-sub"
                                                 title={child.label}
                                             >
                                                 <i className={`bi ${child.icon || 'bi-dot'}`}></i>
