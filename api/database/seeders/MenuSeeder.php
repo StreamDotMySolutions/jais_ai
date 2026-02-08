@@ -30,6 +30,7 @@ class MenuSeeder extends Seeder
             ['label' => 'i-WARAN', 'path' => '/app/i-waran-root', 'icon' => 'bi-file-earmark-text', 'sort_order' => 5],
             ['label' => 'Senarai Waran', 'path' => '/app/i-waran', 'icon' => 'bi-file-earmark-text', 'sort_order' => 1],
             ['label' => 'Laporan i-WARAN', 'path' => '/app/i-waran/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 2],
+            ['label' => 'Semakan Nama OKT Waran', 'path' => '/app/i-waran/semakan-okt', 'icon' => 'bi-search', 'sort_order' => 3],
             ['label' => 'Kakitangan', 'path' => '/app/staff', 'icon' => 'bi-people', 'sort_order' => 7],
             ['label' => 'Pengguna', 'path' => '/app/users', 'icon' => 'bi-person-lines-fill', 'sort_order' => 8],
             ['label' => 'System Setting', 'path' => '/app/system-settings', 'icon' => 'bi-gear', 'sort_order' => 99],
@@ -145,6 +146,15 @@ class MenuSeeder extends Seeder
                     ]);
                 }
             }
+            if ($menu['path'] === '/app/i-waran/semakan-okt') {
+                $parentMenu = DB::table('sys_menus')->where('path', '/app/i-waran-root')->first();
+                if ($parentMenu) {
+                    DB::table('sys_menus')->where('id', $menuRecord->id)->update([
+                        'parent_id' => $parentMenu->id,
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
 
             $allowedRoles = ['system', 'admin', 'pegawai', 'user', 'awam'];
             if ($menu['path'] === '/app/complaints') {
@@ -186,7 +196,7 @@ class MenuSeeder extends Seeder
             if ($menu['path'] === '/app/case') {
                 $allowedRoles = ['system', 'admin', 'pegawai_hq', 'pegawai_daerah'];
             }
-            if (in_array($menu['path'], ['/app/i-waran-root', '/app/i-waran', '/app/i-waran/report'], true)) {
+            if (in_array($menu['path'], ['/app/i-waran-root', '/app/i-waran', '/app/i-waran/report', '/app/i-waran/semakan-okt'], true)) {
                 $allowedRoles = ['system', 'admin', 'pegawai', 'pegawai_hq', 'pegawai_daerah'];
             }
             if ($menu['path'] === '/app/users') {

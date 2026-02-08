@@ -25,6 +25,7 @@ const emptyForm = {
     jenis_kes_mal_id: '',
     jenis_kes_mal_lain: '',
     jenis_kes_jenayah_id: '',
+    jenis_kes_jenayah_lain: '',
     mahkamah_id: '',
     daerah_id: '',
     emel: '',
@@ -121,6 +122,22 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         return name === 'lain-lain' || name === 'lain lain' || name.startsWith('lain');
     }, [formData.jenis_kes_mal_lain, selectedMalOption]);
 
+    const selectedJenayahOption = useMemo(() => {
+        const idValue = String(formData.jenis_kes_jenayah_id || '');
+        if (!idValue) {
+            return null;
+        }
+        return (jenisKesJenayahOptions || []).find((item) => String(item.id) === idValue) || null;
+    }, [formData.jenis_kes_jenayah_id, jenisKesJenayahOptions]);
+
+    const showJenayahOther = useMemo(() => {
+        if (formData.jenis_kes_jenayah_lain) {
+            return true;
+        }
+        const name = String(selectedJenayahOption?.nama || '').toLowerCase().trim();
+        return name === 'lain-lain' || name === 'lain lain' || name.startsWith('lain');
+    }, [formData.jenis_kes_jenayah_lain, selectedJenayahOption]);
+
     const updateField = (field) => (event) => {
         setValidationErrors((prev) => {
             if (!prev || !prev[field]) {
@@ -159,6 +176,32 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             ...prev,
             jenis_kes_mal_id: value,
             jenis_kes_mal_lain: isOther ? prev.jenis_kes_mal_lain : '',
+        }));
+    };
+
+    const updateJenisKesJenayah = (event) => {
+        const value = event.target.value;
+        // Clear "lain-lain" text when switching away from other.
+        const nextOption = (jenisKesJenayahOptions || []).find((item) => String(item.id) === String(value)) || null;
+        const name = String(nextOption?.nama || '').toLowerCase().trim();
+        const isOther = name === 'lain-lain' || name === 'lain lain' || name.startsWith('lain');
+
+        setValidationErrors((prev) => {
+            if (!prev || (!prev.jenis_kes_jenayah_id && !prev.jenis_kes_jenayah_lain)) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next.jenis_kes_jenayah_id;
+            if (!isOther) {
+                delete next.jenis_kes_jenayah_lain;
+            }
+            return next;
+        });
+
+        setFormData((prev) => ({
+            ...prev,
+            jenis_kes_jenayah_id: value,
+            jenis_kes_jenayah_lain: isOther ? prev.jenis_kes_jenayah_lain : '',
         }));
     };
 
@@ -235,6 +278,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     jenis_kes_mal_id: data.jenis_kes_mal_id || '',
                     jenis_kes_mal_lain: data.jenis_kes_mal_lain || '',
                     jenis_kes_jenayah_id: data.jenis_kes_jenayah_id || '',
+                    jenis_kes_jenayah_lain: data.jenis_kes_jenayah_lain || '',
                     mahkamah_id: data.mahkamah_id || '',
                     daerah_id: data.daerah_id || '',
                     emel: data.emel || '',
@@ -834,13 +878,24 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 )}
                                 <div className="app-form-field">
                                     <label>Jenis Kesalahan (Jenayah)</label>
-                                    <select value={formData.jenis_kes_jenayah_id} onChange={updateField('jenis_kes_jenayah_id')}>
+                                    <select value={formData.jenis_kes_jenayah_id} onChange={updateJenisKesJenayah}>
                                         <option value="">Pilih kesalahan</option>
                                         {jenisKesJenayahOptions.map((item) => (
                                             <option key={item.id} value={item.id}>{item.nama}</option>
                                         ))}
                                     </select>
                                 </div>
+                                {showJenayahOther && (
+                                    <div className="app-form-field">
+                                        <label>Lain-lain Kes (Jenayah)</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Nyatakan jika pilih lain-lain"
+                                            value={formData.jenis_kes_jenayah_lain}
+                                            onChange={updateField('jenis_kes_jenayah_lain')}
+                                        />
+                                    </div>
+                                )}
                                 <div className="app-form-field">
                                     <label>Mahkamah *</label>
                                     <select className={validationErrors.mahkamah_id ? 'app-input-error' : ''} value={formData.mahkamah_id} onChange={updateField('mahkamah_id')}>

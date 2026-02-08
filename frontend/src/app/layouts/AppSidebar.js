@@ -1,7 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 
 const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onToggleCollapse }) => {
+    const location = useLocation();
     const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
     const { roots, childrenMap } = useMemo(() => {
         const map = new Map();
@@ -25,11 +26,16 @@ const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onTogg
         const nextOpen = {};
         roots.forEach((menu) => {
             if (childrenMap.has(menu.id)) {
-                nextOpen[menu.id] = true;
+                const children = childrenMap.get(menu.id) || [];
+                // Default collapsed, but auto-open the group if the current route is inside it.
+                nextOpen[menu.id] = children.some((child) => (
+                    child.path === location.pathname
+                    || (child.path && location.pathname.startsWith(`${child.path}/`))
+                ));
             }
         });
         setOpenGroups(nextOpen);
-    }, [roots, childrenMap]);
+    }, [roots, childrenMap, location.pathname]);
 
     const toggleGroup = (menuId) => {
         setOpenGroups((prev) => ({ ...prev, [menuId]: !prev[menuId] }));
@@ -78,15 +84,18 @@ const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onTogg
                                 {isOpen && (
                                     <div className="app-nav-group-items">
                                         {children.map((child) => (
-                                            <Link
+                                            <NavLink
                                                 key={child.id}
                                                 to={child.path}
-                                                className="app-nav-link app-nav-link-sub"
+                                                end
+                                                className={({ isActive }) => (
+                                                    `app-nav-link app-nav-link-sub${isActive ? ' is-active' : ''}`
+                                                )}
                                                 title={child.label}
                                             >
                                                 <i className={`bi ${child.icon || 'bi-dot'}`}></i>
                                                 <span className="app-nav-label">{child.label}</span>
-                                            </Link>
+                                            </NavLink>
                                         ))}
                                     </div>
                                 )}
@@ -94,10 +103,18 @@ const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onTogg
                         );
                     }
                     return (
-                        <Link key={item.id} to={item.path} className="app-nav-link" title={item.label}>
+                        <NavLink
+                            key={item.id}
+                            to={item.path}
+                            end
+                            className={({ isActive }) => (
+                                `app-nav-link${isActive ? ' is-active' : ''}`
+                            )}
+                            title={item.label}
+                        >
                             <i className={`bi ${item.icon || 'bi-dot'}`}></i>
                             <span className="app-nav-label">{item.label}</span>
-                        </Link>
+                        </NavLink>
                     );
                 })}
             </nav>

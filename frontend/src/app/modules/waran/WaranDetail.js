@@ -376,6 +376,12 @@ const WaranDetail = () => {
                         <span>Jenis Kes (Jenayah)</span>
                         <div className="app-detail-value">{record.jenis_kes_jenayah?.nama || '-'}</div>
                     </div>
+                    {record.jenis_kes_jenayah_lain && (
+                        <div className="app-form-field">
+                            <span>Lain-lain Kes (Jenayah)</span>
+                            <div className="app-detail-value">{record.jenis_kes_jenayah_lain}</div>
+                        </div>
+                    )}
                     <div className="app-form-field">
                         <span>Email</span>
                         <div className="app-detail-value">{record.emel || '-'}</div>

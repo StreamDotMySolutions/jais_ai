@@ -40,6 +40,7 @@ class IwaranWarrantController extends Controller
             'jenis_kes_mal_id' => ['nullable', 'integer'],
             'jenis_kes_mal_lain' => ['nullable', 'string', 'max:255'],
             'jenis_kes_jenayah_id' => ['nullable', 'integer'],
+            'jenis_kes_jenayah_lain' => ['nullable', 'string', 'max:255'],
             'mahkamah_id' => ['nullable', 'integer'],
             'daerah_id' => ['nullable', 'integer'],
             'emel' => ['nullable', 'email'],
@@ -116,6 +117,52 @@ class IwaranWarrantController extends Controller
 
         return response()->json([
             'message' => 'Senarai waran',
+            'data' => $items->items(),
+            'meta' => [
+                'current_page' => $items->currentPage(),
+                'last_page' => $items->lastPage(),
+                'per_page' => $items->perPage(),
+                'total' => $items->total(),
+            ],
+        ]);
+    }
+
+    public function semakanOkt(Request $request): JsonResponse
+    {
+        $query = IwaranWarrant::query()
+            ->with([
+                'daerah:id,name',
+                'mahkamah:id,nama',
+            ])
+            ->orderByDesc('tarikh_bicara')
+            ->orderByDesc('id');
+
+        if ($request->filled('nama')) {
+            $keyword = strtolower($request->string('nama')->toString());
+            $query->whereRaw('LOWER(nama_okt) LIKE ?', ["%{$keyword}%"]);
+        }
+
+        if ($request->filled('no_kp')) {
+            $keyword = strtolower($request->string('no_kp')->toString());
+            $query->whereRaw('LOWER(no_kp_okt) LIKE ?', ["%{$keyword}%"]);
+        }
+
+        if ($request->filled('district_id')) {
+            $query->where('daerah_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('tarikh_bicara', '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('tarikh_bicara', '<=', $request->string('to_date')->toString());
+        }
+
+        $items = $query->paginate($request->integer('per_page', 10));
+
+        return response()->json([
+            'message' => 'Semakan nama OKT waran',
             'data' => $items->items(),
             'meta' => [
                 'current_page' => $items->currentPage(),
@@ -775,6 +822,7 @@ class IwaranWarrantController extends Controller
             'jenis_kes_mal_id' => ['nullable', 'integer'],
             'jenis_kes_mal_lain' => ['nullable', 'string', 'max:255'],
             'jenis_kes_jenayah_id' => ['nullable', 'integer'],
+            'jenis_kes_jenayah_lain' => ['nullable', 'string', 'max:255'],
             'mahkamah_id' => ['nullable', 'integer'],
             'daerah_id' => ['nullable', 'integer'],
             'emel' => ['nullable', 'email'],

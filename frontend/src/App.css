@@ -1129,11 +1129,11 @@
 .app-shell-sidebar {
   background: #0b1c5c;
   color: #e6ebff;
-  padding: 2rem 1.5rem;
+  padding: 0;
 }
 
 .app-shell-sidebar.is-collapsed {
-  padding: 2rem 0.9rem;
+  padding: 0;
 }
 
 .app-sidebar-backdrop {
@@ -1151,7 +1151,11 @@
   gap: 0.75rem;
   font-weight: 700;
   color: #ffffff;
-  margin-bottom: 2rem;
+  padding: 2rem 1.5rem 1.25rem;
+}
+
+.app-shell.is-collapsed .app-brand {
+  padding: 2rem 0.9rem 1.25rem;
 }
 
 .app-brand-text {
@@ -1179,6 +1183,28 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  padding: 0 0 1.25rem;
+}
+
+/* Divider line between main sidebar items (root menus) */
+.app-nav > .app-nav-link,
+.app-nav > .app-nav-group {
+  position: relative;
+}
+
+.app-nav > .app-nav-link::after,
+.app-nav > .app-nav-group::after {
+  content: "";
+  position: absolute;
+  left: 0.9rem;
+  right: 0.9rem;
+  bottom: -0.4rem;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.app-nav > :last-child::after {
+  display: none;
 }
 
 .app-nav-link {
@@ -1187,7 +1213,8 @@
   gap: 0.7rem;
   color: #e6ebff;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
+  font-size: 0.95rem;
   padding: 0.7rem 0.9rem;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
@@ -1197,6 +1224,8 @@
   background: transparent;
   color: rgba(230, 235, 255, 0.78);
   font-weight: 500;
+  font-size: 0.9rem;
+  padding: 0.55rem 0.9rem 0.55rem 1.6rem;
 }
 
 .app-nav-link-sub:hover {
@@ -1223,6 +1252,12 @@
   color: #ffffff;
 }
 
+.app-nav-link.is-active {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  box-shadow: inset 4px 0 0 #52b788;
+}
+
 .app-nav-group {
   display: flex;
   flex-direction: column;
@@ -1236,7 +1271,7 @@
   padding: 0.7rem 0.9rem;
   border-radius: 12px;
   border: 0;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgb(11 28 92);
   color: #f1f4ff;
   font-weight: 600;
   cursor: pointer;
@@ -1244,7 +1279,7 @@
 }
 
 .app-nav-group-header:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgb(16 42 136);
 }
 
 .app-nav-caret {
@@ -1356,6 +1391,7 @@
   flex-direction: column;
   gap: 0.75rem;
   font-size: 0.9rem;
+  padding: 1.25rem 1.5rem 2rem;
 }
 
 .app-status {
@@ -1422,6 +1458,7 @@
 
 .app-shell.is-collapsed .app-side-footer {
   align-items: center;
+  padding: 1.25rem 0.9rem 2rem;
 }
 
 .app-shell.is-collapsed .app-status,
@@ -2270,6 +2307,19 @@
 .app-waran-header,
 .app-waran-row {
   grid-template-columns: 0.9fr 0.9fr 1fr 1fr 1fr 0.8fr 0.7fr;
+}
+
+.app-okt-header,
+.app-okt-row {
+  grid-template-columns: 1.3fr 0.9fr 1.6fr 0.5fr 0.9fr 1.2fr 0.7fr 0.8fr 0.5fr;
+}
+
+.app-table-wraptext {
+  white-space: normal;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .app-menu-roles {

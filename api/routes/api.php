@@ -133,6 +133,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/appointments', [AppointmentController::class, 'index']);
     Route::get('/appointments/check', [AppointmentController::class, 'check']);
     Route::get('/i-waran', [IwaranWarrantController::class, 'index']);
+    Route::get('/i-waran/semakan-okt', [IwaranWarrantController::class, 'semakanOkt']);
     Route::post('/i-waran', [IwaranWarrantController::class, 'store']);
     Route::get('/i-waran/report/summary', [IwaranWarrantController::class, 'reportSummary']);
     Route::get('/i-waran/export/csv', [IwaranWarrantController::class, 'exportCsv']);
