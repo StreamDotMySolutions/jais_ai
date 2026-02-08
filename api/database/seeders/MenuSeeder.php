@@ -19,18 +19,19 @@ class MenuSeeder extends Seeder
             ['label' => 'Aduan Untuk Disahkan', 'path' => '/app/complaints/pending-approval', 'icon' => 'bi-check2-square', 'sort_order' => 4],
             ['label' => 'Aduan Untuk Diambil', 'path' => '/app/complaints/pickup-queue', 'icon' => 'bi-inbox', 'sort_order' => 5],
             ['label' => 'Aduan Saya (PIC)', 'path' => '/app/complaints/my-pic', 'icon' => 'bi-person-check', 'sort_order' => 6],
-            ['label' => 'Aduan Kes', 'path' => '/app/case', 'icon' => 'bi-briefcase', 'sort_order' => 7],
+            // Root menu: shown after Aduan group, before Temujanji.
+            ['label' => 'KES', 'path' => '/app/case', 'icon' => 'bi-briefcase', 'sort_order' => 3],
             ['label' => 'Laporan Aduan', 'path' => '/app/complaints/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 8],
-            ['label' => 'Temujanji', 'path' => '/app/appointments-root', 'icon' => 'bi-calendar2-week', 'sort_order' => 3],
+            ['label' => 'Temujanji', 'path' => '/app/appointments-root', 'icon' => 'bi-calendar2-week', 'sort_order' => 4],
             ['label' => 'Kalendar', 'path' => '/app/appointments', 'icon' => 'bi-calendar2-week', 'sort_order' => 1],
             ['label' => 'Laporan Temujanji', 'path' => '/app/appointments/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 2],
-            ['label' => 'Arahan Beredar', 'path' => '/app/arahan-beredar-root', 'icon' => 'bi-journal-text', 'sort_order' => 4],
+            ['label' => 'Arahan Beredar', 'path' => '/app/arahan-beredar-root', 'icon' => 'bi-journal-text', 'sort_order' => 5],
             ['label' => 'Senarai Arahan Beredar', 'path' => '/app/arahan-beredar', 'icon' => 'bi-journal-text', 'sort_order' => 1],
             ['label' => 'Laporan Arahan Beredar', 'path' => '/app/arahan-beredar/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 2],
-            ['label' => 'i-WARAN', 'path' => '/app/i-waran-root', 'icon' => 'bi-file-earmark-text', 'sort_order' => 5],
+            ['label' => 'i-WARAN', 'path' => '/app/i-waran-root', 'icon' => 'bi-file-earmark-text', 'sort_order' => 6],
             ['label' => 'Senarai Waran', 'path' => '/app/i-waran', 'icon' => 'bi-file-earmark-text', 'sort_order' => 1],
-            ['label' => 'Laporan i-WARAN', 'path' => '/app/i-waran/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 2],
-            ['label' => 'Semakan Nama OKT Waran', 'path' => '/app/i-waran/semakan-okt', 'icon' => 'bi-search', 'sort_order' => 3],
+            ['label' => 'Semakan Nama OKT Waran', 'path' => '/app/i-waran/semakan-okt', 'icon' => 'bi-search', 'sort_order' => 2],
+            ['label' => 'Laporan i-WARAN', 'path' => '/app/i-waran/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 3],
             ['label' => 'Kakitangan', 'path' => '/app/staff', 'icon' => 'bi-people', 'sort_order' => 7],
             ['label' => 'Pengguna', 'path' => '/app/users', 'icon' => 'bi-person-lines-fill', 'sort_order' => 8],
             ['label' => 'System Setting', 'path' => '/app/system-settings', 'icon' => 'bi-gear', 'sort_order' => 99],
@@ -67,7 +68,6 @@ class MenuSeeder extends Seeder
                 '/app/complaints/pending-approval',
                 '/app/complaints/pickup-queue',
                 '/app/complaints/my-pic',
-                '/app/case',
                 '/app/complaints/report',
             ], true)) {
                 $parentMenu = DB::table('sys_menus')->where('path', '/app/aduan')->first();
@@ -77,6 +77,13 @@ class MenuSeeder extends Seeder
                         'updated_at' => now(),
                     ]);
                 }
+            }
+            // KES is a standalone main menu (not under Aduan).
+            if ($menu['path'] === '/app/case') {
+                DB::table('sys_menus')->where('id', $menuRecord->id)->update([
+                    'parent_id' => null,
+                    'updated_at' => now(),
+                ]);
             }
             if (in_array($menu['path'], [
                 '/app/roles',

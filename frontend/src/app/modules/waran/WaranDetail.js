@@ -1,20 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
-import AttachmentPreviewModal from '../../components/AttachmentPreviewModal';
-import ConfirmModal from '../../components/ConfirmModal';
-import { useToast } from '../../components/ToastProvider';
-
-const formatBytes = (bytes) => {
-    const value = Number(bytes);
-    if (!Number.isFinite(value) || value <= 0) {
-        return '-';
-    }
-    const units = ['B', 'KB', 'MB', 'GB'];
-    const idx = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
-    const num = value / (1024 ** idx);
-    return `${num.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`;
-};
+import ConfirmModal from '../../components/SharedConfirmModal';
+import { useToast } from '../../components/SharedToastProvider';
+import AttachmentSection from '../../components/SharedAttachmentSection';
 
 const formatDateTime = (value) => {
     if (!value) {
@@ -56,13 +45,6 @@ const WaranDetail = () => {
     const [error, setError] = useState('');
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
-    const [previewOpen, setPreviewOpen] = useState(false);
-    const [previewLoading, setPreviewLoading] = useState(false);
-    const [previewError, setPreviewError] = useState('');
-    const [previewUrl, setPreviewUrl] = useState('');
-    const [previewMime, setPreviewMime] = useState('');
-    const [previewName, setPreviewName] = useState('');
-    const [thumbUrls, setThumbUrls] = useState({});
 
     useEffect(() => {
         if (!apiUrl || !id) {
@@ -85,60 +67,6 @@ const WaranDetail = () => {
             })
             .finally(() => setIsLoading(false));
     }, [apiUrl, id, token]);
-
-    useEffect(() => {
-        if (!apiUrl) {
-            return undefined;
-        }
-
-        const maxThumbBytes = 3 * 1024 * 1024;
-        let disposed = false;
-        const list = record?.attachments || [];
-        const currentIds = new Set(list.map((f) => f.id));
-
-        setThumbUrls((prev) => {
-            const next = { ...prev };
-            Object.keys(next).forEach((key) => {
-                const idKey = Number(key);
-                if (!currentIds.has(idKey)) {
-                    try { window.URL.revokeObjectURL(next[key]); } catch (_) { /* ignore */ }
-                    delete next[key];
-                }
-            });
-            return next;
-        });
-
-        const candidates = list.filter((file) => {
-            if (!file?.id) return false;
-            const mime = String(file?.mime || '');
-            if (!mime.startsWith('image/')) return false;
-            if (typeof file.size === 'number' && file.size > maxThumbBytes) return false;
-            return !thumbUrls[file.id];
-        });
-
-        candidates.slice(0, 6).forEach((file) => {
-            const url = file.download_url || `${apiUrl}/i-waran/attachments/${file.id}/download`;
-            axios.get(url, {
-                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-                responseType: 'blob',
-            })
-                .then((response) => {
-                    if (disposed) return;
-                    const contentType = response.headers?.['content-type'] || file.mime || 'image/*';
-                    const blob = new Blob([response.data], { type: contentType });
-                    const blobUrl = window.URL.createObjectURL(blob);
-                    setThumbUrls((prev) => ({ ...prev, [file.id]: blobUrl }));
-                })
-                .catch(() => {
-                    // ignore
-                });
-        });
-
-        return () => {
-            disposed = true;
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [apiUrl, record, token]);
 
     const downloadBlob = (blob, filename) => {
         const blobUrl = window.URL.createObjectURL(blob);
@@ -166,44 +94,6 @@ const WaranDetail = () => {
             .catch(() => {
                 setError('Gagal export Excel.');
             });
-    };
-
-    const closePreview = () => {
-        setPreviewOpen(false);
-        setPreviewError('');
-        setPreviewLoading(false);
-        if (previewUrl) {
-            window.setTimeout(() => window.URL.revokeObjectURL(previewUrl), 250);
-        }
-        setPreviewUrl('');
-        setPreviewMime('');
-        setPreviewName('');
-    };
-
-    const openPreview = (file) => {
-        if (!file?.id || !apiUrl) {
-            return;
-        }
-        const url = file.download_url || `${apiUrl}/i-waran/attachments/${file.id}/download`;
-        setPreviewError('');
-        setPreviewLoading(true);
-        setPreviewName(file.file_name || 'Lampiran');
-        setPreviewMime(file.mime || '');
-        setPreviewOpen(true);
-        axios.get(url, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            responseType: 'blob',
-        })
-            .then((response) => {
-                const contentType = response.headers?.['content-type'] || file.mime || 'application/octet-stream';
-                const blob = new Blob([response.data], { type: contentType });
-                const blobUrl = window.URL.createObjectURL(blob);
-                setPreviewUrl(blobUrl);
-            })
-            .catch(() => {
-                setPreviewError('Gagal membuka preview fail.');
-            })
-            .finally(() => setPreviewLoading(false));
     };
 
     if (isLoading) {
@@ -250,19 +140,6 @@ const WaranDetail = () => {
                             setDeleting(false);
                             setDeleteOpen(false);
                         });
-                }}
-            />
-            <AttachmentPreviewModal
-                isOpen={previewOpen}
-                title="Preview Lampiran i-WARAN"
-                fileName={previewName}
-                mime={previewMime}
-                url={previewUrl}
-                onClose={closePreview}
-                onOpenTab={() => {
-                    if (previewUrl) {
-                        window.open(previewUrl, '_blank', 'noopener,noreferrer');
-                    }
                 }}
             />
             <div className="app-complaints-header">
@@ -409,56 +286,14 @@ const WaranDetail = () => {
                 <div className="app-card-header">
                     <h4>Lampiran</h4>
                 </div>
-                {previewError && <div className="app-empty">{previewError}</div>}
-                {previewLoading && <div className="app-detail-note">Membuka preview...</div>}
-                {record.attachments?.length ? (
-                    <div>
-                        <div className="app-detail-note" style={{ marginBottom: '0.6rem' }}>
-                            {record.attachments.length} lampiran
-                        </div>
-                        <div className="app-attachment-strip">
-                            {record.attachments.map((file) => (
-                                <div key={file.id} className="app-attachment-chip">
-                                    <button
-                                        type="button"
-                                        className="app-attachment-main"
-                                        onClick={() => openPreview(file)}
-                                        title="Preview"
-                                    >
-                                        <span className="app-attachment-thumb">
-                                            {String(file?.mime || '').startsWith('image/') ? (
-                                                thumbUrls[file.id] ? (
-                                                    <img src={thumbUrls[file.id]} alt="" />
-                                                ) : (
-                                                    <i className="bi bi-image"></i>
-                                                )
-                                            ) : (
-                                                <i className={`bi ${String(file?.file_name || '').toLowerCase().endsWith('.pdf') ? 'bi-file-earmark-pdf' : 'bi-file-earmark'}`}></i>
-                                            )}
-                                        </span>
-                                        <span className="app-attachment-meta">
-                                            <span className="app-attachment-name">{file.file_name}</span>
-                                            <span className="app-attachment-size">{formatBytes(file.size)}</span>
-                                        </span>
-                                    </button>
-                                    <span className="app-attachment-actions">
-                                        <button
-                                            type="button"
-                                            className="app-icon-button"
-                                            onClick={() => openPreview(file)}
-                                            aria-label="Preview lampiran"
-                                            title="Preview"
-                                        >
-                                            <i className="bi bi-eye"></i>
-                                        </button>
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="app-empty">Tiada lampiran.</div>
-                )}
+                <AttachmentSection
+                    apiUrl={apiUrl}
+                    token={token}
+                    recordId={record.id}
+                    attachments={record.attachments || []}
+                    canUpload={false}
+                    canDelete={false}
+                />
             </div>
 
             <div className="app-card">

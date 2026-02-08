@@ -1217,7 +1217,7 @@
   font-size: 0.95rem;
   padding: 0.7rem 0.9rem;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: rgb(11 28 92);
 }
 
 .app-nav-link-sub {
@@ -1986,6 +1986,57 @@
   font-size: 0.9rem;
 }
 
+.app-inline-alert {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.app-inline-alert-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+
+.app-inline-alert-body i {
+  margin-top: 0.1rem;
+}
+
+.app-inline-alert-text {
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.app-inline-alert--success {
+  background: #d1e7dd;
+  color: #0f5132;
+  border-color: #badbcc;
+}
+
+.app-inline-alert--error {
+  background: #fde8e8;
+  color: #9b1c1c;
+  border-color: #f5c2c2;
+}
+
+.app-inline-alert--warning {
+  background: #fff3cd;
+  color: #664d03;
+  border-color: #ffecb5;
+}
+
+.app-inline-alert--info {
+  background: #e7f0ff;
+  color: #0b1c5c;
+  border-color: #c8d7ff;
+}
+
 .app-success {
   background: #d1e7dd;
   color: #0f5132;
@@ -2230,6 +2281,15 @@
   grid-template-columns: 1.2fr 0.8fr 1fr 0.9fr 0.8fr 0.9fr 1.6fr 0.8fr;
 }
 
+/* OKT list has more columns; keep its layout even when it contains action buttons. */
+.app-table .app-okt-row:has(.app-button) {
+  grid-template-columns: 1.3fr 0.9fr 1.6fr 0.5fr 0.9fr 1.2fr 0.7fr 0.8fr 0.5fr;
+}
+
+.app-table .app-okt-header:has(+ .app-okt-row .app-button) {
+  grid-template-columns: 1.3fr 0.9fr 1.6fr 0.5fr 0.9fr 1.2fr 0.7fr 0.8fr 0.5fr;
+}
+
 .app-staff-header,
 .app-staff-row {
   grid-template-columns: 1.4fr 0.9fr 0.9fr 0.7fr 0.8fr 0.9fr 1.2fr 0.6fr;
@@ -2311,6 +2371,11 @@
 
 .app-okt-header,
 .app-okt-row {
+  grid-template-columns: 1.3fr 0.9fr 1.6fr 0.5fr 0.9fr 1.2fr 0.7fr 0.8fr 0.5fr;
+}
+
+.app-table-actions .app-okt-header,
+.app-table-actions .app-okt-row {
   grid-template-columns: 1.3fr 0.9fr 1.6fr 0.5fr 0.9fr 1.2fr 0.7fr 0.8fr 0.5fr;
 }
 
@@ -4523,6 +4588,12 @@
   border-radius: 12px;
   color: #1f6f4f;
   font-weight: 600;
+}
+
+.app-detail-note-neutral {
+  background: #e7f0ff;
+  border-color: #c8d7ff;
+  color: #0b1c5c;
 }
 
 .app-detail-kicker {

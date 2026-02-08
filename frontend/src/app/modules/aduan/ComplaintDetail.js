@@ -243,7 +243,7 @@ const ComplaintDetail = () => {
             khalwat_detail_id: complaint.aj_khalwat_detail_id ? String(complaint.aj_khalwat_detail_id) : '',
             judi_detail_id: complaint.aj_judi_detail_id ? String(complaint.aj_judi_detail_id) : '',
             notes: complaint.aj_notes || '',
-            classification: complaint.classification_code || '',
+            classification: complaint.aj_ppa_classification || '',
         });
         setAjReport({
             ...ajReportDefault,
@@ -507,7 +507,7 @@ const ComplaintDetail = () => {
         })
             .then((response) => {
                 setComplaint((prev) => prev ? { ...prev, ...response?.data?.data } : prev);
-                setAssigneeMessage('Pegawai penerima & pengesah dikemaskini.');
+                setAssigneeMessage('Maklumat aduan telah dihantar kepada pengesah untuk pengesahan.');
             })
             .catch((err) => {
                 setAssigneeMessage(err?.response?.data?.message || 'Gagal kemaskini pegawai.');
@@ -1084,7 +1084,7 @@ const ComplaintDetail = () => {
                                 </label>
                                 <div className="app-form-actions app-span-full app-align-right">
                                     <button className="app-button" type="button" onClick={submitAkPayload}>
-                                        Simpan AK
+                                        Simpan
                                     </button>
                                 </div>
 

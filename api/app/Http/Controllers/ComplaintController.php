@@ -206,12 +206,24 @@ class ComplaintController extends Controller
             ->where('decision', 'approved')
             ->count();
 
+        // Mark as "KES" only after sah (approve).
+        // NOTE: aj_offense_type/ak_offense_type is stored as ref_offense_types.id (string), not the code.
         $isCase = false;
-        if ($complaint->aj_offense_type) {
-            $offenseCode = DB::table('ref_offense_types')
-                ->where('id', $complaint->aj_offense_type)
-                ->value('code');
-            $isCase = strtoupper((string) $offenseCode) === 'BT';
+        $caseType = strtoupper((string) ($complaint->case_type ?: 'AJ'));
+        $offenseTypeCode = $caseType === 'AK'
+            ? $complaint->ak_offense_type
+            : $complaint->aj_offense_type;
+        if ($offenseTypeCode) {
+            // Some older rows store the code directly (BT/TBT), newer rows store the ref_offense_types.id.
+            $resolvedCode = null;
+            if (is_numeric($offenseTypeCode)) {
+                $resolvedCode = DB::table('ref_offense_types')
+                    ->where('id', (int) $offenseTypeCode)
+                    ->value('code');
+            } else {
+                $resolvedCode = $offenseTypeCode;
+            }
+            $isCase = strtoupper((string) $resolvedCode) === 'BT';
         }
 
         $complaint->update([
@@ -368,12 +380,10 @@ class ComplaintController extends Controller
             'payload' => 'required|array',
         ]);
 
-        $classificationCode = $request->payload['classification'] ?? null;
-        $classificationId = null;
-        if ($classificationCode) {
-            $classificationId = DB::table('complaint_classifications')
-                ->where('code', $classificationCode)
-                ->value('id');
+        $ppaClassification = strtoupper(trim((string) ($request->payload['classification'] ?? '')));
+        $allowedPpa = ['FFA', 'KIV', 'NFA', 'OP'];
+        if (! in_array($ppaClassification, $allowedPpa, true)) {
+            $ppaClassification = null;
         }
 
         $payload = [
@@ -382,7 +392,7 @@ class ComplaintController extends Controller
             'aj_khalwat_detail_id' => $request->payload['khalwat_detail_id'] ?? null,
             'aj_judi_detail_id' => $request->payload['judi_detail_id'] ?? null,
             'aj_notes' => $request->payload['notes'] ?? null,
-            'classification_id' => $classificationId,
+            'aj_ppa_classification' => $ppaClassification,
         ];
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
@@ -719,6 +729,10 @@ class ComplaintController extends Controller
         $isCase = $request->query('is_case');
         if ($isCase !== null && $isCase !== '') {
             $query->where('is_case', filter_var($isCase, FILTER_VALIDATE_BOOLEAN));
+            // "KES" is only meaningful after sah/approve.
+            if (filter_var($isCase, FILTER_VALIDATE_BOOLEAN)) {
+                $query->whereNotNull('approver_confirmed_at');
+            }
         }
     }
 

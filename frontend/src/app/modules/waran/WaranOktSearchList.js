@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import ListPageLayout from '../../components/ListPageLayout';
 import PaginationBar from '../../components/PaginationBar';
+import InlineAlert from '../../components/SharedInlineAlert';
 
 const formatDate = (value) => {
     if (!value) {
@@ -131,47 +132,48 @@ const WaranOktSearchList = () => {
     const endIndex = Math.min(pagination.current_page * pagination.per_page, pagination.total);
 
     return (
-        <ListPageLayout
-            eyebrow="i-WARAN"
-            title="Semakan Nama OKT Waran"
-            description="Carian rekod waran berdasarkan nama OKT dan butiran pengenalan."
-            actions={(
-                <>
-                    <button
-                        className="app-button app-button-ghost"
-                        type="button"
-                        onClick={() => setShowFilters((prev) => !prev)}
-                    >
-                        <i className={`bi ${showFilters ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-                        {showFilters ? 'Sembunyi Filter' : 'Tunjuk Filter'}
-                    </button>
-                    <div className="app-search">
-                        <i className="bi bi-search"></i>
-                        <input
-                            value={quickNama}
-                            onChange={(event) => {
-                                setQuickNama(event.target.value);
-                                setPage(1);
-                            }}
-                            placeholder="Cari nama OKT..."
-                        />
-                        {quickNama && (
-                            <button
-                                type="button"
-                                className="app-search-clear"
-                                aria-label="Kosongkan carian"
-                                onClick={() => {
-                                    setQuickNama('');
+        <>
+            <ListPageLayout
+                eyebrow="i-WARAN"
+                title="Semakan Nama OKT Waran"
+                description="Carian rekod waran berdasarkan nama OKT dan butiran pengenalan."
+                actions={(
+                    <>
+                        <button
+                            className="app-button app-button-ghost"
+                            type="button"
+                            onClick={() => setShowFilters((prev) => !prev)}
+                        >
+                            <i className={`bi ${showFilters ? 'bi-eye-slash' : 'bi-eye'}`}></i>
+                            {showFilters ? 'Sembunyi Filter' : 'Tunjuk Filter'}
+                        </button>
+                        <div className="app-search">
+                            <i className="bi bi-search"></i>
+                            <input
+                                value={quickNama}
+                                onChange={(event) => {
+                                    setQuickNama(event.target.value);
                                     setPage(1);
                                 }}
-                            >
-                                <i className="bi bi-x-lg"></i>
-                            </button>
-                        )}
-                    </div>
-                </>
-            )}
-        >
+                                placeholder="Cari nama OKT..."
+                            />
+                            {quickNama && (
+                                <button
+                                    type="button"
+                                    className="app-search-clear"
+                                    aria-label="Kosongkan carian"
+                                    onClick={() => {
+                                        setQuickNama('');
+                                        setPage(1);
+                                    }}
+                                >
+                                    <i className="bi bi-x-lg"></i>
+                                </button>
+                            )}
+                        </div>
+                    </>
+                )}
+            >
             {showFilters && (
                 <form className="app-filter" onSubmit={handleSearch}>
                     <div className="app-filter-row">
@@ -246,85 +248,70 @@ const WaranOktSearchList = () => {
             )}
 
             {error && (
-                <div className="app-alert app-alert-error">
-                    <i className="bi bi-exclamation-triangle"></i>
-                    <div>{error}</div>
-                </div>
+                <InlineAlert type="error" message={error} dismissible onClose={() => setError('')} />
             )}
 
-            <div className="app-table-card">
-                <div className="app-table-meta">
-                    <div className="app-table-count">
-                        {pagination.total > 0 ? `Paparan ${startIndex}-${endIndex} daripada ${pagination.total}` : 'Tiada rekod'}
+            {isLoading && <div className="app-empty">Memuatkan rekod...</div>}
+            {!isLoading && !error && records.length === 0 ? (
+                <div className="app-empty">Tiada rekod dijumpai.</div>
+            ) : (
+                !isLoading && !error && records.length > 0 && (
+                    <div className="app-table app-table-actions">
+                        <div className="app-table-header app-okt-header">
+                            <span>Nama OKT</span>
+                            <span>Kad Pengenalan / Passport</span>
+                            <span>Alamat</span>
+                            <span>Tahun</span>
+                            <span>Nombor Kes</span>
+                            <span>Mahkamah</span>
+                            <span>Daerah</span>
+                            <span>Tarikh Perbicaraan</span>
+                            <span>Tindakan</span>
+                        </div>
+                        {records.map((row) => (
+                            <div key={row.id} className="app-table-row app-okt-row">
+                                <span>{row.nama_okt || '-'}</span>
+                                <span>{row.no_kp_okt || '-'}</span>
+                                <span className="app-table-wraptext">{row.alamat_okt || '-'}</span>
+                                <span>{row.tahun || '-'}</span>
+                                <span>{row.no_kes || '-'}</span>
+                                <span>{row.mahkamah?.nama || '-'}</span>
+                                <span>{row.daerah?.name || '-'}</span>
+                                <span>{formatDate(row.tarikh_bicara)}</span>
+                                <span className="app-row-actions">
+                                    <button
+                                        className="app-icon-button"
+                                        type="button"
+                                        onClick={() => navigate(`/app/i-waran/${row.id}`)}
+                                        aria-label="Lihat waran"
+                                        title="Buka"
+                                    >
+                                        <i className="bi bi-eye"></i>
+                                    </button>
+                                </span>
+                            </div>
+                        ))}
                     </div>
-                    <div className="app-table-perpage">
-                        <label>Rekod</label>
-                        <select value={perPage} onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}>
-                            {[10, 20, 50].map((size) => (
-                                <option key={size} value={size}>{size}</option>
-                            ))}
-                        </select>
-                    </div>
-                </div>
+                )
+            )}
+            </ListPageLayout>
 
-                <div className="app-table-wrap">
-                    <table className="app-table">
-                        <thead>
-                            <tr className="app-table-header app-okt-header">
-                                <th>Nama OKT</th>
-                                <th>Kad Pengenalan / Passport</th>
-                                <th>Alamat</th>
-                                <th>Tahun</th>
-                                <th>Nombor Kes</th>
-                                <th>Mahkamah</th>
-                                <th>Daerah</th>
-                                <th>Tarikh Perbicaraan</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isLoading && (
-                                <tr className="app-table-row app-okt-row">
-                                    <td colSpan={9}>Memuatkan...</td>
-                                </tr>
-                            )}
-                            {!isLoading && records.length === 0 && (
-                                <tr className="app-table-row app-okt-row">
-                                    <td colSpan={9}>Tiada rekod dijumpai.</td>
-                                </tr>
-                            )}
-                            {!isLoading && records.map((row) => (
-                                <tr key={row.id} className="app-table-row app-okt-row">
-                                    <td>{row.nama_okt || '-'}</td>
-                                    <td>{row.no_kp_okt || '-'}</td>
-                                    <td className="app-table-wraptext">{row.alamat_okt || '-'}</td>
-                                    <td>{row.tahun || '-'}</td>
-                                    <td>{row.no_kes || '-'}</td>
-                                    <td>{row.mahkamah?.nama || '-'}</td>
-                                    <td>{row.daerah?.name || '-'}</td>
-                                    <td>{formatDate(row.tarikh_bicara)}</td>
-                                    <td className="app-table-actions">
-                                        <button
-                                            type="button"
-                                            className="app-button app-button-ghost"
-                                            onClick={() => navigate(`/app/i-waran/${row.id}`)}
-                                        >
-                                            Buka
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
+            {!isLoading && !error && pagination.total > 0 && (
                 <PaginationBar
-                    pagination={pagination}
-                    page={page}
-                    setPage={setPage}
+                    page={pagination.current_page}
+                    lastPage={pagination.last_page}
+                    total={pagination.total}
+                    perPage={pagination.per_page}
+                    startIndex={startIndex}
+                    endIndex={endIndex}
+                    onPageChange={setPage}
+                    onPerPageChange={(value) => {
+                        setPerPage(value);
+                        setPage(1);
+                    }}
                 />
-            </div>
-        </ListPageLayout>
+            )}
+        </>
     );
 };
 

@@ -36,7 +36,7 @@ import WaranDetail from './app/modules/waran/WaranDetail';
 import WaranReport from './app/modules/waran/WaranReport';
 import WaranPrint from './app/modules/waran/WaranPrint';
 import WaranOktSearchList from './app/modules/waran/WaranOktSearchList';
-import ToastProvider from './app/components/ToastProvider';
+import ToastProvider from './app/components/SharedToastProvider';
 
 // Common
 import Profile from './views/pages/Global/Profile';
@@ -119,7 +119,7 @@ function App() {
             />
             <Route
               path="/app/case"
-              element={<AppComplaintList title="Aduan Kes" description="Senarai aduan yang disahkan sebagai kes." isCase />}
+              element={<AppComplaintList title="KES" description="Senarai aduan yang disahkan sebagai kes (Kesalahan Boleh Tangkap)." isCase />}
             />
             <Route path="/app/complaints/:id" element={<AppComplaintDetail />} />
             <Route path="/app/staff" element={<StaffList />} />

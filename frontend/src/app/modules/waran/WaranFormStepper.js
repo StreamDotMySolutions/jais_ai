@@ -1,20 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
-import AttachmentPreviewModal from '../../components/AttachmentPreviewModal';
-import ConfirmModal from '../../components/ConfirmModal';
-import { useToast } from '../../components/ToastProvider';
-
-const formatBytes = (bytes) => {
-    const value = Number(bytes);
-    if (!Number.isFinite(value) || value <= 0) {
-        return '-';
-    }
-    const units = ['B', 'KB', 'MB', 'GB'];
-    const idx = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
-    const num = value / (1024 ** idx);
-    return `${num.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`;
-};
+import { useToast } from '../../components/SharedToastProvider';
+import InlineAlert from '../../components/SharedInlineAlert';
+import AttachmentSection from '../../components/SharedAttachmentSection';
 
 const emptyForm = {
     jenis_waran: '',
@@ -69,21 +58,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
     const [hasilOptions, setHasilOptions] = useState([]);
     const [staffOptions, setStaffOptions] = useState([]);
     const [attachments, setAttachments] = useState([]);
-    const [selectedFiles, setSelectedFiles] = useState([]);
-    const [uploading, setUploading] = useState(false);
-    const [uploadProgress, setUploadProgress] = useState(0);
-    const [uploadError, setUploadError] = useState('');
-    const [uploadErrors, setUploadErrors] = useState([]);
-    const [uploadMessage, setUploadMessage] = useState('');
     const [validationErrors, setValidationErrors] = useState({});
-    const [previewOpen, setPreviewOpen] = useState(false);
-    const [previewLoading, setPreviewLoading] = useState(false);
-    const [previewError, setPreviewError] = useState('');
-    const [previewUrl, setPreviewUrl] = useState('');
-    const [previewMime, setPreviewMime] = useState('');
-    const [previewName, setPreviewName] = useState('');
-    const [thumbUrls, setThumbUrls] = useState({});
-    const [deleteTarget, setDeleteTarget] = useState(null);
     const [openSections, setOpenSections] = useState({
         waran: true,
         mahkamah: true,
@@ -309,198 +284,6 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             .finally(() => setIsLoading(false));
     }, [apiUrl, id, isEdit, token]);
 
-    useEffect(() => {
-        if (!apiUrl) {
-            return undefined;
-        }
-
-        const maxThumbBytes = 3 * 1024 * 1024; // avoid fetching very large images just for list thumbnails
-        let disposed = false;
-
-        const currentIds = new Set((attachments || []).map((f) => f.id));
-        // Revoke thumbnails for removed attachments
-        setThumbUrls((prev) => {
-            const next = { ...prev };
-            Object.keys(next).forEach((key) => {
-                const idKey = Number(key);
-                if (!currentIds.has(idKey)) {
-                    try { window.URL.revokeObjectURL(next[key]); } catch (_) { /* ignore */ }
-                    delete next[key];
-                }
-            });
-            return next;
-        });
-
-        const candidates = (attachments || []).filter((file) => {
-            if (!file?.id) return false;
-            const mime = String(file?.mime || '');
-            if (!mime.startsWith('image/')) return false;
-            if (typeof file.size === 'number' && file.size > maxThumbBytes) return false;
-            return !thumbUrls[file.id];
-        });
-
-        if (!candidates.length) {
-            return undefined;
-        }
-
-        // Fetch thumbnails lazily in the background.
-        candidates.slice(0, 6).forEach((file) => {
-            const url = file.download_url || `${apiUrl}/i-waran/attachments/${file.id}/download`;
-            axios.get(url, {
-                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-                responseType: 'blob',
-            })
-                .then((response) => {
-                    if (disposed) return;
-                    const contentType = response.headers?.['content-type'] || file.mime || 'image/*';
-                    const blob = new Blob([response.data], { type: contentType });
-                    const blobUrl = window.URL.createObjectURL(blob);
-                    setThumbUrls((prev) => ({ ...prev, [file.id]: blobUrl }));
-                })
-                .catch(() => {
-                    // Ignore thumbnail failures; preview modal still works.
-                });
-        });
-
-        return () => {
-            disposed = true;
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [apiUrl, attachments, token]);
-
-    const handleUpload = () => {
-        if (!apiUrl || !id) {
-            setUploadError('Sila simpan rekod dahulu sebelum muat naik fail.');
-            return;
-        }
-        if (!selectedFiles.length) {
-            setUploadError('Sila pilih fail untuk dimuat naik.');
-            return;
-        }
-        if (uploading) {
-            return;
-        }
-
-        setUploading(true);
-        setUploadProgress(0);
-        setUploadError('');
-        setUploadErrors([]);
-        setUploadMessage('');
-
-        const form = new FormData();
-        selectedFiles.forEach((file) => form.append('files[]', file));
-
-        axios.post(`${apiUrl}/i-waran/${id}/attachments`, form, {
-            headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                'Content-Type': 'multipart/form-data',
-            },
-            onUploadProgress: (event) => {
-                if (!event?.total) {
-                    return;
-                }
-                const percent = Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100)));
-                setUploadProgress(percent);
-            },
-        })
-            .then((response) => {
-                const newItems = response?.data?.data || [];
-                setAttachments((prev) => [...newItems, ...prev]);
-                setUploadMessage(response?.data?.message || 'Fail berjaya dimuat naik.');
-                toast.success(response?.data?.message || 'Fail berjaya dimuat naik.');
-                setSelectedFiles([]);
-                setUploadProgress(100);
-            })
-            .catch((err) => {
-                const responseData = err?.response?.data;
-                const message = responseData?.message || 'Gagal memuat naik fail.';
-                setUploadError(message);
-                toast.error(message);
-
-                // Laravel validation usually returns { message, errors: { 'files.0': ['...'] } }
-                const errors = responseData?.errors || {};
-                const list = [];
-                Object.keys(errors).forEach((key) => {
-                    const match = String(key).match(/^files\.(\d+)$/);
-                    if (!match) {
-                        return;
-                    }
-                    const idx = Number(match[1]);
-                    const fileName = selectedFiles?.[idx]?.name || `Fail #${idx + 1}`;
-                    const msgs = Array.isArray(errors[key]) ? errors[key] : [String(errors[key])];
-                    list.push({ idx, fileName, messages: msgs });
-                });
-                if (list.length) {
-                    list.sort((a, b) => a.idx - b.idx);
-                    setUploadErrors(list);
-                }
-            })
-            .finally(() => {
-                setUploading(false);
-                window.setTimeout(() => setUploadProgress(0), 1200);
-            });
-    };
-
-    const handleDeleteAttachment = (attachmentId) => {
-        if (!apiUrl || !attachmentId) {
-            return;
-        }
-        axios.delete(`${apiUrl}/i-waran/attachments/${attachmentId}`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then(() => {
-                setAttachments((prev) => prev.filter((item) => item.id !== attachmentId));
-                toast.success('Lampiran dipadam.');
-            })
-            .catch(() => {
-                setUploadError('Gagal memadam fail.');
-                toast.error('Gagal memadam fail.');
-            });
-    };
-
-    const closePreview = () => {
-        setPreviewOpen(false);
-        setPreviewError('');
-        setPreviewLoading(false);
-        if (previewUrl) {
-            window.setTimeout(() => window.URL.revokeObjectURL(previewUrl), 250);
-        }
-        setPreviewUrl('');
-        setPreviewMime('');
-        setPreviewName('');
-    };
-
-    const openPreview = (file) => {
-        if (!file?.id || !apiUrl) {
-            return;
-        }
-
-        setUploadError('');
-        setUploadMessage('');
-        setPreviewError('');
-        setPreviewLoading(true);
-        setPreviewName(file.file_name || 'Lampiran');
-        setPreviewMime(file.mime || '');
-        setPreviewOpen(true);
-
-        // `download_url` can't be opened directly because it requires an Authorization header.
-        const url = file.download_url || `${apiUrl}/i-waran/attachments/${file.id}/download`;
-        axios.get(url, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            responseType: 'blob',
-        })
-            .then((response) => {
-                const contentType = response.headers?.['content-type'] || file.mime || 'application/octet-stream';
-                const blob = new Blob([response.data], { type: contentType });
-                const blobUrl = window.URL.createObjectURL(blob);
-                setPreviewUrl(blobUrl);
-            })
-            .catch(() => {
-                setPreviewError('Gagal membuka preview fail.');
-            })
-            .finally(() => setPreviewLoading(false));
-    };
-
     const validateForStep = (targetStep) => {
         const errors = {};
 
@@ -598,34 +381,6 @@ const WaranFormStepper = ({ mode = 'create' }) => {
 
     return (
         <div className="app-waran">
-            <AttachmentPreviewModal
-                isOpen={previewOpen}
-                title="Preview Lampiran i-WARAN"
-                fileName={previewName}
-                mime={previewMime}
-                url={previewUrl}
-                onClose={closePreview}
-                onOpenTab={() => {
-                    if (previewUrl) {
-                        window.open(previewUrl, '_blank', 'noopener,noreferrer');
-                    }
-                }}
-            />
-            <ConfirmModal
-                isOpen={!!deleteTarget}
-                title="Padam Lampiran"
-                description={deleteTarget ? `Padam lampiran "${deleteTarget.file_name}"? Tindakan ini tidak boleh dikembalikan.` : ''}
-                confirmText="Padam"
-                cancelText="Batal"
-                variant="danger"
-                onCancel={() => setDeleteTarget(null)}
-                onConfirm={() => {
-                    if (deleteTarget?.id) {
-                        handleDeleteAttachment(deleteTarget.id);
-                    }
-                    setDeleteTarget(null);
-                }}
-            />
             <div className="app-waran-header">
                 <div>
                     <span className="app-eyebrow">i-WARAN</span>
@@ -636,19 +391,16 @@ const WaranFormStepper = ({ mode = 'create' }) => {
 
             <div className="app-card app-waran-section">
                 {isLoading && <div className="app-empty">Memuatkan waran...</div>}
-                {error && !isLoading && <div className="app-empty">{error}</div>}
+                {error && !isLoading && (
+                    <InlineAlert type="error" message={error} dismissible onClose={() => setError('')} />
+                )}
                 {!isLoading && message && showMessage && (
-                    <div className="app-success app-success-dismissible">
-                        <span>{message}</span>
-                        <button
-                            type="button"
-                            className="app-alert-close"
-                            aria-label="Tutup"
-                            onClick={() => setShowMessage(false)}
-                        >
-                            <i className="bi bi-x-lg"></i>
-                        </button>
-                    </div>
+                    <InlineAlert
+                        type="success"
+                        message={message}
+                        dismissible
+                        onClose={() => setShowMessage(false)}
+                    />
                 )}
                 <div className="app-stepper">
                     <button
@@ -718,129 +470,6 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     <label>Tahun</label>
                                     <input type="number" placeholder="2026" value={formData.tahun} onChange={updateField('tahun')} />
                                 </div>
-                                </div>
-                            )}
-                        </div>
-
-                        <div className="app-accordion">
-                            <button type="button" className="app-accordion-header" onClick={() => toggleSection('lampiran')}>
-                                <span>Lampiran</span>
-                                <i className={`bi ${openSections.lampiran ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
-                            </button>
-                            {openSections.lampiran && (
-                                <div className="app-accordion-body">
-                                    <div className="app-form-grid">
-                                        <div className="app-form-field" style={{ gridColumn: '1 / -1' }}>
-                                            <label>Muat naik fail (PDF/JPG/PNG) (max 50MB setiap fail)</label>
-                                            <div className="app-upload-row">
-                                                <input
-                                                    className="app-upload-file"
-                                                    type="file"
-                                                    multiple
-                                                    accept=".pdf,image/png,image/jpeg"
-                                                    onChange={(event) => {
-                                                        const files = Array.from(event.target.files || []);
-                                                        setSelectedFiles(files);
-                                                        setUploadError('');
-                                                        setUploadMessage('');
-                                                    }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    className="app-button"
-                                                    disabled={!id || uploading || !selectedFiles.length}
-                                                    onClick={handleUpload}
-                                                >
-                                                    {uploading ? 'Uploading...' : 'Upload'}
-                                                </button>
-                                            </div>
-                                            {!id && (
-                                                <div className="app-detail-note">Simpan rekod dahulu untuk muat naik lampiran.</div>
-                                            )}
-                                            {uploadError && <div className="app-empty">{uploadError}</div>}
-                                            {!!uploadErrors.length && (
-                                                <div className="app-form-error">
-                                                    <strong>Ralat fail:</strong>
-                                                    <ul style={{ margin: '0.5rem 0 0', paddingLeft: '1.1rem' }}>
-                                                        {uploadErrors.map((row) => (
-                                                            <li key={`${row.idx}-${row.fileName}`}>
-                                                                {row.fileName}: {row.messages.join(' ')}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                            {uploadMessage && <div className="app-success">{uploadMessage}</div>}
-                                            {uploading && (
-                                                <div className="app-progress" aria-label="Upload progress">
-                                                    <div className="app-progress-track">
-                                                        <div className="app-progress-fill" style={{ width: `${uploadProgress}%` }}></div>
-                                                    </div>
-                                                    <div className="app-progress-meta">{uploadProgress}%</div>
-                                                </div>
-                                            )}
-                                            {previewError && <div className="app-empty">{previewError}</div>}
-                                            {previewLoading && <div className="app-detail-note">Membuka preview...</div>}
-                                        </div>
-                                    </div>
-
-                                    {attachments.length ? (
-                                        <div style={{ marginTop: '1rem' }}>
-                                            <div className="app-detail-note" style={{ marginBottom: '0.6rem' }}>
-                                                {attachments.length} lampiran
-                                            </div>
-                                            <div className="app-attachment-strip">
-                                                {attachments.map((file) => (
-                                                    <div key={file.id} className="app-attachment-chip">
-                                                        <button
-                                                            type="button"
-                                                            className="app-attachment-main"
-                                                            onClick={() => openPreview(file)}
-                                                            title="Preview"
-                                                        >
-                                                            <span className="app-attachment-thumb">
-                                                                {String(file?.mime || '').startsWith('image/') ? (
-                                                                    thumbUrls[file.id] ? (
-                                                                        <img src={thumbUrls[file.id]} alt="" />
-                                                                    ) : (
-                                                                        <i className="bi bi-image"></i>
-                                                                    )
-                                                                ) : (
-                                                                    <i className={`bi ${String(file?.file_name || '').toLowerCase().endsWith('.pdf') ? 'bi-file-earmark-pdf' : 'bi-file-earmark'}`}></i>
-                                                                )}
-                                                            </span>
-                                                            <span className="app-attachment-meta">
-                                                                <span className="app-attachment-name">{file.file_name}</span>
-                                                                <span className="app-attachment-size">{formatBytes(file.size)}</span>
-                                                            </span>
-                                                        </button>
-                                                        <span className="app-attachment-actions">
-                                                            <button
-                                                                type="button"
-                                                                className="app-icon-button"
-                                                                onClick={() => openPreview(file)}
-                                                                aria-label="Preview lampiran"
-                                                                title="Preview"
-                                                            >
-                                                                <i className="bi bi-eye"></i>
-                                                            </button>
-                                                            <button
-                                                                type="button"
-                                                                className="app-icon-button app-icon-button-danger"
-                                                                onClick={() => setDeleteTarget(file)}
-                                                                aria-label="Padam lampiran"
-                                                                title="Padam"
-                                                            >
-                                                                <i className="bi bi-trash"></i>
-                                                            </button>
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="app-empty" style={{ marginTop: '1rem' }}>Tiada lampiran.</div>
-                                    )}
                                 </div>
                             )}
                         </div>
@@ -981,6 +610,30 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     <label>Alamat</label>
                                     <textarea rows="3" placeholder="Alamat penuh" value={formData.alamat_okt} onChange={updateField('alamat_okt')}></textarea>
                                 </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="app-accordion">
+                            <button type="button" className="app-accordion-header" onClick={() => toggleSection('lampiran')}>
+                                <span>Lampiran</span>
+                                <i className={`bi ${openSections.lampiran ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                            </button>
+                            {openSections.lampiran && (
+                                <div className="app-accordion-body">
+                                    <AttachmentSection
+                                        apiUrl={apiUrl}
+                                        token={token}
+                                        recordId={id}
+                                        attachments={attachments}
+                                        onAttachmentsChange={setAttachments}
+                                        label="Muat naik fail (PDF/JPG/PNG)"
+                                        accept=".pdf,image/png,image/jpeg"
+                                        canUpload
+                                        canDelete
+                                        maxFiles={20}
+                                        maxSizeMb={50}
+                                    />
                                 </div>
                             )}
                         </div>

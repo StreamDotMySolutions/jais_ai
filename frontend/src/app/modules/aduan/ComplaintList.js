@@ -4,7 +4,7 @@ import axios from 'axios';
 import ComplaintForm from './ComplaintForm';
 import PaginationBar from '../../components/PaginationBar';
 import SortableHeader from '../../components/SortableHeader';
-import ConfirmModal from '../../components/ConfirmModal';
+import ConfirmModal from '../../components/SharedConfirmModal';
 import { sortRows } from '../../utils/sort';
 
 const ComplaintList = ({
@@ -99,6 +99,8 @@ const ComplaintList = ({
         }
         if (isCase) {
             params.is_case = true;
+            // KES only shows items that have been approved (disahkan).
+            params.status = 'disahkan';
         }
         if (pendingApproval) {
             params.pending_approval = 1;
@@ -147,11 +149,12 @@ const ComplaintList = ({
 
     useEffect(() => {
         fetchComplaints();
-    }, [apiUrl, role, fetchEndpoint, caseType, page, perPage, filters, quickQuery, pendingApproval]);
+    }, [apiUrl, role, fetchEndpoint, caseType, isCase, page, perPage, filters, quickQuery, pendingApproval]);
 
     useEffect(() => {
         setPage(1);
-    }, [role, fetchEndpoint, caseType]);
+        setSelectedComplaint(null);
+    }, [role, fetchEndpoint, caseType, isCase]);
 
     const sortColumns = [
         { key: 'reference_no', label: 'No Aduan', sortable: true },
