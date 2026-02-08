@@ -562,6 +562,17 @@ const ComplaintList = ({
                                     >
                                         <i className="bi bi-pencil"></i>
                                     </button>
+                                    <a
+                                        className="app-icon-button app-icon-button-xs"
+                                        href={`/app/complaints/${item.id}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        aria-label="Buka dalam tab baharu"
+                                        title="Buka tab baharu"
+                                        onClick={(event) => event.stopPropagation()}
+                                    >
+                                        <i className="bi bi-box-arrow-up-right"></i>
+                                    </a>
                                     {canDelete && item.current_stage === 'baru' && (
                                         <button
                                             type="button"

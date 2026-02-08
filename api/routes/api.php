@@ -171,6 +171,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/assignees', [App\Http\Controllers\ComplaintController::class, 'updateAssignees'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/basic', [App\Http\Controllers\ComplaintController::class, 'updateBasic'])
+        ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj', [App\Http\Controllers\ComplaintController::class, 'updateAjPayload'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj-report', [App\Http\Controllers\ComplaintController::class, 'updateAjReport'])

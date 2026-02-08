@@ -73,7 +73,7 @@ export function InputText({fieldName, placeholder, icon, isLoading, type='text',
             </>)
 }
 
-export function InputTextarea({fieldName, placeholder, icon, rows, isLoading}){
+export function InputTextarea({fieldName, placeholder, icon, rows, isLoading, readOnly=false}){
     const store = useStore()
     const errors = store.getValue('errors')
 
@@ -87,7 +87,7 @@ export function InputTextarea({fieldName, placeholder, icon, rows, isLoading}){
                         value={store.getValue(fieldName) ||  ''}
                         name={fieldName}
                         size='md' 
-                        readOnly={isLoading}
+                        readOnly={isLoading || readOnly}
                         //required 
                         isInvalid={errors?.hasOwnProperty(fieldName)}
                         onChange={ (e) => { 

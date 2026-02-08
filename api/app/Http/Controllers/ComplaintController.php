@@ -316,6 +316,75 @@ class ComplaintController extends Controller
         ]);
     }
 
+    public function updateBasic(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Respect the same access scope as view. (E.g. pegawai_daerah limited to their district.)
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'complainant_name' => 'nullable|string|max:255',
+            'identification_number' => 'nullable|string|max:255',
+            'contact_number' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:1000',
+            'district_id' => 'nullable|exists:districts,id',
+            'summary' => 'nullable|string|max:10000',
+            'complaint_date' => 'nullable|date',
+            'complaint_time' => 'nullable|date_format:H:i',
+        ]);
+
+        $payload = [];
+        foreach ([
+            'complainant_name',
+            'identification_number',
+            'contact_number',
+            'address',
+            'summary',
+            'complaint_date',
+        ] as $key) {
+            if (array_key_exists($key, $validated)) {
+                $payload[$key] = $validated[$key];
+            }
+        }
+
+        if (array_key_exists('complaint_time', $validated)) {
+            // Stored as TIME in DB; normalize to H:i:s
+            $payload['complaint_time'] = $validated['complaint_time'] !== null
+                ? ($validated['complaint_time'] . ':00')
+                : null;
+        }
+
+        if (array_key_exists('district_id', $validated)) {
+            $district = $validated['district_id'] ? District::find($validated['district_id']) : null;
+            $payload['district_id'] = $district?->id;
+            $payload['district_name'] = $district?->name;
+        }
+
+        if (! empty($payload)) {
+            $payload['received_by_user_id'] = $user->id;
+            $payload['received_at'] = now();
+            $complaint->update($payload);
+        }
+
+        return response()->json([
+            'message' => 'Maklumat aduan dikemaskini.',
+            'data' => $complaint->fresh()->load([
+                'submittedBy:id,name,email,office_type,district_id',
+                'submittedBy.staff',
+                'receivedBy:id,name,email',
+                'approverStaff:id,name,staff_id',
+                'picUser:id,name',
+                'appointment:id,complaint_id,start_at,end_at,status',
+            ]),
+        ]);
+    }
+
     public function pickup(Request $request, Complaint $complaint)
     {
         $user = $request->user();

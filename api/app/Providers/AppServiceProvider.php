@@ -2,6 +2,20 @@
 
 namespace App\Providers;
 
+use App\Models\Complaint;
+use App\Models\Appointment;
+use App\Models\ArahanBeredar;
+use App\Models\ArahanBeredarOyd;
+use App\Models\ArahanBeredarOydMedia;
+use App\Models\IwaranWarrant;
+use App\Models\IwaranWaranAttachment;
+use App\Observers\ComplaintObserver;
+use App\Observers\AppointmentObserver;
+use App\Observers\ArahanBeredarObserver;
+use App\Observers\ArahanBeredarOydObserver;
+use App\Observers\ArahanBeredarOydMediaObserver;
+use App\Observers\IwaranWarrantObserver;
+use App\Observers\IwaranWaranAttachmentObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +33,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Audit trail: start with Aduan (Complaint). Expand to other modules later.
+        Complaint::observe(ComplaintObserver::class);
+        Appointment::observe(AppointmentObserver::class);
+        ArahanBeredar::observe(ArahanBeredarObserver::class);
+        ArahanBeredarOyd::observe(ArahanBeredarOydObserver::class);
+        ArahanBeredarOydMedia::observe(ArahanBeredarOydMediaObserver::class);
+        IwaranWarrant::observe(IwaranWarrantObserver::class);
+        IwaranWaranAttachment::observe(IwaranWaranAttachmentObserver::class);
     }
 }

@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import SearchSelect from '../../../libs/SearchSelect';
+import SharedStaffSelect from '../../components/SharedStaffSelect';
+import SharedOffenseSelect from '../../components/SharedOffenseSelect';
+import SharedInlineAlert from '../../components/SharedInlineAlert';
+import { useToast } from '../../components/SharedToastProvider';
 
 const AJ_STEPS = [
     { key: 'ppa', label: 'Tindakan Aduan' },
@@ -20,6 +24,7 @@ const ComplaintDetail = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const apiUrl = process.env.REACT_APP_API_URL;
+    const toast = useToast();
     const [complaint, setComplaint] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -86,8 +91,23 @@ const ComplaintDetail = () => {
     const [statusInput, setStatusInput] = useState('');
     const [caseTypeMessage, setCaseTypeMessage] = useState('');
     const [assigneeMessage, setAssigneeMessage] = useState('');
-    const [staffOptions, setStaffOptions] = useState([]);
     const [approverStaffId, setApproverStaffId] = useState('');
+    const [districtOptions, setDistrictOptions] = useState([]);
+    const [basicEditing, setBasicEditing] = useState(false);
+    const [basicSaving, setBasicSaving] = useState(false);
+    const [basicMessage, setBasicMessage] = useState('');
+    const [addressExpanded, setAddressExpanded] = useState(false);
+    const [summaryExpanded, setSummaryExpanded] = useState(false);
+    const [basicDraft, setBasicDraft] = useState({
+        complainant_name: '',
+        identification_number: '',
+        contact_number: '',
+        complaint_date: '',
+        complaint_time: '',
+        district_id: '',
+        address: '',
+        summary: '',
+    });
     const [reportSections, setReportSections] = useState({
         issuer: true,
         arrest: true,
@@ -160,14 +180,12 @@ const ComplaintDetail = () => {
 
         Promise.all([
             axios.get(`${apiUrl}/references/offense-types`),
-            axios.get(`${apiUrl}/references/offenses`),
             axios.get(`${apiUrl}/references/khalwat-details`),
             axios.get(`${apiUrl}/references/judi-details`),
         ])
-            .then(([typesRes, offenseRes, khalwatRes, judiRes]) => {
+            .then(([typesRes, khalwatRes, judiRes]) => {
                 setReferenceData({
                     offenseTypes: typesRes?.data?.data || [],
-                    offenses: offenseRes?.data?.data || [],
                     khalwatDetails: khalwatRes?.data?.data || [],
                     judiDetails: judiRes?.data?.data || [],
                 });
@@ -175,7 +193,6 @@ const ComplaintDetail = () => {
             .catch(() => {
                 setReferenceData({
                     offenseTypes: [],
-                    offenses: [],
                     khalwatDetails: [],
                     judiDetails: [],
                 });
@@ -186,16 +203,11 @@ const ComplaintDetail = () => {
         if (!apiUrl) {
             return;
         }
-        const token = localStorage.getItem('token');
-        axios.get(`${apiUrl}/staff/options`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
+        axios.get(`${apiUrl}/districts`)
             .then((response) => {
-                setStaffOptions(response?.data?.data || []);
+                setDistrictOptions(response?.data?.data || []);
             })
-            .catch(() => {
-                setStaffOptions([]);
-            });
+            .catch(() => setDistrictOptions([]));
     }, [apiUrl]);
 
     useEffect(() => {
@@ -210,6 +222,55 @@ const ComplaintDetail = () => {
         window.addEventListener('message', handleMessage);
         return () => window.removeEventListener('message', handleMessage);
     }, []);
+
+    useEffect(() => {
+        if (!complaint) {
+            return;
+        }
+        setBasicDraft({
+            complainant_name: complaint.complainant_name || '',
+            identification_number: complaint.identification_number || '',
+            contact_number: complaint.contact_number || '',
+            complaint_date: complaint.complaint_date || '',
+            complaint_time: (complaint.complaint_time || '').slice(0, 5),
+            district_id: complaint.district_id ? String(complaint.district_id) : '',
+            address: complaint.address || '',
+            summary: complaint.summary || '',
+        });
+        setAddressExpanded(false);
+        setSummaryExpanded(false);
+    }, [complaint]);
+
+    const saveBasic = () => {
+        if (!apiUrl || !id || basicSaving) {
+            return;
+        }
+        const token = localStorage.getItem('token');
+        setBasicSaving(true);
+        setBasicMessage('');
+        axios.post(`${apiUrl}/complaints/${id}/basic`, {
+            ...basicDraft,
+            district_id: basicDraft.district_id || null,
+        }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                const updated = response?.data?.data;
+                if (updated) {
+                    setComplaint((prev) => prev ? { ...prev, ...updated } : prev);
+                }
+                const msg = response?.data?.message || 'Maklumat aduan dikemaskini.';
+                setBasicMessage(msg);
+                toast.success(msg);
+                setBasicEditing(false);
+            })
+            .catch((err) => {
+                const msg = err?.response?.data?.message || 'Gagal kemaskini maklumat aduan.';
+                setBasicMessage(msg);
+                toast.error(msg);
+            })
+            .finally(() => setBasicSaving(false));
+    };
 
 
     useEffect(() => {
@@ -550,12 +611,7 @@ const ComplaintDetail = () => {
         setActiveStep(0);
     }, [id, currentCaseType]);
     const activeKey = steps[activeStep]?.key;
-    const offenseOptions = useMemo(() => (
-        referenceData.offenses.map((item) => ({
-            value: String(item.id),
-            label: `${item.section ? `${item.section} - ` : ''}${item.name}`,
-        }))
-    ), [referenceData.offenses]);
+    const offenseOptions = useMemo(() => ([]), []);
     const offenseTypeOptions = useMemo(() => (
         referenceData.offenseTypes.map((item) => ({
             value: String(item.id),
@@ -707,50 +763,238 @@ const ComplaintDetail = () => {
             </div>
 
             <div className="app-detail-grid">
-                <div className="app-card">
-                    <h4>Maklumat Pengadu</h4>
-                    <div className="app-detail-row">
-                        <span>Nama</span>
-                        <strong>{complaint.complainant_name || '-'}</strong>
+                <div className="app-card app-span-full">
+                    <div className="app-card-header">
+                        <h4>Maklumat Aduan</h4>
+                        {isPegawaiRole && (
+                            <div className="app-row-actions">
+                                {!basicEditing && (
+                                    <button
+                                        type="button"
+                                        className="app-button app-button-ghost"
+                                        onClick={() => {
+                                            setBasicMessage('');
+                                            setBasicEditing(true);
+                                        }}
+                                    >
+                                        Kemaskini
+                                    </button>
+                                )}
+                                {basicEditing && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="app-button app-button-outline"
+                                            onClick={() => {
+                                                setBasicMessage('');
+                                                setBasicEditing(false);
+                                            }}
+                                            disabled={basicSaving}
+                                        >
+                                            Batal
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="app-button"
+                                            onClick={saveBasic}
+                                            disabled={basicSaving}
+                                        >
+                                            {basicSaving ? 'Menyimpan...' : 'Simpan'}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
-                    <div className="app-detail-row">
-                        <span>No Kad Pengenalan</span>
-                        <strong>{complaint.identification_number || '-'}</strong>
-                    </div>
-                    <div className="app-detail-row">
-                        <span>No HP</span>
-                        <strong>{complaint.contact_number || '-'}</strong>
-                    </div>
-                </div>
 
-                <div className="app-card">
-                    <h4>Maklumat Aduan</h4>
-                    <div className="app-detail-row">
-                        <span>Tarikh & Masa</span>
-                        <strong>
-                            {complaint.complaint_date || '-'} {complaint.complaint_time || ''}
-                        </strong>
-                    </div>
-                    <div className="app-detail-row">
-                        <span>Daerah</span>
-                        <strong>{complaint.district_name || '-'}</strong>
-                    </div>
-                    <div className="app-detail-row">
-                        <span>Alamat</span>
-                        <strong>{complaint.address || '-'}</strong>
-                    </div>
-                </div>
-            </div>
+                    {!basicEditing && basicMessage && (
+                        <SharedInlineAlert
+                            type="success"
+                            message={basicMessage}
+                            dismissible
+                            onClose={() => setBasicMessage('')}
+                        />
+                    )}
 
-            <div className="app-card">
-                <h4>Ringkasan Aduan</h4>
-                <p className="app-detail-summary">{complaint.summary || '-'}</p>
-                <div className="app-detail-meta">
-                    <span>Penerima Aduan:</span>
-                    <strong>
-                        {complaint.submitted_by?.staff?.name || complaint.submitted_by?.name || '-'}
-                        {complaint.submitted_by?.staff?.staff_id ? ` (${complaint.submitted_by.staff.staff_id})` : ''}
-                    </strong>
+                    {!basicEditing && (
+                        <div className="app-basic-kv">
+                            <div className="app-basic-kv-col">
+                                <div className="app-card-subheader">
+                                    <h5>Butir-butir Pemberi Maklumat / Pengadu</h5>
+                                </div>
+                                <div className="app-kv">
+                                    <span className="app-kv-label">Nama</span>
+                                    <span className="app-kv-value">{complaint.complainant_name || '-'}</span>
+                                </div>
+                                <div className="app-kv">
+                                    <span className="app-kv-label">No Kad Pengenalan</span>
+                                    <span className="app-kv-value">{complaint.identification_number || '-'}</span>
+                                </div>
+                                <div className="app-kv">
+                                    <span className="app-kv-label">No HP</span>
+                                    <span className="app-kv-value">{complaint.contact_number || '-'}</span>
+                                </div>
+                            </div>
+
+                            <div className="app-basic-kv-col">
+                                <div className="app-card-subheader">
+                                    <h5>Maklumat Kejadian</h5>
+                                </div>
+                                <div className="app-kv">
+                                    <span className="app-kv-label">Tarikh & Masa</span>
+                                    <span className="app-kv-value">
+                                        {complaint.complaint_date || '-'} {complaint.complaint_time || ''}
+                                    </span>
+                                </div>
+                                <div className="app-kv">
+                                    <span className="app-kv-label">Daerah</span>
+                                    <span className="app-kv-value">{complaint.district_name || '-'}</span>
+                                </div>
+                                <div className="app-kv app-kv--stack">
+                                    <span className="app-kv-label">Alamat</span>
+                                    <div className="app-kv-stack">
+                                        <span className={`app-kv-value ${addressExpanded ? '' : 'app-line-clamp-2'}`}>
+                                            {complaint.address || '-'}
+                                        </span>
+                                        {complaint.address && complaint.address.length > 70 && (
+                                            <button
+                                                type="button"
+                                                className="app-link app-link-button app-link-subtle"
+                                                onClick={() => setAddressExpanded((prev) => !prev)}
+                                            >
+                                                {addressExpanded ? 'Tutup' : 'Lihat penuh'}
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {basicEditing && (
+                        <div className="app-basic-kv">
+                            <div className="app-basic-kv-col">
+                                <div className="app-card-subheader">
+                                    <h5>Butir-butir Pemberi Maklumat / Pengadu</h5>
+                                </div>
+                                <div className="app-form-grid app-form-grid-single">
+                                    <label className="app-form-field">
+                                        <span>Nama</span>
+                                        <input
+                                            type="text"
+                                            value={basicDraft.complainant_name}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, complainant_name: event.target.value }))}
+                                        />
+                                    </label>
+                                    <label className="app-form-field">
+                                        <span>No Kad Pengenalan</span>
+                                        <input
+                                            type="text"
+                                            value={basicDraft.identification_number}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, identification_number: event.target.value }))}
+                                        />
+                                    </label>
+                                    <label className="app-form-field">
+                                        <span>No HP</span>
+                                        <input
+                                            type="text"
+                                            value={basicDraft.contact_number}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, contact_number: event.target.value }))}
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div className="app-basic-kv-col">
+                                <div className="app-card-subheader">
+                                    <h5>Maklumat Kejadian</h5>
+                                </div>
+                                <div className="app-form-grid">
+                                    <label className="app-form-field">
+                                        <span>Tarikh</span>
+                                        <input
+                                            type="date"
+                                            value={basicDraft.complaint_date}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, complaint_date: event.target.value }))}
+                                        />
+                                    </label>
+                                    <label className="app-form-field">
+                                        <span>Masa</span>
+                                        <input
+                                            type="time"
+                                            value={basicDraft.complaint_time}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, complaint_time: event.target.value }))}
+                                        />
+                                    </label>
+                                    <label className="app-form-field app-span-full">
+                                        <span>Daerah</span>
+                                        <select
+                                            value={basicDraft.district_id}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, district_id: event.target.value }))}
+                                        >
+                                            <option value="">-- Pilih Daerah --</option>
+                                            {districtOptions.map((d) => (
+                                                <option key={d.id} value={String(d.id)}>{d.name}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label className="app-form-field app-span-full">
+                                        <span>Alamat</span>
+                                        <textarea
+                                            rows="4"
+                                            value={basicDraft.address}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, address: event.target.value }))}
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="app-card-section">
+                        <div className="app-card-subheader">
+                            <h5>Ringkasan Aduan</h5>
+                        </div>
+
+                        {!basicEditing && (
+                            <div className="app-detail-stack">
+                                <div
+                                    className={`app-readonly-textarea ${summaryExpanded ? '' : 'is-clamped'}`}
+                                    role="textbox"
+                                    aria-readonly="true"
+                                >
+                                    {complaint.summary || '-'}
+                                </div>
+                                {complaint.summary && complaint.summary.length > 140 && (
+                                    <button
+                                        type="button"
+                                        className="app-link app-link-button app-link-subtle"
+                                        onClick={() => setSummaryExpanded((prev) => !prev)}
+                                    >
+                                        {summaryExpanded ? 'Tutup' : 'Baca lagi'}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        {basicEditing && (
+                            <div className="app-form-field">
+                                <textarea
+                                    rows="6"
+                                    value={basicDraft.summary}
+                                    onChange={(event) => setBasicDraft((prev) => ({ ...prev, summary: event.target.value }))}
+                                />
+                            </div>
+                        )}
+
+                        <div className="app-detail-meta">
+                            <span>Penerima Aduan:</span>
+                            <strong>
+                                {complaint.submitted_by?.staff?.name || complaint.submitted_by?.name || '-'}
+                                {complaint.submitted_by?.staff?.staff_id ? ` (${complaint.submitted_by.staff.staff_id})` : ''}
+                            </strong>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -826,11 +1070,9 @@ const ComplaintDetail = () => {
                                 </div>
 
                                 <div className="app-form-field">
-                                    <SearchSelect
-                                        label="Kesalahan Disyaki"
+                                    <SharedOffenseSelect
+                                        apiUrl={apiUrl}
                                         value={ajPayload.offense_id || ''}
-                                        options={offenseOptions}
-                                        placeholder="-- Pilih Kesalahan Disyaki --"
                                         onChange={(value) => setAjPayload((prev) => ({ ...prev, offense_id: value }))}
                                     />
                                 </div>
@@ -889,7 +1131,7 @@ const ComplaintDetail = () => {
                                 </label>
                                 <div className="app-form-actions app-span-full app-align-right">
                                     <button className="app-button" type="button" onClick={submitAjPayload}>
-                                        Simpan AJ
+                                        Simpan
                                     </button>
                                 </div>
 
@@ -911,18 +1153,12 @@ const ComplaintDetail = () => {
                                             <div className="app-approver-row">
                                                 <span>Pegawai Pengesah</span>
                                                 <span>:</span>
-                                                <select
+                                                <SharedStaffSelect
+                                                    apiUrl={apiUrl}
                                                     value={approverStaffId}
-                                                    onChange={(event) => setApproverStaffId(event.target.value)}
+                                                    onChange={setApproverStaffId}
                                                     disabled={Boolean(complaint.approver_confirmed_at)}
-                                                >
-                                                    <option value="">-- Pilih Pegawai --</option>
-                                                    {staffOptions.map((staff) => (
-                                                        <option key={staff.id} value={String(staff.id)}>
-                                                            {staff.staff_id ? `${staff.name} (${staff.staff_id})` : staff.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                />
                                             </div>
                                             <div className="app-approver-row">
                                                 <span>Tarikh Sahkan</span>
@@ -932,12 +1168,12 @@ const ComplaintDetail = () => {
                                         </div>
                                     </div>
                                     <div className="app-approver-actions">
-                                        {!canApprove && (
+                                        {!complaint.approver_confirmed_at && !canApprove && (
                                             <button className="app-button app-button-ghost" type="button" onClick={submitAssignees}>
                                                 Hantar Pengesahan
                                             </button>
                                         )}
-                                        {canApprove && (
+                                        {!complaint.approver_confirmed_at && canApprove && (
                                             <button className="app-button" type="button" onClick={submitApproval}>
                                                 Sahkan Aduan
                                             </button>
@@ -954,11 +1190,9 @@ const ComplaintDetail = () => {
                             {payloadMessage && <div className="app-detail-note">{payloadMessage}</div>}
                             <div className="app-form-grid">
                                 <div className="app-form-field">
-                                    <SearchSelect
-                                        label="Kesalahan Disyaki"
+                                    <SharedOffenseSelect
+                                        apiUrl={apiUrl}
                                         value={akPayload.offense_id || ''}
-                                        options={offenseOptions}
-                                        placeholder="-- Pilih Kesalahan Disyaki --"
                                         onChange={(value) => setAkPayload((prev) => ({ ...prev, offense_id: value }))}
                                     />
                                 </div>
@@ -1106,18 +1340,12 @@ const ComplaintDetail = () => {
                                             <div className="app-approver-row">
                                                 <span>Pegawai Pengesah</span>
                                                 <span>:</span>
-                                                <select
+                                                <SharedStaffSelect
+                                                    apiUrl={apiUrl}
                                                     value={approverStaffId}
-                                                    onChange={(event) => setApproverStaffId(event.target.value)}
+                                                    onChange={setApproverStaffId}
                                                     disabled={Boolean(complaint.approver_confirmed_at)}
-                                                >
-                                                    <option value="">-- Pilih Pegawai --</option>
-                                                    {staffOptions.map((staff) => (
-                                                        <option key={staff.id} value={String(staff.id)}>
-                                                            {staff.staff_id ? `${staff.name} (${staff.staff_id})` : staff.name}
-                                                        </option>
-                                                    ))}
-                                                </select>
+                                                />
                                             </div>
                                             <div className="app-approver-row">
                                                 <span>Tarikh Sahkan</span>
@@ -1127,12 +1355,12 @@ const ComplaintDetail = () => {
                                         </div>
                                     </div>
                                     <div className="app-approver-actions">
-                                        {!canApprove && (
+                                        {!complaint.approver_confirmed_at && !canApprove && (
                                             <button className="app-button app-button-ghost" type="button" onClick={submitAssignees}>
                                                 Hantar Pengesahan
                                             </button>
                                         )}
-                                        {canApprove && (
+                                        {!complaint.approver_confirmed_at && canApprove && (
                                             <button className="app-button" type="button" onClick={submitApproval}>
                                                 Sahkan Aduan
                                             </button>
@@ -1157,20 +1385,14 @@ const ComplaintDetail = () => {
                                         <h5>Maklumat Pengeluar Arahan</h5>
                                         <i className={`bi ${reportSections.issuer ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
                                     </button>
-                                    {reportSections.issuer && (
-                                        <div className="app-form-field">
-                                            <span>Pegawai Yang Mengeluarkan Arahan</span>
-                                            <select
+                                        {reportSections.issuer && (
+                                            <div className="app-form-field">
+                                                <span>Pegawai Yang Mengeluarkan Arahan</span>
+                                            <SharedStaffSelect
+                                                apiUrl={apiUrl}
                                                 value={ajReport.directive_staff_id}
-                                                onChange={(event) => updateReportField('directive_staff_id', event.target.value)}
-                                            >
-                                                <option value="">-- Pilih Pegawai --</option>
-                                                {staffOptions.map((staff) => (
-                                                    <option key={staff.id} value={String(staff.id)}>
-                                                        {staff.staff_id ? `${staff.name} (${staff.staff_id})` : staff.name}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                                onChange={(value) => updateReportField('directive_staff_id', value)}
+                                            />
                                             <small className="app-hint">Pilih pegawai yang memberi arahan tindakan bagi aduan ini.</small>
                                         </div>
                                     )}

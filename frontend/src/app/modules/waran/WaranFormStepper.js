@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/SharedToastProvider';
 import InlineAlert from '../../components/SharedInlineAlert';
 import AttachmentSection from '../../components/SharedAttachmentSection';
+import SharedStaffSelect from '../../components/SharedStaffSelect';
 
 const emptyForm = {
     jenis_waran: '',
@@ -56,7 +57,6 @@ const WaranFormStepper = ({ mode = 'create' }) => {
     const [jenisKesMalOptions, setJenisKesMalOptions] = useState([]);
     const [jenisKesJenayahOptions, setJenisKesJenayahOptions] = useState([]);
     const [hasilOptions, setHasilOptions] = useState([]);
-    const [staffOptions, setStaffOptions] = useState([]);
     const [attachments, setAttachments] = useState([]);
     const [validationErrors, setValidationErrors] = useState({});
     const [openSections, setOpenSections] = useState({
@@ -125,6 +125,21 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         setFormData((prev) => ({
             ...prev,
             [field]: event.target.value,
+        }));
+    };
+
+    const updateFieldValue = (field) => (value) => {
+        setValidationErrors((prev) => {
+            if (!prev || !prev[field]) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+        setFormData((prev) => ({
+            ...prev,
+            [field]: value,
         }));
     };
 
@@ -220,14 +235,6 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                 setMahkamahOptions(response?.data?.data || []);
             })
             .catch(() => setMahkamahOptions([]));
-
-        axios.get(`${apiUrl}/staff/options`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then((response) => {
-                setStaffOptions(response?.data?.data || []);
-            })
-            .catch(() => setStaffOptions([]));
     }, [apiUrl, token]);
 
     useEffect(() => {
@@ -665,12 +672,15 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 <div className="app-accordion-body app-form-grid">
                                 <div className="app-form-field">
                                     <label>Tindakan Oleh *</label>
-                                        <select className={validationErrors.tindakan_oleh_staff_id ? 'app-input-error' : ''} value={formData.tindakan_oleh_staff_id} onChange={updateField('tindakan_oleh_staff_id')}>
-                                        <option value="">Pilih pegawai</option>
-                                        {staffOptions.map((item) => (
-                                            <option key={item.id} value={item.id}>{item.name}</option>
-                                        ))}
-                                    </select>
+                                    <SharedStaffSelect
+                                        apiUrl={apiUrl}
+                                        token={token}
+                                        value={formData.tindakan_oleh_staff_id}
+                                        onChange={updateFieldValue('tindakan_oleh_staff_id')}
+                                        placeholder="Pilih pegawai"
+                                        disabled={saving}
+                                        className={validationErrors.tindakan_oleh_staff_id ? 'app-input-error' : ''}
+                                    />
                                     {validationErrors.tindakan_oleh_staff_id && (
                                         <small className="app-inline-note app-inline-note-error">{validationErrors.tindakan_oleh_staff_id}</small>
                                     )}

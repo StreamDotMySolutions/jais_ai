@@ -27,6 +27,18 @@
   --pegawai-border: #e3e8ec;
 }
 
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--pegawai-bg);
+}
+
+#root {
+  min-height: 100%;
+  background: var(--pegawai-bg);
+}
+
 .auth-shell {
   min-height: calc(100vh - 2rem);
   padding: 2rem 1.5rem;
@@ -722,6 +734,40 @@
   border-color: var(--jais-green-dark);
 }
 
+.complaint-template {
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  border: 1px solid #e3ebe6;
+  background: #f8faf9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.complaint-template-left strong {
+  display: block;
+  color: var(--jais-ink);
+}
+
+.complaint-template-left small {
+  display: block;
+  color: #6b7a83;
+  font-size: 0.85rem;
+  margin-top: 0.1rem;
+}
+
+.complaint-template-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.complaint-template-actions select {
+  min-width: 220px;
+}
+
 @media (max-width: 992px) {
   .complaint-header {
     flex-direction: column;
@@ -744,6 +790,20 @@
 
   .complaint-grid {
     grid-template-columns: 1fr;
+  }
+
+  .complaint-template {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .complaint-template-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .complaint-template-actions select {
+    min-width: 100%;
   }
 }
 
@@ -1795,6 +1855,12 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 
+.app-icon-button-xs {
+  padding: 0.2rem 0.35rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
 
 .app-icon-button:hover {
   border-color: rgba(24, 109, 75, 0.4);
@@ -2247,6 +2313,54 @@
   padding: 0.9rem 1.2rem;
 }
 
+/* Allow grid children to shrink so ellipsis can work. */
+.app-table-header > *,
+.app-table-row > * {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  /* On mobile, keep all columns and allow horizontal scroll instead of wrapping/hiding. */
+  .app-table {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+
+  .app-table-header,
+  .app-table-row {
+    min-width: 1100px;
+  }
+
+  .app-table-actions .app-table-header,
+  .app-table-actions .app-table-row {
+    min-width: 1250px;
+  }
+
+  /* If complaints drawer is open, don't hide columns on mobile; allow scroll instead. */
+  .app-complaints-body.has-drawer .app-table-header,
+  .app-complaints-body.has-drawer .app-table-row {
+    grid-template-columns: 1.2fr 0.8fr 1fr 0.9fr 0.8fr 0.9fr 2fr;
+  }
+
+  .app-complaints-body.has-drawer .app-table-actions .app-table-header,
+  .app-complaints-body.has-drawer .app-table-actions .app-table-row {
+    grid-template-columns: 1.2fr 0.8fr 1fr 0.9fr 0.8fr 0.9fr 1.6fr 0.9fr;
+  }
+
+  .app-complaints-body.has-drawer .app-table-header > *:nth-child(4),
+  .app-complaints-body.has-drawer .app-table-header > *:nth-child(5),
+  .app-complaints-body.has-drawer .app-table-header > *:nth-child(7),
+  .app-complaints-body.has-drawer .app-table-header > *:nth-child(8),
+  .app-complaints-body.has-drawer .app-table-row > *:nth-child(4),
+  .app-complaints-body.has-drawer .app-table-row > *:nth-child(5),
+  .app-complaints-body.has-drawer .app-table-row > *:nth-child(7),
+  .app-complaints-body.has-drawer .app-table-row > *:nth-child(8) {
+    display: block !important;
+  }
+}
+
 .app-table-actions .app-table-header,
 .app-table-actions .app-table-row {
   grid-template-columns: 1.2fr 0.8fr 1fr 0.9fr 0.8fr 0.9fr 1.6fr 0.9fr;
@@ -2492,6 +2606,17 @@
 
 .app-code {
   font-weight: 600;
+}
+
+.app-code .app-link-button {
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: normal;
+  overflow-wrap: normal;
+  text-align: left;
 }
 
 .app-status-pill {
@@ -2918,6 +3043,8 @@
   border-right: 1px solid #e1e7e4;
   border-bottom: 1px solid #e1e7e4;
   background: #ffffff;
+  position: relative;
+  z-index: 0;
   padding: 0.5rem 0.6rem 0.6rem;
   min-height: 120px;
   display: flex;
@@ -2932,10 +3059,17 @@
 .app-calendar-cell.is-selected {
   outline: 2px solid #5aa981;
   outline-offset: -2px;
+  z-index: 10;
+}
+
+.app-calendar-cell.is-slot-open {
+  z-index: 20;
 }
 
 .app-calendar--popup .app-calendar-grid {
   height: calc(100vh - 160px);
+  /* Allow time-slot popover to overflow outside grid without being clipped. */
+  overflow: visible;
 }
 
 .app-calendar-slot {
@@ -2966,7 +3100,7 @@
 
 .app-calendar-popover {
   position: absolute;
-  z-index: 10;
+  z-index: 100;
   left: 50%;
   top: 40px;
   transform: translateX(-50%);
@@ -2999,9 +3133,6 @@
   gap: 0.4rem;
 }
 
-.app-calendar-cell {
-  position: relative;
-}
 
 .app-calendar-event-popover {
   position: fixed;
@@ -4609,6 +4740,102 @@
   gap: 1.5rem;
 }
 
+.app-basic-kv {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.app-kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--pegawai-border);
+}
+
+.app-basic-kv-col .app-kv:last-child {
+  border-bottom: none;
+}
+
+.app-kv-label {
+  color: #7b8790;
+  font-weight: 600;
+}
+
+.app-kv-value {
+  color: #1f2f26;
+  font-weight: 700;
+  text-align: right;
+  max-width: 420px;
+}
+
+.app-kv--stack {
+  align-items: flex-start;
+}
+
+.app-kv--stack .app-kv-value {
+  font-weight: 600;
+  text-align: left;
+  color: #24333a;
+}
+
+.app-kv-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+}
+
+.app-detail-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.app-card-section {
+  margin-top: 1.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--pegawai-border);
+}
+
+.app-card-subheader h5 {
+  margin: 0 0 0.6rem;
+  color: #12261c;
+  font-size: 1rem;
+}
+
+.app-readonly-textarea {
+  border: 1px solid #e3ebe6;
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  background: #f5f8f6;
+  color: #1f2f26;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.app-readonly-textarea.is-clamped {
+  max-height: 7.5em;
+  overflow: hidden;
+}
+
+.app-line-clamp-2,
+.app-line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+}
+
+.app-line-clamp-2 {
+  -webkit-line-clamp: 2;
+}
+
+.app-line-clamp-3 {
+  -webkit-line-clamp: 3;
+}
+
 .app-detail-row {
   display: flex;
   justify-content: space-between;
@@ -4723,6 +4950,18 @@
     grid-template-columns: 1fr;
   }
 
+  .app-basic-kv {
+    grid-template-columns: 1fr;
+  }
+
+  .app-kv-value {
+    text-align: left;
+  }
+
+  .app-kv-stack {
+    align-items: flex-start;
+  }
+
   .app-actions-grid {
     grid-template-columns: 1fr;
   }
@@ -4769,15 +5008,6 @@
 
   .app-search {
     min-width: 100%;
-  }
-
-  .app-table-header {
-    display: none;
-  }
-
-  .app-table-row {
-    grid-template-columns: 1fr;
-    gap: 0.4rem;
   }
 
   .app-filter-row {

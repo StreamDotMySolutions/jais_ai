@@ -184,12 +184,13 @@ const AppointmentCalendar = ({ isPopup = false }) => {
                         const isCurrentMonth = date.getMonth() === currentDate.getMonth();
                         const isFocused = focusDate === key;
                         const isSelected = selectedDateKey === key;
+                        const isSlotOpen = isPopup && activeSlotKey === key;
                         const eventForDay = selectedEvent?.dayKey === key ? selectedEvent?.item : null;
                         const visibleItems = isExpanded ? items : items.slice(0, 3);
                         return (
                             <div
                                 key={key}
-                                className={`app-calendar-cell${isCurrentMonth ? '' : ' is-muted'}${isFocused ? ' is-focused' : ''}${isSelected ? ' is-selected' : ''}${isPopup ? ' is-pickable' : ''}`}
+                                className={`app-calendar-cell${isCurrentMonth ? '' : ' is-muted'}${isFocused ? ' is-focused' : ''}${isSelected ? ' is-selected' : ''}${isPopup ? ' is-pickable' : ''}${isSlotOpen ? ' is-slot-open' : ''}`}
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     if (isPopup) {

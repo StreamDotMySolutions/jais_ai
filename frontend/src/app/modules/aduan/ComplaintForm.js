@@ -13,6 +13,7 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
     const [success, setSuccess] = useState(false);
     const [referenceNo, setReferenceNo] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
+    const [summaryTemplate, setSummaryTemplate] = useState('');
 
     useEffect(() => {
         store.emptyData();
@@ -116,6 +117,290 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         return null;
     }
 
+    const caseType = store.getValue('case_type') || 'AJ';
+    const templatesByCaseType = {
+        AJ: [
+            { key: 'aj_aduan_biasa', label: 'Aduan biasa' },
+            { key: 'aj_bersekedudukan', label: 'Bersekedudukan' },
+            { key: 'aj_rumah_urut', label: 'Rumah urut' },
+            { key: 'aj_hotel', label: 'Hotel' },
+            { key: 'aj_pasangan_bercerai', label: 'Pasangan bercerai' },
+            { key: 'aj_nikah_tanpa_kebenaran', label: 'Pernikahan tanpa kebenaran' },
+        ],
+        AK: [
+            { key: 'ak_poligami_tanpa_kebenaran', label: 'Poligami tanpa kebenaran' },
+            { key: 'ak_cerai_luar_mahkamah', label: 'Cerai luar mahkamah / lafaz cerai' },
+            { key: 'ak_rujuk_tidak_lapor', label: 'Rujuk tapi tidak lapor' },
+            { key: 'ak_lewat_daftar_kahwin', label: 'Lewat daftar perkahwinan / tak daftar nikah' },
+            { key: 'ak_nikah_tanpa_kebenaran', label: 'Nikah tanpa kebenaran (contoh nikah luar negara)' },
+            { key: 'ak_lain_lain', label: 'Lain-lain isu keluarga' },
+        ],
+    };
+    const districtName = districtOptions.find((d) => String(d.id) === String(store.getValue('district_id') || ''))?.name || '';
+    const shouldLockSummary = Boolean(
+        templatesByCaseType[caseType]?.length > 0
+        && !summaryTemplate
+        && !(store.getValue('summary') || '').trim()
+    );
+
+    const buildSummaryTemplate = (key) => {
+        const date = store.getValue('complaint_date') || '[TARIKH]';
+        const time = store.getValue('complaint_time') || '[MASA]';
+        const lokasi = (store.getValue('address') || '').trim() || '[Nama premis/hotel, alamat penuh, bilik (jika ada)]';
+        const daerah = districtName || '[Daerah]';
+
+        if (key === 'aj_hotel') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran kejadian:',
+                '- Saya nampak seorang lelaki dan seorang perempuan disyaki tiada hubungan mahram / bukan suami isteri.',
+                '- Kejadian: [sedang berlaku / sudah berlaku]',
+                '- Kenderaan (jika ada): [jenis/warna/no pendaftaran]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'aj_bersekedudukan') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran kejadian:',
+                '- Saya mengesyaki seorang lelaki dan seorang perempuan yang bukan mahram / bukan suami isteri tinggal atau berada bersama di lokasi tersebut.',
+                '- Kejadian: [sedang berlaku / sudah berlaku / berulang kali]',
+                '- Tanda-tanda (jika ada): [contoh: kerap keluar masuk / tinggal serumah / dll]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'aj_rumah_urut') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran kejadian:',
+                '- Saya ingin membuat aduan berkaitan premis urut yang disyaki menjalankan aktiviti yang melanggar peraturan/enakmen berkaitan.',
+                '- Kejadian: [sedang berlaku / sudah berlaku / berulang kali]',
+                '- Tanda-tanda (jika ada): [contoh: promosi tertentu / waktu operasi / pengunjung / dll]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'aj_pasangan_bercerai') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran kejadian:',
+                '- Saya ingin membuat aduan berkaitan pasangan yang telah bercerai tetapi disyaki tinggal/bergaul seperti suami isteri tanpa rujuk yang sah.',
+                '- Kejadian: [sedang berlaku / sudah berlaku / berulang kali]',
+                '- Maklumat yang diketahui (jika ada): [nama / hubungan / status cerai / dll]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'aj_nikah_tanpa_kebenaran') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran kejadian:',
+                '- Saya ingin membuat aduan berkaitan pernikahan tanpa kebenaran / nikah luar yang disyaki berlaku.',
+                '- Kejadian: [sedang berlaku / sudah berlaku]',
+                '- Maklumat yang diketahui (jika ada): [nama pihak terlibat / tarikh nikah / tempat / saksi / dll]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'aj_aduan_biasa') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran aduan:',
+                '- [ceritakan ringkas apa yang berlaku]',
+                '- Kejadian: [sedang berlaku / sudah berlaku]',
+                '- Individu terlibat (jika ada): [lelaki/perempuan/nama jika diketahui]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'ak_poligami_tanpa_kebenaran') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran aduan (Poligami tanpa kebenaran):',
+                '- Saya mengesyaki suami/individu telah berkahwin lain tanpa kebenaran Mahkamah.',
+                '- Nama pihak terlibat: [nama suami/individu], [nama isteri pertama], [nama isteri kedua jika diketahui]',
+                '- Tarikh pernikahan (jika diketahui): [__]',
+                '- Tempat pernikahan (jika diketahui): [__]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'ak_cerai_luar_mahkamah') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran aduan (Cerai luar mahkamah / lafaz cerai):',
+                '- Saya ingin membuat aduan berkaitan lafaz cerai yang berlaku di luar Mahkamah.',
+                '- Tarikh lafaz (jika diketahui): [__]',
+                '- Tempat lafaz (jika diketahui): [__]',
+                '- Lafaz/Butiran ringkas: [__]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'ak_rujuk_tidak_lapor') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran aduan (Rujuk tapi tidak lapor):',
+                '- Saya ingin membuat aduan berkaitan rujuk semula selepas cerai tetapi tidak dilaporkan/ didaftarkan.',
+                '- Tarikh rujuk (jika diketahui): [__]',
+                '- Bukti/rujukan (jika ada): [No perintah mahkamah / dokumen / dll]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'ak_lewat_daftar_kahwin') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran aduan (Lewat daftar perkahwinan / tak daftar nikah):',
+                '- Saya ingin membuat aduan berkaitan perkahwinan yang tidak/ lewat didaftarkan.',
+                '- Tarikh pernikahan (jika diketahui): [__]',
+                '- Tempat pernikahan (jika diketahui): [__]',
+                '- Status: [tidak daftar / lewat daftar / sedang proses]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'ak_nikah_tanpa_kebenaran') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran aduan (Nikah tanpa kebenaran):',
+                '- Saya ingin membuat aduan berkaitan pernikahan tanpa kebenaran / nikah luar negara.',
+                '- Tarikh pernikahan (jika diketahui): [__]',
+                '- Tempat pernikahan (jika diketahui): [__]',
+                '- Pihak terlibat (jika diketahui): [__]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        if (key === 'ak_lain_lain') {
+            return [
+                `Tarikh: ${date}`,
+                `Masa: ${time}`,
+                `Daerah: ${daerah}`,
+                `Lokasi: ${lokasi}`,
+                '',
+                'Butiran aduan (Keluarga):',
+                '- [ceritakan ringkas isu keluarga yang berlaku]',
+                '- Kejadian: [sedang berlaku / sudah berlaku]',
+                '',
+                'Maklumat tambahan:',
+                '- [apa-apa maklumat lain]',
+                '',
+                'Saya bersedia memberi kerjasama jika diperlukan.',
+            ].join('\n');
+        }
+
+        return '';
+    };
+
+    const insertSummaryTemplate = () => {
+        if (!summaryTemplate) {
+            return;
+        }
+        const next = buildSummaryTemplate(summaryTemplate);
+        if (!next) {
+            return;
+        }
+        const existing = (store.getValue('summary') || '').trim();
+        if (existing) {
+            const ok = window.confirm('Ringkasan Aduan sudah diisi. Anda mahu gantikan dengan template?');
+            if (!ok) {
+                return;
+            }
+        }
+        store.setValue('summary', next);
+    };
+
     return (
         <div className="complaint-card">
             <div className="complaint-meta">
@@ -172,7 +457,7 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
 
                 <div className="complaint-grid">
                     <div className="complaint-section">
-                        <h3>Maklumat Pengadu</h3>
+                        <h3>Butir-butir Pemberi Maklumat / Pengadu</h3>
                         <Row className='mb-4'>
                             <InputText 
                                 fieldName='complainant_name' 
@@ -204,7 +489,17 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                     </div>
 
                     <div className="complaint-section">
-                        <h3>Alamat</h3>
+                        <h3>Maklumat Kejadian</h3>
+                        <Row className='mb-4'>
+                            <InputSelect
+                                fieldName='district_id'
+                                placeholder='Pilih Daerah'
+                                icon='bi-geo'
+                                isLoading={isLoading}
+                                options={districtOptions}
+                            />
+                        </Row>
+
                         <Row className='mb-4'>
                             <InputTextarea 
                                 type='text'
@@ -215,29 +510,51 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                                 isLoading={isLoading}
                             />
                         </Row>
-
-                        <Row className='mb-4'>
-                            <InputSelect
-                                fieldName='district_id'
-                                placeholder='Pilih Daerah'
-                                icon='bi-geo'
-                                isLoading={isLoading}
-                                options={districtOptions}
-                            />
-                        </Row>
                     </div>
                 </div>
 
                 <div className="complaint-section complaint-span-full">
                     <h3>Ringkasan Aduan</h3>
+                    {templatesByCaseType[caseType]?.length > 0 && (
+                        <div className="complaint-template">
+                            <div className="complaint-template-left">
+                                <strong>Kategori Template</strong>
+                                <small>
+                                    Pilih kategori untuk masukkan contoh format ringkasan aduan.
+                                    {shouldLockSummary ? ' Ringkasan akan dibuka selepas kategori dipilih.' : ''}
+                                </small>
+                            </div>
+                            <div className="complaint-template-actions">
+                                <Form.Select
+                                    value={summaryTemplate}
+                                    onChange={(e) => setSummaryTemplate(e.target.value)}
+                                    disabled={isLoading}
+                                >
+                                    <option value="">Pilih template</option>
+                                    {templatesByCaseType[caseType].map((t) => (
+                                        <option key={t.key} value={t.key}>{t.label}</option>
+                                    ))}
+                                </Form.Select>
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-secondary"
+                                    onClick={insertSummaryTemplate}
+                                    disabled={isLoading || !summaryTemplate}
+                                >
+                                    Masukkan template
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     <Row className='mb-4'>
                         <InputTextarea 
                             type='text'
                             fieldName='summary' 
-                            placeholder='Ringkasan Aduan'  
+                            placeholder={shouldLockSummary ? 'Sila pilih template aduan dahulu.' : 'Ringkasan Aduan'}
                             icon='bi-pencil'
                             rows='8'
                             isLoading={isLoading}
+                            readOnly={shouldLockSummary}
                         />
                     </Row>
                 </div>
