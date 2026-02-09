@@ -1,6 +1,6 @@
 <?php
 namespace App\Http\Controllers\WhatsApp; 
-
+use App\Http\Controllers\Controller; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
@@ -34,7 +34,9 @@ class WhatsappWebController extends Controller
         // reply balik ke Node (jika perlu)
 
         return response()->json([
-            'status' => 'ok'
+            'status' => 'ok',
+            'message' => 'Message received',
         ]);
     }
+
 }
