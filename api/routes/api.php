@@ -235,7 +235,12 @@ Route::get('/telegram/webhook-info', [App\Http\Controllers\Telegram\WebhookContr
 Route::get('/telegram/send-test-message', [App\Http\Controllers\Telegram\WebhookController::class, 'sendTestMessage'])->name('telegram.send-test-message'); 
 Route::get('/telegram/show-token', [App\Http\Controllers\Telegram\WebhookController::class, 'showToken'])->name('telegram.show-token');
 
-// Whatsapp Webhook
+// Whatsapp Waba Webhook
 use App\Http\Controllers\WhatsApp\WebhookController as WhatsAppWebhookController;
 Route::get('/whatsapp', [WhatsAppWebhookController::class, 'verify']);
 Route::post('/whatsapp', [WhatsAppWebhookController::class, 'handleWebhook']);
+
+// Whatsapp Web Webhook
+use App\Http\Controllers\WhatsApp\WhatsappWebController;
+Route::post('/whatsappweb', [WhatsappWebController::class, 'handle']);
+
