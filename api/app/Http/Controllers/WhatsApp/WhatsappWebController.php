@@ -33,9 +33,18 @@ class WhatsappWebController extends Controller
         // hantar ke AI
         // reply balik ke Node (jika perlu)
 
+        // huruf kecil semua untuk ujian
+        $incomingMessage = strtolower(trim($data['body'] ?? '' ));
+
+        if($incomingMessage == 'hello') {
+            Log::info('Received greeting message from WhatsApp Web user: ' . $data['from']);
+            // boleh tambah logik lain di sini
+            $replyMessage = 'Hello! How can I assist you today?';
+        }   
+
         return response()->json([
             'status' => 'ok',
-            'message' => 'Message received',
+            'message' => $replyMessage ?? null,
         ]);
     }
 
