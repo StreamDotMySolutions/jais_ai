@@ -36,8 +36,11 @@ function SignIn() {
         e.preventDefault();
         
         const formData = new FormData();
+        const loginValue = store.getValue('login') || store.getValue('email') || '';
         const dataArray = [
-            { key: 'login', value: store.getValue('login') }, 
+            // Backward-compat: some servers/old code still validate `email`.
+            { key: 'login', value: loginValue },
+            { key: 'email', value: loginValue },
             { key: 'password', value: store.getValue('password') }, 
         ];
         
