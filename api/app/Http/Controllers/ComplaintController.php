@@ -129,9 +129,9 @@ class ComplaintController extends Controller
             'appointment:id,complaint_id,start_at,end_at,status',
             'oyds:id,complaint_id,name,id_number,investigator_name,file_no',
             'seizureItems:id,complaint_id,item_no,description,storage',
-            'ajDirectiveStaff:id,name,staff_id',
-            'ajArrestStaff:id,name,staff_id',
-            'ajProsecutorStaff:id,name,staff_id',
+            'ajDirectiveStaff:id,name,staff_id,ic_number,phone,address,position,department',
+            'ajArrestStaff:id,name,staff_id,ic_number,phone,address,position,department',
+            'ajProsecutorStaff:id,name,staff_id,ic_number,phone,address,position,department',
         ]);
         if ($complaint->classification_id) {
             $complaint->classification_code = DB::table('complaint_classifications')

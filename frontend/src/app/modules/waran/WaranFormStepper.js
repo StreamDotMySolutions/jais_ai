@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../../components/SharedToastProvider';
 import InlineAlert from '../../components/SharedInlineAlert';
 import AttachmentSection from '../../components/SharedAttachmentSection';
@@ -390,6 +390,10 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         <div className="app-waran">
             <div className="app-waran-header">
                 <div>
+                    <Link className="app-back" to="/app/i-waran">
+                        <i className="bi bi-arrow-left"></i>
+                        Kembali ke Senarai
+                    </Link>
                     <span className="app-eyebrow">i-WARAN</span>
                     <h3>{isEdit ? 'Kemaskini Waran' : 'Borang Pendaftaran Waran (Stepper)'}</h3>
                     <p>{isEdit ? 'Kemaskini maklumat waran yang dipilih.' : 'Lengkapkan maklumat mengikut turutan untuk simpan rekod waran.'}</p>

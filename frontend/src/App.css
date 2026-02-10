@@ -3091,6 +3091,22 @@ body {
   color: #2b3a31;
 }
 
+.app-field-inline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.app-button-mini {
+  padding: 0.35rem 0.55rem;
+  font-size: 0.85rem;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 .app-detail-value {
   color: #1f2f26;
   font-weight: 600;
@@ -3820,6 +3836,16 @@ body {
 .app-report-grid {
   column-gap: 1.4rem;
   row-gap: 1rem;
+}
+
+.app-report-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .app-report-grid-2 {
+    grid-template-columns: 1fr;
+  }
 }
 
 .app-inline-header {
@@ -4893,6 +4919,13 @@ body {
   white-space: pre-line;
 }
 
+.print-notes-box--plain {
+  border: none;
+  padding: 0;
+  min-height: unset;
+  font-size: 0.95rem;
+}
+
 .print-table {
   margin-top: 1.6rem;
   border: 1px solid #1f1f1f;
@@ -4935,6 +4968,15 @@ body {
   font-size: 0.8rem;
 }
 
+.print-footer-note-left {
+  text-align: left;
+  color: #2d2d2d;
+}
+
+.print-footer-date {
+  margin-top: 1.2rem;
+}
+
 .print-chip {
   display: inline-block;
   margin-top: 0.8rem;
@@ -4947,6 +4989,24 @@ body {
 .print-grid {
   display: grid;
   gap: 0.6rem 1.5rem;
+}
+
+.print-grid-tight {
+  gap: 0.35rem 1.5rem;
+}
+
+.print-title-underline {
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+
+.print-mt {
+  margin-top: 1.2rem;
+}
+
+.print-mt-lg {
+  margin-top: 1.8rem;
 }
 
 .print-row {
@@ -4997,6 +5057,19 @@ body {
 .print-sign-name {
   font-weight: 600;
   font-size: 0.95rem;
+}
+
+.print-signature-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.5rem;
+  margin-top: 2.2rem;
+  text-align: center;
+}
+
+.print-sign-col .print-sign-line {
+  width: 100%;
+  max-width: 340px;
 }
 
 @media print {

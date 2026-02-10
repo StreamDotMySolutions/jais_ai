@@ -11,6 +11,8 @@ import SharedMahkamahSelect from '../../components/SharedMahkamahSelect';
 import SharedProsecutionStatusSelect from '../../components/SharedProsecutionStatusSelect';
 import { useToast } from '../../components/SharedToastProvider';
 import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
+import LAPORAN_TINDAKAN_TEMPLATES from './laporanTindakanTemplates';
+import useOffenseOptions from '../../hooks/useOffenseOptions';
 
 const AJ_STEPS = [
     { key: 'ppa', label: 'Tindakan Aduan' },
@@ -30,6 +32,7 @@ const ComplaintDetail = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const toast = useToast();
     const detailHeaderRef = useRef(null);
+    const { items: offenseItems } = useOffenseOptions({ apiUrl });
     const [complaint, setComplaint] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -416,6 +419,67 @@ const ComplaintDetail = () => {
         return text.trim();
     };
 
+    const hydrateLaporanTindakanTemplate = (rawText) => {
+        if (!rawText) return '';
+        let text = String(rawText);
+
+        // Laporan Tindakan usually refers to "Tarikh / Masa Tindakan" (action_datetime).
+        // Fallback to "Tarikh / Masa Maklum Aduan" (directive_at) then complaint date/time.
+        const dt = (ajReport?.action_datetime || ajReport?.directive_at || '').toString().trim();
+        const dateIso = dt.includes('T') ? dt.split('T')[0] : '';
+        const timeHhmm = dt.includes('T') ? (dt.split('T')[1] || '').slice(0, 5) : '';
+
+        const dateDot = formatBorang5TemplateDate(dateIso || basicDraft.complaint_date);
+        const timeDot = formatBorang5TemplateTime(timeHhmm || basicDraft.complaint_time);
+        const address = (basicDraft.address || '').trim();
+
+        if (dateDot) {
+            text = text.replace(/PADA\s+__________/i, `PADA ${dateDot}`);
+            text = text.replace(/PADA\s+(\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{4}-\d{2}-\d{2})/i, `PADA ${dateDot}`);
+        }
+
+        if (timeDot) {
+            text = text.replace(/(JAM\s+(?:LEBIH\s+KURANG\s+)?)_____/i, `$1${timeDot}`);
+            text = text.replace(/(LEBIH\s+KURANG\s+JAM\s+)_____/i, `$1${timeDot}`);
+            text = text.replace(/(JAM\s+(?:LEBIH\s+KURANG\s+)?)\d{1,2}(?:[.:]\d{2})?/i, `$1${timeDot}`);
+            text = text.replace(/(LEBIH\s+KURANG\s+JAM\s+)\d{1,2}(?:[.:]\d{2})?/i, `$1${timeDot}`);
+        }
+
+        if (address) {
+            text = text.replace(/(LOKASI KEJADIAN\s*:)\s*__________/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT LOKASI KEJADIAN\s*:)\s*__________/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT KEJADIAN\s*:)\s*__________/gi, `$1 ${address}`);
+            text = text.replace(/(LOKASI KEJADIAN\s*:)\s*[^\n]*/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT LOKASI KEJADIAN\s*:)\s*[^\n]*/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT KEJADIAN\s*:)\s*[^\n]*/gi, `$1 ${address}`);
+        }
+
+        return text.trim();
+    };
+
+    const normalizeLaporanTindakanPlaceholders = (rawText) => {
+        if (!rawText) return '';
+        let text = String(rawText);
+
+        // Ensure OYDS field lines always use consistent placeholders.
+        // Keep numbering prefix if present (e.g. "1) OYDS (L) : ...").
+        text = text.replace(/^\s*(\d+\)\s*)?OYDS\s*\(\s*([LP])\s*\)\s*BERNAMA\s*:\s*.*$/gmi, '$1OYDS ($2) : _______');
+        text = text.replace(/^\s*(\d+\)\s*)?OYDS\(\s*([LP])\s*\)\s*BERNAMA\s*:\s*.*$/gmi, '$1OYDS ($2) : _______');
+        text = text.replace(/^\s*(\d+\)\s*)?OYDS\s*\(\s*([LP])\s*\)\s*:\s*.*$/gmi, '$1OYDS ($2) : _______');
+        text = text.replace(/^\s*OYDS\s*:\s*.*$/gmi, 'OYDS : _______');
+
+        // Normalize ID/phone labels in templates (optional but helps consistency).
+        text = text.replace(/^\s*NO\.?\s*(?:K\/?P|KP|KAD PENGENALAN)\s*:?\s*.*$/gmi, 'NO. K/P : __________');
+        text = text.replace(/^\s*NO\.?\s*PASSPORT\s*:?\s*.*$/gmi, 'NO. PASSPORT : __________');
+        text = text.replace(/^\s*NO\.?\s*TEL(?:EFON)?\s*:?\s*.*$/gmi, 'NO. TELEFON : __________');
+
+        // Normalize clothing line
+        text = text.replace(/^\s*PAKAIAN\s*:?\s*.*$/gmi, 'PAKAIAN : _______');
+        text = text.replace(/^.*KETIKA\s+ITU\s+KELIHATAN\s+BERPAKAIAN.*$/gmi, 'PAKAIAN : _______');
+
+        return text.trim();
+    };
+
     const resolveTemplateKeyFromOffense = (offense) => {
         const code = (offense?.code || '').toString().toUpperCase();
         const section = (offense?.section || '').toString().toUpperCase();
@@ -592,6 +656,36 @@ const ComplaintDetail = () => {
 
     const updateReportField = (field, value) => {
         setAjReport((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const insertLaporanTindakanTemplate = () => {
+        const offenseId = ajPayload.offense_id || ajReport.offense_id || '';
+        if (!offenseId) {
+            toast.error('Sila pilih Kesalahan Disyaki dahulu.');
+            return;
+        }
+
+        const offense = (offenseItems || []).find((item) => String(item.id) === String(offenseId));
+        const suggestedKey = resolveTemplateKeyFromOffense(offense) || 'generic';
+        const tpl = (LAPORAN_TINDAKAN_TEMPLATES || []).find((item) => item.key === suggestedKey)
+            || (LAPORAN_TINDAKAN_TEMPLATES || []).find((item) => item.key === 'generic');
+
+        if (!tpl) {
+            toast.error('Template laporan tindakan tidak ditemui.');
+            return;
+        }
+
+        const raw = (tpl.text || '').replace('{{OFFENSE}}', formatOffenseLabel(offense));
+        const nextText = hydrateLaporanTindakanTemplate(normalizeLaporanTindakanPlaceholders(raw));
+        const existing = (ajReport.report_notes || '').toString().trim();
+
+        if (existing && existing !== nextText) {
+            const ok = window.confirm('Laporan akan diganti dengan template yang dicadangkan. Teruskan?');
+            if (!ok) return;
+        }
+
+        updateReportField('report_notes', nextText);
+        toast.success('Template laporan dimasukkan.');
     };
 
     const updateOyds = (index, field, value) => {
@@ -1882,7 +1976,7 @@ const ComplaintDetail = () => {
                                         <i className={`bi ${reportSections.issuer ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
                                     </button>
                                         {reportSections.issuer && (
-                                            <div className="app-form-grid app-report-grid">
+                                            <div className="app-form-grid app-report-grid app-report-grid-2">
                                                 <div className="app-form-field">
                                                     <span>Pegawai Yang Mengeluarkan Arahan</span>
                                                     <SharedStaffSelect
@@ -2112,7 +2206,17 @@ const ComplaintDetail = () => {
                                         </div>
 
                                         <label className="app-form-field app-span-full">
-                                            <span>Laporan</span>
+                                            <div className="app-field-inline-head">
+                                                <span>Laporan</span>
+                                                <button
+                                                    type="button"
+                                                    className="app-button app-button-ghost app-button-mini"
+                                                    onClick={insertLaporanTindakanTemplate}
+                                                >
+                                                    <i className="bi bi-magic"></i>
+                                                    Insert Template
+                                                </button>
+                                            </div>
                                             <textarea
                                                 rows="4"
                                                 value={ajReport.report_notes}
