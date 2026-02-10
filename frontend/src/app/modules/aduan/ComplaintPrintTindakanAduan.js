@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { getComplaintStageLabel } from './complaintStage';
 
 const ComplaintPrintTindakanAduan = () => {
     const { id } = useParams();
@@ -157,7 +158,7 @@ const ComplaintPrintTindakanAduan = () => {
                 </div>
 
                 <div className="print-footer-note">
-                    Status Terkini / Tarikh Tindakan: {renderValue(complaint.current_stage)}
+                    Status Terkini / Tarikh Tindakan: {renderValue(getComplaintStageLabel(complaint.current_stage))}
                 </div>
                 <div className="print-footer-note">
                     No. Daftar Kes: {renderValue(complaint.case_register_no)}

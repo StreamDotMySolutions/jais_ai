@@ -12,6 +12,7 @@ import SharedProsecutionStatusSelect from '../../components/SharedProsecutionSta
 import { useToast } from '../../components/SharedToastProvider';
 import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
 import LAPORAN_TINDAKAN_TEMPLATES from './laporanTindakanTemplates';
+import { getComplaintStageLabel } from './complaintStage';
 import useOffenseOptions from '../../hooks/useOffenseOptions';
 
 const AJ_STEPS = [
@@ -756,6 +757,7 @@ const ComplaintDetail = () => {
         })
             .then((response) => {
                 setActionMessage('Aduan telah disahkan.');
+                toast.success('Aduan telah disahkan.');
                 setApprovalMeta((prev) => ({
                     ...prev,
                     approvals_count: response?.data?.approvals_count ?? prev.approvals_count,
@@ -773,7 +775,9 @@ const ComplaintDetail = () => {
                 });
             })
             .catch((err) => {
-                setActionMessage(err?.response?.data?.message || 'Gagal mengesahkan aduan.');
+                const msg = err?.response?.data?.message || 'Gagal mengesahkan aduan.';
+                setActionMessage(msg);
+                toast.error(msg);
             });
     };
 
@@ -1084,7 +1088,7 @@ const ComplaintDetail = () => {
                     <div className="app-detail-number">
                         <div className="app-detail-number-main">
                             <h3>{complaint.reference_no || '-'}</h3>
-                            <span className="app-status-pill">{complaint.current_stage || 'baru'}</span>
+                            <span className="app-status-pill">{getComplaintStageLabel(complaint.current_stage || 'baru')}</span>
                         </div>
                         <div className="app-detail-number-actions">
                             <button

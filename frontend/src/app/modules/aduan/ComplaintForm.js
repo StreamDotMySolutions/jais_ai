@@ -196,29 +196,6 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         });
     };
 
-    if (success && showSuccessMessage) {
-        return (
-            <div className="complaint-card complaint-card-success">
-                <div className="complaint-success-icon">
-                    <i className="bi bi-check2-circle"></i>
-                </div>
-                <div>
-                    <h2>Terima Kasih!</h2>
-                    <p>Aduan anda telah berjaya dihantar. Kami akan memproses aduan anda secepat mungkin.</p>
-                    {referenceNo && (
-                        <div className="complaint-ref">
-                            No Aduan anda: <strong>{referenceNo}</strong>
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    if (success && !showSuccessMessage) {
-        return null;
-    }
-
     const caseType = store.getValue('case_type') || 'AJ';
     const incidentTitle = 'Butiran Kejadian';
     const districtPlaceholder = caseType === 'AJ' ? 'Pilih Daerah Kejadian *' : 'Pilih Daerah *';
@@ -393,6 +370,29 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         // Fallback auto-suggest (e.g., initial value restored).
         tryAutoSuggestTemplate(addressValue);
     }, [caseType, addressValue, isLoading, summaryTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    if (success && showSuccessMessage) {
+        return (
+            <div className="complaint-card complaint-card-success">
+                <div className="complaint-success-icon">
+                    <i className="bi bi-check2-circle"></i>
+                </div>
+                <div>
+                    <h2>Terima Kasih!</h2>
+                    <p>Aduan anda telah berjaya dihantar. Kami akan memproses aduan anda secepat mungkin.</p>
+                    {referenceNo && (
+                        <div className="complaint-ref">
+                            No Aduan anda: <strong>{referenceNo}</strong>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (success && !showSuccessMessage) {
+        return null;
+    }
 
     const buildSummaryTemplate = (key) => {
         const date = store.getValue('incident_date') || '[TARIKH]';

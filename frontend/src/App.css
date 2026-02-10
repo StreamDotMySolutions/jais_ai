@@ -2894,6 +2894,50 @@ body {
   color: var(--jais-green);
 }
 
+.app-status-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.app-status-pill-mini {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.16rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  background: #f3f6f4;
+  color: #41524a;
+}
+
+.app-status-pill-mini.is-info {
+  background: rgba(122, 160, 255, 0.16);
+  border-color: rgba(122, 160, 255, 0.26);
+  color: #2f4f9a;
+}
+
+.app-status-pill-mini.is-warn {
+  background: rgba(246, 198, 117, 0.22);
+  border-color: rgba(246, 198, 117, 0.36);
+  color: #8a5c00;
+}
+
+.app-status-pill-mini.is-success {
+  background: rgba(26, 106, 75, 0.12);
+  border-color: rgba(26, 106, 75, 0.22);
+  color: var(--jais-green);
+}
+
+.app-status-pill-mini.is-muted {
+  background: #f3f6f4;
+  border-color: rgba(154, 166, 173, 0.25);
+  color: #6b7a83;
+}
+
 .app-summary {
   color: #6b7a83;
   overflow: hidden;

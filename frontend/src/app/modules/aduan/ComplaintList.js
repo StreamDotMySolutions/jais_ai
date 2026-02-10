@@ -7,6 +7,64 @@ import PaginationBar from '../../components/PaginationBar';
 import SortableHeader from '../../components/SortableHeader';
 import ConfirmModal from '../../components/SharedConfirmModal';
 import { sortRows } from '../../utils/sort';
+import { getComplaintStageLabel } from './complaintStage';
+
+const getIpStatusBadgeTone = (value) => {
+    if (!value) {
+        return 'is-muted';
+    }
+    const normalized = String(value).toLowerCase();
+    if (normalized.includes('selesai')) {
+        return 'is-success';
+    }
+    if (normalized.startsWith('semakan')) {
+        return 'is-warn';
+    }
+    if (normalized.startsWith('proses')) {
+        return 'is-info';
+    }
+    return 'is-muted';
+};
+
+const getProsecutionStatusLabel = (value) => {
+    if (!value) {
+        return '';
+    }
+    const normalized = String(value).toLowerCase();
+    if (normalized === 'didakwa') {
+        return 'Dalam Pendakwaan';
+    }
+    if (normalized === 'dalam_proses') {
+        return 'Dalam Proses';
+    }
+    if (normalized === 'selesai') {
+        return 'Selesai';
+    }
+    if (normalized === 'kiv') {
+        return 'KIV';
+    }
+    return value;
+};
+
+const getProsecutionStatusBadgeTone = (value) => {
+    if (!value) {
+        return 'is-muted';
+    }
+    const normalized = String(value).toLowerCase();
+    if (normalized === 'selesai') {
+        return 'is-success';
+    }
+    if (normalized === 'didakwa') {
+        return 'is-info';
+    }
+    if (normalized === 'dalam_proses') {
+        return 'is-warn';
+    }
+    if (normalized === 'kiv') {
+        return 'is-muted';
+    }
+    return 'is-muted';
+};
 
 const ComplaintList = ({
     caseType = '',
@@ -27,12 +85,29 @@ const ComplaintList = ({
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [districtOptions, setDistrictOptions] = useState([]);
     const [statusOptions, setStatusOptions] = useState([{ value: '', label: 'Semua' }]);
+    const ipStatusOptions = useMemo(() => ([
+        { value: '', label: 'Semua' },
+        { value: 'Proses Siasatan', label: 'Proses Siasatan' },
+        { value: 'Semakan PP (US)', label: 'Semakan PP (US)' },
+        { value: 'Semakan KPP', label: 'Semakan KPP' },
+        { value: 'Semakan JPSS', label: 'Semakan JPSS' },
+        { value: 'Selesai', label: 'Selesai' },
+    ]), []);
+    const prosecutionStatusOptions = useMemo(() => ([
+        { value: '', label: 'Semua' },
+        { value: 'dalam_proses', label: 'Dalam Proses' },
+        { value: 'didakwa', label: 'Dalam Pendakwaan' },
+        { value: 'selesai', label: 'Selesai' },
+        { value: 'kiv', label: 'KIV' },
+    ]), []);
     const [filters, setFilters] = useState({
         keyword: '',
         status: '',
         district: '',
         fromDate: '',
         toDate: '',
+        ipStatus: '',
+        prosecutionStatus: '',
     });
     const [draftFilters, setDraftFilters] = useState({
         keyword: '',
@@ -40,6 +115,8 @@ const ComplaintList = ({
         district: '',
         fromDate: '',
         toDate: '',
+        ipStatus: '',
+        prosecutionStatus: '',
     });
     const [showFilters, setShowFilters] = useState(true);
     const [pickupMessage, setPickupMessage] = useState('');
@@ -94,6 +171,12 @@ const ComplaintList = ({
         }
         if (filters.toDate) {
             params.to_date = filters.toDate;
+        }
+        if (filters.ipStatus) {
+            params.ip_status = filters.ipStatus;
+        }
+        if (filters.prosecutionStatus) {
+            params.prosecution_status = filters.prosecutionStatus;
         }
         if (caseType) {
             params.case_type = caseType;
@@ -264,6 +347,8 @@ const ComplaintList = ({
             district: '',
             fromDate: '',
             toDate: '',
+            ipStatus: '',
+            prosecutionStatus: '',
         };
         setDraftFilters(empty);
         setFilters(empty);
@@ -400,32 +485,60 @@ const ComplaintList = ({
                             </select>
                         </div>
                     </div>
-                    <div className="app-filter-row">
-                        <div className="app-filter-field">
-                            <label>Dari Tarikh</label>
+	                    <div className="app-filter-row">
+	                        <div className="app-filter-field">
+	                            <label>Dari Tarikh</label>
                             <input
                                 type="date"
                                 value={draftFilters.fromDate}
                                 onChange={(event) => setDraftFilters({ ...draftFilters, fromDate: event.target.value })}
                             />
                         </div>
-                        <div className="app-filter-field">
-                            <label>Hingga Tarikh</label>
+	                        <div className="app-filter-field">
+	                            <label>Hingga Tarikh</label>
                             <input
                                 type="date"
                                 value={draftFilters.toDate}
                                 onChange={(event) => setDraftFilters({ ...draftFilters, toDate: event.target.value })}
                             />
                         </div>
-                        <div className="app-filter-actions">
-                            <button className="app-button" type="submit">Search</button>
-                            <button className="app-button app-button-ghost" type="button" onClick={handleReset}>
-                                Reset
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            )}
+                            <div className="app-filter-field">
+                                <label>Status Siasatan</label>
+                                <select
+                                    value={draftFilters.ipStatus}
+                                    onChange={(event) => setDraftFilters({ ...draftFilters, ipStatus: event.target.value })}
+                                >
+                                    {ipStatusOptions.map((opt) => (
+                                        <option key={opt.value || opt.label} value={opt.value}>
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            {caseType !== 'AK' && (
+                                <div className="app-filter-field">
+                                    <label>Status Pendakwaan</label>
+                                    <select
+                                        value={draftFilters.prosecutionStatus}
+                                        onChange={(event) => setDraftFilters({ ...draftFilters, prosecutionStatus: event.target.value })}
+                                    >
+                                        {prosecutionStatusOptions.map((opt) => (
+                                            <option key={opt.value || opt.label} value={opt.value}>
+                                                {opt.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+	                        <div className="app-filter-actions">
+	                            <button className="app-button" type="submit">Search</button>
+	                            <button className="app-button app-button-ghost" type="button" onClick={handleReset}>
+	                                Reset
+	                            </button>
+	                        </div>
+	                    </div>
+	                </form>
+	            )}
 
             <div className={`app-complaints-body ${selectedComplaint ? 'has-drawer' : ''}`}>
                 <div className="app-complaints-main">
@@ -547,8 +660,35 @@ const ComplaintList = ({
                                 <span>{item.case_type || '-'}</span>
                                 <span>
                                     <span className="app-status-pill">
-                                        {item.current_stage || 'baru'}
+                                        {getComplaintStageLabel(item.current_stage || 'baru')}
                                     </span>
+                                    {role !== 'awam' && (() => {
+                                        const ipStatus = item.case_type === 'AK'
+                                            ? (item.ak_ip_status || '')
+                                            : (item.aj_ip_status || '');
+                                        const prosecutionStatus = item.case_type === 'AK'
+                                            ? ''
+                                            : (item.aj_prosecution_status || '');
+                                        const show = Boolean(ipStatus || prosecutionStatus);
+                                        if (!show) {
+                                            return null;
+                                        }
+
+                                        return (
+                                            <span className="app-status-stack">
+                                                {ipStatus && (
+                                                    <span className={`app-status-pill-mini ${getIpStatusBadgeTone(ipStatus)}`}>
+                                                        Siasatan: {ipStatus}
+                                                    </span>
+                                                )}
+                                                {prosecutionStatus && (
+                                                    <span className={`app-status-pill-mini ${getProsecutionStatusBadgeTone(prosecutionStatus)}`}>
+                                                        Pendakwaan: {getProsecutionStatusLabel(prosecutionStatus)}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        );
+                                    })()}
                                 </span>
                                 <span className="app-summary">
                                     {item.summary || '-'}
@@ -626,7 +766,7 @@ const ComplaintList = ({
                                 <div>
                                     <span className="app-eyebrow">Ringkasan Aduan</span>
                                     <h4>{selectedComplaint.reference_no || '-'}</h4>
-                                    <span className="app-status-pill">{selectedComplaint.current_stage || 'baru'}</span>
+                                    <span className="app-status-pill">{getComplaintStageLabel(selectedComplaint.current_stage || 'baru')}</span>
                                 </div>
                                 <button
                                     className="app-modal-close"
@@ -644,12 +784,25 @@ const ComplaintList = ({
                                 <p>No HP: {selectedComplaint.contact_number || '-'}</p>
                             </div>
 
-                            <div className="app-drawer-section">
-                                <h5>Maklumat Aduan</h5>
-                                <p>Tarikh/Masa: {selectedComplaint.complaint_date || '-'} {selectedComplaint.complaint_time || ''}</p>
-                                <p>Alamat: {selectedComplaint.address || '-'}</p>
-                                <p>Daerah: {selectedComplaint.district_name || '-'}</p>
-                            </div>
+	                            <div className="app-drawer-section">
+	                                <h5>Maklumat Aduan</h5>
+	                                <p>Tarikh/Masa: {selectedComplaint.complaint_date || '-'} {selectedComplaint.complaint_time || ''}</p>
+	                                <p>Alamat: {selectedComplaint.address || '-'}</p>
+	                                <p>Daerah: {selectedComplaint.district_name || '-'}</p>
+                                    {role !== 'awam' && (
+                                        <>
+                                            <p>
+                                                Status Siasatan:{' '}
+                                                {selectedComplaint.case_type === 'AK'
+                                                    ? (selectedComplaint.ak_ip_status || '-')
+                                                    : (selectedComplaint.aj_ip_status || '-')}
+                                            </p>
+                                            {selectedComplaint.case_type !== 'AK' && (
+                                                <p>Status Pendakwaan: {selectedComplaint.aj_prosecution_status || '-'}</p>
+                                            )}
+                                        </>
+                                    )}
+	                            </div>
 
                             <div className="app-drawer-section">
                                 <h5>Ringkasan Aduan</h5>

@@ -522,6 +522,10 @@ class ComplaintController extends Controller
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        // Respect the same access scope as view. (E.g. pegawai_daerah limited to their district.)
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
 
         $request->validate([
             'report' => 'required|array',
@@ -530,6 +534,8 @@ class ComplaintController extends Controller
         ]);
 
         $report = $request->report;
+
+        $hasReportNotes = trim((string) ($report['report_notes'] ?? '')) !== '';
 
         $complaint->update([
             'aj_arrest_status' => $report['arrest_status'] ?? null,
@@ -550,6 +556,16 @@ class ComplaintController extends Controller
             'handover_notes' => $report['handover_notes'] ?? null,
             'aj_seizure_status' => $report['seizure_status'] ?? null,
         ]);
+
+        // Auto progress stage: after aduan is approved and pegawai daerah completes the report,
+        // mark it as "selesai" (Laporan Tindakan Selesai).
+        if (
+            $hasReportNotes
+            && $user->hasRole('pegawai_daerah')
+            && (string) $complaint->current_stage === 'disahkan'
+        ) {
+            $complaint->update(['current_stage' => 'selesai']);
+        }
 
         DB::transaction(function () use ($complaint, $report) {
             ComplaintOyd::where('complaint_id', $complaint->id)->delete();
@@ -890,6 +906,22 @@ class ComplaintController extends Controller
         $caseType = trim((string) $request->query('case_type', ''));
         if ($caseType !== '') {
             $query->where('case_type', strtoupper($caseType));
+        }
+
+        $ipStatus = trim((string) $request->query('ip_status', ''));
+        if ($ipStatus !== '') {
+            $needle = strtolower($ipStatus);
+            // Support both AJ + AK in a single filter for "Senarai Aduan".
+            $query->where(function ($subQuery) use ($needle) {
+                $subQuery
+                    ->whereRaw('LOWER(aj_ip_status) = ?', [$needle])
+                    ->orWhereRaw('LOWER(ak_ip_status) = ?', [$needle]);
+            });
+        }
+
+        $prosecutionStatus = trim((string) $request->query('prosecution_status', ''));
+        if ($prosecutionStatus !== '') {
+            $query->whereRaw('LOWER(aj_prosecution_status) = ?', [strtolower($prosecutionStatus)]);
         }
 
         $isCase = $request->query('is_case');
