@@ -36,6 +36,13 @@ NGROK
 META BUSINESS
 ---
 
+WhatsAppWeb JS folder
+---
+1. npm install
+2. node server.js
+3. scan QR code guna phone Linked Devices dalam app WhatsApp
+4. guna phone lain mesej wasap 'hello'
+
 Link download Laragon:
 https://io.bikegremlin.com/35435/laragon-6-php-8-4-install/
 
