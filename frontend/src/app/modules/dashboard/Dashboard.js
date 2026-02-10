@@ -201,7 +201,7 @@ const Dashboard = () => {
                             <>
                                 <Link className="app-action-link" to="/app/complaints/pending-approval">
                                     <strong>{pendingApprovalCount} aduan</strong>
-                                    <p>Menunggu pengesahan anda.</p>
+                                    <p className="app-text-blink">Menunggu pengesahan anda.</p>
                                 </Link>
                                 <div>
                                     <strong>12 aduan</strong>

@@ -34,10 +34,16 @@ const ComplaintPrintTindakanAduan = () => {
     const complaintDate = complaint?.complaint_date || '-';
     const complaintTime = complaint?.complaint_time || '-';
     const receivedBy = complaint?.submitted_by?.staff?.name || complaint?.submitted_by?.name || '-';
-    const approverName = complaint?.approverStaff?.name || '-';
+    const pelaksanaName = complaint?.pic_user?.name || '-';
     const approverDate = complaint?.approver_confirmed_at ? new Date(complaint.approver_confirmed_at) : null;
     const approverDateText = approverDate ? approverDate.toLocaleDateString('ms-MY') : '-';
     const approverTimeText = approverDate ? approverDate.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : '-';
+    const directiveAt = complaint?.aj_directive_at ? new Date(complaint.aj_directive_at) : null;
+    const directiveDateText = directiveAt ? directiveAt.toLocaleDateString('ms-MY') : approverDateText;
+    const directiveTimeText = directiveAt ? directiveAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : approverTimeText;
+    const handoverAt = complaint?.handover_at ? new Date(complaint.handover_at) : null;
+    const handoverDateText = handoverAt ? handoverAt.toLocaleDateString('ms-MY') : (complaint?.approver_confirmed_at ? approverDateText : '-');
+    const handoverTimeText = handoverAt ? handoverAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : (complaint?.approver_confirmed_at ? approverTimeText : '-');
 
     if (isLoading) {
         return <div className="print-loading">Memuatkan borang...</div>;
@@ -93,7 +99,7 @@ const ComplaintPrintTindakanAduan = () => {
                     </div>
                     <div className="print-box">
                         <span>Kumpulan / Pelaksana</span>
-                        <strong>{renderValue(approverName)}</strong>
+                        <strong>{renderValue(pelaksanaName)}</strong>
                     </div>
                 </div>
 
@@ -105,17 +111,17 @@ const ComplaintPrintTindakanAduan = () => {
                     </div>
                     <div className="print-box">
                         <span>Tarikh Maklum Aduan</span>
-                        <strong>{renderValue(approverDateText)}</strong>
+                        <strong>{renderValue(directiveDateText)}</strong>
                     </div>
                     <div className="print-box">
                         <span>Masa Maklum Aduan</span>
-                        <strong>{renderValue(approverTimeText)}</strong>
+                        <strong>{renderValue(directiveTimeText)}</strong>
                     </div>
                 </div>
                 <div className="print-notes">
                     <span>Minit / Arahan Tindakan</span>
                     <div className="print-notes-box">
-                        {renderValue(complaint.aj_report_notes)}
+                        {renderValue(complaint.aj_directive_notes || complaint.aj_report_notes)}
                     </div>
                 </div>
 
@@ -127,11 +133,11 @@ const ComplaintPrintTindakanAduan = () => {
                     </div>
                     <div className="print-box">
                         <span>Tarikh Serahan</span>
-                        <strong>{renderValue(complaint.approver_confirmed_at ? approverDateText : '-')}</strong>
+                        <strong>{renderValue(handoverDateText)}</strong>
                     </div>
                     <div className="print-box">
                         <span>Masa Serahan</span>
-                        <strong>{renderValue(complaint.approver_confirmed_at ? approverTimeText : '-')}</strong>
+                        <strong>{renderValue(handoverTimeText)}</strong>
                     </div>
                 </div>
 
@@ -144,9 +150,9 @@ const ComplaintPrintTindakanAduan = () => {
                     </div>
                     <div className="print-table-row">
                         <span>{renderValue(complaint.classification_code)}</span>
-                        <span>{renderValue(approverDateText)}</span>
-                        <span>{renderValue(approverTimeText)}</span>
-                        <span>{renderValue(complaint.aj_notes)}</span>
+                        <span>{renderValue(handoverDateText)}</span>
+                        <span>{renderValue(handoverTimeText)}</span>
+                        <span>{renderValue(complaint.handover_notes || complaint.aj_notes)}</span>
                     </div>
                 </div>
 
@@ -154,7 +160,7 @@ const ComplaintPrintTindakanAduan = () => {
                     Status Terkini / Tarikh Tindakan: {renderValue(complaint.current_stage)}
                 </div>
                 <div className="print-footer-note">
-                    No. Daftar Kes: -
+                    No. Daftar Kes: {renderValue(complaint.case_register_no)}
                 </div>
             </div>
         </div>

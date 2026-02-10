@@ -129,6 +129,9 @@ class ComplaintController extends Controller
             'appointment:id,complaint_id,start_at,end_at,status',
             'oyds:id,complaint_id,name,id_number,investigator_name,file_no',
             'seizureItems:id,complaint_id,item_no,description,storage',
+            'ajDirectiveStaff:id,name,staff_id',
+            'ajArrestStaff:id,name,staff_id',
+            'ajProsecutorStaff:id,name,staff_id',
         ]);
         if ($complaint->classification_id) {
             $complaint->classification_code = DB::table('complaint_classifications')
@@ -335,8 +338,12 @@ class ComplaintController extends Controller
             'address' => 'nullable|string|max:1000',
             'district_id' => 'nullable|exists:districts,id',
             'summary' => 'nullable|string|max:10000',
+            'borang5_statement' => 'nullable|string|max:20000',
             'complaint_date' => 'nullable|date',
             'complaint_time' => 'nullable|date_format:H:i',
+            'incident_date' => 'nullable|date',
+            'incident_time' => 'nullable|date_format:H:i',
+            'offense_id' => 'nullable|exists:ref_offenses,id',
         ]);
 
         $payload = [];
@@ -345,12 +352,19 @@ class ComplaintController extends Controller
             'identification_number',
             'contact_number',
             'address',
-            'summary',
+            'borang5_statement',
             'complaint_date',
+            'incident_date',
         ] as $key) {
             if (array_key_exists($key, $validated)) {
                 $payload[$key] = $validated[$key];
             }
+        }
+
+        // complaints.summary is non-nullable in current schema.
+        // Allow officer flows to keep it empty string (but never NULL).
+        if (array_key_exists('summary', $validated)) {
+            $payload['summary'] = $validated['summary'] ?? '';
         }
 
         if (array_key_exists('complaint_time', $validated)) {
@@ -360,10 +374,25 @@ class ComplaintController extends Controller
                 : null;
         }
 
+        if (array_key_exists('incident_time', $validated)) {
+            $payload['incident_time'] = $validated['incident_time'] !== null && $validated['incident_time'] !== ''
+                ? ($validated['incident_time'] . ':00')
+                : null;
+        }
+
         if (array_key_exists('district_id', $validated)) {
             $district = $validated['district_id'] ? District::find($validated['district_id']) : null;
             $payload['district_id'] = $district?->id;
             $payload['district_name'] = $district?->name;
+        }
+
+        if (array_key_exists('offense_id', $validated)) {
+            $offenseId = $validated['offense_id'] ? (int) $validated['offense_id'] : null;
+            if (strtoupper((string) ($complaint->case_type ?: 'AJ')) === 'AK') {
+                $payload['ak_offense_id'] = $offenseId;
+            } else {
+                $payload['aj_offense_id'] = $offenseId;
+            }
         }
 
         if (! empty($payload)) {
@@ -462,6 +491,18 @@ class ComplaintController extends Controller
             'aj_judi_detail_id' => $request->payload['judi_detail_id'] ?? null,
             'aj_notes' => $request->payload['notes'] ?? null,
             'aj_ppa_classification' => $ppaClassification,
+            'aj_supervisor_staff_id' => $request->payload['supervisor_staff_id'] ?? null,
+            'aj_ip_status' => $request->payload['ip_status'] ?? null,
+            'aj_ip_due_date' => $request->payload['ip_due_date'] ?? null,
+            'aj_kpp_due_date' => $request->payload['kpp_due_date'] ?? null,
+            'aj_jpss_due_date' => $request->payload['jpss_due_date'] ?? null,
+            'aj_investigation_notes' => $request->payload['investigation_notes'] ?? null,
+            'aj_prosecution_status' => $request->payload['prosecution_status'] ?? null,
+            'aj_prosecutor_staff_id' => $request->payload['prosecutor_staff_id'] ?? null,
+            'aj_mahkamah_id' => $request->payload['mahkamah_id'] ?? null,
+            'aj_fine' => $request->payload['fine'] ?? null,
+            'aj_prosecution_notes' => $request->payload['prosecution_notes'] ?? null,
+            'aj_fir_no' => $request->payload['fir_no'] ?? null,
         ];
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
@@ -498,10 +539,15 @@ class ComplaintController extends Controller
             'aj_action_datetime' => $report['action_datetime'] ?? null,
             'aj_report_offense_id' => $report['offense_id'] ?? null,
             'aj_arrest_by' => $report['arrest_by'] ?? null,
+            'aj_arrest_staff_id' => $report['arrest_staff_id'] ?? null,
             'aj_statement_datetime' => $report['statement_datetime'] ?? null,
             'aj_court_date' => $report['court_date'] ?? null,
             'aj_report_notes' => $report['report_notes'] ?? null,
             'aj_directive_staff_id' => $report['directive_staff_id'] ?? null,
+            'aj_directive_at' => $report['directive_at'] ?? null,
+            'aj_directive_notes' => $report['directive_notes'] ?? null,
+            'handover_at' => $report['handover_at'] ?? null,
+            'handover_notes' => $report['handover_notes'] ?? null,
             'aj_seizure_status' => $report['seizure_status'] ?? null,
         ]);
 
@@ -556,17 +602,30 @@ class ComplaintController extends Controller
             'payload' => 'required|array',
         ]);
 
+        $investigatorStaffId = $request->payload['investigator_staff_id'] ?? null;
+        $investigatorName = $request->payload['investigator_name'] ?? null;
+        if ($investigatorStaffId) {
+            $staff = Staff::find($investigatorStaffId);
+            if ($staff) {
+                $investigatorName = $staff->staff_id
+                    ? ($staff->name . ' (' . $staff->staff_id . ')')
+                    : $staff->name;
+            }
+        }
+
         $payload = [
             'ak_offense_id' => $request->payload['offense_id'] ?? null,
             'ak_offense_type' => $request->payload['offense_type_id'] ?? null,
             'ak_email_cc' => $request->payload['email_cc'] ?? [],
             'ak_investigation_datetime' => $request->payload['investigation_datetime'] ?? null,
-            'ak_investigator_name' => $request->payload['investigator_name'] ?? null,
+            'ak_investigator_staff_id' => $investigatorStaffId ?: null,
+            'ak_investigator_name' => $investigatorName,
             'ak_file_received_date' => $request->payload['file_received_date'] ?? null,
             'ak_ip_status' => $request->payload['ip_status'] ?? null,
             'ak_ip_due_date' => $request->payload['ip_due_date'] ?? null,
             'ak_prosecution_date' => $request->payload['prosecution_date'] ?? null,
             'ak_notes' => $request->payload['notes'] ?? null,
+            'ak_supervisor_staff_id' => $request->payload['supervisor_staff_id'] ?? null,
         ];
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
@@ -658,10 +717,38 @@ class ComplaintController extends Controller
             'identification_number' => 'required|string|max:255',
             'contact_number' => 'required|string|max:255',
             'address' => 'required|string|max:1000',
-            'district_id' => 'nullable|exists:districts,id',
+            'district_id' => 'required|exists:districts,id',
             'case_type' => 'nullable|in:AJ,AK',
-            'summary' => 'required|string|max:10000',
+            'summary' => 'nullable|string|max:10000',
+            'borang5_statement' => 'nullable|string|max:20000',
+            'channel' => 'nullable|string|max:50',
+            'offense_id' => 'nullable|exists:ref_offenses,id',
+            'incident_date' => 'nullable|date',
+            'incident_time' => 'nullable|date_format:H:i',
         ]);
+
+        $channel = (string) ($request->channel ?? 'web');
+        // Keep summary as string (can be empty for officer intake).
+        // DB column is non-nullable in current schema, so never persist null.
+        $summary = (string) ($request->summary ?? '');
+        $borang5Statement = (string) ($request->borang5_statement ?? '');
+        $offenseId = $request->input('offense_id');
+
+        // Public portal submissions must include Ringkasan Aduan.
+        if (strcasecmp($channel, 'portal') === 0 && trim($summary) === '') {
+            return response()->json([
+                'message' => 'Ringkasan Aduan wajib diisi.',
+                'errors' => ['summary' => ['Ringkasan Aduan wajib diisi.']],
+            ], 422);
+        }
+
+        // Officer channels should include Borang 5 statement (but summary can be empty).
+        if (strcasecmp($channel, 'portal') !== 0 && trim($borang5Statement) === '') {
+            return response()->json([
+                'message' => 'Butiran Aduan (Borang 5) wajib diisi untuk aduan pegawai.',
+                'errors' => ['borang5_statement' => ['Butiran Aduan (Borang 5) wajib diisi.']],
+            ], 422);
+        }
 
         $now = now();
         $year = (int) $now->format('Y');
@@ -681,24 +768,34 @@ class ComplaintController extends Controller
             'complaint_year' => $year,
             'complaint_date' => $now->toDateString(),
             'complaint_time' => $now->format('H:i:s'),
+            'incident_date' => $request->input('incident_date'),
+            'incident_time' => $request->filled('incident_time') ? ($request->input('incident_time') . ':00') : null,
             'complainant_name' => $request->complainant_name,
             'identification_number'    => $request->identification_number,
             'contact_number'    => $request->contact_number,
             'address'    => $request->address,
             'district_id' => $district?->id,
             'district_name' => $district?->name,
-            'summary'    => $request->summary,
-            'channel' => $request->channel ?? 'web',
+            'summary'    => $summary,
+            'borang5_statement' => trim($borang5Statement) !== '' ? $borang5Statement : null,
+            'aj_offense_id' => ($caseType === 'AJ' && $offenseId) ? (int) $offenseId : null,
+            'ak_offense_id' => ($caseType === 'AK' && $offenseId) ? (int) $offenseId : null,
+            'channel' => $channel,
             'current_stage' => 'baru',
             'submitted_at' => $now,
             'submitted_by_user_id' => Auth::guard('sanctum')->id(),
             'name' => $request->complainant_name,
-            'contents' => $request->summary,
+            // For search/indexing, prefer summary; fallback to borang5 statement for officer intake.
+            'contents' => trim($summary) !== '' ? $summary : $borang5Statement,
         ]);
 
         return response()->json([
             'message' => 'Complaint Submitted',
             'reference_no' => $referenceNo,
+            'data' => [
+                'id' => $complaint->id,
+                'reference_no' => $complaint->reference_no,
+            ],
         ]);
     }
 

@@ -1,16 +1,20 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import SearchSelect from '../../../libs/SearchSelect';
 import SharedStaffSelect from '../../components/SharedStaffSelect';
 import SharedOffenseSelect from '../../components/SharedOffenseSelect';
 import SharedInlineAlert from '../../components/SharedInlineAlert';
+import SharedInlineEditText from '../../components/SharedInlineEditText';
+import SharedIpStatusSelect from '../../components/SharedIpStatusSelect';
+import SharedMahkamahSelect from '../../components/SharedMahkamahSelect';
+import SharedProsecutionStatusSelect from '../../components/SharedProsecutionStatusSelect';
 import { useToast } from '../../components/SharedToastProvider';
+import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
 
 const AJ_STEPS = [
     { key: 'ppa', label: 'Tindakan Aduan' },
     { key: 'laporan', label: 'Laporan Pemeriksaan' },
-    { key: 'barang', label: 'Butiran Barang Kes' },
     { key: 'siasatan', label: 'Butiran Siasatan' },
     { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
 ];
@@ -25,6 +29,7 @@ const ComplaintDetail = () => {
     const { id } = useParams();
     const apiUrl = process.env.REACT_APP_API_URL;
     const toast = useToast();
+    const detailHeaderRef = useRef(null);
     const [complaint, setComplaint] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -49,6 +54,18 @@ const ComplaintDetail = () => {
         judi_detail_id: '',
         notes: '',
         classification: '',
+        supervisor_staff_id: '',
+        ip_status: '',
+        ip_due_date: '',
+        kpp_due_date: '',
+        jpss_due_date: '',
+        investigation_notes: '',
+        prosecution_status: '',
+        prosecutor_staff_id: '',
+        mahkamah_id: '',
+        fine: '',
+        prosecution_notes: '',
+        fir_no: '',
     };
     const ajReportDefault = {
         arrest_status: '',
@@ -58,10 +75,15 @@ const ComplaintDetail = () => {
         action_datetime: '',
         offense_id: '',
         arrest_by: '',
+        arrest_staff_id: '',
         statement_datetime: '',
         court_date: '',
         report_notes: '',
         directive_staff_id: '',
+        directive_at: '',
+        directive_notes: '',
+        handover_at: '',
+        handover_notes: '',
         oyds: [
             { name: '', id_number: '', investigator_name: '', file_no: '' },
         ],
@@ -76,11 +98,13 @@ const ComplaintDetail = () => {
         email_cc: [],
         investigation_datetime: '',
         investigator_name: '',
+        investigator_staff_id: '',
         file_received_date: '',
         ip_status: '',
         ip_due_date: '',
         prosecution_date: '',
         notes: '',
+        supervisor_staff_id: '',
     };
     const [ajPayload, setAjPayload] = useState(ajPayloadDefault);
     const [ajReport, setAjReport] = useState(ajReportDefault);
@@ -104,9 +128,13 @@ const ComplaintDetail = () => {
         contact_number: '',
         complaint_date: '',
         complaint_time: '',
+        incident_date: '',
+        incident_time: '',
         district_id: '',
         address: '',
         summary: '',
+        borang5_statement: '',
+        offense_id: '',
     });
     const [reportSections, setReportSections] = useState({
         issuer: true,
@@ -127,6 +155,19 @@ const ComplaintDetail = () => {
         { label: 'bpn.sabakbernam@gmail.com', email: 'bpn.sabakbernam@gmail.com' },
         { label: 'jais.sepang@gmail.com', email: 'jais.sepang@gmail.com' },
     ];
+
+    const formatChannelLabel = (channel) => {
+        const value = (channel || '').toString().trim().toLowerCase();
+        if (!value) return '-';
+        if (value === 'portal') return 'Portal (Awam)';
+        if (value === 'web') return 'Web';
+        if (value === 'walkin') return 'Walk-in / Kaunter';
+        if (value === 'telefon') return 'Telefon';
+        if (value === 'email') return 'Email';
+        if (value === 'agensi') return 'Agensi';
+        if (value === 'lain') return 'Lain-lain';
+        return channel;
+    };
 
     const formatDateTime = (value) => {
         if (!value) {
@@ -172,6 +213,32 @@ const ComplaintDetail = () => {
                 setIsLoading(false);
             });
     }, [apiUrl, id]);
+
+    useEffect(() => {
+        const el = detailHeaderRef.current;
+        if (!el) return;
+
+        const apply = () => {
+            const h = Math.ceil(el.getBoundingClientRect().height || 0);
+            document.documentElement.style.setProperty('--app-detail-header-sticky-h', `${h}px`);
+        };
+
+        apply();
+
+        let ro = null;
+        if (typeof ResizeObserver !== 'undefined') {
+            ro = new ResizeObserver(() => apply());
+            ro.observe(el);
+        }
+
+        window.addEventListener('resize', apply);
+        return () => {
+            window.removeEventListener('resize', apply);
+            if (ro) {
+                ro.disconnect();
+            }
+        };
+    }, [complaint?.reference_no, complaint?.current_stage, sortedIds.length]);
 
     useEffect(() => {
         if (!apiUrl) {
@@ -233,13 +300,35 @@ const ComplaintDetail = () => {
             contact_number: complaint.contact_number || '',
             complaint_date: complaint.complaint_date || '',
             complaint_time: (complaint.complaint_time || '').slice(0, 5),
+            incident_date: complaint.incident_date || '',
+            incident_time: (complaint.incident_time || '').slice(0, 5),
             district_id: complaint.district_id ? String(complaint.district_id) : '',
             address: complaint.address || '',
             summary: complaint.summary || '',
+            borang5_statement: complaint.borang5_statement || '',
+            offense_id: complaint.case_type === 'AK'
+                ? (complaint.ak_offense_id ? String(complaint.ak_offense_id) : '')
+                : (complaint.aj_offense_id ? String(complaint.aj_offense_id) : ''),
         });
         setAddressExpanded(false);
         setSummaryExpanded(false);
     }, [complaint]);
+
+    const saveBasicField = async (fieldName, value) => {
+        if (!apiUrl || !id) return;
+        const token = localStorage.getItem('token');
+        const payload = { [fieldName]: value };
+        const response = await axios.post(`${apiUrl}/complaints/${id}/basic`, payload, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const updated = response?.data?.data;
+        if (updated) {
+            setComplaint((prev) => (prev ? { ...prev, ...updated } : prev));
+        }
+        const msg = response?.data?.message || 'Maklumat aduan dikemaskini.';
+        toast.success(msg);
+        return updated;
+    };
 
     const saveBasic = () => {
         if (!apiUrl || !id || basicSaving) {
@@ -251,6 +340,7 @@ const ComplaintDetail = () => {
         axios.post(`${apiUrl}/complaints/${id}/basic`, {
             ...basicDraft,
             district_id: basicDraft.district_id || null,
+            offense_id: basicDraft.offense_id || null,
         }, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -270,6 +360,121 @@ const ComplaintDetail = () => {
                 toast.error(msg);
             })
             .finally(() => setBasicSaving(false));
+    };
+
+    const formatBorang5TemplateDate = (isoDate) => {
+        if (!isoDate) return '';
+        // Expect ISO yyyy-mm-dd from DB/UI; render as dd.mm.yyyy to match existing JAIS templates.
+        const match = String(isoDate).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return '';
+        return `${match[3]}.${match[2]}.${match[1]}`;
+    };
+
+    const formatBorang5TemplateTime = (hhmm) => {
+        if (!hhmm) return '';
+        const match = String(hhmm).trim().match(/^(\d{1,2}):(\d{2})$/);
+        if (!match) return '';
+        const hh = match[1].padStart(2, '0');
+        return `${hh}.${match[2]}`; // 24h with dot, keep existing suffix (PAGI/PETANG) if template has it
+    };
+
+    const hydrateBorang5Template = (rawText) => {
+        if (!rawText) return '';
+        let text = String(rawText);
+
+        // Borang 5 uses "Tarikh/Masa Aduan" (complaint_date/time) for PADA/JAM like current public flow.
+        const dateDot = formatBorang5TemplateDate(basicDraft.complaint_date);
+        const timeDot = formatBorang5TemplateTime(basicDraft.complaint_time);
+        const address = (basicDraft.address || '').trim();
+
+        if (dateDot) {
+            // Placeholder: "PADA __________"
+            text = text.replace(/PADA\s+__________/i, `PADA ${dateDot}`);
+            // Replace the first explicit date after "PADA".
+            text = text.replace(/PADA\s+(\d{1,2}[./-]\d{1,2}[./-]\d{4}|\d{4}-\d{2}-\d{2})/i, `PADA ${dateDot}`);
+        }
+
+        if (timeDot) {
+            // Placeholder: "JAM _____" or "JAM LEBIH KURANG _____"
+            text = text.replace(/(JAM\s+(?:LEBIH\s+KURANG\s+)?)_____/i, `$1${timeDot}`);
+            text = text.replace(/(LEBIH\s+KURANG\s+JAM\s+)_____/i, `$1${timeDot}`);
+            // Common: "JAM LEBIH KURANG 02.35", "JAM 04.50", "LEBIH KURANG JAM 6.00"
+            text = text.replace(/(JAM\s+(?:LEBIH\s+KURANG\s+)?)\d{1,2}(?:[.:]\d{2})?/i, `$1${timeDot}`);
+            text = text.replace(/(LEBIH\s+KURANG\s+JAM\s+)\d{1,2}(?:[.:]\d{2})?/i, `$1${timeDot}`);
+        }
+
+        if (address) {
+            // Replace the value after the location labels (first line only).
+            text = text.replace(/(LOKASI KEJADIAN\s*:)\s*__________/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT LOKASI KEJADIAN\s*:)\s*__________/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT KEJADIAN\s*:)\s*__________/gi, `$1 ${address}`);
+            text = text.replace(/(LOKASI KEJADIAN\s*:)\s*[^\n]*/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT LOKASI KEJADIAN\s*:)\s*[^\n]*/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT KEJADIAN\s*:)\s*[^\n]*/gi, `$1 ${address}`);
+        }
+
+        return text.trim();
+    };
+
+    const resolveTemplateKeyFromOffense = (offense) => {
+        const code = (offense?.code || '').toString().toUpperCase();
+        const section = (offense?.section || '').toString().toUpperCase();
+
+        let num = '';
+        let isEpais = false;
+
+        const ejss = code.match(/^EJSS-(\d+)/);
+        const epaisNum = code.match(/^EPAIS-(\d+)/);
+        if (ejss) {
+            num = ejss[1];
+        } else if (epaisNum) {
+            num = epaisNum[1];
+            isEpais = true;
+        } else if (code.startsWith('EPAIS-')) {
+            isEpais = true;
+        }
+
+        if (!num) {
+            const match = section.match(/\b(?:SEC|SEKSYEN)\s*([0-9]+)/);
+            if (match) {
+                num = match[1];
+                isEpais = isEpais || section.includes('EPAIS');
+            }
+        }
+
+        if (num === '32' || num === '33' || num === '34') return 'seksyen_32_33_34';
+        if (isEpais && num) return `epais_${num}`;
+        if (num) return `seksyen_${num}`;
+        return '';
+    };
+
+    const formatOffenseLabel = (offense) => {
+        if (!offense) return '';
+        const code = (offense.code || '').toString().trim();
+        const section = (offense.section || '').toString().trim();
+        const name = (offense.name || '').toString().trim();
+        const parts = [];
+        if (code) parts.push(code);
+        if (section) parts.push(section);
+        const head = parts.length ? `${parts.join(' / ')}` : '';
+        if (head && name) return `${head} - ${name}`;
+        return name || head;
+    };
+
+    const applyBorang5OfficerTemplate = (templateKey, offense) => {
+        const tpl = BORANG5_OFFICER_TEMPLATES.find((item) => item.key === templateKey)
+            || BORANG5_OFFICER_TEMPLATES.find((item) => item.key === 'generic');
+        if (!tpl) return;
+
+        const existing = (basicDraft.borang5_statement || '').trim();
+        const nextText = hydrateBorang5Template((tpl.text || '').replace('{{OFFENSE}}', formatOffenseLabel(offense)));
+
+        if (existing && existing !== nextText) {
+            const ok = window.confirm('Butiran Aduan (Borang 5) akan diganti dengan template yang dipilih. Teruskan?');
+            if (!ok) return;
+        }
+
+        setBasicDraft((prev) => ({ ...prev, borang5_statement: nextText }));
     };
 
 
@@ -305,6 +510,18 @@ const ComplaintDetail = () => {
             judi_detail_id: complaint.aj_judi_detail_id ? String(complaint.aj_judi_detail_id) : '',
             notes: complaint.aj_notes || '',
             classification: complaint.aj_ppa_classification || '',
+            supervisor_staff_id: complaint.aj_supervisor_staff_id ? String(complaint.aj_supervisor_staff_id) : '',
+            ip_status: complaint.aj_ip_status || '',
+            ip_due_date: complaint.aj_ip_due_date || '',
+            kpp_due_date: complaint.aj_kpp_due_date || '',
+            jpss_due_date: complaint.aj_jpss_due_date || '',
+            investigation_notes: complaint.aj_investigation_notes || '',
+            prosecution_status: complaint.aj_prosecution_status || '',
+            prosecutor_staff_id: complaint.aj_prosecutor_staff_id ? String(complaint.aj_prosecutor_staff_id) : '',
+            mahkamah_id: complaint.aj_mahkamah_id ? String(complaint.aj_mahkamah_id) : '',
+            fine: complaint.aj_fine || '',
+            prosecution_notes: complaint.aj_prosecution_notes || '',
+            fir_no: complaint.aj_fir_no || '',
         });
         setAjReport({
             ...ajReportDefault,
@@ -315,10 +532,15 @@ const ComplaintDetail = () => {
             action_datetime: complaint.aj_action_datetime || '',
             offense_id: complaint.aj_report_offense_id ? String(complaint.aj_report_offense_id) : '',
             arrest_by: complaint.aj_arrest_by || '',
+            arrest_staff_id: complaint.aj_arrest_staff_id ? String(complaint.aj_arrest_staff_id) : '',
             statement_datetime: complaint.aj_statement_datetime || '',
             court_date: complaint.aj_court_date || '',
             report_notes: complaint.aj_report_notes || '',
             directive_staff_id: complaint.aj_directive_staff_id ? String(complaint.aj_directive_staff_id) : '',
+            directive_at: complaint.aj_directive_at || '',
+            directive_notes: complaint.aj_directive_notes || '',
+            handover_at: complaint.handover_at || '',
+            handover_notes: complaint.handover_notes || '',
             oyds: (complaint.oyds || []).length
                 ? complaint.oyds.map((row) => ({
                     name: row.name || '',
@@ -343,14 +565,30 @@ const ComplaintDetail = () => {
             email_cc: complaint.ak_email_cc || [],
             investigation_datetime: complaint.ak_investigation_datetime || '',
             investigator_name: complaint.ak_investigator_name || '',
+            investigator_staff_id: complaint.ak_investigator_staff_id ? String(complaint.ak_investigator_staff_id) : '',
             file_received_date: complaint.ak_file_received_date || '',
             ip_status: complaint.ak_ip_status || '',
             ip_due_date: complaint.ak_ip_due_date || '',
             prosecution_date: complaint.ak_prosecution_date || '',
             notes: complaint.ak_notes || '',
+            supervisor_staff_id: complaint.ak_supervisor_staff_id ? String(complaint.ak_supervisor_staff_id) : '',
         });
         setApproverStaffId(complaint.approver_staff_id ? String(complaint.approver_staff_id) : '');
     }, [complaint]);
+
+    useEffect(() => {
+        // Keep report offense in sync with AJ "Kesalahan Disyaki".
+        if (!ajPayload.offense_id) {
+            return;
+        }
+        setAjReport((prev) => {
+            if (!prev) return prev;
+            if (String(prev.offense_id || '') === String(ajPayload.offense_id || '')) {
+                return prev;
+            }
+            return { ...prev, offense_id: ajPayload.offense_id };
+        });
+    }, [ajPayload.offense_id]);
 
     const updateReportField = (field, value) => {
         setAjReport((prev) => ({ ...prev, [field]: value }));
@@ -493,16 +731,34 @@ const ComplaintDetail = () => {
         const token = localStorage.getItem('token');
         setPayloadMessage('');
         axios.post(`${apiUrl}/complaints/${id}/aj`, {
-            payload: ajPayload,
+            // Keep fir_no consistent with reference_no (Zoho field is effectively No Aduan).
+            payload: { ...ajPayload, fir_no: complaint?.reference_no || ajPayload.fir_no || '' },
         }, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
             .then((response) => {
-                setPayloadMessage('Maklumat AJ dikemaskini.');
+                setPayloadMessage('Maklumat telah dikemaskini.');
                 const updated = response?.data?.data;
                 if (updated) {
                     setComplaint((prev) => prev ? { ...prev, ...updated } : prev);
                 }
+
+                // Save Borang 5 statement (kept in complaints table) together with the selected offense.
+                if (id) {
+                    return axios.post(`${apiUrl}/complaints/${id}/basic`, {
+                        borang5_statement: basicDraft.borang5_statement || '',
+                        offense_id: ajPayload.offense_id || null,
+                    }, {
+                        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                    })
+                        .then(() => {
+                            toast.success('Maklumat telah dikemaskini.');
+                        })
+                        .catch(() => {
+                            toast.error('Gagal kemaskini maklumat.');
+                        });
+                }
+                return undefined;
             })
             .catch((err) => {
                 setPayloadMessage(err?.response?.data?.message || 'Gagal kemaskini AJ.');
@@ -521,11 +777,27 @@ const ComplaintDetail = () => {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
             .then((response) => {
-                setPayloadMessage('Maklumat AK dikemaskini.');
+                setPayloadMessage('Maklumat telah dikemaskini.');
                 const updated = response?.data?.data;
                 if (updated) {
                     setComplaint((prev) => prev ? { ...prev, ...updated } : prev);
                 }
+
+                if (id) {
+                    return axios.post(`${apiUrl}/complaints/${id}/basic`, {
+                        borang5_statement: basicDraft.borang5_statement || '',
+                        offense_id: akPayload.offense_id || null,
+                    }, {
+                        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                    })
+                        .then(() => {
+                            toast.success('Maklumat telah dikemaskini.');
+                        })
+                        .catch(() => {
+                            toast.error('Gagal kemaskini maklumat.');
+                        });
+                }
+                return undefined;
             })
             .catch((err) => {
                 setPayloadMessage(err?.response?.data?.message || 'Gagal kemaskini AK.');
@@ -538,20 +810,29 @@ const ComplaintDetail = () => {
         }
         const token = localStorage.getItem('token');
         setReportMessage('');
+        const nextReport = {
+            ...ajReport,
+            // Kesalahan untuk laporan pemeriksaan ikut "Tindakan Aduan" (Kesalahan Disyaki).
+            offense_id: ajPayload.offense_id || '',
+        };
         axios.post(`${apiUrl}/complaints/${id}/aj-report`, {
-            report: ajReport,
+            report: nextReport,
         }, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
             .then((response) => {
                 setReportMessage('Laporan pemeriksaan dikemaskini.');
+                toast.success('Laporan pemeriksaan dikemaskini.');
+                setAjReport(nextReport);
                 const updated = response?.data?.data;
                 if (updated) {
                     setComplaint((prev) => prev ? { ...prev, ...updated } : prev);
                 }
             })
             .catch((err) => {
-                setReportMessage(err?.response?.data?.message || 'Gagal kemaskini laporan.');
+                const msg = err?.response?.data?.message || 'Gagal kemaskini laporan.';
+                setReportMessage(msg);
+                toast.error(msg);
             });
     };
 
@@ -606,11 +887,26 @@ const ComplaintDetail = () => {
         )
     );
     const steps = currentCaseType === 'AK' ? AK_STEPS : AJ_STEPS;
+    const isApproved = Boolean(complaint?.approver_confirmed_at);
+    const lockedStepKeys = useMemo(() => {
+        if (currentCaseType === 'AK') {
+            return ['siasatan', 'pendakwaan'];
+        }
+        return ['laporan', 'siasatan', 'pendakwaan'];
+    }, [currentCaseType]);
+    const isStepLocked = useCallback((key) => (!isApproved && lockedStepKeys.includes(key)), [isApproved, lockedStepKeys]);
 
     useEffect(() => {
         setActiveStep(0);
     }, [id, currentCaseType]);
+
     const activeKey = steps[activeStep]?.key;
+    useEffect(() => {
+        if (activeKey && isStepLocked(activeKey)) {
+            setActiveStep(0);
+        }
+    }, [activeKey, isStepLocked]);
+    // NOTE: For offenses, prefer SharedOffenseSelect (it loads options from API).
     const offenseOptions = useMemo(() => ([]), []);
     const offenseTypeOptions = useMemo(() => (
         referenceData.offenseTypes.map((item) => ({
@@ -684,7 +980,7 @@ const ComplaintDetail = () => {
 
     return (
         <div className="app-detail">
-            <div className="app-detail-header">
+            <div className="app-detail-header" ref={detailHeaderRef}>
                 <div className="app-detail-header-block">
                     <Link className="app-back" to="/app/complaints">
                         <i className="bi bi-arrow-left"></i>
@@ -764,47 +1060,30 @@ const ComplaintDetail = () => {
 
             <div className="app-detail-grid">
                 <div className="app-card app-span-full">
-                    <div className="app-card-header">
+                    <div className="app-card-header has-submeta">
                         <h4>Maklumat Aduan</h4>
-                        {isPegawaiRole && (
-                            <div className="app-row-actions">
-                                {!basicEditing && (
-                                    <button
-                                        type="button"
-                                        className="app-button app-button-ghost"
-                                        onClick={() => {
-                                            setBasicMessage('');
-                                            setBasicEditing(true);
-                                        }}
-                                    >
-                                        Kemaskini
-                                    </button>
-                                )}
-                                {basicEditing && (
-                                    <>
-                                        <button
-                                            type="button"
-                                            className="app-button app-button-outline"
-                                            onClick={() => {
-                                                setBasicMessage('');
-                                                setBasicEditing(false);
-                                            }}
-                                            disabled={basicSaving}
-                                        >
-                                            Batal
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="app-button"
-                                            onClick={saveBasic}
-                                            disabled={basicSaving}
-                                        >
-                                            {basicSaving ? 'Menyimpan...' : 'Simpan'}
-                                        </button>
-                                    </>
-                                )}
+                        <div className="app-detail-submeta app-detail-submeta--inline" aria-label="Maklumat penghantaran aduan">
+                            <div className="app-detail-submeta-item">
+                                <span className="app-detail-submeta-label">Tahun</span>
+                                <strong>{complaint.complaint_year || '-'}</strong>
                             </div>
-                        )}
+                            <div className="app-detail-submeta-item">
+                                <span className="app-detail-submeta-label">Tarikh</span>
+                                <strong>{complaint.complaint_date || '-'}</strong>
+                            </div>
+                            <div className="app-detail-submeta-item">
+                                <span className="app-detail-submeta-label">Masa</span>
+                                <strong>{complaint.complaint_time ? String(complaint.complaint_time).slice(0, 5) : '-'}</strong>
+                            </div>
+                            <div className="app-detail-submeta-item">
+                                <span className="app-detail-submeta-label">Kaedah Aduan</span>
+                                <strong>{formatChannelLabel(complaint.channel)}</strong>
+                            </div>
+                            <div className="app-detail-submeta-item">
+                                <span className="app-detail-submeta-label">Dihantar</span>
+                                <strong>{complaint.submitted_at ? formatDateTime(complaint.submitted_at) : '-'}</strong>
+                            </div>
+                        </div>
                     </div>
 
                     {!basicEditing && basicMessage && (
@@ -824,15 +1103,39 @@ const ComplaintDetail = () => {
                                 </div>
                                 <div className="app-kv">
                                     <span className="app-kv-label">Nama</span>
-                                    <span className="app-kv-value">{complaint.complainant_name || '-'}</span>
+                                    <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={complaint.complainant_name}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            maxLength={255}
+                                            onConfirm={(next) => saveBasicField('complainant_name', next)}
+                                        />
+                                    </span>
                                 </div>
                                 <div className="app-kv">
                                     <span className="app-kv-label">No Kad Pengenalan</span>
-                                    <span className="app-kv-value">{complaint.identification_number || '-'}</span>
+                                    <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={complaint.identification_number}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            maxLength={255}
+                                            onConfirm={(next) => saveBasicField('identification_number', next)}
+                                        />
+                                    </span>
                                 </div>
                                 <div className="app-kv">
                                     <span className="app-kv-label">No HP</span>
-                                    <span className="app-kv-value">{complaint.contact_number || '-'}</span>
+                                    <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={complaint.contact_number}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            maxLength={255}
+                                            onConfirm={(next) => saveBasicField('contact_number', next)}
+                                        />
+                                    </span>
                                 </div>
                             </div>
 
@@ -841,30 +1144,56 @@ const ComplaintDetail = () => {
                                     <h5>Maklumat Kejadian</h5>
                                 </div>
                                 <div className="app-kv">
-                                    <span className="app-kv-label">Tarikh & Masa</span>
+                                    <span className="app-kv-label">Tarikh Kejadian</span>
                                     <span className="app-kv-value">
-                                        {complaint.complaint_date || '-'} {complaint.complaint_time || ''}
+                                        <SharedInlineEditText
+                                            value={complaint.incident_date}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            inputType="date"
+                                            onConfirm={(next) => saveBasicField('incident_date', next)}
+                                        />
+                                    </span>
+                                </div>
+                                <div className="app-kv">
+                                    <span className="app-kv-label">Masa Kejadian</span>
+                                    <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={complaint.incident_time ? String(complaint.incident_time).slice(0, 5) : ''}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            inputType="time"
+                                            onConfirm={(next) => saveBasicField('incident_time', next)}
+                                        />
                                     </span>
                                 </div>
                                 <div className="app-kv">
                                     <span className="app-kv-label">Daerah</span>
-                                    <span className="app-kv-value">{complaint.district_name || '-'}</span>
+                                    <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={complaint.district_id ? String(complaint.district_id) : ''}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            mode="select"
+                                            options={districtOptions.map((d) => ({ value: String(d.id), label: d.name }))}
+                                            formatDisplay={() => complaint.district_name || '-'}
+                                            onConfirm={(next) => saveBasicField('district_id', next ? String(next) : null)}
+                                        />
+                                    </span>
                                 </div>
                                 <div className="app-kv app-kv--stack">
                                     <span className="app-kv-label">Alamat</span>
                                     <div className="app-kv-stack">
-                                        <span className={`app-kv-value ${addressExpanded ? '' : 'app-line-clamp-2'}`}>
-                                            {complaint.address || '-'}
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.address}
+                                                placeholder="-"
+                                                canEdit={isPegawaiRole}
+                                                mode="textarea"
+                                                maxLength={1000}
+                                                onConfirm={(next) => saveBasicField('address', next)}
+                                            />
                                         </span>
-                                        {complaint.address && complaint.address.length > 70 && (
-                                            <button
-                                                type="button"
-                                                className="app-link app-link-button app-link-subtle"
-                                                onClick={() => setAddressExpanded((prev) => !prev)}
-                                            >
-                                                {addressExpanded ? 'Tutup' : 'Lihat penuh'}
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -953,7 +1282,7 @@ const ComplaintDetail = () => {
 
                     <div className="app-card-section">
                         <div className="app-card-subheader">
-                            <h5>Ringkasan Aduan</h5>
+                            <h5>Ringkasan Aduan (Pengadu)</h5>
                         </div>
 
                         {!basicEditing && (
@@ -988,6 +1317,10 @@ const ComplaintDetail = () => {
                         )}
 
                         <div className="app-detail-meta">
+                            <span>Kaedah Aduan:</span>
+                            <strong>{formatChannelLabel(complaint.channel)}</strong>
+                        </div>
+                        <div className="app-detail-meta">
                             <span>Penerima Aduan:</span>
                             <strong>
                                 {complaint.submitted_by?.staff?.name || complaint.submitted_by?.name || '-'}
@@ -995,6 +1328,48 @@ const ComplaintDetail = () => {
                             </strong>
                         </div>
                     </div>
+
+                    {isPegawaiRole && (
+                        <div className="app-card-footer-actions">
+                            {!basicEditing && (
+                                <button
+                                    type="button"
+                                    className="app-button app-button-ghost"
+                                    onClick={() => {
+                                        setBasicMessage('');
+                                        setBasicEditing(true);
+                                    }}
+                                >
+                                    Kemaskini
+                                </button>
+                            )}
+                            {basicEditing && (
+                                <>
+                                    <button
+                                        type="button"
+                                        className="app-button app-button-outline"
+                                        onClick={() => {
+                                            setBasicMessage('');
+                                            setBasicEditing(false);
+                                        }}
+                                        disabled={basicSaving}
+                                    >
+                                        Batal
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className="app-button"
+                                        onClick={saveBasic}
+                                        disabled={basicSaving}
+                                    >
+                                        {basicSaving ? 'Menyimpan...' : 'Simpan'}
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Butiran Aduan (Borang 5) is handled under "Tindakan Pegawai" so it follows Kesalahan Disyaki. */}
                 </div>
             </div>
 
@@ -1026,19 +1401,29 @@ const ComplaintDetail = () => {
                             <span>KELUARGA - Aduan Keluarga (AK)</span>
                         </label>
                     </div>
-                    {caseTypeMessage && <div className="app-detail-note">{caseTypeMessage}</div>}
+                    {caseTypeMessage && (
+                        <SharedInlineAlert
+                            type={caseTypeMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                            message={caseTypeMessage}
+                            dismissible
+                            onClose={() => setCaseTypeMessage('')}
+                            className=" app-detail-note"
+                        />
+                    )}
                 </div>
             )}
 
             {isPegawaiRole && (
                 <div className="app-card">
                     <h4>Tindakan Pegawai</h4>
-                    <div className="app-stepper">
+                    <div className="app-stepper app-stepper--sticky">
                         {steps.map((step, index) => (
                             <button
                                 key={step.key}
                                 type="button"
                                 className={`app-step ${activeStep === index ? 'active' : ''}`}
+                                disabled={isStepLocked(step.key)}
+                                title={isStepLocked(step.key) ? 'Aduan perlu disahkan terlebih dahulu.' : undefined}
                                 onClick={() => setActiveStep(index)}
                             >
                                 <span>{step.label}</span>
@@ -1048,7 +1433,15 @@ const ComplaintDetail = () => {
 
                     {complaint.case_type === 'AJ' && activeKey === 'ppa' && (
                         <div className="app-tab-panel">
-                            {payloadMessage && <div className="app-detail-note">{payloadMessage}</div>}
+                            {payloadMessage && (
+                                <SharedInlineAlert
+                                    type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                    message={payloadMessage}
+                                    dismissible
+                                    onClose={() => setPayloadMessage('')}
+                                    className=" app-detail-note"
+                                />
+                            )}
                             <div className="app-form-grid">
                                 <div className="app-form-field app-span-full">
                                     <h5>Klasifikasi</h5>
@@ -1073,9 +1466,26 @@ const ComplaintDetail = () => {
                                     <SharedOffenseSelect
                                         apiUrl={apiUrl}
                                         value={ajPayload.offense_id || ''}
+                                        label=""
                                         onChange={(value) => setAjPayload((prev) => ({ ...prev, offense_id: value }))}
+                                        onItemSelected={(item) => {
+                                            if (!item) return;
+                                            const suggestedKey = resolveTemplateKeyFromOffense(item) || 'generic';
+                                            applyBorang5OfficerTemplate(suggestedKey, item);
+                                        }}
                                     />
                                 </div>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Butiran Aduan (Borang 5)</span>
+                                    <small className="app-hint">Template akan diisi automatik selepas memilih Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
+                                    <textarea
+                                        rows="10"
+                                        value={basicDraft.borang5_statement}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
+                                        placeholder="Butiran Aduan (Borang 5)"
+                                    />
+                                </label>
 
                                 <div className="app-form-field">
                                     <span>Jenis Kesalahan</span>
@@ -1099,6 +1509,9 @@ const ComplaintDetail = () => {
                                         />
                                         <span>Kesalahan Tak Boleh Tangkap</span>
                                     </label>
+                                    <small className="app-hint">
+                                        Jika pilih <strong>Kesalahan Boleh Tangkap</strong>, aduan akan masuk ke menu <strong>KES</strong> selepas disahkan (approve).
+                                    </small>
                                 </div>
 
                                 <div className="app-form-field">
@@ -1181,21 +1594,54 @@ const ComplaintDetail = () => {
                                     </div>
                                 </div>
                             </div>
-                            {assigneeMessage && <div className="app-detail-note">{assigneeMessage}</div>}
+                            {assigneeMessage && (
+                                <SharedInlineAlert
+                                    type={assigneeMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                    message={assigneeMessage}
+                                    dismissible
+                                    onClose={() => setAssigneeMessage('')}
+                                    className=" app-detail-note"
+                                />
+                            )}
                         </div>
                     )}
 
                     {complaint.case_type === 'AK' && activeKey === 'tindakan' && (
                         <div className="app-tab-panel">
-                            {payloadMessage && <div className="app-detail-note">{payloadMessage}</div>}
+                            {payloadMessage && (
+                                <SharedInlineAlert
+                                    type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                    message={payloadMessage}
+                                    dismissible
+                                    onClose={() => setPayloadMessage('')}
+                                    className=" app-detail-note"
+                                />
+                            )}
                             <div className="app-form-grid">
                                 <div className="app-form-field">
                                     <SharedOffenseSelect
                                         apiUrl={apiUrl}
                                         value={akPayload.offense_id || ''}
+                                        label=""
                                         onChange={(value) => setAkPayload((prev) => ({ ...prev, offense_id: value }))}
+                                        onItemSelected={(item) => {
+                                            if (!item) return;
+                                            const suggestedKey = resolveTemplateKeyFromOffense(item) || 'generic';
+                                            applyBorang5OfficerTemplate(suggestedKey, item);
+                                        }}
                                     />
                                 </div>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Butiran Aduan (Borang 5)</span>
+                                    <small className="app-hint">Template akan diisi automatik selepas memilih Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
+                                    <textarea
+                                        rows="10"
+                                        value={basicDraft.borang5_statement}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
+                                        placeholder="Butiran Aduan (Borang 5)"
+                                    />
+                                </label>
 
                                 <div className="app-form-field">
                                     <span>Jenis Kesalahan</span>
@@ -1219,103 +1665,10 @@ const ComplaintDetail = () => {
                                         />
                                         <span>Kesalahan Tak Boleh Tangkap</span>
                                     </label>
+                                    <small className="app-hint">
+                                        Jika pilih <strong>Kesalahan Boleh Tangkap</strong>, aduan akan masuk ke menu <strong>KES</strong> selepas disahkan (approve).
+                                    </small>
                                 </div>
-
-                                <label className="app-form-field">
-                                    <span>Tarikh & Masa Temujanji Siasatan</span>
-                                    <input
-                                        type="datetime-local"
-                                        value={akPayload.investigation_datetime || ''}
-                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, investigation_datetime: event.target.value }))}
-                                    />
-                                    <div className="app-field-actions">
-                                        <button
-                                            className="app-button app-button-ghost"
-                                            type="button"
-                                            onClick={openAppointmentCalendar}
-                                        >
-                                            Lihat Kalendar Temujanji
-                                        </button>
-                                    </div>
-                                </label>
-
-                                <label className="app-form-field">
-                                    <span>Nama Pegawai Penyiasat</span>
-                                    <input
-                                        type="text"
-                                        value={akPayload.investigator_name || ''}
-                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, investigator_name: event.target.value }))}
-                                    />
-                                </label>
-
-                                <label className="app-form-field">
-                                    <span>Tarikh Fail Diterima</span>
-                                    <input
-                                        type="date"
-                                        value={akPayload.file_received_date || ''}
-                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, file_received_date: event.target.value }))}
-                                    />
-                                </label>
-
-                                <label className="app-form-field">
-                                    <span>Status IP</span>
-                                    <input
-                                        type="text"
-                                        value={akPayload.ip_status || ''}
-                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, ip_status: event.target.value }))}
-                                    />
-                                </label>
-
-                                <label className="app-form-field">
-                                    <span>Tarikh Akhir Penyempurnaan IP</span>
-                                    <input
-                                        type="date"
-                                        value={akPayload.ip_due_date || ''}
-                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, ip_due_date: event.target.value }))}
-                                    />
-                                </label>
-
-                                <label className="app-form-field">
-                                    <span>Tarikh Dihantar ke Pendakwaan</span>
-                                    <input
-                                        type="date"
-                                        value={akPayload.prosecution_date || ''}
-                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, prosecution_date: event.target.value }))}
-                                    />
-                                </label>
-
-                                <label className="app-form-field app-span-full">
-                                    <span>Email Salinan Aduan</span>
-                                    <div className="app-checkbox-grid">
-                                        {emailRecipients.map((item) => (
-                                            <label key={item.email} className="app-checkbox">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={akPayload.email_cc?.includes(item.email) || false}
-                                                    onChange={(event) => {
-                                                        const nextEmails = new Set(akPayload.email_cc || []);
-                                                        if (event.target.checked) {
-                                                            nextEmails.add(item.email);
-                                                        } else {
-                                                            nextEmails.delete(item.email);
-                                                        }
-                                                        setAkPayload((prev) => ({ ...prev, email_cc: Array.from(nextEmails) }));
-                                                    }}
-                                                />
-                                                <span>{item.label || item.email}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </label>
-
-                                <label className="app-form-field app-span-full">
-                                    <span>Catatan</span>
-                                    <textarea
-                                        rows="3"
-                                        value={akPayload.notes || ''}
-                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, notes: event.target.value }))}
-                                    />
-                                </label>
                                 <div className="app-form-actions app-span-full app-align-right">
                                     <button className="app-button" type="button" onClick={submitAkPayload}>
                                         Simpan
@@ -1368,7 +1721,150 @@ const ComplaintDetail = () => {
                                     </div>
                                 </div>
                             </div>
-                            {assigneeMessage && <div className="app-detail-note">{assigneeMessage}</div>}
+                            {assigneeMessage && (
+                                <SharedInlineAlert
+                                    type={assigneeMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                    message={assigneeMessage}
+                                    dismissible
+                                    onClose={() => setAssigneeMessage('')}
+                                    className=" app-detail-note"
+                                />
+                            )}
+                        </div>
+                    )}
+
+                    {complaint.case_type === 'AK' && activeKey === 'siasatan' && (
+                        <div className="app-tab-panel">
+                            {payloadMessage && (
+                                <SharedInlineAlert
+                                    type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                    message={payloadMessage}
+                                    dismissible
+                                    onClose={() => setPayloadMessage('')}
+                                    className=" app-detail-note"
+                                />
+                            )}
+                            <div className="app-form-grid">
+                                <label className="app-form-field">
+                                    <span>Tarikh & Masa Temujanji Siasatan</span>
+                                    <input
+                                        type="datetime-local"
+                                        value={akPayload.investigation_datetime || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, investigation_datetime: event.target.value }))}
+                                    />
+                                    <div className="app-field-actions">
+                                        <button
+                                            className="app-button app-button-ghost"
+                                            type="button"
+                                            onClick={openAppointmentCalendar}
+                                        >
+                                            Lihat Kalendar Temujanji
+                                        </button>
+                                    </div>
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Nama Pegawai Penyiasat</span>
+                                    <SharedStaffSelect
+                                        apiUrl={apiUrl}
+                                        value={akPayload.investigator_staff_id || ''}
+                                        onChange={(value) => setAkPayload((prev) => ({
+                                            ...prev,
+                                            investigator_staff_id: value,
+                                            // keep legacy name for display/search; server will resolve and store official name
+                                            investigator_name: prev.investigator_name,
+                                        }))}
+                                    />
+                                    {akPayload.investigator_name && !akPayload.investigator_staff_id && (
+                                        <small className="app-hint">
+                                            Rekod lama: {akPayload.investigator_name}
+                                        </small>
+                                    )}
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Fail Diterima</span>
+                                    <input
+                                        type="date"
+                                        value={akPayload.file_received_date || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, file_received_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <div className="app-form-field">
+                                    <span>Nama Penyelia Siasatan</span>
+                                    <SharedStaffSelect
+                                        apiUrl={apiUrl}
+                                        value={akPayload.supervisor_staff_id || ''}
+                                        onChange={(value) => setAkPayload((prev) => ({ ...prev, supervisor_staff_id: value }))}
+                                    />
+                                </div>
+
+                                <div className="app-form-field">
+                                    <SharedIpStatusSelect
+                                        value={akPayload.ip_status || ''}
+                                        onChange={(value) => setAkPayload((prev) => ({ ...prev, ip_status: value }))}
+                                        label="Status IP"
+                                    />
+                                </div>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Akhir Penyempurnaan IP</span>
+                                    <input
+                                        type="date"
+                                        value={akPayload.ip_due_date || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, ip_due_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Dihantar ke Pendakwaan</span>
+                                    <input
+                                        type="date"
+                                        value={akPayload.prosecution_date || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, prosecution_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Email Salinan Aduan</span>
+                                    <div className="app-checkbox-grid">
+                                        {emailRecipients.map((item) => (
+                                            <label key={item.email} className="app-checkbox">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={akPayload.email_cc?.includes(item.email) || false}
+                                                    onChange={(event) => {
+                                                        const nextEmails = new Set(akPayload.email_cc || []);
+                                                        if (event.target.checked) {
+                                                            nextEmails.add(item.email);
+                                                        } else {
+                                                            nextEmails.delete(item.email);
+                                                        }
+                                                        setAkPayload((prev) => ({ ...prev, email_cc: Array.from(nextEmails) }));
+                                                    }}
+                                                />
+                                                <span>{item.label || item.email}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </label>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Catatan</span>
+                                    <textarea
+                                        rows="3"
+                                        value={akPayload.notes || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, notes: event.target.value }))}
+                                    />
+                                </label>
+
+                                <div className="app-form-actions app-span-full app-align-right">
+                                    <button className="app-button" type="button" onClick={submitAkPayload}>
+                                        Simpan
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -1386,15 +1882,64 @@ const ComplaintDetail = () => {
                                         <i className={`bi ${reportSections.issuer ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
                                     </button>
                                         {reportSections.issuer && (
-                                            <div className="app-form-field">
-                                                <span>Pegawai Yang Mengeluarkan Arahan</span>
-                                            <SharedStaffSelect
-                                                apiUrl={apiUrl}
-                                                value={ajReport.directive_staff_id}
-                                                onChange={(value) => updateReportField('directive_staff_id', value)}
-                                            />
-                                            <small className="app-hint">Pilih pegawai yang memberi arahan tindakan bagi aduan ini.</small>
-                                        </div>
+                                            <div className="app-form-grid app-report-grid">
+                                                <div className="app-form-field">
+                                                    <span>Pegawai Yang Mengeluarkan Arahan</span>
+                                                    <SharedStaffSelect
+                                                        apiUrl={apiUrl}
+                                                        value={ajReport.directive_staff_id}
+                                                        onChange={(value) => updateReportField('directive_staff_id', value)}
+                                                    />
+                                                    <small className="app-hint">Pilih pegawai yang memberi arahan tindakan bagi aduan ini.</small>
+                                                </div>
+
+                                                <div className="app-form-field">
+                                                    <span>Pegawai Penangkap</span>
+                                                    <SharedStaffSelect
+                                                        apiUrl={apiUrl}
+                                                        value={ajReport.arrest_staff_id || ''}
+                                                        onChange={(value) => updateReportField('arrest_staff_id', value)}
+                                                        placeholder="-- Pilih Pegawai Penangkap --"
+                                                    />
+                                                    <small className="app-hint">Pilih pegawai yang membuat tangkapan (jika ada).</small>
+                                                </div>
+
+                                                <label className="app-form-field">
+                                                    <span>Tarikh / Masa Maklum Aduan</span>
+                                                    <input
+                                                        type="datetime-local"
+                                                        value={ajReport.directive_at || ''}
+                                                        onChange={(event) => updateReportField('directive_at', event.target.value)}
+                                                    />
+                                                </label>
+
+                                                <label className="app-form-field">
+                                                    <span>Tarikh / Masa Serahan</span>
+                                                    <input
+                                                        type="datetime-local"
+                                                        value={ajReport.handover_at || ''}
+                                                        onChange={(event) => updateReportField('handover_at', event.target.value)}
+                                                    />
+                                                </label>
+
+                                                <label className="app-form-field app-span-full">
+                                                    <span>Minit / Arahan Tindakan</span>
+                                                    <textarea
+                                                        rows="3"
+                                                        value={ajReport.directive_notes || ''}
+                                                        onChange={(event) => updateReportField('directive_notes', event.target.value)}
+                                                    />
+                                                </label>
+
+                                                <label className="app-form-field app-span-full">
+                                                    <span>Catatan Serahan</span>
+                                                    <textarea
+                                                        rows="3"
+                                                        value={ajReport.handover_notes || ''}
+                                                        onChange={(event) => updateReportField('handover_notes', event.target.value)}
+                                                    />
+                                                </label>
+                                            </div>
                                     )}
                                 </div>
 
@@ -1454,12 +1999,13 @@ const ComplaintDetail = () => {
                                         </label>
 
                                         <div className="app-form-field">
-                                            <SearchSelect
-                                                label="Kesalahan"
-                                                value={ajReport.offense_id}
-                                                options={offenseOptions}
-                                                placeholder="-- Pilih Kesalahan --"
-                                                onChange={(value) => updateReportField('offense_id', value)}
+                                            <span>Kesalahan</span>
+                                            <SharedOffenseSelect
+                                                apiUrl={apiUrl}
+                                                value={ajPayload.offense_id || ajReport.offense_id}
+                                                label=""
+                                                onChange={() => {}}
+                                                disabled
                                             />
                                         </div>
 
@@ -1521,6 +2067,50 @@ const ComplaintDetail = () => {
                                             ))}
                                         </div>
 
+                                        <div className="app-form-field app-span-full">
+                                            <span>Maklumat OYDS</span>
+                                            <small className="app-hint">
+                                                Masukkan maklumat OYDS terlebih dahulu untuk memudahkan penjanaan laporan.
+                                            </small>
+                                            <div className="app-inline-table app-oyds-table app-inline-clean">
+                                                <div className="app-inline-table-header">
+                                                    <span>Nama OYDS</span>
+                                                    <span>No. K/P atau Passport</span>
+                                                    <span>Nama Pegawai Penyiasat</span>
+                                                    <span>Nombor Daftar Fail</span>
+                                                </div>
+                                                {ajReport.oyds.map((row, index) => (
+                                                    <div className="app-inline-table-row" key={`oyds-${index}`}>
+                                                        <input
+                                                            type="text"
+                                                            value={row.name}
+                                                            onChange={(event) => updateOyds(index, 'name', event.target.value)}
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            value={row.id_number}
+                                                            onChange={(event) => updateOyds(index, 'id_number', event.target.value)}
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            value={row.investigator_name}
+                                                            onChange={(event) => updateOyds(index, 'investigator_name', event.target.value)}
+                                                        />
+                                                        <input
+                                                            type="text"
+                                                            value={row.file_no}
+                                                            onChange={(event) => updateOyds(index, 'file_no', event.target.value)}
+                                                        />
+                                                    </div>
+                                                ))}
+                                                <div className="app-inline-add">
+                                                    <button type="button" className="app-link" onClick={addOyds}>
+                                                        + Tambah OYDS
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
                                         <label className="app-form-field app-span-full">
                                             <span>Laporan</span>
                                             <textarea
@@ -1530,57 +2120,6 @@ const ComplaintDetail = () => {
                                             />
                                         </label>
                                     </div>
-                                    )}
-                                </div>
-
-                                <div className="app-report-section">
-                                    <button
-                                        className="app-report-toggle"
-                                        type="button"
-                                        onClick={() => toggleReportSection('oyds')}
-                                        aria-expanded={reportSections.oyds}
-                                    >
-                                        <h5>Maklumat OYDS</h5>
-                                        <i className={`bi ${reportSections.oyds ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
-                                    </button>
-                                    {reportSections.oyds && (
-                                        <div className="app-inline-table app-oyds-table app-inline-clean">
-                                            <div className="app-inline-table-header">
-                                                <span>Nama OYDS</span>
-                                                <span>No. K/P atau Passport</span>
-                                                <span>Nama Pegawai Penyiasat</span>
-                                                <span>Nombor Daftar Fail</span>
-                                            </div>
-                                            {ajReport.oyds.map((row, index) => (
-                                                <div className="app-inline-table-row" key={`oyds-${index}`}>
-                                                    <input
-                                                        type="text"
-                                                        value={row.name}
-                                                        onChange={(event) => updateOyds(index, 'name', event.target.value)}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        value={row.id_number}
-                                                        onChange={(event) => updateOyds(index, 'id_number', event.target.value)}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        value={row.investigator_name}
-                                                        onChange={(event) => updateOyds(index, 'investigator_name', event.target.value)}
-                                                    />
-                                                    <input
-                                                        type="text"
-                                                        value={row.file_no}
-                                                        onChange={(event) => updateOyds(index, 'file_no', event.target.value)}
-                                                    />
-                                                </div>
-                                            ))}
-                                            <div className="app-inline-add">
-                                                <button type="button" className="app-link" onClick={addOyds}>
-                                                    + Add New
-                                                </button>
-                                            </div>
-                                        </div>
                                     )}
                                 </div>
 
@@ -1669,9 +2208,13 @@ const ComplaintDetail = () => {
                                 </div>
                                 <div className="app-report-sticky">
                                     {reportMessage && (
-                                        <div className="app-report-sticky-message">
-                                            {reportMessage}
-                                        </div>
+                                        <SharedInlineAlert
+                                            type={reportMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                            message={reportMessage}
+                                            dismissible
+                                            onClose={() => setReportMessage('')}
+                                            className=" app-report-sticky-message"
+                                        />
                                     )}
                                     <button className="app-button" type="button" onClick={submitAjReport}>
                                         Simpan Laporan
@@ -1681,8 +2224,152 @@ const ComplaintDetail = () => {
                         </div>
                     )}
 
-                    {((complaint.case_type === 'AJ' && !['ppa', 'laporan'].includes(activeKey)) ||
-                        (complaint.case_type === 'AK' && activeKey !== 'tindakan')) && (
+                    {complaint.case_type === 'AJ' && activeKey === 'siasatan' && (
+                        <div className="app-tab-panel">
+                            {payloadMessage && (
+                                <SharedInlineAlert
+                                    type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                    message={payloadMessage}
+                                    dismissible
+                                    onClose={() => setPayloadMessage('')}
+                                    className=" app-detail-note"
+                                />
+                            )}
+                            <div className="app-form-grid">
+                                <div className="app-form-field">
+                                    <span>Nama Penyelia Siasatan</span>
+                                    <SharedStaffSelect
+                                        apiUrl={apiUrl}
+                                        value={ajPayload.supervisor_staff_id || ''}
+                                        onChange={(value) => setAjPayload((prev) => ({ ...prev, supervisor_staff_id: value }))}
+                                    />
+                                </div>
+
+                                <div className="app-form-field">
+                                    <SharedIpStatusSelect
+                                        value={ajPayload.ip_status || ''}
+                                        onChange={(value) => setAjPayload((prev) => ({ ...prev, ip_status: value }))}
+                                        label="Status IP"
+                                    />
+                                </div>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Akhir Penyempurnaan IP</span>
+                                    <input
+                                        type="date"
+                                        value={ajPayload.ip_due_date || ''}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, ip_due_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Akhir Semakan KPP</span>
+                                    <input
+                                        type="date"
+                                        value={ajPayload.kpp_due_date || ''}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, kpp_due_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Akhir ke JPSS</span>
+                                    <input
+                                        type="date"
+                                        value={ajPayload.jpss_due_date || ''}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, jpss_due_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Catatan Siasatan</span>
+                                    <textarea
+                                        rows="4"
+                                        value={ajPayload.investigation_notes || ''}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, investigation_notes: event.target.value }))}
+                                    />
+                                </label>
+
+                                <div className="app-form-actions app-span-full app-align-right">
+                                    <button className="app-button" type="button" onClick={submitAjPayload}>
+                                        Simpan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {complaint.case_type === 'AJ' && activeKey === 'pendakwaan' && (
+                        <div className="app-tab-panel">
+                            {payloadMessage && (
+                                <SharedInlineAlert
+                                    type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                    message={payloadMessage}
+                                    dismissible
+                                    onClose={() => setPayloadMessage('')}
+                                    className=" app-detail-note"
+                                />
+                            )}
+
+                            <div className="app-form-grid">
+                                <SharedProsecutionStatusSelect
+                                    value={ajPayload.prosecution_status || ''}
+                                    onChange={(value) => setAjPayload((prev) => ({ ...prev, prosecution_status: value }))}
+                                    label="Status Pendakwaan"
+                                />
+
+                                <div className="app-form-field">
+                                    <span>Nama Pendakwa</span>
+                                    <SharedStaffSelect
+                                        apiUrl={apiUrl}
+                                        value={ajPayload.prosecutor_staff_id || ''}
+                                        onChange={(value) => setAjPayload((prev) => ({ ...prev, prosecutor_staff_id: value }))}
+                                        placeholder="-- Pilih Pendakwa --"
+                                    />
+                                </div>
+
+                                <div className="app-form-field">
+                                    <span>Mahkamah</span>
+                                    <SharedMahkamahSelect
+                                        apiUrl={apiUrl}
+                                        value={ajPayload.mahkamah_id || ''}
+                                        onChange={(value) => setAjPayload((prev) => ({ ...prev, mahkamah_id: value }))}
+                                    />
+                                </div>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Denda</span>
+                                    <textarea
+                                        rows="3"
+                                        value={ajPayload.fine || ''}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, fine: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Catatan Pendakwaan</span>
+                                    <textarea
+                                        rows="4"
+                                        value={ajPayload.prosecution_notes || ''}
+                                        onChange={(event) => setAjPayload((prev) => ({ ...prev, prosecution_notes: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>No. Aduan</span>
+                                    <input type="text" value={complaint.reference_no || '-'} readOnly />
+                                </label>
+
+                                <div className="app-form-actions app-span-full app-align-right">
+                                    <button className="app-button" type="button" onClick={submitAjPayload}>
+                                        Simpan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {((complaint.case_type === 'AJ' && !['ppa', 'laporan', 'siasatan', 'pendakwaan'].includes(activeKey)) ||
+                        (complaint.case_type === 'AK' && !['tindakan', 'siasatan'].includes(activeKey))) && (
                         <div className="app-tab-panel">
                             <div className="app-empty">Seksi ini akan ditambah seterusnya.</div>
                         </div>

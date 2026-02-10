@@ -7,6 +7,7 @@ const SearchSelect = ({
     placeholder = '-- Pilih --',
     searchPlaceholder = 'Cari...',
     onChange,
+    disabled = false,
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState('');
@@ -44,63 +45,70 @@ const SearchSelect = ({
     };
 
     return (
-        <div className="app-search-select" ref={wrapperRef}>
+        <div className={`app-search-select${disabled ? ' is-disabled' : ''}`} ref={wrapperRef}>
             {label && <span className="app-search-select-label">{label}</span>}
-            <button
-                type="button"
-                className="app-search-select-trigger"
-                onClick={() => setIsOpen((prev) => !prev)}
-            >
-                <span className={selected ? '' : 'is-placeholder'}>
-                    {selected ? selected.label : placeholder}
-                </span>
-                <i className={`bi ${isOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
-            </button>
-            {isOpen && (
-                <div className="app-search-select-menu">
-                    <div className="app-search-select-input-wrap">
-                        <input
-                            type="text"
-                            className="app-search-select-input"
-                            placeholder={searchPlaceholder}
-                            value={query}
-                            onChange={(event) => setQuery(event.target.value)}
-                        />
-                        {query && (
+            <div className="app-search-select-body">
+                <button
+                    type="button"
+                    className={`app-search-select-trigger${disabled ? ' is-disabled' : ''}`}
+                    disabled={disabled}
+                    aria-disabled={disabled ? 'true' : 'false'}
+                    onClick={() => {
+                        if (disabled) return;
+                        setIsOpen((prev) => !prev);
+                    }}
+                >
+                    <span className={selected ? '' : 'is-placeholder'}>
+                        {selected ? selected.label : placeholder}
+                    </span>
+                    <i className={`bi ${isOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                </button>
+                {isOpen && (
+                    <div className="app-search-select-menu">
+                        <div className="app-search-select-input-wrap">
+                            <input
+                                type="text"
+                                className="app-search-select-input"
+                                placeholder={searchPlaceholder}
+                                value={query}
+                                onChange={(event) => setQuery(event.target.value)}
+                            />
+                            {query && (
+                                <button
+                                    type="button"
+                                    className="app-search-select-clear"
+                                    aria-label="Kosongkan carian"
+                                    onClick={() => setQuery('')}
+                                >
+                                    <i className="bi bi-x-lg"></i>
+                                </button>
+                            )}
+                        </div>
+                        <div className="app-search-select-list">
                             <button
                                 type="button"
-                                className="app-search-select-clear"
-                                aria-label="Kosongkan carian"
-                                onClick={() => setQuery('')}
+                                className="app-search-select-option"
+                                onClick={() => handleSelect('')}
                             >
-                                <i className="bi bi-x-lg"></i>
+                                {placeholder}
                             </button>
-                        )}
+                            {filteredOptions.map((option) => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    className={`app-search-select-option${String(option.value) === String(value) ? ' active' : ''}`}
+                                    onClick={() => handleSelect(option.value)}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                            {filteredOptions.length === 0 && (
+                                <div className="app-search-select-empty">Tiada padanan</div>
+                            )}
+                        </div>
                     </div>
-                    <div className="app-search-select-list">
-                        <button
-                            type="button"
-                            className="app-search-select-option"
-                            onClick={() => handleSelect('')}
-                        >
-                            {placeholder}
-                        </button>
-                        {filteredOptions.map((option) => (
-                            <button
-                                key={option.value}
-                                type="button"
-                                className={`app-search-select-option${String(option.value) === String(value) ? ' active' : ''}`}
-                                onClick={() => handleSelect(option.value)}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                        {filteredOptions.length === 0 && (
-                            <div className="app-search-select-empty">Tiada padanan</div>
-                        )}
-                    </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 };

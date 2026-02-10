@@ -115,7 +115,7 @@ const ComplaintPrintBorang5 = () => {
 
                 <div className="print-section">
                     <p>Saya dengan ini memberikan maklumat berikut:</p>
-                    <p className="print-paragraph">{renderValue(complaint.summary)}</p>
+                    <p className="print-paragraph">{renderValue(complaint.borang5_statement || complaint.summary)}</p>
                 </div>
 
                 <div className="print-signature">

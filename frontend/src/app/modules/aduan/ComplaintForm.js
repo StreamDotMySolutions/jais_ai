@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Row, Form } from 'react-bootstrap';
+import { Row, Col, Form } from 'react-bootstrap';
 import axios from 'axios';
 import useStore from '../../../store';
 import { appendFormData, InputSelect, InputText, InputTextarea } from '../../../libs/FormInput';
 import SubmitButton from '../../../libs/SubmitButton';
+import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
+import SharedOffenseSelect from '../../components/SharedOffenseSelect';
 
-function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = 'portal' }) {
+function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = 'portal', officerMode = false }) {
     const store = useStore();
     const url = process.env.REACT_APP_API_URL;
     const [isLoading, setIsLoading] = useState(false);
@@ -14,6 +16,15 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
     const [referenceNo, setReferenceNo] = useState('');
     const [errorMessage, setErrorMessage] = useState('');
     const [summaryTemplate, setSummaryTemplate] = useState('');
+    const [templateError, setTemplateError] = useState('');
+    const [officerOffenseId, setOfficerOffenseId] = useState('');
+    const [officerOffenseError, setOfficerOffenseError] = useState('');
+    const [addressDraft, setAddressDraft] = useState('');
+    const [maskedFields, setMaskedFields] = useState({
+        complainant_name: false,
+        identification_number: false,
+        contact_number: false,
+    });
 
     useEffect(() => {
         store.emptyData();
@@ -25,8 +36,14 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         store.setValue('complaint_year', year);
         store.setValue('complaint_date', date);
         store.setValue('complaint_time', time);
+        // Incident datetime can be past/future; default date to today and keep time optional.
+        store.setValue('incident_date', date);
+        store.setValue('incident_time', '');
         store.setValue('reference_no', 'Akan dijana sistem');
         store.setValue('case_type', 'AJ');
+        store.setValue('borang5_statement', '');
+        store.setValue('offense_id', '');
+        setAddressDraft('');
     }, []);
 
     useEffect(() => {
@@ -44,11 +61,91 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
             });
     }, [url]);
 
+    const pickAutoTemplate = (type, addressText) => {
+        const text = (addressText || '').toString().toUpperCase();
+        if (!text.trim()) {
+            return '';
+        }
+
+        if (type === 'AJ') {
+            if (/(\\bHOTEL\\b|\\bBILIK\\b|\\bAPARTMENT\\b|\\bRESORT\\b|\\bHOMESTAY\\b)/.test(text)) return 'aj_hotel';
+            if (/BERSEKEDUDUKAN/.test(text)) return 'aj_bersekedudukan';
+            if (/(RUMAH\\s*URUT|PUSAT\\s*URUT|PREMIS\\s*URUT|SPA)/.test(text)) return 'aj_rumah_urut';
+            if (/(BERCERAI|CERAI|RUJUK)/.test(text)) return 'aj_pasangan_bercerai';
+            if (/(NIKAH|KAHWIN|KAWIN)/.test(text)) return 'aj_nikah_tanpa_kebenaran';
+            return '';
+        }
+
+        if (type === 'AK') {
+            if (/POLIGAMI/.test(text)) return 'ak_poligami_tanpa_kebenaran';
+            if (/(LAFAZ\\s*CERAI|CERAI)/.test(text)) return 'ak_cerai_luar_mahkamah';
+            if (/RUJUK/.test(text)) return 'ak_rujuk_tidak_lapor';
+            if (/(LEWAT\\s*DAFTAR|TAK\\s*DAFTAR|BELUM\\s*DAFTAR)/.test(text)) return 'ak_lewat_daftar_kahwin';
+            if (/(NIKAH\\s*LUAR|THAILAND|INDONESIA)/.test(text)) return 'ak_nikah_tanpa_kebenaran';
+            return '';
+        }
+
+        return '';
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        setIsLoading(true);
+
+        const selectedCaseType = store.getValue('case_type') || 'AJ';
+        const hasTemplates = selectedCaseType === 'AJ' || selectedCaseType === 'AK';
+        const localErrors = {};
+        const complainantName = (store.getValue('complainant_name') || '').trim();
+        const idNo = (store.getValue('identification_number') || '').trim();
+        const phone = (store.getValue('contact_number') || '').trim();
+        const districtId = (store.getValue('district_id') || '').toString().trim();
+        const address = (store.getValue('address') || '').trim();
+        const incidentDate = (store.getValue('incident_date') || '').trim();
+        const incidentTime = (store.getValue('incident_time') || '').trim();
+        const summary = (store.getValue('summary') || '').trim();
+        const borang5Statement = (store.getValue('borang5_statement') || '').trim();
+
         store.setValue('errors', null);
         setErrorMessage('');
+        setTemplateError('');
+        setOfficerOffenseError('');
+
+        if (!complainantName) localErrors.complainant_name = 'Wajib diisi';
+        if (!idNo) localErrors.identification_number = 'Wajib diisi';
+        if (!phone) localErrors.contact_number = 'Wajib diisi';
+        if (!districtId) localErrors.district_id = 'Wajib diisi';
+        if (!address) localErrors.address = 'Wajib diisi';
+        if (!incidentDate) localErrors.incident_date = 'Wajib diisi';
+        // incident_time is optional (can be empty)
+
+        if (Object.keys(localErrors).length > 0) {
+            store.setValue('errors', localErrors);
+            setErrorMessage('Sila lengkapkan Butir-butir Pemberi Maklumat / Pengadu dan Butiran Kejadian.');
+            return;
+        }
+
+        if (!officerMode) {
+            if (hasTemplates && !summaryTemplate) {
+                setTemplateError('Sila pilih kategori template aduan.');
+                setErrorMessage('Sila pilih kategori template aduan sebelum menghantar.');
+                return;
+            }
+            if (!summary) {
+                setErrorMessage('Sila isi Ringkasan Aduan.');
+                return;
+            }
+        } else {
+            if (!officerOffenseId) {
+                setOfficerOffenseError('Kesalahan Disyaki wajib dipilih.');
+                setErrorMessage('Sila pilih Kesalahan Disyaki sebelum menghantar.');
+                return;
+            }
+            if (!borang5Statement) {
+                setErrorMessage('Sila isi Butiran Aduan (Borang 5) sebelum menghantar.');
+                return;
+            }
+        }
+
+        setIsLoading(true);
 
         const formData = new FormData();
         const dataArray = [
@@ -58,8 +155,12 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
             { key: 'address', value: store.getValue('address') },
             { key: 'district_id', value: store.getValue('district_id') },
             { key: 'summary', value: store.getValue('summary') },
+            { key: 'borang5_statement', value: store.getValue('borang5_statement') },
+            { key: 'offense_id', value: store.getValue('offense_id') },
             { key: 'case_type', value: store.getValue('case_type') || 'AJ' },
             { key: 'channel', value: channelSource },
+            { key: 'incident_date', value: store.getValue('incident_date') },
+            { key: 'incident_time', value: store.getValue('incident_time') },
         ];
 
         appendFormData(formData, dataArray);
@@ -77,10 +178,11 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         })
         .then(response => {
             console.log(response);
+            const createdId = response?.data?.data?.id;
             setReferenceNo(response?.data?.reference_no || '');
             setSuccess(true);
             if (onSuccess) {
-                onSuccess();
+                onSuccess(createdId);
             }
         })
         .catch(error => {
@@ -118,6 +220,10 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
     }
 
     const caseType = store.getValue('case_type') || 'AJ';
+    const incidentTitle = 'Butiran Kejadian';
+    const districtPlaceholder = caseType === 'AJ' ? 'Pilih Daerah Kejadian *' : 'Pilih Daerah *';
+    const addressPlaceholder = caseType === 'AJ' ? 'Alamat/Lokasi Kejadian *' : 'Alamat *';
+    const addressValue = addressDraft || store.getValue('address') || '';
     const templatesByCaseType = {
         AJ: [
             { key: 'aj_aduan_biasa', label: 'Aduan biasa' },
@@ -141,11 +247,156 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         templatesByCaseType[caseType]?.length > 0
         && !summaryTemplate
         && !(store.getValue('summary') || '').trim()
+        && !officerMode
     );
 
+    const formatBorang5TemplateDate = (isoDate) => {
+        if (!isoDate) return '';
+        const match = String(isoDate).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!match) return '';
+        return `${match[3]}.${match[2]}.${match[1]}`;
+    };
+
+    const formatBorang5TemplateTime = (hhmm) => {
+        if (!hhmm) return '';
+        const match = String(hhmm).trim().match(/^(\d{1,2}):(\d{2})$/);
+        if (!match) return '';
+        const hh = match[1].padStart(2, '0');
+        return `${hh}.${match[2]}`;
+    };
+
+    const hydrateBorang5Template = (rawText) => {
+        if (!rawText) return '';
+        let text = String(rawText);
+        // Borang 5 statement uses Tarikh/Masa Aduan (auto now) like public flow.
+        const dateDot = formatBorang5TemplateDate(store.getValue('complaint_date'));
+        const timeDot = formatBorang5TemplateTime(store.getValue('complaint_time'));
+        const address = (store.getValue('address') || '').toString().trim();
+
+        if (dateDot) {
+            text = text.replace(/PADA\\s+__________/i, `PADA ${dateDot}`);
+            text = text.replace(/PADA\\s+(\\d{1,2}[./-]\\d{1,2}[./-]\\d{4}|\\d{4}-\\d{2}-\\d{2})/i, `PADA ${dateDot}`);
+        }
+        if (timeDot) {
+            text = text.replace(/(JAM\\s+(?:LEBIH\\s+KURANG\\s+)?)_____/i, `$1${timeDot}`);
+            text = text.replace(/(LEBIH\\s+KURANG\\s+JAM\\s+)_____/i, `$1${timeDot}`);
+            text = text.replace(/(JAM\\s+(?:LEBIH\\s+KURANG\\s+)?)\\d{1,2}(?:[.:]\\d{2})?/i, `$1${timeDot}`);
+            text = text.replace(/(LEBIH\\s+KURANG\\s+JAM\\s+)\\d{1,2}(?:[.:]\\d{2})?/i, `$1${timeDot}`);
+        }
+        if (address) {
+            text = text.replace(/(LOKASI KEJADIAN\\s*:)\\s*__________/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT LOKASI KEJADIAN\\s*:)\\s*__________/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT KEJADIAN\\s*:)\\s*__________/gi, `$1 ${address}`);
+            text = text.replace(/(LOKASI KEJADIAN\\s*:)[^\\n]*/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT LOKASI KEJADIAN\\s*:)[^\\n]*/gi, `$1 ${address}`);
+            text = text.replace(/(ALAMAT KEJADIAN\\s*:)[^\\n]*/gi, `$1 ${address}`);
+        }
+
+        return text.trim();
+    };
+
+    const resolveTemplateKeyFromOffense = (offense) => {
+        const code = (offense?.code || '').toString().toUpperCase();
+        const section = (offense?.section || '').toString().toUpperCase();
+
+        // Prefer parsing from code (stable).
+        let num = '';
+        let isEpais = false;
+        const ejss = code.match(/^EJSS-(\d+)/);
+        const epaisNum = code.match(/^EPAIS-(\d+)/);
+        if (ejss) {
+            num = ejss[1];
+        } else if (epaisNum) {
+            num = epaisNum[1];
+            isEpais = true;
+        } else if (code.startsWith('EPAIS-')) {
+            isEpais = true;
+        }
+
+        if (!num) {
+            const match = section.match(/\b(?:SEC|SEKSYEN)\s*([0-9]+)/);
+            if (match) {
+                num = match[1];
+                isEpais = isEpais || section.includes('EPAIS');
+            }
+        }
+
+        if (num === '32' || num === '33' || num === '34') return 'seksyen_32_33_34';
+        if (isEpais && num) return `epais_${num}`;
+        if (num) return `seksyen_${num}`;
+        return '';
+    };
+
+    const applyOfficerTemplateByKey = (key) => {
+        if (!key) return;
+        const tpl = BORANG5_OFFICER_TEMPLATES.find((item) => item.key === key)
+            || BORANG5_OFFICER_TEMPLATES.find((item) => item.key === 'generic');
+        if (!tpl) return;
+
+        const nextText = hydrateBorang5Template(tpl.text || '');
+        const existing = (store.getValue('borang5_statement') || '').toString().trim();
+        if (existing && existing !== nextText) {
+            const ok = window.confirm('Butiran Aduan (Borang 5) akan diganti dengan template yang dicadangkan. Teruskan?');
+            if (!ok) return;
+        }
+        store.setValue('borang5_statement', nextText);
+    };
+
+    const formatOffenseLabel = (offense) => {
+        if (!offense) return '';
+        const code = (offense.code || '').toString().trim();
+        const section = (offense.section || '').toString().trim();
+        const name = (offense.name || '').toString().trim();
+        const parts = [];
+        if (code) parts.push(code);
+        if (section) parts.push(section);
+        const head = parts.length ? `${parts.join(' / ')}` : '';
+        if (head && name) return `${head} - ${name}`;
+        return name || head;
+    };
+
+    const applyOfficerTemplateFromOffense = (offense) => {
+        const suggestedKey = resolveTemplateKeyFromOffense(offense) || 'generic';
+        const tpl = BORANG5_OFFICER_TEMPLATES.find((item) => item.key === suggestedKey)
+            || BORANG5_OFFICER_TEMPLATES.find((item) => item.key === 'generic');
+        if (!tpl) return;
+
+        const raw = (tpl.text || '').replace('{{OFFENSE}}', formatOffenseLabel(offense));
+        const nextText = hydrateBorang5Template(raw);
+
+        const existing = (store.getValue('borang5_statement') || '').toString().trim();
+        if (existing && existing !== nextText) {
+            const ok = window.confirm('Butiran Aduan (Borang 5) akan diganti dengan template yang dicadangkan. Teruskan?');
+            if (!ok) return;
+        }
+        store.setValue('borang5_statement', nextText);
+    };
+
+    const tryAutoSuggestTemplate = (nextAddress) => {
+        if (isLoading) return;
+        if (officerMode) return;
+        if (summaryTemplate) return; // user already picked
+        if ((store.getValue('summary') || '').trim()) return; // don't override typed content
+
+        const suggested = pickAutoTemplate(caseType, nextAddress);
+        if (!suggested) return;
+
+        const next = buildSummaryTemplate(suggested);
+        if (!next) return;
+
+        setTemplateError('');
+        store.setValue('summary', next);
+        setSummaryTemplate(suggested);
+    };
+
+    useEffect(() => {
+        // Fallback auto-suggest (e.g., initial value restored).
+        tryAutoSuggestTemplate(addressValue);
+    }, [caseType, addressValue, isLoading, summaryTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const buildSummaryTemplate = (key) => {
-        const date = store.getValue('complaint_date') || '[TARIKH]';
-        const time = store.getValue('complaint_time') || '[MASA]';
+        const date = store.getValue('incident_date') || '[TARIKH]';
+        const time = store.getValue('incident_time') || '[MASA]';
         const lokasi = (store.getValue('address') || '').trim() || '[Nama premis/hotel, alamat penuh, bilik (jika ada)]';
         const daerah = districtName || '[Daerah]';
 
@@ -383,22 +634,42 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         return '';
     };
 
-    const insertSummaryTemplate = () => {
-        if (!summaryTemplate) {
+    const applySummaryTemplate = (key) => {
+        if (!key) {
             return;
         }
-        const next = buildSummaryTemplate(summaryTemplate);
+        const next = buildSummaryTemplate(key);
         if (!next) {
             return;
         }
+        store.setValue('summary', next);
+    };
+
+    const handleSelectTemplate = (nextKey) => {
+        if (!nextKey) {
+            setSummaryTemplate('');
+            return;
+        }
+        setTemplateError('');
+        // Avoid re-applying the same template (and avoid redundant confirmations).
+        if (nextKey === summaryTemplate) {
+            return;
+        }
+
+        const next = buildSummaryTemplate(nextKey);
+        if (!next) {
+            return;
+        }
+
         const existing = (store.getValue('summary') || '').trim();
-        if (existing) {
+        if (existing && existing !== next.trim()) {
             const ok = window.confirm('Ringkasan Aduan sudah diisi. Anda mahu gantikan dengan template?');
             if (!ok) {
                 return;
             }
         }
         store.setValue('summary', next);
+        setSummaryTemplate(nextKey);
     };
 
     return (
@@ -413,11 +684,11 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                     <strong>{store.getValue('reference_no')}</strong>
                 </div>
                 <div className="complaint-meta-item">
-                    <span>Tarikh</span>
+                    <span>Tarikh Aduan</span>
                     <strong>{store.getValue('complaint_date')}</strong>
                 </div>
                 <div className="complaint-meta-item">
-                    <span>Masa</span>
+                    <span>Masa Aduan</span>
                     <strong>{store.getValue('complaint_time')}</strong>
                 </div>
             </div>
@@ -430,13 +701,13 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                 )}
                 <div className="complaint-category">
                     <div>
-                        <h3>Kategori Aduan</h3>
-                        <p>Pilih kategori aduan untuk menentukan kes atau keluarga.</p>
+                        <h3>Jenis Aduan <span className="complaint-required">*</span></h3>
+                        <p>Sila pilih sama ada aduan berkaitan Penguatkuasaan atau Keluarga.</p>
                     </div>
                     <div className="complaint-category-options">
                         {[
-                            { value: 'AJ', label: 'KES - Aduan Jenayah (AJ)' },
-                            { value: 'AK', label: 'KELUARGA - Aduan Keluarga (AK)' },
+                            { value: 'AJ', label: 'Aduan Penguatkuasaan (Khalwat/Hotel/Rumah Urut/Lain-lain Kesalahan Syariah)' },
+                            { value: 'AK', label: 'Aduan Keluarga (Nikah/Cerai/Rujuk/Poligami)' },
                         ].map((option) => (
                             <label
                                 key={option.value}
@@ -447,7 +718,13 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                                     name="case_type"
                                     value={option.value}
                                     checked={store.getValue('case_type') === option.value}
-                                    onChange={() => store.setValue('case_type', option.value)}
+                                    onChange={() => {
+                                        store.setValue('case_type', option.value);
+                                        setSummaryTemplate('');
+                                        setTemplateError('');
+                                        store.setValue('summary', '');
+                                        setAddressDraft('');
+                                    }}
                                 />
                                 <span>{option.label}</span>
                             </label>
@@ -457,13 +734,18 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
 
                 <div className="complaint-grid">
                     <div className="complaint-section">
-                        <h3>Butir-butir Pemberi Maklumat / Pengadu</h3>
+                        <h3>Butir-butir Pemberi Maklumat / Pengadu <span className="complaint-required">*</span></h3>
                         <Row className='mb-4'>
                             <InputText 
                                 fieldName='complainant_name' 
-                                placeholder='Nama Pengadu'  
+                                placeholder='Nama Pengadu *'
                                 icon='bi-person'
                                 isLoading={isLoading}
+                                canMask
+                                isMasked={maskedFields.complainant_name}
+                                onToggleMask={() => setMaskedFields((prev) => ({ ...prev, complainant_name: !prev.complainant_name }))}
+                                maskOnLabel="SOROK"
+                                maskOffLabel="PAPAR"
                             />
                         </Row>
 
@@ -471,9 +753,14 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                             <InputText 
                                 type='text'
                                 fieldName='identification_number' 
-                                placeholder='No Kad Pengenalan'  
+                                placeholder='No Kad Pengenalan *'
                                 icon='bi-card-text'
                                 isLoading={isLoading}
+                                canMask
+                                isMasked={maskedFields.identification_number}
+                                onToggleMask={() => setMaskedFields((prev) => ({ ...prev, identification_number: !prev.identification_number }))}
+                                maskOnLabel="SOROK"
+                                maskOffLabel="PAPAR"
                             />
                         </Row>
 
@@ -481,19 +768,44 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                             <InputText 
                                 type='text'
                                 fieldName='contact_number' 
-                                placeholder='No HP'  
+                                placeholder='No HP *'
                                 icon='bi-phone'
                                 isLoading={isLoading}
+                                canMask
+                                isMasked={maskedFields.contact_number}
+                                onToggleMask={() => setMaskedFields((prev) => ({ ...prev, contact_number: !prev.contact_number }))}
+                                maskOnLabel="SOROK"
+                                maskOffLabel="PAPAR"
                             />
                         </Row>
                     </div>
 
                     <div className="complaint-section">
-                        <h3>Maklumat Kejadian</h3>
+                        <h3>{incidentTitle} <span className="complaint-required">*</span></h3>
+                        <Row className='mb-4'>
+                            <Col md={6} className="mb-4 mb-md-0">
+                                <InputText
+                                    fieldName='incident_date'
+                                    placeholder='Tarikh Kejadian *'
+                                    icon='bi-calendar'
+                                    type='date'
+                                    isLoading={isLoading}
+                                />
+                            </Col>
+                            <Col md={6}>
+                                <InputText
+                                    fieldName='incident_time'
+                                    placeholder='Masa Kejadian (Jika ada)'
+                                    icon='bi-clock'
+                                    type='time'
+                                    isLoading={isLoading}
+                                />
+                            </Col>
+                        </Row>
                         <Row className='mb-4'>
                             <InputSelect
                                 fieldName='district_id'
-                                placeholder='Pilih Daerah'
+                                placeholder={districtPlaceholder}
                                 icon='bi-geo'
                                 isLoading={isLoading}
                                 options={districtOptions}
@@ -504,60 +816,111 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                             <InputTextarea 
                                 type='text'
                                 fieldName='address' 
-                                placeholder='Alamat'  
+                                placeholder={addressPlaceholder}
                                 icon='bi-geo-alt'
                                 rows='4'
                                 isLoading={isLoading}
+                                onValueChange={(val) => {
+                                    setAddressDraft(val);
+                                    tryAutoSuggestTemplate(val);
+                                }}
                             />
                         </Row>
                     </div>
                 </div>
 
-                <div className="complaint-section complaint-span-full">
-                    <h3>Ringkasan Aduan</h3>
-                    {templatesByCaseType[caseType]?.length > 0 && (
-                        <div className="complaint-template">
+                {!officerMode && (
+                    <div className="complaint-section complaint-span-full">
+                        <h3>Ringkasan Aduan <span className="complaint-required">*</span></h3>
+                        {templatesByCaseType[caseType]?.length > 0 && (
+                            <div className="complaint-template">
+                                <div className="complaint-template-left">
+                                    <strong>Kategori Template <span className="complaint-required">*</span></strong>
+                                    <small>
+                                        Pilih kategori untuk masukkan contoh format ringkasan aduan secara automatik.
+                                        {shouldLockSummary ? ' Ringkasan akan dibuka selepas kategori dipilih.' : ''}
+                                    </small>
+                                </div>
+                                <div className="complaint-template-actions">
+                                    <Form.Select
+                                        value={summaryTemplate}
+                                        onChange={(e) => handleSelectTemplate(e.target.value)}
+                                        onFocus={() => tryAutoSuggestTemplate(addressValue)}
+                                        disabled={isLoading}
+                                        isInvalid={Boolean(templateError)}
+                                    >
+                                        <option value="">Pilih template *</option>
+                                        {templatesByCaseType[caseType].map((t) => (
+                                            <option key={t.key} value={t.key}>{t.label}</option>
+                                        ))}
+                                    </Form.Select>
+                                    {templateError && (
+                                        <Form.Control.Feedback type="invalid" style={{ display: 'block' }}>
+                                            {templateError}
+                                        </Form.Control.Feedback>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        <Row className='mb-4'>
+                            <InputTextarea
+                                type='text'
+                                fieldName='summary'
+                                placeholder={shouldLockSummary ? 'Sila pilih template aduan dahulu.' : 'Ringkasan Aduan *'}
+                                icon='bi-pencil'
+                                rows='8'
+                                isLoading={isLoading}
+                                readOnly={shouldLockSummary}
+                            />
+                        </Row>
+                    </div>
+                )}
+
+                {officerMode && (
+                    <div className="complaint-section complaint-span-full">
+                        <h3>Butiran Aduan (Borang 5) <span className="complaint-required">*</span></h3>
+                        <div className="complaint-template complaint-template-stack">
                             <div className="complaint-template-left">
-                                <strong>Kategori Template</strong>
+                                <strong>Kesalahan Disyaki <span className="complaint-required">*</span></strong>
                                 <small>
-                                    Pilih kategori untuk masukkan contoh format ringkasan aduan.
-                                    {shouldLockSummary ? ' Ringkasan akan dibuka selepas kategori dipilih.' : ''}
+                                    Pilih kesalahan disyaki. Template Borang 5 akan dicadangkan ikut seksyen/kesalahan.
                                 </small>
                             </div>
                             <div className="complaint-template-actions">
-                                <Form.Select
-                                    value={summaryTemplate}
-                                    onChange={(e) => setSummaryTemplate(e.target.value)}
-                                    disabled={isLoading}
-                                >
-                                    <option value="">Pilih template</option>
-                                    {templatesByCaseType[caseType].map((t) => (
-                                        <option key={t.key} value={t.key}>{t.label}</option>
-                                    ))}
-                                </Form.Select>
-                                <button
-                                    type="button"
-                                    className="btn btn-outline-secondary"
-                                    onClick={insertSummaryTemplate}
-                                    disabled={isLoading || !summaryTemplate}
-                                >
-                                    Masukkan template
-                                </button>
+                                <SharedOffenseSelect
+                                    apiUrl={url}
+                                    value={officerOffenseId}
+                                    label=""
+                                    onChange={(value) => {
+                                        setOfficerOffenseId(value);
+                                        setOfficerOffenseError('');
+                                        store.setValue('offense_id', value || '');
+                                    }}
+                                    onItemSelected={(item) => {
+                                        if (!item) return;
+                                        applyOfficerTemplateFromOffense(item);
+                                    }}
+                                />
+                                {officerOffenseError && (
+                                    <div className="app-input-error" style={{ marginTop: '0.35rem' }}>
+                                        {officerOffenseError}
+                                    </div>
+                                )}
                             </div>
                         </div>
-                    )}
-                    <Row className='mb-4'>
-                        <InputTextarea 
-                            type='text'
-                            fieldName='summary' 
-                            placeholder={shouldLockSummary ? 'Sila pilih template aduan dahulu.' : 'Ringkasan Aduan'}
-                            icon='bi-pencil'
-                            rows='8'
-                            isLoading={isLoading}
-                            readOnly={shouldLockSummary}
-                        />
-                    </Row>
-                </div>
+                        <Row className='mb-4'>
+                            <InputTextarea
+                                type='text'
+                                fieldName='borang5_statement'
+                                placeholder={officerOffenseId ? 'Butiran Aduan (Borang 5) *' : 'Sila pilih Kesalahan Disyaki dahulu.'}
+                                icon='bi-file-earmark-text'
+                                rows='10'
+                                isLoading={isLoading}
+                                readOnly={!officerOffenseId && !store.getValue('borang5_statement')}
+                            />
+                        </Row>
+                    </div>
+                )}
 
                 <div className="complaint-actions">
                     <SubmitButton isLoading={isLoading} value="Hantar Aduan" />
