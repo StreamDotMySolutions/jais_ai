@@ -97,7 +97,7 @@ class WhatsappWebController extends Controller
             [
                 [
                     'role' => 'system',
-                    'content' => config('llm.complaint_system_prompt'),
+                    'content' => config('llm.complaint_system_prompt'), // prompt sistem khusus aduan
                 ],
             ],
             $chatHistory //->toArray()
@@ -141,6 +141,15 @@ class WhatsappWebController extends Controller
             'content' => $reply,
         ]);
 
+        // Detect if the message is a /store_complaint command
+        if ($this->isStoreComplaintCommand($reply)) {
+            $referenceNo = $this->handleStoreComplaint($reply, $data['from']);
+
+            // Skip sending a reply back to the user
+            return $this->reply("Aduan anda telah berjaya diterima. Ini nombor rujukan aduan : {$referenceNo}");
+        }
+     
+
         return $this->reply($reply);        
     } // end handle
 
@@ -150,6 +159,81 @@ class WhatsappWebController extends Controller
             'status' => 'ok',
             'message' => $message ?? null,
         ]);
+    }
+
+    private function isStoreComplaintCommand(string $message): bool
+    {
+        //return str_starts_with(trim($message), '/store_complaint');
+        //\Log::info('Checking for /store_complaint command in message: ' . $message);
+        return Str::startsWith(trim($message), '/store_complaint');
+    }
+
+     // Handle the /store_complaint command
+    private function handleStoreComplaint(string $message, string $chatId)
+    {
+       Log::info('Store complaint command detected, skip reply', [
+                'reply' => $message,
+                'chat_id' => $chatId,
+    ]);
+
+        // 1. Remove the command part
+        $jsonString = trim(substr($message, strlen('/store_complaint')));
+
+        // 2. Decode JSON into array
+        $data = json_decode($jsonString, true);
+
+        // 3. Safety check (LLM can hallucinate)
+        if (! is_array($data)) {
+            // log error or silently ignore
+            return;
+        }
+
+        \Log::info('Storing complaint from WhatsApp', [
+            'data' => $data,
+        ]);
+
+        // get reference no
+        $referenceNo = $this->generateReferenceNo();
+
+        // 4. Store in Complaint DB
+        \App\Models\Complaint::create([
+            'reference_no' => $referenceNo,
+            'complaint_year' => (int) now()->format('Y'),
+            'complaint_date' => now()->toDateString(),
+            'complaint_time' => now()->format('H:i:s'),
+            'complainant_name' => $data['name'] ?? 'Tidak dinyatakan',
+            'identification_number' => $data['identification_number'] ?? 'Tidak dinyatakan',
+            'contact_number' =>  $data['contact_number'] ?? 'Tidak dinyatakan',
+            'address' => $data['location'] ?? 'Tidak dinyatakan',
+            'district_name' => $data['district'] ?? null,
+            'summary' => $data['contents'] ?? 'Tidak dinyatakan',
+            'channel' => 'whatsapp_web',
+            'current_stage' => 'baru',
+            'submitted_at' => now(),
+        ]);
+
+
+        // clear ChatMessage for this chat_id
+        ChatMessage::where('chat_id', $chatId)->delete();
+
+        // Optionally, send confirmation back to user
+        // This is handled in the main handle() method after calling this function
+        return $referenceNo;
+
+        
+    }
+
+    // Generate a unique reference number for the complaint
+    private function generateReferenceNo(): string
+    {
+        $year = now()->format('Y');
+        $prefix = "JAIS-{$year}-";
+
+        do {
+            $referenceNo = $prefix . Str::upper(Str::random(6));
+        } while (\App\Models\Complaint::where('reference_no', $referenceNo)->exists());
+
+        return $referenceNo;
     }
 
 }

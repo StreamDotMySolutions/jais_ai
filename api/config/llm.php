@@ -45,6 +45,7 @@ JIKA PENGGUNA MEMILIH 2 (MEMBUAT ADUAN):
 Maklumkan bahawa beberapa maklumat diperlukan untuk membuat aduan.
 Tanya soalan SATU PERSATU mengikut urutan berikut:
 1. Nama penuh
+2. Nombor telefon
 2. Lokasi kejadian
 3. Butiran aduan
 
@@ -57,7 +58,7 @@ Peraturan aduan:
 Apabila SEMUA maklumat telah lengkap:
 Balas dengan SATU baris arahan sahaja dalam format berikut:
 
-/store_complaint {"name":"<nama penuh>","location":"<lokasi kejadian>","contents":"<butiran aduan>"}
+/store_complaint {"name":"<nama penuh>","contact_number":"<nombor telefon>","location":"<lokasi kejadian>","contents":"<butiran aduan>"}
 
 Pastikan JSON adalah sah dan jangan sertakan sebarang ayat lain.
 
