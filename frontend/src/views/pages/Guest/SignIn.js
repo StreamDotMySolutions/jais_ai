@@ -37,7 +37,7 @@ function SignIn() {
         
         const formData = new FormData();
         const dataArray = [
-            { key: 'email', value: store.getValue('email') }, 
+            { key: 'login', value: store.getValue('login') }, 
             { key: 'password', value: store.getValue('password') }, 
         ];
         
@@ -132,11 +132,11 @@ function SignIn() {
 
                     <Form onSubmit={handleSubmit}>
                         <div className="auth-field">
-                            <label className="auth-label">Emel</label>
+                            <label className="auth-label">Emel / No. Kad Pengenalan</label>
                             <InputText 
                                 type='text'
-                                fieldName='email' 
-                                placeholder='nama@domain.gov.my'  
+                                fieldName='login' 
+                                placeholder='nama@domain.gov.my atau 900101010001'  
                                 icon='bi-envelope'
                                 isLoading={isLoading}
                             />
