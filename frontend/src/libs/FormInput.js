@@ -41,7 +41,20 @@ export function TextEditor({fieldName}){
       );
 }
 
-export function InputText({fieldName, placeholder, icon, isLoading, type='text', readOnly=false}){
+export function InputText({
+    fieldName,
+    placeholder,
+    icon,
+    isLoading,
+    type='text',
+    readOnly=false,
+    onValueChange,
+    canMask=false,
+    isMasked=false,
+    onToggleMask,
+    maskOnLabel='Hide',
+    maskOffLabel='Show',
+}){
     const store = useStore()
     const errors = store.getValue('errors')
 
@@ -50,7 +63,7 @@ export function InputText({fieldName, placeholder, icon, isLoading, type='text',
                     <InputGroup.Text><i className={`fs-5 ${icon}`}></i></InputGroup.Text>
                     <Form.Control 
                         placeholder={placeholder}
-                        type={type}
+                        type={(canMask && isMasked) ? 'password' : type}
                         value={store.getValue(fieldName) ||  ''}
                         name={fieldName}
                         size='md' 
@@ -58,9 +71,28 @@ export function InputText({fieldName, placeholder, icon, isLoading, type='text',
                         //required 
                         isInvalid={errors?.hasOwnProperty(fieldName)}
                         onChange={ (e) => { 
-                          store.setValue(fieldName, e.target.value)                         
+                          store.setValue(fieldName, e.target.value)
+                          if (typeof onValueChange === 'function') {
+                            onValueChange(e.target.value)
+                          }
                         } }
                     />
+                    {canMask && (
+                        <InputGroup.Text className="complaint-hide-addon">
+                            <button
+                                type="button"
+                                className="complaint-hide-toggle"
+                                disabled={isLoading || readOnly}
+                                onClick={() => {
+                                    if (typeof onToggleMask === 'function') {
+                                        onToggleMask();
+                                    }
+                                }}
+                            >
+                                {isMasked ? maskOffLabel : maskOnLabel}
+                            </button>
+                        </InputGroup.Text>
+                    )}
                     {
                         errors?.hasOwnProperty(fieldName) &&
                             (
@@ -73,7 +105,7 @@ export function InputText({fieldName, placeholder, icon, isLoading, type='text',
             </>)
 }
 
-export function InputTextarea({fieldName, placeholder, icon, rows, isLoading, readOnly=false}){
+export function InputTextarea({fieldName, placeholder, icon, rows, isLoading, readOnly=false, onValueChange}){
     const store = useStore()
     const errors = store.getValue('errors')
 
@@ -91,7 +123,10 @@ export function InputTextarea({fieldName, placeholder, icon, rows, isLoading, re
                         //required 
                         isInvalid={errors?.hasOwnProperty(fieldName)}
                         onChange={ (e) => { 
-                          store.setValue(fieldName, e.target.value)                         
+                          store.setValue(fieldName, e.target.value)
+                          if (typeof onValueChange === 'function') {
+                            onValueChange(e.target.value)
+                          }
                         } }
                     />
                     {
@@ -106,7 +141,7 @@ export function InputTextarea({fieldName, placeholder, icon, rows, isLoading, re
             </>)
 }
 
-export function InputSelect({fieldName, placeholder, icon, isLoading, options}){
+export function InputSelect({fieldName, placeholder, icon, isLoading, options, onValueChange}){
     const store = useStore()
     const errors = store.getValue('errors')
 
@@ -125,7 +160,10 @@ export function InputSelect({fieldName, placeholder, icon, isLoading, options}){
                                 : ''
 }
                         onChange={ (e) => { 
-                          store.setValue(fieldName, e.target.value)                         
+                          store.setValue(fieldName, e.target.value)
+                          if (typeof onValueChange === 'function') {
+                            onValueChange(e.target.value)
+                          }
                         } }
                     >
                         <option value="" disabled>{placeholder}</option>

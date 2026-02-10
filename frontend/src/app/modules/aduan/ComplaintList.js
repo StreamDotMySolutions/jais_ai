@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ComplaintForm from './ComplaintForm';
+import ComplainFormPegawai from './complainFormPegawai';
 import PaginationBar from '../../components/PaginationBar';
 import SortableHeader from '../../components/SortableHeader';
 import ConfirmModal from '../../components/SharedConfirmModal';
@@ -682,7 +683,7 @@ const ComplaintList = ({
             {isFormOpen && (
                 <div className="app-modal">
                     <div className="app-modal-backdrop" onClick={() => setIsFormOpen(false)}></div>
-                    <div className="app-modal-content">
+                    <div className={`app-modal-content${role === 'awam' ? '' : ' app-modal-content--wide'}`}>
                         <div className="app-modal-header">
                             <div>
                                 <h4>Tambah Aduan</h4>
@@ -692,14 +693,26 @@ const ComplaintList = ({
                                 <i className="bi bi-x-lg"></i>
                             </button>
                         </div>
-                        <ComplaintForm
-                            showSuccessMessage={false}
-                            channelSource={role === 'awam' ? 'portal' : 'pegawai'}
-                            onSuccess={() => {
-                                setIsFormOpen(false);
-                                fetchComplaints();
-                            }}
-                        />
+                        {role === 'awam' ? (
+                            <ComplaintForm
+                                showSuccessMessage={false}
+                                channelSource="portal"
+                                onSuccess={() => {
+                                    setIsFormOpen(false);
+                                    fetchComplaints();
+                                }}
+                            />
+                        ) : (
+                            <ComplainFormPegawai
+                                onSuccess={(createdId) => {
+                                    setIsFormOpen(false);
+                                    fetchComplaints();
+                                    if (createdId) {
+                                        navigate(`/app/complaints/${createdId}`);
+                                    }
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
             )}

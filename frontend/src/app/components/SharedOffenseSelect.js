@@ -11,8 +11,10 @@ const SharedOffenseSelect = ({
     apiUrl,
     value,
     onChange,
+    onItemSelected,
     label = 'Kesalahan Disyaki',
     placeholder = '-- Pilih Kesalahan Disyaki --',
+    disabled = false,
 }) => {
     const { items, isLoading } = useOffenseOptions({ apiUrl });
 
@@ -29,7 +31,16 @@ const SharedOffenseSelect = ({
             value={value || ''}
             options={options}
             placeholder={isLoading ? 'Memuatkan kesalahan...' : placeholder}
-            onChange={onChange}
+            disabled={disabled}
+            onChange={(nextValue) => {
+                if (onChange) {
+                    onChange(nextValue);
+                }
+                if (onItemSelected) {
+                    const picked = (items || []).find((item) => String(item.id) === String(nextValue));
+                    onItemSelected(picked || null);
+                }
+            }}
         />
     );
 };
