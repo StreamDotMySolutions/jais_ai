@@ -744,14 +744,17 @@ class ComplaintController extends Controller
         ]);
 
         $channel = (string) ($request->channel ?? 'web');
+        $channelNormalized = strtolower(trim($channel));
+        // Public intake channels (no Borang 5 required).
+        $isPublicChannel = in_array($channelNormalized, ['portal', 'web'], true);
         // Keep summary as string (can be empty for officer intake).
         // DB column is non-nullable in current schema, so never persist null.
         $summary = (string) ($request->summary ?? '');
         $borang5Statement = (string) ($request->borang5_statement ?? '');
         $offenseId = $request->input('offense_id');
 
-        // Public portal submissions must include Ringkasan Aduan.
-        if (strcasecmp($channel, 'portal') === 0 && trim($summary) === '') {
+        // Public submissions must include Ringkasan Aduan.
+        if ($isPublicChannel && trim($summary) === '') {
             return response()->json([
                 'message' => 'Ringkasan Aduan wajib diisi.',
                 'errors' => ['summary' => ['Ringkasan Aduan wajib diisi.']],
@@ -759,7 +762,7 @@ class ComplaintController extends Controller
         }
 
         // Officer channels should include Borang 5 statement (but summary can be empty).
-        if (strcasecmp($channel, 'portal') !== 0 && trim($borang5Statement) === '') {
+        if (! $isPublicChannel && trim($borang5Statement) === '') {
             return response()->json([
                 'message' => 'Butiran Aduan (Borang 5) wajib diisi untuk aduan pegawai.',
                 'errors' => ['borang5_statement' => ['Butiran Aduan (Borang 5) wajib diisi.']],

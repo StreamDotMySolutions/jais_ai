@@ -15,7 +15,7 @@ function Complaint() {
                 </div>
             </div>
 
-            <ComplaintForm channelSource="web" />
+            <ComplaintForm channelSource="portal" />
         </div>
     );
 }
