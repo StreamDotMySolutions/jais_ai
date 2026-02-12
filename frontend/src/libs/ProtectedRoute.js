@@ -23,7 +23,7 @@ const ProtectedRoute = ({role}) => {
             url: `${url}/user`, // localhist:8080/api/user ( sanctum protected )
         })
         .then(response => {
-            //console.log(response.data);
+            console.log(response.data);
             authStore.setValue('auth.email', response.data.user.email)
             authStore.setValue('auth.name', response.data.user.name)
             authStore.setValue('auth.role', response.data.role)
