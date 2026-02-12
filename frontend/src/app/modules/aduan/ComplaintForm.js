@@ -7,7 +7,13 @@ import SubmitButton from '../../../libs/SubmitButton';
 import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
 import SharedOffenseSelect from '../../components/SharedOffenseSelect';
 
-function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = 'portal', officerMode = false }) {
+function ComplaintForm({
+    onSuccess,
+    showSuccessMessage = true,
+    channelSource = 'portal',
+    officerMode = false,
+    fixedCaseType = '',
+}) {
     const store = useStore();
     const url = process.env.REACT_APP_API_URL;
     const [isLoading, setIsLoading] = useState(false);
@@ -18,6 +24,7 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
     const [summaryTemplate, setSummaryTemplate] = useState('');
     const [templateError, setTemplateError] = useState('');
     const [officerOffenseId, setOfficerOffenseId] = useState('');
+    const [officerAkTemplateKey, setOfficerAkTemplateKey] = useState('');
     const [officerOffenseError, setOfficerOffenseError] = useState('');
     const [addressDraft, setAddressDraft] = useState('');
     const [maskedFields, setMaskedFields] = useState({
@@ -40,11 +47,15 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         store.setValue('incident_date', date);
         store.setValue('incident_time', '');
         store.setValue('reference_no', 'Akan dijana sistem');
-        store.setValue('case_type', 'AJ');
+        const normalizedFixedCaseType = ['AJ', 'AK'].includes((fixedCaseType || '').toUpperCase())
+            ? (fixedCaseType || '').toUpperCase()
+            : '';
+        store.setValue('case_type', normalizedFixedCaseType || 'AJ');
         store.setValue('borang5_statement', '');
         store.setValue('offense_id', '');
         setAddressDraft('');
-    }, []);
+        setOfficerAkTemplateKey('');
+    }, [fixedCaseType]);
 
     useEffect(() => {
         if (!url) {
@@ -134,10 +145,18 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                 return;
             }
         } else {
-            if (!officerOffenseId) {
-                setOfficerOffenseError('Kesalahan Disyaki wajib dipilih.');
-                setErrorMessage('Sila pilih Kesalahan Disyaki sebelum menghantar.');
-                return;
+            if (selectedCaseType === 'AK') {
+                if (!officerAkTemplateKey) {
+                    setOfficerOffenseError('Template keluarga wajib dipilih.');
+                    setErrorMessage('Sila pilih template keluarga sebelum menghantar.');
+                    return;
+                }
+            } else {
+                if (!officerOffenseId) {
+                    setOfficerOffenseError('Kesalahan Disyaki wajib dipilih.');
+                    setErrorMessage('Sila pilih Kesalahan Disyaki sebelum menghantar.');
+                    return;
+                }
             }
             if (!borang5Statement) {
                 setErrorMessage('Sila isi Butiran Aduan (Borang 5) sebelum menghantar.');
@@ -182,7 +201,11 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
             setReferenceNo(response?.data?.reference_no || '');
             setSuccess(true);
             if (onSuccess) {
-                onSuccess(createdId);
+                onSuccess({
+                    id: createdId,
+                    caseType: selectedCaseType,
+                    referenceNo: response?.data?.reference_no || '',
+                });
             }
         })
         .catch(error => {
@@ -220,6 +243,7 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
         ],
     };
     const districtName = districtOptions.find((d) => String(d.id) === String(store.getValue('district_id') || ''))?.name || '';
+    const isFixedCaseType = ['AJ', 'AK'].includes((fixedCaseType || '').toUpperCase());
     const shouldLockSummary = Boolean(
         templatesByCaseType[caseType]?.length > 0
         && !summaryTemplate
@@ -702,33 +726,51 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                 <div className="complaint-category">
                     <div>
                         <h3>Jenis Aduan <span className="complaint-required">*</span></h3>
-                        <p>Sila pilih sama ada aduan berkaitan Penguatkuasaan atau Keluarga.</p>
+                        {!isFixedCaseType && (
+                            <p>Sila pilih sama ada aduan berkaitan Penguatkuasaan atau Keluarga.</p>
+                        )}
                     </div>
                     <div className="complaint-category-options">
-                        {[
-                            { value: 'AJ', label: 'Aduan Penguatkuasaan (Khalwat/Hotel/Rumah Urut/Lain-lain Kesalahan Syariah)' },
-                            { value: 'AK', label: 'Aduan Keluarga (Nikah/Cerai/Rujuk/Poligami)' },
-                        ].map((option) => (
-                            <label
-                                key={option.value}
-                                className={`complaint-category-card ${store.getValue('case_type') === option.value ? 'active' : ''}`}
-                            >
-                                <input
-                                    type="radio"
-                                    name="case_type"
-                                    value={option.value}
-                                    checked={store.getValue('case_type') === option.value}
-                                    onChange={() => {
-                                        store.setValue('case_type', option.value);
-                                        setSummaryTemplate('');
-                                        setTemplateError('');
-                                        store.setValue('summary', '');
-                                        setAddressDraft('');
-                                    }}
-                                />
-                                <span>{option.label}</span>
+                        {isFixedCaseType ? (
+                            <label className="complaint-category-card active">
+                                <input type="radio" checked readOnly />
+                                <span>
+                                    {store.getValue('case_type') === 'AK'
+                                        ? 'Aduan Keluarga (Nikah/Cerai/Rujuk/Poligami)'
+                                        : 'Aduan Penguatkuasaan (Khalwat/Hotel/Rumah Urut/Lain-lain Kesalahan Syariah)'}
+                                </span>
                             </label>
-                        ))}
+                        ) : (
+                            [
+                                { value: 'AJ', label: 'Aduan Penguatkuasaan (Khalwat/Hotel/Rumah Urut/Lain-lain Kesalahan Syariah)' },
+                                { value: 'AK', label: 'Aduan Keluarga (Nikah/Cerai/Rujuk/Poligami)' },
+                            ].map((option) => (
+                                <label
+                                    key={option.value}
+                                    className={`complaint-category-card ${store.getValue('case_type') === option.value ? 'active' : ''}`}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="case_type"
+                                        value={option.value}
+                                        checked={store.getValue('case_type') === option.value}
+                                        onChange={() => {
+                                            store.setValue('case_type', option.value);
+                                            setSummaryTemplate('');
+                                            setTemplateError('');
+                                            setOfficerAkTemplateKey('');
+                                            setOfficerOffenseId('');
+                                            setOfficerOffenseError('');
+                                            store.setValue('summary', '');
+                                            store.setValue('offense_id', '');
+                                            store.setValue('borang5_statement', '');
+                                            setAddressDraft('');
+                                        }}
+                                    />
+                                    <span>{option.label}</span>
+                                </label>
+                            ))
+                        )}
                     </div>
                 </div>
 
@@ -744,8 +786,8 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                                 canMask
                                 isMasked={maskedFields.complainant_name}
                                 onToggleMask={() => setMaskedFields((prev) => ({ ...prev, complainant_name: !prev.complainant_name }))}
-                                maskOnLabel="SOROK"
-                                maskOffLabel="PAPAR"
+                                maskOnLabel="HIDE"
+                                maskOffLabel="SHOW"
                             />
                         </Row>
 
@@ -759,8 +801,8 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                                 canMask
                                 isMasked={maskedFields.identification_number}
                                 onToggleMask={() => setMaskedFields((prev) => ({ ...prev, identification_number: !prev.identification_number }))}
-                                maskOnLabel="SOROK"
-                                maskOffLabel="PAPAR"
+                                maskOnLabel="HIDE"
+                                maskOffLabel="SHOW"
                             />
                         </Row>
 
@@ -774,8 +816,8 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                                 canMask
                                 isMasked={maskedFields.contact_number}
                                 onToggleMask={() => setMaskedFields((prev) => ({ ...prev, contact_number: !prev.contact_number }))}
-                                maskOnLabel="SOROK"
-                                maskOffLabel="PAPAR"
+                                maskOnLabel="HIDE"
+                                maskOffLabel="SHOW"
                             />
                         </Row>
                     </div>
@@ -869,6 +911,7 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                                 placeholder={shouldLockSummary ? 'Sila pilih template aduan dahulu.' : 'Ringkasan Aduan *'}
                                 icon='bi-pencil'
                                 rows='8'
+                                autoGrow
                                 isLoading={isLoading}
                                 readOnly={shouldLockSummary}
                             />
@@ -887,20 +930,52 @@ function ComplaintForm({ onSuccess, showSuccessMessage = true, channelSource = '
                                 </small>
                             </div>
                             <div className="complaint-template-actions">
-                                <SharedOffenseSelect
-                                    apiUrl={url}
-                                    value={officerOffenseId}
-                                    label=""
-                                    onChange={(value) => {
-                                        setOfficerOffenseId(value);
-                                        setOfficerOffenseError('');
-                                        store.setValue('offense_id', value || '');
-                                    }}
-                                    onItemSelected={(item) => {
-                                        if (!item) return;
-                                        applyOfficerTemplateFromOffense(item);
-                                    }}
-                                />
+                                {caseType === 'AK' ? (
+                                    <Form.Select
+                                        value={officerAkTemplateKey}
+                                        onChange={(e) => {
+                                            const nextKey = e.target.value || '';
+                                            setOfficerAkTemplateKey(nextKey);
+                                            setOfficerOffenseError('');
+                                            setOfficerOffenseId('');
+                                            store.setValue('offense_id', '');
+                                            if (!nextKey) {
+                                                return;
+                                            }
+                                            const nextText = buildSummaryTemplate(nextKey);
+                                            if (nextText) {
+                                                const existing = (store.getValue('borang5_statement') || '').toString().trim();
+                                                if (existing && existing !== nextText.trim()) {
+                                                    const ok = window.confirm('Butiran Aduan (Borang 5) akan diganti dengan template keluarga. Teruskan?');
+                                                    if (!ok) return;
+                                                }
+                                                store.setValue('borang5_statement', nextText);
+                                            }
+                                        }}
+                                        disabled={isLoading}
+                                    >
+                                        <option value="">-- Pilih Template Keluarga --</option>
+                                        {(templatesByCaseType.AK || []).map((item) => (
+                                            <option key={item.key} value={item.key}>{item.label}</option>
+                                        ))}
+                                    </Form.Select>
+                                ) : (
+                                    <SharedOffenseSelect
+                                        apiUrl={url}
+                                        value={officerOffenseId}
+                                        label=""
+                                        onChange={(value) => {
+                                            setOfficerOffenseId(value);
+                                            setOfficerAkTemplateKey('');
+                                            setOfficerOffenseError('');
+                                            store.setValue('offense_id', value || '');
+                                        }}
+                                        onItemSelected={(item) => {
+                                            if (!item) return;
+                                            applyOfficerTemplateFromOffense(item);
+                                        }}
+                                    />
+                                )}
                                 {officerOffenseError && (
                                     <div className="app-input-error" style={{ marginTop: '0.35rem' }}>
                                         {officerOffenseError}

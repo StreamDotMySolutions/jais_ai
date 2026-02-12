@@ -6,6 +6,8 @@ import ComplainFormPegawai from './complainFormPegawai';
 import PaginationBar from '../../components/PaginationBar';
 import SortableHeader from '../../components/SortableHeader';
 import ConfirmModal from '../../components/SharedConfirmModal';
+import SharedInlineEditText from '../../components/SharedInlineEditText';
+import { useToast } from '../../components/SharedToastProvider';
 import { sortRows } from '../../utils/sort';
 import { getComplaintStageLabel } from './complaintStage';
 
@@ -66,6 +68,34 @@ const getProsecutionStatusBadgeTone = (value) => {
     return 'is-muted';
 };
 
+const formatChannelLabel = (channel) => {
+    const value = (channel || '').toString().trim().toLowerCase();
+    if (!value) return '-';
+    if (value === 'portal') return 'Portal (Awam)';
+    if (value === 'web') return 'Web';
+    if (value === 'walkin') return 'Walk-in / Kaunter';
+    if (value === 'telefon') return 'Telefon';
+    if (value === 'email') return 'Email';
+    if (value === 'agensi') return 'Agensi';
+    if (value === 'lain') return 'Lain-lain';
+    return channel;
+};
+
+const formatDateTime = (value) => {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
+    return date.toLocaleString('ms-MY', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kuala_Lumpur',
+    });
+};
+
 const ComplaintList = ({
     caseType = '',
     isCase = false,
@@ -75,6 +105,7 @@ const ComplaintList = ({
     enablePickup = false,
 }) => {
     const apiUrl = process.env.REACT_APP_API_URL;
+    const toast = useToast();
     const navigate = useNavigate();
     const [complaints, setComplaints] = useState([]);
     const [quickQuery, setQuickQuery] = useState('');
@@ -135,6 +166,7 @@ const ComplaintList = ({
     });
     const [selectedComplaint, setSelectedComplaint] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const canInlineEdit = role !== 'awam';
 
     const showCaseTabs = !caseType && !fetchEndpoint && !isCase;
 
@@ -296,6 +328,40 @@ const ComplaintList = ({
             .catch((err) => {
                 setActionMessage(err?.response?.data?.message || 'Gagal memadam aduan.');
             });
+    };
+
+    const syncUpdatedComplaint = (updated) => {
+        if (!updated?.id) {
+            return;
+        }
+        setSelectedComplaint((prev) => (prev?.id === updated.id ? { ...prev, ...updated } : prev));
+        setComplaints((prev) => prev.map((row) => (row.id === updated.id ? { ...row, ...updated } : row)));
+    };
+
+    const saveInlineField = async (fieldName, value) => {
+        if (!apiUrl || !selectedComplaint?.id) {
+            throw new Error('Aduan tidak ditemui.');
+        }
+        const token = localStorage.getItem('token');
+        const payload = {
+            [fieldName]: fieldName === 'district_id' ? (value || null) : value,
+        };
+
+        try {
+            const response = await axios.post(`${apiUrl}/complaints/${selectedComplaint.id}/basic`, payload, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            });
+            const updated = response?.data?.data;
+            if (updated) {
+                syncUpdatedComplaint(updated);
+            }
+            toast.success(response?.data?.message || 'Maklumat aduan dikemaskini.');
+            return updated;
+        } catch (err) {
+            const msg = err?.response?.data?.message || 'Gagal kemaskini.';
+            toast.error(msg);
+            throw new Error(msg);
+        }
     };
 
     useEffect(() => {
@@ -777,36 +843,181 @@ const ComplaintList = ({
                                 </button>
                             </div>
 
-                            <div className="app-drawer-section">
-                                <h5>Maklumat Pengadu</h5>
-                                <p><strong>{selectedComplaint.complainant_name || '-'}</strong></p>
-                                <p>No K/P: {selectedComplaint.identification_number || '-'}</p>
-                                <p>No HP: {selectedComplaint.contact_number || '-'}</p>
+                            <div className="app-drawer-section app-drawer-section--clean">
+                                <h4 className="app-drawer-main-title">Maklumat Aduan</h4>
+                                <div className="app-detail-submeta" aria-label="Maklumat penghantaran aduan">
+                                    <div className="app-detail-submeta-item">
+                                        <span className="app-detail-submeta-label">Tahun</span>
+                                        <strong>{selectedComplaint.complaint_year || '-'}</strong>
+                                    </div>
+                                    <div className="app-detail-submeta-item">
+                                        <span className="app-detail-submeta-label">Tarikh</span>
+                                        <strong>{selectedComplaint.complaint_date || '-'}</strong>
+                                    </div>
+                                    <div className="app-detail-submeta-item">
+                                        <span className="app-detail-submeta-label">Masa</span>
+                                        <strong>{(selectedComplaint.complaint_time || '').toString().slice(0, 5) || '-'}</strong>
+                                    </div>
+                                    <div className="app-detail-submeta-item">
+                                        <span className="app-detail-submeta-label">Kaedah Aduan</span>
+                                        <strong>{formatChannelLabel(selectedComplaint.channel)}</strong>
+                                    </div>
+                                    <div className="app-detail-submeta-item">
+                                        <span className="app-detail-submeta-label">Dihantar</span>
+                                        <strong>{selectedComplaint.submitted_at ? formatDateTime(selectedComplaint.submitted_at) : '-'}</strong>
+                                    </div>
+                                </div>
                             </div>
 
-	                            <div className="app-drawer-section">
-	                                <h5>Maklumat Aduan</h5>
-	                                <p>Tarikh/Masa: {selectedComplaint.complaint_date || '-'} {selectedComplaint.complaint_time || ''}</p>
-	                                <p>Alamat: {selectedComplaint.address || '-'}</p>
-	                                <p>Daerah: {selectedComplaint.district_name || '-'}</p>
-                                    {role !== 'awam' && (
-                                        <>
-                                            <p>
-                                                Status Siasatan:{' '}
-                                                {selectedComplaint.case_type === 'AK'
-                                                    ? (selectedComplaint.ak_ip_status || '-')
-                                                    : (selectedComplaint.aj_ip_status || '-')}
-                                            </p>
-                                            {selectedComplaint.case_type !== 'AK' && (
-                                                <p>Status Pendakwaan: {selectedComplaint.aj_prosecution_status || '-'}</p>
-                                            )}
-                                        </>
-                                    )}
-	                            </div>
+                            <div className="app-basic-kv app-drawer-basic-kv">
+                                <div className="app-drawer-section">
+                                    <div className="app-card-subheader">
+                                        <h5>Butir-butir Pemberi Maklumat / Pengadu</h5>
+                                    </div>
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">Nama</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={selectedComplaint.complainant_name || ''}
+                                                placeholder="-"
+                                                canEdit={canInlineEdit}
+                                                onConfirm={(val) => saveInlineField('complainant_name', val)}
+                                            />
+                                        </span>
+                                    </div>
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">No Kad Pengenalan</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={selectedComplaint.identification_number || ''}
+                                                placeholder="-"
+                                                canEdit={canInlineEdit}
+                                                onConfirm={(val) => saveInlineField('identification_number', val)}
+                                            />
+                                        </span>
+                                    </div>
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">No HP</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={selectedComplaint.contact_number || ''}
+                                                placeholder="-"
+                                                canEdit={canInlineEdit}
+                                                onConfirm={(val) => saveInlineField('contact_number', val)}
+                                            />
+                                        </span>
+                                    </div>
+                                </div>
+
+	                                <div className="app-drawer-section">
+                                        <div className="app-card-subheader">
+	                                        <h5>Maklumat Kejadian</h5>
+                                        </div>
+	                                    <div className="app-kv">
+                                            <span className="app-kv-label">Tarikh Kejadian</span>
+                                            <span className="app-kv-value">
+                                                <SharedInlineEditText
+                                                    value={selectedComplaint.incident_date || ''}
+                                                    placeholder="-"
+                                                    canEdit={canInlineEdit}
+                                                    inputType="date"
+                                                    onConfirm={(val) => saveInlineField('incident_date', val)}
+                                                />
+                                            </span>
+                                        </div>
+	                                    <div className="app-kv">
+                                            <span className="app-kv-label">Masa Kejadian</span>
+                                            <span className="app-kv-value">
+                                                <SharedInlineEditText
+                                                    value={(selectedComplaint.incident_time || '').toString().slice(0, 5)}
+                                                    placeholder="-"
+                                                    canEdit={canInlineEdit}
+                                                    inputType="time"
+                                                    onConfirm={(val) => saveInlineField('incident_time', val)}
+                                                />
+                                            </span>
+                                        </div>
+	                                    <div className="app-kv">
+                                            <span className="app-kv-label">Daerah</span>
+                                            <span className="app-kv-value">
+                                                <SharedInlineEditText
+                                                    value={selectedComplaint.district_id ? String(selectedComplaint.district_id) : ''}
+                                                    placeholder="-"
+                                                    canEdit={canInlineEdit}
+                                                    mode="select"
+                                                    options={districtOptions.map((district) => ({
+                                                        value: String(district.id),
+                                                        label: district.name,
+                                                    }))}
+                                                    onConfirm={(val) => saveInlineField('district_id', val)}
+                                                />
+                                            </span>
+                                        </div>
+	                                    <div className="app-kv app-kv--stack">
+                                            <span className="app-kv-label">Alamat</span>
+                                            <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={selectedComplaint.address || ''}
+                                            placeholder="-"
+                                            canEdit={canInlineEdit}
+                                            mode="textarea"
+                                            fullWidth
+                                            onConfirm={(val) => saveInlineField('address', val)}
+                                        />
+                                            </span>
+                                        </div>
+                                        {role !== 'awam' && (
+                                            <>
+                                                <div className="app-kv">
+                                                    <span className="app-kv-label">Status Siasatan</span>
+                                                    <span className="app-kv-value">
+                                                        {selectedComplaint.case_type === 'AK'
+                                                            ? (selectedComplaint.ak_ip_status || '-')
+                                                            : (selectedComplaint.aj_ip_status || '-')}
+                                                    </span>
+                                                </div>
+                                                {selectedComplaint.case_type !== 'AK' && (
+                                                    <div className="app-kv">
+                                                        <span className="app-kv-label">Status Pendakwaan</span>
+                                                        <span className="app-kv-value">{selectedComplaint.aj_prosecution_status || '-'}</span>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                </div>
+                            </div>
 
                             <div className="app-drawer-section">
-                                <h5>Ringkasan Aduan</h5>
-                                <p>{selectedComplaint.summary || '-'}</p>
+                                <h5>Ringkasan Aduan (Pengadu)</h5>
+                                <p>
+                                    <SharedInlineEditText
+                                        value={selectedComplaint.summary || ''}
+                                        placeholder="-"
+                                        canEdit={canInlineEdit}
+                                        mode="textarea"
+                                        textareaRows={8}
+                                        textareaAutoGrow
+                                        fullWidth
+                                        onConfirm={(val) => saveInlineField('summary', val)}
+                                    />
+                                </p>
+                                {canInlineEdit && (
+                                    <>
+                                        <h5 style={{ marginTop: '0.85rem' }}>Butiran Aduan (Borang 5)</h5>
+                                        <p>
+                                            <SharedInlineEditText
+                                                value={selectedComplaint.borang5_statement || ''}
+                                                placeholder="-"
+                                                canEdit={canInlineEdit}
+                                                mode="textarea"
+                                                textareaRows={8}
+                                                textareaAutoGrow
+                                                fullWidth
+                                                onConfirm={(val) => saveInlineField('borang5_statement', val)}
+                                            />
+                                        </p>
+                                    </>
+                                )}
                             </div>
 
                             <div className="app-drawer-actions">
@@ -857,11 +1068,18 @@ const ComplaintList = ({
                             />
                         ) : (
                             <ComplainFormPegawai
-                                onSuccess={(createdId) => {
+                                fixedCaseType={caseType}
+                                onSuccess={(created) => {
                                     setIsFormOpen(false);
                                     fetchComplaints();
+                                    const createdId = typeof created === 'object' ? created?.id : created;
+                                    const createdCaseType = typeof created === 'object' ? created?.caseType : '';
                                     if (createdId) {
-                                        navigate(`/app/complaints/${createdId}`);
+                                        if ((createdCaseType || '').toUpperCase() === 'AK') {
+                                            navigate(`/app/complaints/${createdId}?step=siasatan`);
+                                        } else {
+                                            navigate(`/app/complaints/${createdId}`);
+                                        }
                                     }
                                 }}
                             />

@@ -298,6 +298,25 @@ class ComplaintController extends Controller
             'approver_staff_id' => 'nullable|exists:staff,id',
         ]);
 
+        // AK does not use approval flow. Keep receiver info only and mark as disahkan.
+        if (strtoupper((string) ($complaint->case_type ?: 'AJ')) === 'AK') {
+            $payload = [
+                'received_by_user_id' => $user->id,
+                'received_at' => now(),
+            ];
+            if (in_array((string) $complaint->current_stage, ['baru', 'tunggu_pengesahan'], true)) {
+                $payload['current_stage'] = 'disahkan';
+            }
+            if (! empty($payload)) {
+                $complaint->update($payload);
+            }
+
+            return response()->json([
+                'message' => 'AK tidak memerlukan pengesahan.',
+                'data' => $complaint->load(['receivedBy:id,name', 'approverStaff:id,name,staff_id']),
+            ]);
+        }
+
         $payload = [];
         if ($request->filled('approver_staff_id')) {
             if ((int) $request->approver_staff_id !== (int) $complaint->approver_staff_id) {
@@ -645,9 +664,13 @@ class ComplaintController extends Controller
         ];
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
+        if (in_array((string) $complaint->current_stage, ['baru', 'tunggu_pengesahan'], true)) {
+            $payload['current_stage'] = 'disahkan';
+        }
 
         $appointmentMessage = null;
         $complaint->update($payload);
+        $this->assignPpaToDistrict($complaint, $user->id);
 
         if (! empty($payload['ak_investigation_datetime'])) {
             $startAt = Carbon::parse($payload['ak_investigation_datetime']);
@@ -781,7 +804,9 @@ class ComplaintController extends Controller
             $now->format('ymd')
         );
 
-        $complaint = Complaint::create([        
+        $isAkFlow = strtoupper((string) $caseType) === 'AK';
+
+        $complaint = Complaint::create([
             'reference_no' => $referenceNo,
             'case_type' => $caseType,
             'complaint_year' => $year,
@@ -800,13 +825,20 @@ class ComplaintController extends Controller
             'aj_offense_id' => ($caseType === 'AJ' && $offenseId) ? (int) $offenseId : null,
             'ak_offense_id' => ($caseType === 'AK' && $offenseId) ? (int) $offenseId : null,
             'channel' => $channel,
-            'current_stage' => 'baru',
+            'current_stage' => $isAkFlow ? 'disahkan' : 'baru',
+            'approver_confirmed_at' => $isAkFlow ? $now : null,
             'submitted_at' => $now,
             'submitted_by_user_id' => Auth::guard('sanctum')->id(),
             'name' => $request->complainant_name,
             // For search/indexing, prefer summary; fallback to borang5 statement for officer intake.
             'contents' => trim($summary) !== '' ? $summary : $borang5Statement,
         ]);
+
+        // AK skips approval flow. Assign district PPA immediately when creator is authenticated.
+        $creatorId = Auth::guard('sanctum')->id();
+        if ($isAkFlow && $creatorId) {
+            $this->assignPpaToDistrict($complaint, (int) $creatorId);
+        }
 
         return response()->json([
             'message' => 'Complaint Submitted',

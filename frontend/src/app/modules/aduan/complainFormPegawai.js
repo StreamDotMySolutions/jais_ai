@@ -4,7 +4,7 @@ import ComplaintForm from './ComplaintForm';
 
 // Pegawai create complaint (walk-in/telefon/email/agensi).
 // Backend still uses the same /complaints endpoint; we only change the "channel" value.
-const ComplainFormPegawai = ({ onSuccess }) => {
+const ComplainFormPegawai = ({ onSuccess, fixedCaseType = '' }) => {
     const [channel, setChannel] = useState('walkin');
 
     return (
@@ -32,6 +32,7 @@ const ComplainFormPegawai = ({ onSuccess }) => {
                 showSuccessMessage={false}
                 channelSource={channel}
                 officerMode
+                fixedCaseType={fixedCaseType}
                 onSuccess={onSuccess}
             />
         </div>

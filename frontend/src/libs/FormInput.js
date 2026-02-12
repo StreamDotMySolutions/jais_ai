@@ -1,6 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Row,Col,Form, InputGroup } from 'react-bootstrap';
-import { React} from 'react';
+import React, { useEffect, useRef } from 'react';
 import useStore from '../store';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css'; // import styles
@@ -105,20 +105,42 @@ export function InputText({
             </>)
 }
 
-export function InputTextarea({fieldName, placeholder, icon, rows, isLoading, readOnly=false, onValueChange}){
+export function InputTextarea({
+    fieldName,
+    placeholder,
+    icon,
+    rows,
+    isLoading,
+    readOnly=false,
+    onValueChange,
+    autoGrow=false,
+}){
     const store = useStore()
     const errors = store.getValue('errors')
+    const textareaRef = useRef(null);
+    const value = store.getValue(fieldName) || '';
+
+    useEffect(() => {
+        if (!autoGrow || !textareaRef.current) {
+            return;
+        }
+        const el = textareaRef.current;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    }, [autoGrow, value]);
 
     return(<>
                 <InputGroup>
                     <InputGroup.Text><i className={`fs-5 ${icon}`}></i></InputGroup.Text>
                     <Form.Control 
                         as="textarea" 
+                        ref={textareaRef}
                         rows={rows}
                         placeholder={placeholder}
-                        value={store.getValue(fieldName) ||  ''}
+                        value={value}
                         name={fieldName}
                         size='md' 
+                        style={autoGrow ? { overflow: 'hidden', resize: 'vertical' } : undefined}
                         readOnly={isLoading || readOnly}
                         //required 
                         isInvalid={errors?.hasOwnProperty(fieldName)}

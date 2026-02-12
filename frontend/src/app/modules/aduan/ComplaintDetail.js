@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import SearchSelect from '../../../libs/SearchSelect';
 import SharedStaffSelect from '../../components/SharedStaffSelect';
@@ -29,6 +29,7 @@ const AK_STEPS = [
 
 const ComplaintDetail = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { id } = useParams();
     const apiUrl = process.env.REACT_APP_API_URL;
     const toast = useToast();
@@ -985,18 +986,27 @@ const ComplaintDetail = () => {
         )
     );
     const steps = currentCaseType === 'AK' ? AK_STEPS : AJ_STEPS;
-    const isApproved = Boolean(complaint?.approver_confirmed_at);
+    const isApproved = currentCaseType === 'AK'
+        ? true
+        : Boolean(complaint?.approver_confirmed_at);
     const lockedStepKeys = useMemo(() => {
         if (currentCaseType === 'AK') {
-            return ['siasatan', 'pendakwaan'];
+            return [];
         }
         return ['laporan', 'siasatan', 'pendakwaan'];
     }, [currentCaseType]);
     const isStepLocked = useCallback((key) => (!isApproved && lockedStepKeys.includes(key)), [isApproved, lockedStepKeys]);
 
     useEffect(() => {
-        setActiveStep(0);
-    }, [id, currentCaseType]);
+        const params = new URLSearchParams(location.search || '');
+        const stepFromQuery = (params.get('step') || '').trim();
+        if (!stepFromQuery) {
+            setActiveStep(0);
+            return;
+        }
+        const foundIndex = steps.findIndex((s) => s.key === stepFromQuery);
+        setActiveStep(foundIndex >= 0 ? foundIndex : 0);
+    }, [id, currentCaseType, location.search, steps]);
 
     const activeKey = steps[activeStep]?.key;
     useEffect(() => {
@@ -1088,7 +1098,10 @@ const ComplaintDetail = () => {
                     <div className="app-detail-number">
                         <div className="app-detail-number-main">
                             <h3>{complaint.reference_no || '-'}</h3>
-                            <span className="app-status-pill">{getComplaintStageLabel(complaint.current_stage || 'baru')}</span>
+                            <div className="app-detail-status-row">
+                                <span className="app-detail-status-label">Status Aduan :</span>
+                                <span className="app-status-pill">{getComplaintStageLabel(complaint.current_stage || 'baru')}</span>
+                            </div>
                         </div>
                         <div className="app-detail-number-actions">
                             <button
@@ -1608,7 +1621,7 @@ const ComplaintDetail = () => {
                                         <span>Kesalahan Tak Boleh Tangkap</span>
                                     </label>
                                     <small className="app-hint">
-                                        Jika pilih <strong>Kesalahan Boleh Tangkap</strong>, aduan akan masuk ke menu <strong>KES</strong> selepas disahkan (approve).
+                                        Jika pilih <strong>Kesalahan Boleh Tangkap</strong>, aduan akan masuk ke menu <strong>KES</strong> selepas simpan tindakan.
                                     </small>
                                 </div>
 
@@ -1660,35 +1673,6 @@ const ComplaintDetail = () => {
                                                 <strong>{formatDateTime(complaint.received_at)}</strong>
                                             </div>
                                         </div>
-                                        <div className="app-approver-block">
-                                            <div className="app-approver-row">
-                                                <span>Pegawai Pengesah</span>
-                                                <span>:</span>
-                                                <SharedStaffSelect
-                                                    apiUrl={apiUrl}
-                                                    value={approverStaffId}
-                                                    onChange={setApproverStaffId}
-                                                    disabled={Boolean(complaint.approver_confirmed_at)}
-                                                />
-                                            </div>
-                                            <div className="app-approver-row">
-                                                <span>Tarikh Sahkan</span>
-                                                <span>:</span>
-                                                <strong>{formatDateTime(complaint.approver_confirmed_at)}</strong>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="app-approver-actions">
-                                        {!complaint.approver_confirmed_at && !canApprove && (
-                                            <button className="app-button app-button-ghost" type="button" onClick={submitAssignees}>
-                                                Hantar Pengesahan
-                                            </button>
-                                        )}
-                                        {!complaint.approver_confirmed_at && canApprove && (
-                                            <button className="app-button" type="button" onClick={submitApproval}>
-                                                Sahkan Aduan
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
                             </div>

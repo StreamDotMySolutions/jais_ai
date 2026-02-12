@@ -8,6 +8,9 @@ const SharedInlineEditText = ({
     inputType = 'text',
     maxLength,
     mode = 'input', // input | textarea | select
+    textareaRows = 4,
+    textareaAutoGrow = false,
+    fullWidth = false,
     options = [], // for select: [{ value, label }]
     formatDisplay,
     onConfirm,
@@ -62,6 +65,15 @@ const SharedInlineEditText = ({
         }
     }, [isEditing]);
 
+    useEffect(() => {
+        if (!isEditing || mode !== 'textarea' || !textareaAutoGrow || !inputRef.current) {
+            return;
+        }
+        const el = inputRef.current;
+        el.style.height = 'auto';
+        el.style.height = `${el.scrollHeight}px`;
+    }, [isEditing, mode, textareaAutoGrow, draft]);
+
     const startEdit = () => {
         if (!canEdit || isSaving) return;
         setIsEditing(true);
@@ -105,7 +117,7 @@ const SharedInlineEditText = ({
     }
 
     return (
-        <span className="app-inline-edit">
+        <span className={`app-inline-edit${fullWidth ? ' is-full' : ''}`}>
             {!isEditing && (
                 <button
                     type="button"
@@ -121,7 +133,7 @@ const SharedInlineEditText = ({
             )}
 
             {isEditing && (
-                <span className="app-inline-edit-editor">
+                <span className={`app-inline-edit-editor${fullWidth ? ' is-full' : ''}`}>
                     {mode === 'textarea' && (
                         <textarea
                             ref={inputRef}
@@ -129,8 +141,9 @@ const SharedInlineEditText = ({
                             maxLength={maxLength}
                             onChange={(e) => setDraft(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="app-inline-edit-input app-inline-edit-textarea"
-                            rows={4}
+                            className={`app-inline-edit-input app-inline-edit-textarea${fullWidth ? ' is-full' : ''}`}
+                            rows={textareaRows}
+                            style={textareaAutoGrow ? { overflow: 'hidden', resize: 'vertical' } : undefined}
                             disabled={isSaving}
                         />
                     )}
@@ -140,7 +153,7 @@ const SharedInlineEditText = ({
                             value={draft}
                             onChange={(e) => setDraft(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="app-inline-edit-input"
+                            className={`app-inline-edit-input${fullWidth ? ' is-full' : ''}`}
                             disabled={isSaving}
                         >
                             <option value="">{placeholder}</option>
@@ -159,7 +172,7 @@ const SharedInlineEditText = ({
                             maxLength={maxLength}
                             onChange={(e) => setDraft(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="app-inline-edit-input"
+                            className={`app-inline-edit-input${fullWidth ? ' is-full' : ''}`}
                             disabled={isSaving}
                         />
                     )}
