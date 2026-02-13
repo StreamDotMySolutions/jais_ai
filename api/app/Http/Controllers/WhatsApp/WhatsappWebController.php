@@ -54,8 +54,17 @@ class WhatsappWebController extends Controller
             }
 
             $extension = explode('/', $mimetype)[1] ?? 'bin';
-
             $fileName = 'wa_' . time() . '_' . Str::random(6) . '.' . $extension;
+
+
+            // periksa mimetype jpg dan png baru simpan
+            if (!in_array($extension, ['jpeg', 'jpg', 'png'])) {
+                return response()->json([
+                    'status' => 'ignored',
+                    'message' => 'Unsupported media type.',
+                ]);
+            }
+
 
             $this->downloadMedia($base64, $fileName);
 
@@ -297,7 +306,7 @@ class WhatsappWebController extends Controller
     {
 
         // make filename unique
-        $filename = time() . '_' . $filename;
+        //$filename = time() . '_' . $filename;
 
         $storagePath = storage_path('app/public/whatsapp_media/');
         if (!file_exists($storagePath)) {
