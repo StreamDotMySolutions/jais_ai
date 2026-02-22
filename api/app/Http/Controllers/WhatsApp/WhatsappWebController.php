@@ -12,15 +12,80 @@ class WhatsappWebController extends Controller
 {
     public function handle(Request $request)
     {
+
+        \Log::info('Received WhatsApp Web webhook', [
+            'payload' => $request->all(),
+        ]);
+
         // basic validation (jangan terlalu ketat dulu)
+        // $data = $request->validate([
+        //     'from'      => 'required|string',
+        //     'body'      => 'nullable|string',
+        //     'timestamp' => 'nullable|integer',
+        //     'isGroup'   => 'required|boolean',
+        // ]);
+
         $data = $request->validate([
-            'from'      => 'required|string',
-            'body'      => 'nullable|string',
-            'timestamp' => 'nullable|integer',
-            'isGroup'   => 'required|boolean',
+            'from'      => 'required|string', // phone number with country code, e.g., 60123456789
+            'body'      => 'nullable|string', // message text
+            'timestamp' => 'nullable|integer', // unix timestamp
+            'isGroup'   => 'required|boolean',// whether the message is from a group
+            'type'      => 'required|string', // message type: text, image, video, etc.
+            'hasMedia'  => 'required|boolean',// whether the message has media
+            'media'     => 'nullable|array',// media details if hasMedia is true
+            'media.mimetype' => 'nullable|string', // e.g., image/jpeg
+            'media.filename' => 'nullable|string',// original filename
+            'media.data'     => 'nullable|string', // base64 encoded media data
         ]);
 
         Log::info('WhatsApp Web message received', $data);
+
+        // if $data['hasMedia'] is true, ignore for now
+        if (isset($data['hasMedia']) && $data['hasMedia']) {
+            //Log::info('Ignoring media message for now', $data);
+
+            // downLoad media to storage
+            $base64 = $data['media']['data'];
+            $mimetype = $data['media']['mimetype'] ?? 'application/octet-stream';
+
+            // Buang prefix kalau ada
+            if (str_contains($base64, ',')) {
+                $base64 = explode(',', $base64)[1];
+            }
+
+            $extension = explode('/', $mimetype)[1] ?? 'bin';
+            $fileName = 'wa_' . time() . '_' . Str::random(6) . '.' . $extension;
+
+
+            // periksa mimetype jpg dan png baru simpan
+            if (!in_array($extension, ['jpeg', 'jpg', 'png'])) {
+                return response()->json([
+                    'status' => 'ignored',
+                    'message' => 'Unsupported media type.',
+                ]);
+            }
+
+
+            $this->downloadMedia($base64, $fileName);
+
+            // Storage::disk('public')->put(
+            //     'whatsapp/' . $fileName,
+            //     base64_decode($base64)
+            // );
+
+            return response()->json([
+                'status' => 'saved',
+                'message' => 'Media received',
+                'path' => 'storage/whatsapp/' . $fileName
+            ]);
+            // end download
+            
+
+            return response()->json([
+                'status' => 'ignored',
+                'message' => 'Media messages are not supported yet.',
+            ]);
+        }
 
         // normalize data
         $message = [
@@ -235,5 +300,27 @@ class WhatsappWebController extends Controller
 
         return $referenceNo;
     }
+
+    // function to download media from base64 data
+    private function downloadMedia($mediaData, $filename)
+    {
+
+        // make filename unique
+        //$filename = time() . '_' . $filename;
+
+        $storagePath = storage_path('app/public/whatsapp_media/');
+        if (!file_exists($storagePath)) {
+            mkdir($storagePath, 0755, true);
+        }
+        $filePath = $storagePath . $filename;
+        file_put_contents($filePath, base64_decode($mediaData));
+
+        
+        return $filePath;
+
+        // Simpan path ke DB atau lakukan apa-apa tindakan lain yang diperlukan
+    }
+
+
 
 }
