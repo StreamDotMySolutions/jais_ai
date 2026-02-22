@@ -7,6 +7,43 @@ import SubmitButton from '../../../libs/SubmitButton';
 import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
 import SharedOffenseSelect from '../../components/SharedOffenseSelect';
 
+const escapePdfText = (value = '') => String(value)
+    .replace(/\\/g, '\\\\')
+    .replace(/\(/g, '\\(')
+    .replace(/\)/g, '\\)');
+
+const buildSimplePdf = (lines = []) => {
+    const safeLines = (Array.isArray(lines) ? lines : []).slice(0, 20);
+    const lineHeight = 18;
+    const startY = 780;
+    const contentLines = safeLines.map((line, index) => `1 0 0 1 50 ${startY - (index * lineHeight)} Tm (${escapePdfText(line)}) Tj`).join('\n');
+    const stream = `BT\n/F1 14 Tf\n${contentLines}\nET`;
+    const streamLength = stream.length;
+
+    const objects = [];
+    objects.push('1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj');
+    objects.push('2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj');
+    objects.push('3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj');
+    objects.push(`4 0 obj << /Length ${streamLength} >> stream\n${stream}\nendstream endobj`);
+    objects.push('5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj');
+
+    let pdf = '%PDF-1.4\n';
+    const offsets = [0];
+    objects.forEach((obj) => {
+        offsets.push(pdf.length);
+        pdf += `${obj}\n`;
+    });
+
+    const xrefStart = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n`;
+    pdf += '0000000000 65535 f \n';
+    for (let i = 1; i <= objects.length; i += 1) {
+        pdf += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+    }
+    pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+    return pdf;
+};
+
 function ComplaintForm({
     onSuccess,
     showSuccessMessage = true,
@@ -20,6 +57,7 @@ function ComplaintForm({
     const [districtOptions, setDistrictOptions] = useState([]);
     const [success, setSuccess] = useState(false);
     const [referenceNo, setReferenceNo] = useState('');
+    const [copiedReference, setCopiedReference] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [summaryTemplate, setSummaryTemplate] = useState('');
     const [templateError, setTemplateError] = useState('');
@@ -199,6 +237,7 @@ function ComplaintForm({
             console.log(response);
             const createdId = response?.data?.data?.id;
             setReferenceNo(response?.data?.reference_no || '');
+            setCopiedReference(false);
             setSuccess(true);
             if (onSuccess) {
                 onSuccess({
@@ -396,6 +435,14 @@ function ComplaintForm({
     }, [caseType, addressValue, isLoading, summaryTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
 
     if (success && showSuccessMessage) {
+        const submittedAt = new Date().toLocaleString('ms-MY');
+        const pdfFileName = `aduan-${(referenceNo || 'rujukan').replace(/[^A-Za-z0-9-_]/g, '_')}.pdf`;
+        const shareText = [
+            'Aduan JAIS berjaya dihantar.',
+            `No Aduan: ${referenceNo || '-'}`,
+            `Tarikh/Masa: ${submittedAt}`,
+        ].join('\n');
+
         return (
             <div className="complaint-card complaint-card-success">
                 <div className="complaint-success-icon">
@@ -405,10 +452,65 @@ function ComplaintForm({
                     <h2>Terima Kasih!</h2>
                     <p>Aduan anda telah berjaya dihantar. Kami akan memproses aduan anda secepat mungkin.</p>
                     {referenceNo && (
-                        <div className="complaint-ref">
-                            No Aduan anda: <strong>{referenceNo}</strong>
+                        <div className="complaint-ref-row">
+                            <div className="complaint-ref">
+                                No Aduan anda: <strong>{referenceNo}</strong>
+                            </div>
+                            <button
+                                type="button"
+                                className="complaint-ref-copy"
+                                onClick={async () => {
+                                    try {
+                                        await navigator.clipboard.writeText(referenceNo);
+                                        setCopiedReference(true);
+                                        window.setTimeout(() => setCopiedReference(false), 1800);
+                                    } catch (error) {
+                                        console.warn('clipboard copy failed', error);
+                                    }
+                                }}
+                            >
+                                {copiedReference ? 'Disalin' : 'Salin No Aduan'}
+                            </button>
                         </div>
                     )}
+                    <div className="complaint-ref-actions">
+                        <button
+                            type="button"
+                            className="complaint-ref-copy"
+                            onClick={() => {
+                                const lines = [
+                                    'PENGESAHAN ADUAN JAIS',
+                                    '',
+                                    `No Aduan: ${referenceNo || '-'}`,
+                                    `Tarikh/Masa Hantar: ${submittedAt}`,
+                                    '',
+                                    'Sila simpan nombor aduan ini untuk rujukan semakan status.',
+                                ];
+                                const pdfString = buildSimplePdf(lines);
+                                const blob = new Blob([pdfString], { type: 'application/pdf' });
+                                const blobUrl = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = blobUrl;
+                                link.download = pdfFileName;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                                URL.revokeObjectURL(blobUrl);
+                            }}
+                        >
+                            Muat Turun PDF
+                        </button>
+                        <button
+                            type="button"
+                            className="complaint-ref-copy"
+                            onClick={() => {
+                                const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+                                window.open(waUrl, '_blank', 'noopener,noreferrer');
+                            }}
+                        >
+                            Kongsi WhatsApp
+                        </button>
+                    </div>
                 </div>
             </div>
         );

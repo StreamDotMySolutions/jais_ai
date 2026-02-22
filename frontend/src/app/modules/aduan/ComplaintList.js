@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ComplaintForm from './ComplaintForm';
 import ComplainFormPegawai from './complainFormPegawai';
-import PaginationBar from '../../components/PaginationBar';
-import SortableHeader from '../../components/SortableHeader';
 import ConfirmModal from '../../components/SharedConfirmModal';
-import SharedInlineEditText from '../../components/SharedInlineEditText';
 import { useToast } from '../../components/SharedToastProvider';
 import { sortRows } from '../../utils/sort';
-import { getComplaintStageLabel } from './complaintStage';
+import { getComplaintStageLabel, getPublicComplaintStageLabel } from './complaintStage';
+import ComplaintListPublicView from './ComplaintListPublicView';
+import ComplaintListInternalView from './ComplaintListInternalView';
+import ComplaintListDrawer from './ComplaintListDrawer';
+import ComplaintListHeader from './ComplaintListHeader';
+import ComplaintListFilter from './ComplaintListFilter';
 
 const getIpStatusBadgeTone = (value) => {
     if (!value) {
@@ -103,6 +105,7 @@ const ComplaintList = ({
     description = 'Semak dan urus aduan yang diterima.',
     fetchEndpoint = '',
     enablePickup = false,
+    publicMode = null,
 }) => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const toast = useToast();
@@ -112,6 +115,8 @@ const ComplaintList = ({
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const role = localStorage.getItem('role') || 'awam';
+    const inferredPublicRole = ['awam', 'user'].includes(role);
+    const isPublicRole = typeof publicMode === 'boolean' ? publicMode : inferredPublicRole;
     const canDelete = role === 'pegawai_hq';
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [districtOptions, setDistrictOptions] = useState([]);
@@ -166,9 +171,10 @@ const ComplaintList = ({
     });
     const [selectedComplaint, setSelectedComplaint] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
-    const canInlineEdit = role !== 'awam';
+    const canInlineEdit = !isPublicRole;
+    const canCreateComplaint = isPublicRole || role === 'pegawai' || role === 'admin' || role === 'system';
 
-    const showCaseTabs = !caseType && !fetchEndpoint && !isCase;
+    const showCaseTabs = !isPublicRole && !caseType && !fetchEndpoint && !isCase;
 
     const fetchComplaints = () => {
         if (!apiUrl) {
@@ -179,7 +185,7 @@ const ComplaintList = ({
 
         setIsLoading(true);
         const token = localStorage.getItem('token');
-        let endpoint = role === 'awam' ? `${apiUrl}/complaints/my` : `${apiUrl}/complaints`;
+        let endpoint = isPublicRole ? `${apiUrl}/complaints/my` : `${apiUrl}/complaints`;
         if (fetchEndpoint) {
             endpoint = `${apiUrl}${fetchEndpoint}`;
         }
@@ -245,7 +251,7 @@ const ComplaintList = ({
             });
     };
 
-    const handlePickup = (complaintId) => {
+    const handlePickup = (complaintId, openDetail = false) => {
         if (!apiUrl) {
             return;
         }
@@ -257,6 +263,9 @@ const ComplaintList = ({
             .then(() => {
                 setPickupMessage('Aduan berjaya diambil.');
                 fetchComplaints();
+                if (openDetail) {
+                    navigate(`/app/complaints/${complaintId}`);
+                }
             })
             .catch((err) => {
                 setPickupMessage(err?.response?.data?.message || 'Gagal ambil aduan.');
@@ -444,610 +453,109 @@ const ComplaintList = ({
                     setDeleteTarget(null);
                 }}
             />
-            <div className="app-complaints-header">
-                <div>
-                    <div className="app-complaints-title">
-                        <h3>{title}</h3>
-                        {caseType && (
-                            <span className="app-status-pill">
-                                {caseType === 'AJ' ? 'AJ - Jenayah' : 'AK - Keluarga'}
-                            </span>
-                        )}
-                    </div>
-                    <p>{description}</p>
-                </div>
-                <div className="app-complaints-actions">
-                    {(role === 'awam' || role === 'pegawai' || role === 'admin' || role === 'system') && (
-                        <button className="app-button" type="button" onClick={() => setIsFormOpen(true)}>
-                            <i className="bi bi-plus-lg"></i>
-                            Tambah Aduan
-                        </button>
-                    )}
-                    <button
-                        className="app-button app-button-ghost"
-                        type="button"
-                        onClick={() => setShowFilters((prev) => !prev)}
-                    >
-                        <i className={`bi ${showFilters ? 'bi-eye-slash' : 'bi-eye'}`}></i>
-                        {showFilters ? 'Sembunyi Filter' : 'Tunjuk Filter'}
-                    </button>
-                    <div className="app-search">
-                        <i className="bi bi-search"></i>
-                        <input
-                            type="text"
-                            placeholder="Cari no aduan, pengadu, daerah..."
-                            value={quickQuery}
-                            onChange={(event) => {
-                                setQuickQuery(event.target.value);
-                                setPage(1);
-                            }}
-                        />
-                        {quickQuery && (
-                            <button
-                                type="button"
-                                className="app-search-clear"
-                                aria-label="Kosongkan carian"
-                                onClick={() => {
-                                    setQuickQuery('');
-                                    setPage(1);
-                                }}
-                            >
-                                <i className="bi bi-x-lg"></i>
-                            </button>
-                        )}
-                    </div>
-                </div>
-            </div>
+            <ComplaintListHeader
+                title={title}
+                description={description}
+                caseType={caseType}
+                canCreateComplaint={canCreateComplaint}
+                onOpenForm={() => setIsFormOpen(true)}
+                showFilters={showFilters}
+                onToggleFilters={() => setShowFilters((prev) => !prev)}
+                quickQuery={quickQuery}
+                setQuickQuery={setQuickQuery}
+                setPage={setPage}
+            />
 
             {showFilters && (
-                <form className="app-filter" onSubmit={handleSearch}>
-                    <div className="app-filter-row">
-                        <div className="app-filter-field">
-                            <label>Keyword</label>
-                            <div className="app-filter-input">
-                                <input
-                                    type="text"
-                                    placeholder="Nama, no aduan, daerah..."
-                                    value={draftFilters.keyword}
-                                    onChange={(event) => setDraftFilters({ ...draftFilters, keyword: event.target.value })}
-                                />
-                                {draftFilters.keyword && (
-                                    <button
-                                        type="button"
-                                        className="app-search-clear"
-                                        aria-label="Kosongkan carian"
-                                        onClick={() => setDraftFilters({ ...draftFilters, keyword: '' })}
-                                    >
-                                        <i className="bi bi-x-lg"></i>
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                        <div className="app-filter-field">
-                            <label>Status</label>
-                            <select
-                                value={draftFilters.status}
-                                onChange={(event) => setDraftFilters({ ...draftFilters, status: event.target.value })}
-                            >
-                                {statusOptions.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="app-filter-field">
-                            <label>Daerah</label>
-                            <select
-                                value={draftFilters.district}
-                                onChange={(event) => setDraftFilters({ ...draftFilters, district: event.target.value })}
-                            >
-                                <option value="">Semua</option>
-                                {districtOptions.map((district) => (
-                                    <option key={district.id} value={district.id}>
-                                        {district.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    </div>
-	                    <div className="app-filter-row">
-	                        <div className="app-filter-field">
-	                            <label>Dari Tarikh</label>
-                            <input
-                                type="date"
-                                value={draftFilters.fromDate}
-                                onChange={(event) => setDraftFilters({ ...draftFilters, fromDate: event.target.value })}
-                            />
-                        </div>
-	                        <div className="app-filter-field">
-	                            <label>Hingga Tarikh</label>
-                            <input
-                                type="date"
-                                value={draftFilters.toDate}
-                                onChange={(event) => setDraftFilters({ ...draftFilters, toDate: event.target.value })}
-                            />
-                        </div>
-                            <div className="app-filter-field">
-                                <label>Status Siasatan</label>
-                                <select
-                                    value={draftFilters.ipStatus}
-                                    onChange={(event) => setDraftFilters({ ...draftFilters, ipStatus: event.target.value })}
-                                >
-                                    {ipStatusOptions.map((opt) => (
-                                        <option key={opt.value || opt.label} value={opt.value}>
-                                            {opt.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            {caseType !== 'AK' && (
-                                <div className="app-filter-field">
-                                    <label>Status Pendakwaan</label>
-                                    <select
-                                        value={draftFilters.prosecutionStatus}
-                                        onChange={(event) => setDraftFilters({ ...draftFilters, prosecutionStatus: event.target.value })}
-                                    >
-                                        {prosecutionStatusOptions.map((opt) => (
-                                            <option key={opt.value || opt.label} value={opt.value}>
-                                                {opt.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-	                        <div className="app-filter-actions">
-	                            <button className="app-button" type="submit">Search</button>
-	                            <button className="app-button app-button-ghost" type="button" onClick={handleReset}>
-	                                Reset
-	                            </button>
-	                        </div>
-	                    </div>
-	                </form>
-	            )}
+                <ComplaintListFilter
+                    isPublicRole={isPublicRole}
+                    caseType={caseType}
+                    statusOptions={statusOptions}
+                    districtOptions={districtOptions}
+                    ipStatusOptions={ipStatusOptions}
+                    prosecutionStatusOptions={prosecutionStatusOptions}
+                    draftFilters={draftFilters}
+                    setDraftFilters={setDraftFilters}
+                    onSearch={handleSearch}
+                    onReset={handleReset}
+                />
+            )}
 
             <div className={`app-complaints-body ${selectedComplaint ? 'has-drawer' : ''}`}>
                 <div className="app-complaints-main">
-            <div className="app-card app-complaints-card">
-                    {showCaseTabs && (
-                        <div className="app-list-tabs-row">
-                            <div className="app-list-tabs">
-                                <button
-                                    type="button"
-                                    className={`app-list-tab${statusTab === 'all' ? ' active' : ''}`}
-                                    onClick={() => {
-                                        setStatusTab('all');
-                                        setPendingApproval(false);
-                                        setFilters((prev) => ({ ...prev, status: '' }));
-                                        setDraftFilters((prev) => ({ ...prev, status: '' }));
-                                        setPage(1);
-                                    }}
-                                >
-                                    Semua
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`app-list-tab${statusTab === 'baru' ? ' active' : ''}`}
-                                    onClick={() => {
-                                        setStatusTab('baru');
-                                        setPendingApproval(false);
-                                        setFilters((prev) => ({ ...prev, status: 'baru' }));
-                                        setDraftFilters((prev) => ({ ...prev, status: 'baru' }));
-                                        setPage(1);
-                                    }}
-                                >
-                                    Baru
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`app-list-tab${statusTab === 'pending' ? ' active' : ''}`}
-                                    onClick={() => {
-                                        setStatusTab('pending');
-                                        setPendingApproval(true);
-                                        setFilters((prev) => ({ ...prev, status: '' }));
-                                        setDraftFilters((prev) => ({ ...prev, status: '' }));
-                                        setPage(1);
-                                    }}
-                                >
-                                    Menunggu Pengesahan
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`app-list-tab${statusTab === 'disahkan' ? ' active' : ''}`}
-                                    onClick={() => {
-                                        setStatusTab('disahkan');
-                                        setPendingApproval(false);
-                                        setFilters((prev) => ({ ...prev, status: 'disahkan' }));
-                                        setDraftFilters((prev) => ({ ...prev, status: 'disahkan' }));
-                                        setPage(1);
-                                    }}
-                                >
-                                    Disahkan
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    {isLoading && (
-                        <div className="app-table app-table-actions app-table-skeleton">
-                            <div className="app-table-header">
-                            <span>No Aduan</span>
-                            <span>Tarikh</span>
-                            <span>Pengadu</span>
-                            <span>Daerah</span>
-                            <span>Kategori</span>
-                            <span>Status</span>
-                            <span>Ringkasan</span>
-                            <span>Tindakan</span>
-                        </div>
-                        {Array.from({ length: 6 }, (_, index) => (
-                            <div key={`skeleton-row-${index}`} className="app-table-row">
-                                <span className="app-skeleton-line"></span>
-                                <span className="app-skeleton-line"></span>
-                                <span className="app-skeleton-line"></span>
-                                <span className="app-skeleton-line"></span>
-                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                                <span className="app-skeleton-line"></span>
-                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                            </div>
-                        ))}
+                    <div className="app-card app-complaints-card">
+                        {isPublicRole ? (
+                            <ComplaintListPublicView
+                                isLoading={isLoading}
+                                error={error}
+                                complaints={complaints}
+                                sortedComplaints={sortedComplaints}
+                                setSelectedComplaint={setSelectedComplaint}
+                                getPublicComplaintStageLabel={getPublicComplaintStageLabel}
+                                pickupMessage={pickupMessage}
+                                actionMessage={actionMessage}
+                                pagination={pagination}
+                                startIndex={startIndex}
+                                endIndex={endIndex}
+                                setPage={setPage}
+                                setPerPage={setPerPage}
+                            />
+                        ) : (
+                            <ComplaintListInternalView
+                                showCaseTabs={showCaseTabs}
+                                statusTab={statusTab}
+                                setStatusTab={setStatusTab}
+                                setPendingApproval={setPendingApproval}
+                                setFilters={setFilters}
+                                setDraftFilters={setDraftFilters}
+                                setPage={setPage}
+                                isLoading={isLoading}
+                                error={error}
+                                complaints={complaints}
+                                sortedComplaints={sortedComplaints}
+                                selectedComplaint={selectedComplaint}
+                                setSelectedComplaint={setSelectedComplaint}
+                                sortColumns={sortColumns}
+                                sortKey={sortKey}
+                                sortDir={sortDir}
+                                handleSort={handleSort}
+                                getComplaintStageLabel={getComplaintStageLabel}
+                                getIpStatusBadgeTone={getIpStatusBadgeTone}
+                                getProsecutionStatusBadgeTone={getProsecutionStatusBadgeTone}
+                                getProsecutionStatusLabel={getProsecutionStatusLabel}
+                                navigate={navigate}
+                                canDelete={canDelete}
+                                setDeleteTarget={setDeleteTarget}
+                                enablePickup={enablePickup}
+                                handlePickup={handlePickup}
+                                pickupMessage={pickupMessage}
+                                actionMessage={actionMessage}
+                                pagination={pagination}
+                                startIndex={startIndex}
+                                endIndex={endIndex}
+                                setPerPage={setPerPage}
+                            />
+                        )}
                     </div>
-                )}
-                {error && !isLoading && <div className="app-empty">{error}</div>}
-                {!isLoading && !error && complaints.length === 0 && (
-                    <div className="app-empty">Tiada aduan ditemui.</div>
-                )}
-                {!isLoading && !error && complaints.length > 0 && (
-                    <div className="app-table app-table-actions">
-                        <SortableHeader
-                            className="app-table-header"
-                            columns={sortColumns}
-                            sortKey={sortKey}
-                            sortDir={sortDir}
-                            onSort={handleSort}
-                        />
-                        {sortedComplaints.map((item) => (
-                            <div
-                                key={item.id}
-                                className={`app-table-row ${selectedComplaint?.id === item.id ? 'is-selected' : ''}`}
-                            >
-                                <span className="app-code">
-                                    <button
-                                        type="button"
-                                        className="app-link app-link-button"
-                                        onClick={() => setSelectedComplaint(item)}
-                                    >
-                                        {item.reference_no || '-'}
-                                    </button>
-                                </span>
-                                <span>{item.complaint_date || '-'}</span>
-                                <span>{item.complainant_name || '-'}</span>
-                                <span>{item.district_name || '-'}</span>
-                                <span>{item.case_type || '-'}</span>
-                                <span>
-                                    <span className="app-status-pill">
-                                        {getComplaintStageLabel(item.current_stage || 'baru')}
-                                    </span>
-                                    {role !== 'awam' && (() => {
-                                        const ipStatus = item.case_type === 'AK'
-                                            ? (item.ak_ip_status || '')
-                                            : (item.aj_ip_status || '');
-                                        const prosecutionStatus = item.case_type === 'AK'
-                                            ? ''
-                                            : (item.aj_prosecution_status || '');
-                                        const show = Boolean(ipStatus || prosecutionStatus);
-                                        if (!show) {
-                                            return null;
-                                        }
-
-                                        return (
-                                            <span className="app-status-stack">
-                                                {ipStatus && (
-                                                    <span className={`app-status-pill-mini ${getIpStatusBadgeTone(ipStatus)}`}>
-                                                        Siasatan: {ipStatus}
-                                                    </span>
-                                                )}
-                                                {prosecutionStatus && (
-                                                    <span className={`app-status-pill-mini ${getProsecutionStatusBadgeTone(prosecutionStatus)}`}>
-                                                        Pendakwaan: {getProsecutionStatusLabel(prosecutionStatus)}
-                                                    </span>
-                                                )}
-                                            </span>
-                                        );
-                                    })()}
-                                </span>
-                                <span className="app-summary">
-                                    {item.summary || '-'}
-                                </span>
-                                <span className="app-row-actions">
-                                    <button
-                                        type="button"
-                                        className="app-icon-button"
-                                        onClick={() => navigate(`/app/complaints/${item.id}`)}
-                                        aria-label="Kemaskini"
-                                        title="Kemaskini"
-                                    >
-                                        <i className="bi bi-pencil"></i>
-                                    </button>
-                                    <a
-                                        className="app-icon-button app-icon-button-xs"
-                                        href={`/app/complaints/${item.id}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        aria-label="Buka dalam tab baharu"
-                                        title="Buka tab baharu"
-                                        onClick={(event) => event.stopPropagation()}
-                                    >
-                                        <i className="bi bi-box-arrow-up-right"></i>
-                                    </a>
-                                    {canDelete && item.current_stage === 'baru' && (
-                                        <button
-                                            type="button"
-                                            className="app-icon-button app-icon-button-danger"
-                                            onClick={() => setDeleteTarget(item)}
-                                            aria-label="Padam"
-                                            title="Padam"
-                                        >
-                                            <i className="bi bi-trash"></i>
-                                        </button>
-                                    )}
-                                    {enablePickup && (
-                                        <button
-                                            type="button"
-                                            className="app-button app-button-ghost"
-                                            onClick={() => handlePickup(item.id)}
-                                        >
-                                            Ambil Aduan
-                                        </button>
-                                    )}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                    )}
-                    </div>
-                    {pickupMessage && <div className="app-detail-note">{pickupMessage}</div>}
-                    {actionMessage && <div className="app-detail-note">{actionMessage}</div>}
-                    {!isLoading && !error && pagination.total > 0 && (
-                        <PaginationBar
-                            page={pagination.current_page}
-                            lastPage={pagination.last_page}
-                            total={pagination.total}
-                            perPage={pagination.per_page}
-                            startIndex={startIndex}
-                            endIndex={endIndex}
-                            onPageChange={(nextPage) => setPage(nextPage)}
-                            onPerPageChange={(size) => {
-                                setPerPage(size);
-                                setPage(1);
-                            }}
-                        />
-                    )}
                 </div>
 
-                {selectedComplaint && (
-                    <div className="app-drawer app-drawer--push">
-                        <aside className="app-drawer-panel">
-                            <div className="app-drawer-header">
-                                <div>
-                                    <span className="app-eyebrow">Ringkasan Aduan</span>
-                                    <h4>{selectedComplaint.reference_no || '-'}</h4>
-                                    <span className="app-status-pill">{getComplaintStageLabel(selectedComplaint.current_stage || 'baru')}</span>
-                                </div>
-                                <button
-                                    className="app-modal-close"
-                                    type="button"
-                                    onClick={() => setSelectedComplaint(null)}
-                                >
-                                    <i className="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-
-                            <div className="app-drawer-section app-drawer-section--clean">
-                                <h4 className="app-drawer-main-title">Maklumat Aduan</h4>
-                                <div className="app-detail-submeta" aria-label="Maklumat penghantaran aduan">
-                                    <div className="app-detail-submeta-item">
-                                        <span className="app-detail-submeta-label">Tahun</span>
-                                        <strong>{selectedComplaint.complaint_year || '-'}</strong>
-                                    </div>
-                                    <div className="app-detail-submeta-item">
-                                        <span className="app-detail-submeta-label">Tarikh</span>
-                                        <strong>{selectedComplaint.complaint_date || '-'}</strong>
-                                    </div>
-                                    <div className="app-detail-submeta-item">
-                                        <span className="app-detail-submeta-label">Masa</span>
-                                        <strong>{(selectedComplaint.complaint_time || '').toString().slice(0, 5) || '-'}</strong>
-                                    </div>
-                                    <div className="app-detail-submeta-item">
-                                        <span className="app-detail-submeta-label">Kaedah Aduan</span>
-                                        <strong>{formatChannelLabel(selectedComplaint.channel)}</strong>
-                                    </div>
-                                    <div className="app-detail-submeta-item">
-                                        <span className="app-detail-submeta-label">Dihantar</span>
-                                        <strong>{selectedComplaint.submitted_at ? formatDateTime(selectedComplaint.submitted_at) : '-'}</strong>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="app-basic-kv app-drawer-basic-kv">
-                                <div className="app-drawer-section">
-                                    <div className="app-card-subheader">
-                                        <h5>Butir-butir Pemberi Maklumat / Pengadu</h5>
-                                    </div>
-                                    <div className="app-kv">
-                                        <span className="app-kv-label">Nama</span>
-                                        <span className="app-kv-value">
-                                            <SharedInlineEditText
-                                                value={selectedComplaint.complainant_name || ''}
-                                                placeholder="-"
-                                                canEdit={canInlineEdit}
-                                                onConfirm={(val) => saveInlineField('complainant_name', val)}
-                                            />
-                                        </span>
-                                    </div>
-                                    <div className="app-kv">
-                                        <span className="app-kv-label">No Kad Pengenalan</span>
-                                        <span className="app-kv-value">
-                                            <SharedInlineEditText
-                                                value={selectedComplaint.identification_number || ''}
-                                                placeholder="-"
-                                                canEdit={canInlineEdit}
-                                                onConfirm={(val) => saveInlineField('identification_number', val)}
-                                            />
-                                        </span>
-                                    </div>
-                                    <div className="app-kv">
-                                        <span className="app-kv-label">No HP</span>
-                                        <span className="app-kv-value">
-                                            <SharedInlineEditText
-                                                value={selectedComplaint.contact_number || ''}
-                                                placeholder="-"
-                                                canEdit={canInlineEdit}
-                                                onConfirm={(val) => saveInlineField('contact_number', val)}
-                                            />
-                                        </span>
-                                    </div>
-                                </div>
-
-	                                <div className="app-drawer-section">
-                                        <div className="app-card-subheader">
-	                                        <h5>Maklumat Kejadian</h5>
-                                        </div>
-	                                    <div className="app-kv">
-                                            <span className="app-kv-label">Tarikh Kejadian</span>
-                                            <span className="app-kv-value">
-                                                <SharedInlineEditText
-                                                    value={selectedComplaint.incident_date || ''}
-                                                    placeholder="-"
-                                                    canEdit={canInlineEdit}
-                                                    inputType="date"
-                                                    onConfirm={(val) => saveInlineField('incident_date', val)}
-                                                />
-                                            </span>
-                                        </div>
-	                                    <div className="app-kv">
-                                            <span className="app-kv-label">Masa Kejadian</span>
-                                            <span className="app-kv-value">
-                                                <SharedInlineEditText
-                                                    value={(selectedComplaint.incident_time || '').toString().slice(0, 5)}
-                                                    placeholder="-"
-                                                    canEdit={canInlineEdit}
-                                                    inputType="time"
-                                                    onConfirm={(val) => saveInlineField('incident_time', val)}
-                                                />
-                                            </span>
-                                        </div>
-	                                    <div className="app-kv">
-                                            <span className="app-kv-label">Daerah</span>
-                                            <span className="app-kv-value">
-                                                <SharedInlineEditText
-                                                    value={selectedComplaint.district_id ? String(selectedComplaint.district_id) : ''}
-                                                    placeholder="-"
-                                                    canEdit={canInlineEdit}
-                                                    mode="select"
-                                                    options={districtOptions.map((district) => ({
-                                                        value: String(district.id),
-                                                        label: district.name,
-                                                    }))}
-                                                    onConfirm={(val) => saveInlineField('district_id', val)}
-                                                />
-                                            </span>
-                                        </div>
-	                                    <div className="app-kv app-kv--stack">
-                                            <span className="app-kv-label">Alamat</span>
-                                            <span className="app-kv-value">
-                                        <SharedInlineEditText
-                                            value={selectedComplaint.address || ''}
-                                            placeholder="-"
-                                            canEdit={canInlineEdit}
-                                            mode="textarea"
-                                            fullWidth
-                                            onConfirm={(val) => saveInlineField('address', val)}
-                                        />
-                                            </span>
-                                        </div>
-                                        {role !== 'awam' && (
-                                            <>
-                                                <div className="app-kv">
-                                                    <span className="app-kv-label">Status Siasatan</span>
-                                                    <span className="app-kv-value">
-                                                        {selectedComplaint.case_type === 'AK'
-                                                            ? (selectedComplaint.ak_ip_status || '-')
-                                                            : (selectedComplaint.aj_ip_status || '-')}
-                                                    </span>
-                                                </div>
-                                                {selectedComplaint.case_type !== 'AK' && (
-                                                    <div className="app-kv">
-                                                        <span className="app-kv-label">Status Pendakwaan</span>
-                                                        <span className="app-kv-value">{selectedComplaint.aj_prosecution_status || '-'}</span>
-                                                    </div>
-                                                )}
-                                            </>
-                                        )}
-                                </div>
-                            </div>
-
-                            <div className="app-drawer-section">
-                                <h5>Ringkasan Aduan (Pengadu)</h5>
-                                <p>
-                                    <SharedInlineEditText
-                                        value={selectedComplaint.summary || ''}
-                                        placeholder="-"
-                                        canEdit={canInlineEdit}
-                                        mode="textarea"
-                                        textareaRows={8}
-                                        textareaAutoGrow
-                                        fullWidth
-                                        onConfirm={(val) => saveInlineField('summary', val)}
-                                    />
-                                </p>
-                                {canInlineEdit && (
-                                    <>
-                                        <h5 style={{ marginTop: '0.85rem' }}>Butiran Aduan (Borang 5)</h5>
-                                        <p>
-                                            <SharedInlineEditText
-                                                value={selectedComplaint.borang5_statement || ''}
-                                                placeholder="-"
-                                                canEdit={canInlineEdit}
-                                                mode="textarea"
-                                                textareaRows={8}
-                                                textareaAutoGrow
-                                                fullWidth
-                                                onConfirm={(val) => saveInlineField('borang5_statement', val)}
-                                            />
-                                        </p>
-                                    </>
-                                )}
-                            </div>
-
-                            <div className="app-drawer-actions">
-                                <a
-                                    href={`/app/complaints/${selectedComplaint.id}`}
-                                    className="app-icon-button"
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    aria-label="Buka di tab baru"
-                                    title="Buka di tab baru"
-                                >
-                                    <i className="bi bi-box-arrow-up-right"></i>
-                                </a>
-                                <button
-                                    className="app-button"
-                                    type="button"
-                                    onClick={() => navigate(`/app/complaints/${selectedComplaint.id}`)}
-                                >
-                                    Kemaskini Aduan
-                                </button>
-                            </div>
-                        </aside>
-                    </div>
-                )}
+                <ComplaintListDrawer
+                    selectedComplaint={selectedComplaint}
+                    setSelectedComplaint={setSelectedComplaint}
+                    isPublicRole={isPublicRole}
+                    getPublicComplaintStageLabel={getPublicComplaintStageLabel}
+                    getComplaintStageLabel={getComplaintStageLabel}
+                    formatChannelLabel={formatChannelLabel}
+                    formatDateTime={formatDateTime}
+                    canInlineEdit={canInlineEdit}
+                    districtOptions={districtOptions}
+                    saveInlineField={saveInlineField}
+                />
             </div>
-
             {isFormOpen && (
                 <div className="app-modal">
                     <div className="app-modal-backdrop" onClick={() => setIsFormOpen(false)}></div>
-                    <div className={`app-modal-content${role === 'awam' ? '' : ' app-modal-content--wide'}`}>
+                    <div className={`app-modal-content${isPublicRole ? '' : ' app-modal-content--wide'}`}>
                         <div className="app-modal-header">
                             <div>
                                 <h4>Tambah Aduan</h4>
@@ -1057,7 +565,7 @@ const ComplaintList = ({
                                 <i className="bi bi-x-lg"></i>
                             </button>
                         </div>
-                        {role === 'awam' ? (
+                        {isPublicRole ? (
                             <ComplaintForm
                                 showSuccessMessage={false}
                                 channelSource="portal"
@@ -1093,3 +601,4 @@ const ComplaintList = ({
 };
 
 export default ComplaintList;
+

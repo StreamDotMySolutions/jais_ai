@@ -7,12 +7,14 @@ use Illuminate\Http\Request;
 use App\Models\Appointment;
 use App\Models\Complaint;
 use App\Models\ComplaintOyd;
+use App\Models\ComplaintOydMedia;
 use App\Models\ComplaintSeizureItem;
 use App\Models\Staff;
 use App\Models\District;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 
@@ -128,6 +130,7 @@ class ComplaintController extends Controller
             'picUser:id,name',
             'appointment:id,complaint_id,start_at,end_at,status',
             'oyds:id,complaint_id,name,id_number,investigator_name,file_no',
+            'oyds.media:id,complaint_oyd_id,category,file_name,mime,size,created_at',
             'seizureItems:id,complaint_id,item_no,description,storage',
             'ajDirectiveStaff:id,name,staff_id,ic_number,phone,address,position,department',
             'ajArrestStaff:id,name,staff_id,ic_number,phone,address,position,department',
@@ -553,17 +556,19 @@ class ComplaintController extends Controller
         ]);
 
         $report = $request->report;
+        $isNoArrest = ($report['arrest_status'] ?? null) === 'tiada';
 
         $hasReportNotes = trim((string) ($report['report_notes'] ?? '')) !== '';
 
         $complaint->update([
             'aj_arrest_status' => $report['arrest_status'] ?? null,
-            'aj_male_count' => $report['male_count'] !== '' ? $report['male_count'] : null,
-            'aj_female_count' => $report['female_count'] !== '' ? $report['female_count'] : null,
+            'aj_male_count' => $isNoArrest ? null : ($report['male_count'] !== '' ? $report['male_count'] : null),
+            'aj_female_count' => $isNoArrest ? null : ($report['female_count'] !== '' ? $report['female_count'] : null),
+            'aj_other_count' => $isNoArrest ? null : ($report['other_count'] !== '' ? $report['other_count'] : null),
             'aj_report_no' => $report['report_no'] ?? null,
             'aj_action_datetime' => $report['action_datetime'] ?? null,
             'aj_report_offense_id' => $report['offense_id'] ?? null,
-            'aj_arrest_by' => $report['arrest_by'] ?? null,
+            'aj_arrest_by' => $isNoArrest ? null : ($report['arrest_by'] ?? null),
             'aj_arrest_staff_id' => $report['arrest_staff_id'] ?? null,
             'aj_statement_datetime' => $report['statement_datetime'] ?? null,
             'aj_court_date' => $report['court_date'] ?? null,
@@ -587,12 +592,38 @@ class ComplaintController extends Controller
         }
 
         DB::transaction(function () use ($complaint, $report) {
-            ComplaintOyd::where('complaint_id', $complaint->id)->delete();
-            $oyds = $report['oyds'] ?? [];
-            foreach ($oyds as $row) {
-                if (!array_filter($row ?? [])) {
+            $existingOyds = ComplaintOyd::where('complaint_id', $complaint->id)
+                ->get()
+                ->keyBy('id');
+            $incomingRows = $report['oyds'] ?? [];
+            $incomingIds = collect($incomingRows)
+                ->pluck('id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            foreach ($existingOyds as $existing) {
+                if (! in_array((int) $existing->id, $incomingIds, true)) {
+                    $existing->delete();
+                }
+            }
+
+            foreach ($incomingRows as $row) {
+                if (! array_filter($row ?? [])) {
                     continue;
                 }
+
+                $rowId = isset($row['id']) && $row['id'] !== '' ? (int) $row['id'] : null;
+                if ($rowId && $existingOyds->has($rowId)) {
+                    $existingOyds->get($rowId)->update([
+                        'name' => $row['name'] ?? null,
+                        'id_number' => $row['id_number'] ?? null,
+                        'investigator_name' => $row['investigator_name'] ?? null,
+                        'file_no' => $row['file_no'] ?? null,
+                    ]);
+                    continue;
+                }
+
                 ComplaintOyd::create([
                     'complaint_id' => $complaint->id,
                     'name' => $row['name'] ?? null,
@@ -621,8 +652,183 @@ class ComplaintController extends Controller
             'message' => 'AJ report updated',
             'data' => $complaint->load([
                 'oyds:id,complaint_id,name,id_number,investigator_name,file_no',
+                'oyds.media:id,complaint_oyd_id,category,file_name,mime,size,created_at',
                 'seizureItems:id,complaint_id,item_no,description,storage',
             ]),
+        ]);
+    }
+
+    public function uploadOydMedia(Request $request, Complaint $complaint, ComplaintOyd $oyd)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $oyd->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'OYDS tidak sah untuk aduan ini.'], 422);
+        }
+
+        $request->validate([
+            'category' => 'nullable|in:ic,bukti,lain_lain',
+            'files' => 'required|array|min:1',
+            'files.*' => 'file|max:51200|mimes:jpg,jpeg,png,webp,pdf',
+        ]);
+
+        $category = $request->input('category', 'lain_lain');
+        $disk = 'local';
+        $folder = "complaints/oyds/{$complaint->id}/{$oyd->id}";
+        $uploaded = [];
+
+        foreach ($request->file('files', []) as $file) {
+            $storedName = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs($folder, $storedName, $disk);
+
+            $media = ComplaintOydMedia::create([
+                'complaint_oyd_id' => $oyd->id,
+                'category' => $category,
+                'file_name' => $file->getClientOriginalName(),
+                'stored_name' => $storedName,
+                'path' => $path,
+                'disk' => $disk,
+                'mime' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by_user_id' => $user->id,
+            ]);
+
+            $uploaded[] = [
+                'id' => $media->id,
+                'category' => $media->category,
+                'file_name' => $media->file_name,
+                'mime' => $media->mime,
+                'size' => $media->size,
+                'created_at' => $media->created_at,
+            ];
+        }
+
+        return response()->json([
+            'message' => 'Lampiran OYDS berjaya dimuat naik.',
+            'uploaded' => $uploaded,
+            'media' => $oyd->fresh()->media()->orderByDesc('id')->get([
+                'id', 'complaint_oyd_id', 'category', 'file_name', 'mime', 'size', 'created_at',
+            ]),
+        ]);
+    }
+
+    public function deleteOydMedia(Request $request, Complaint $complaint, ComplaintOydMedia $media)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $oyd = ComplaintOyd::find($media->complaint_oyd_id);
+        if (! $oyd || (int) $oyd->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Lampiran tidak sah untuk aduan ini.'], 422);
+        }
+
+        if ($media->path) {
+            Storage::disk($media->disk ?: 'local')->delete($media->path);
+        }
+        $media->delete();
+
+        return response()->json(['message' => 'Lampiran OYDS dipadam.']);
+    }
+
+    public function scanOydIc(Request $request, Complaint $complaint, ComplaintOyd $oyd)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $oyd->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'OYDS tidak sah untuk aduan ini.'], 422);
+        }
+
+        $request->validate([
+            'ic_image' => 'required|file|max:10240|mimes:jpg,jpeg,png,webp',
+        ]);
+
+        $icImage = $request->file('ic_image');
+        $ocrText = $this->runTesseractOcr($icImage->getRealPath());
+        if (! $ocrText) {
+            return response()->json([
+                'message' => 'OCR gagal dijalankan. Pastikan Tesseract dipasang pada server (env TESSERACT_BIN).',
+            ], 422);
+        }
+        $unsupported = $this->detectUnsupportedDocumentType($ocrText);
+        if ($unsupported === 'lesen_memandu') {
+            return response()->json([
+                'message' => 'Imej yang dimuat naik bukan Kad Pengenalan (MyKad). Sila muat naik gambar MyKad.',
+            ], 422);
+        }
+
+        $parsed = $this->parseMyKadText($ocrText);
+        if (($parsed['name'] ?? '') !== '' || ($parsed['id_number'] ?? '') !== '') {
+            $oyd->update([
+                'name' => $parsed['name'] ?: ($oyd->name ?: null),
+                'id_number' => $parsed['id_number'] ?: ($oyd->id_number ?: null),
+            ]);
+        }
+
+        return response()->json([
+            'message' => (($parsed['name'] ?? '') !== '' || ($parsed['id_number'] ?? '') !== '')
+                ? 'Scan IC selesai.'
+                : 'Scan IC selesai, tetapi nama/no. K/P tidak dapat dikesan.',
+            'data' => [
+                'name' => $oyd->fresh()->name,
+                'id_number' => $oyd->fresh()->id_number,
+                'raw_text' => mb_substr($ocrText, 0, 1200),
+            ],
+        ]);
+    }
+
+    public function scanIcTemp(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $request->validate([
+            'ic_image' => 'required|file|max:10240|mimes:jpg,jpeg,png,webp',
+        ]);
+
+        $icImage = $request->file('ic_image');
+        $ocrText = $this->runTesseractOcr($icImage->getRealPath());
+        if (! $ocrText) {
+            return response()->json([
+                'message' => 'OCR gagal dijalankan. Pastikan Tesseract dipasang pada server (env TESSERACT_BIN).',
+            ], 422);
+        }
+        $unsupported = $this->detectUnsupportedDocumentType($ocrText);
+        if ($unsupported === 'lesen_memandu') {
+            return response()->json([
+                'message' => 'Imej yang dimuat naik bukan Kad Pengenalan (MyKad). Sila muat naik gambar MyKad.',
+            ], 422);
+        }
+
+        $parsed = $this->parseMyKadText($ocrText);
+        return response()->json([
+            'message' => (($parsed['name'] ?? '') !== '' || ($parsed['id_number'] ?? '') !== '')
+                ? 'Scan IC selesai.'
+                : 'Scan IC selesai, tetapi nama/no. K/P tidak dapat dikesan.',
+            'data' => [
+                'name' => $parsed['name'] ?? null,
+                'id_number' => $parsed['id_number'] ?? null,
+                'raw_text' => mb_substr($ocrText, 0, 1200),
+            ],
         ]);
     }
 
@@ -744,6 +950,9 @@ class ComplaintController extends Controller
                 'complaint_time' => $complaint->complaint_time,
                 'district_name' => $complaint->district_name,
                 'current_stage' => $complaint->current_stage,
+                'received_at' => $complaint->received_at,
+                'created_at' => $complaint->created_at,
+                'updated_at' => $complaint->updated_at,
                 'summary' => $complaint->summary,
             ],
         ]);
@@ -1019,6 +1228,233 @@ class ComplaintController extends Controller
 
         if ($user->staff && ! empty($user->staff->district_id)) {
             return (int) $user->staff->district_id;
+        }
+
+        return null;
+    }
+
+    private function runTesseractOcr(string $imagePath): ?string
+    {
+        $bin = env('TESSERACT_BIN', 'tesseract');
+        $lang = env('TESSERACT_LANG', 'eng');
+        $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+        $safePath = $isWindows
+            ? '"' . str_replace('"', '""', $imagePath) . '"'
+            : escapeshellarg($imagePath);
+        $safeLang = $isWindows
+            ? '"' . str_replace('"', '""', $lang) . '"'
+            : escapeshellarg($lang);
+
+        $binCandidates = array_values(array_filter(array_unique([
+            $bin,
+            'tesseract',
+        ])));
+
+        foreach ($binCandidates as $candidate) {
+            $safeBin = $isWindows
+                ? '"' . str_replace('"', '""', $candidate) . '"'
+                : escapeshellarg($candidate);
+
+            $checkCmd = "{$safeBin} --version 2>&1";
+            $checkOut = shell_exec($checkCmd);
+            if (!is_string($checkOut) || stripos($checkOut, 'tesseract') === false) {
+                continue;
+            }
+
+            $cmd = "{$safeBin} {$safePath} stdout -l {$safeLang} --psm 6 2>&1";
+            $output = shell_exec($cmd);
+            if (is_string($output) && trim($output) !== '') {
+                return $output;
+            }
+        }
+
+        return null;
+    }
+
+    private function parseMyKadText(string $text): array
+    {
+        $upperText = strtoupper((string) $text);
+        $normalized = preg_replace('/\s+/', ' ', $upperText);
+
+        // OCR often misreads O/I/L/S/B as 0/1/1/5/8 in numeric fields.
+        $numericNormalized = strtr($normalized, [
+            'O' => '0',
+            'I' => '1',
+            'L' => '1',
+            'S' => '5',
+            'B' => '8',
+        ]);
+
+        $idNumber = null;
+        if (preg_match('/\b(\d{6})\D?(\d{2})\D?(\d{4})\b/', $numericNormalized, $m)) {
+            $idNumber = "{$m[1]}-{$m[2]}-{$m[3]}";
+        } elseif (preg_match('/\b(\d{12})\b/', preg_replace('/\D+/', '', $numericNormalized), $m)) {
+            $raw = $m[1];
+            $idNumber = substr($raw, 0, 6) . '-' . substr($raw, 6, 2) . '-' . substr($raw, 8, 4);
+        }
+
+        $blocked = [
+            'MALAYSIA', 'KAD PENGENALAN', 'IDENTITY CARD', 'WARGANEGARA', 'LELAKI',
+            'PEREMPUAN', 'ALAMAT', 'NEGARA', 'AGAMA', 'ISLAM', 'NO', 'NOMBOR', 'JANTINA',
+        ];
+        $addressMarkers = ['LOT', 'JALAN', 'TAMAN', 'BANDAR', 'KG', 'KAMPUNG', 'SEKSYEN', 'DAERAH', 'NEGERI'];
+
+        $lines = array_values(array_filter(array_map(
+            static fn($line) => trim((string) preg_replace('/\s+/', ' ', (string) $line)),
+            preg_split('/\R/', $upperText) ?: []
+        ), static fn($line) => $line !== ''));
+
+        $idLineIndex = null;
+        foreach ($lines as $idx => $line) {
+            $numericLine = strtr($line, [
+                'O' => '0',
+                'I' => '1',
+                'L' => '1',
+                'S' => '5',
+                'B' => '8',
+            ]);
+            if (preg_match('/\b\d{6}\D?\d{2}\D?\d{4}\b/', $numericLine)) {
+                $idLineIndex = $idx;
+                break;
+            }
+        }
+
+        $candidates = [];
+        $addCandidate = static function (string $candidate, int $scoreBoost = 0) use (&$candidates, $blocked, $addressMarkers): void {
+            $candidate = trim((string) $candidate);
+            if ($candidate === '') {
+                return;
+            }
+
+            // Prefer explicit part after ":" when OCR returns format like ": NAMA ..."
+            if (str_contains($candidate, ':')) {
+                $parts = explode(':', $candidate);
+                $tail = trim((string) end($parts));
+                if ($tail !== '') {
+                    $candidate = $tail;
+                }
+            }
+
+            $candidate = preg_replace('/^.*?(NAMA|NAME)\s*[:\-]?\s*/', '', $candidate);
+            $candidate = preg_replace('/\b\d{6}\D?\d{2}\D?\d{4}\b/', '', (string) $candidate);
+            $candidate = preg_replace('/\b\d{12}\b/', '', (string) $candidate);
+            $candidate = preg_replace('/^\W+/', '', (string) $candidate);
+            $candidate = preg_replace('/\d.*$/', '', (string) $candidate);
+            $candidate = preg_replace('/[^A-Z@\.\'\/\-\s]/', ' ', (string) $candidate);
+            $candidate = trim((string) preg_replace('/\s+/', ' ', (string) $candidate));
+            if ($candidate === '' || strlen($candidate) < 4) {
+                return;
+            }
+
+            foreach ($blocked as $kw) {
+                if (str_contains($candidate, $kw)) {
+                    return;
+                }
+            }
+            foreach ($addressMarkers as $kw) {
+                if (str_contains($candidate, $kw)) {
+                    return;
+                }
+            }
+            if (!preg_match('/^[A-Z@\.\'\/\-\s]+$/', $candidate)) {
+                return;
+            }
+
+            $tokenCount = count(array_filter(explode(' ', $candidate)));
+            if ($tokenCount < 2 || $tokenCount > 10) {
+                return;
+            }
+
+            // Remove OCR suffix noise like "ZZ", "|" at end while keeping main full name.
+            $tokens = array_values(array_filter(explode(' ', $candidate)));
+            while (count($tokens) > 2 && strlen((string) end($tokens)) <= 2) {
+                array_pop($tokens);
+            }
+            $candidate = implode(' ', $tokens);
+            if ($candidate === '') {
+                return;
+            }
+
+            $longTokenCount = 0;
+            foreach ($tokens as $token) {
+                if (strlen($token) >= 3) {
+                    $longTokenCount++;
+                }
+            }
+            if ($longTokenCount === 0) {
+                return;
+            }
+
+            $score = strlen($candidate) + $scoreBoost;
+            if (preg_match('/\b(BIN|BINTI|BT|BTE|A\/L|A\/P)\b/', $candidate)) {
+                $score += 30;
+            }
+
+            if (!isset($candidates[$candidate]) || $score > $candidates[$candidate]) {
+                $candidates[$candidate] = $score;
+            }
+        };
+
+        // Priority 1: line with explicit label NAMA/NAME.
+        foreach ($lines as $i => $line) {
+            if (str_contains($line, 'NAMA') || str_contains($line, 'NAME')) {
+                $addCandidate($line, 50);
+                if (isset($lines[$i + 1])) {
+                    $addCandidate((string) $lines[$i + 1], 40);
+                }
+            }
+        }
+
+        // Priority 2: lines near IC number line are often the name line.
+        if ($idLineIndex !== null) {
+            for ($i = max(0, $idLineIndex - 3); $i <= min(count($lines) - 1, $idLineIndex + 3); $i++) {
+                $boost = ($i === $idLineIndex) ? 10 : 25;
+                $addCandidate((string) $lines[$i], $boost);
+            }
+        }
+
+        // Fallback: scan all lines.
+        foreach ($lines as $line) {
+            $addCandidate((string) $line, 0);
+        }
+
+        arsort($candidates);
+        $bestName = (string) (array_key_first($candidates) ?? '');
+
+        return [
+            'name' => $bestName !== '' ? ucwords(strtolower($bestName)) : null,
+            'id_number' => $idNumber,
+        ];
+    }
+
+    private function detectUnsupportedDocumentType(string $ocrText): ?string
+    {
+        $upper = strtoupper((string) $ocrText);
+        $normalized = preg_replace('/\s+/', ' ', $upper);
+
+        $licenseKeywords = [
+            'LESEN MEMANDU',
+            'DRIVING LICENCE',
+            'DRIVING LICENSE',
+            'MALAYSIAN DRIVING LICENCE',
+            'MALAYSIAN DRIVING LICENSE',
+            'KELAS',
+            'TEMPOH',
+        ];
+
+        $hasLicenseWord = false;
+        $hits = 0;
+        foreach ($licenseKeywords as $keyword) {
+            if (str_contains($normalized, $keyword)) {
+                $hits++;
+                if (str_contains($keyword, 'LESEN') || str_contains($keyword, 'DRIVING')) {
+                    $hasLicenseWord = true;
+                }
+            }
+        }
+
+        if ($hasLicenseWord && $hits >= 1) {
+            return 'lesen_memandu';
         }
 
         return null;

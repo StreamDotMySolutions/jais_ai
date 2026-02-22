@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class RegisterController extends Controller
 {
@@ -42,7 +43,12 @@ class RegisterController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
-        $user->assignRole('awam'); // default role for public users
+        // Force public registration role to "awam" only.
+        // Using syncRoles prevents mixed roles like ["user", "awam"] on new accounts.
+        $awamRole = Role::query()->where('name', 'awam')->first();
+        if ($awamRole) {
+            $user->syncRoles([$awamRole->name]);
+        }
 
         return response()->json([
             'status' => 'success',

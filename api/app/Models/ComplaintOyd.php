@@ -15,4 +15,9 @@ class ComplaintOyd extends Model
     {
         return $this->belongsTo(Complaint::class);
     }
+
+    public function media()
+    {
+        return $this->hasMany(ComplaintOydMedia::class, 'complaint_oyd_id');
+    }
 }

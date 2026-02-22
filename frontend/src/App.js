@@ -16,7 +16,10 @@ import ApiLog from './views/pages/User/ApiLog';
 
 // App modules
 import AppDashboard from './app/modules/dashboard/Dashboard';
+import PublicDashboard from './app/modules/dashboard/PublicDashboard';
 import AppComplaintList from './app/modules/aduan/ComplaintList';
+import AppComplaintListPublic from './app/modules/aduan/ComplaintListPublic';
+import AppComplaintListInternal from './app/modules/aduan/ComplaintListInternal';
 import AppComplaintDetail from './app/modules/aduan/ComplaintDetail';
 import ComplaintPrintBorang5 from './app/modules/aduan/ComplaintPrintBorang5';
 import ComplaintPrintLaporanTindakan from './app/modules/aduan/ComplaintPrintLaporanTindakan';
@@ -54,6 +57,21 @@ import ComplaintStatus from './views/pages/Website/ComplaintStatus';
 import './App.css';
 import HomePage from './views/pages/HomePage';
 
+function DashboardByRole() {
+  const role = (localStorage.getItem('role') || 'awam').toLowerCase();
+  if (role === 'awam' || role === 'user') {
+    return <PublicDashboard />;
+  }
+  return <AppDashboard />;
+}
+
+function ComplaintListByRole() {
+  const role = (localStorage.getItem('role') || 'awam').toLowerCase();
+  if (role === 'awam' || role === 'user') {
+    return <AppComplaintListPublic />;
+  }
+  return <AppComplaintListInternal />;
+}
 
 function App() {
   return (
@@ -91,11 +109,11 @@ function App() {
           <Route path="/app/complaints/:id/print/laporan-tindakan" element={<ComplaintPrintLaporanTindakan />} />
           <Route path="/app/appointments/popup" element={<AppointmentCalendar isPopup />} />
           <Route element={<AppLayout />}>
-            <Route path="/app/dashboard" element={<AppDashboard />} />
+            <Route path="/app/dashboard" element={<DashboardByRole />} />
             <Route path="/app/appointments" element={<AppointmentCalendar />} />
             <Route
               path="/app/complaints"
-              element={<AppComplaintList />}
+              element={<ComplaintListByRole />}
             />
             <Route
               path="/app/complaints/aj"

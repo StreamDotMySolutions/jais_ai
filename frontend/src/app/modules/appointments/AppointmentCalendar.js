@@ -215,11 +215,16 @@ const AppointmentCalendar = ({ isPopup = false }) => {
                                         type="button"
                                         className="app-calendar-add"
                                         onClick={(event) => {
+                                            if (!isPopup) {
+                                                return;
+                                            }
                                             event.stopPropagation();
                                             setSelectedDate(date);
                                             setActiveSlotDate(date);
                                         }}
+                                        disabled={!isPopup}
                                         aria-label="Tambah temujanji"
+                                        title={!isPopup ? 'Fungsi tambah temujanji belum tersedia.' : 'Tambah temujanji'}
                                     >
                                         +
                                     </button>

@@ -177,6 +177,17 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj-report', [App\Http\Controllers\ComplaintController::class, 'updateAjReport'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/oyds/{oyd}/media', [App\Http\Controllers\ComplaintController::class, 'uploadOydMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('oyd');
+    Route::post('/complaints/{complaint}/oyds/{oyd}/scan-ic', [App\Http\Controllers\ComplaintController::class, 'scanOydIc'])
+        ->whereNumber('complaint')
+        ->whereNumber('oyd');
+    Route::post('/complaints/{complaint}/scan-ic', [App\Http\Controllers\ComplaintController::class, 'scanIcTemp'])
+        ->whereNumber('complaint');
+    Route::delete('/complaints/{complaint}/oyd-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteOydMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('media');
     Route::post('/complaints/{complaint}/ak', [App\Http\Controllers\ComplaintController::class, 'updateAkPayload'])
         ->whereNumber('complaint');
     Route::delete('/complaints/{complaint}', [App\Http\Controllers\ComplaintController::class, 'destroy'])
@@ -243,4 +254,3 @@ Route::post('/whatsapp', [WhatsAppWebhookController::class, 'handleWebhook']);
 // Whatsapp Web Webhook
 use App\Http\Controllers\WhatsApp\WhatsappWebController;
 Route::post('/whatsappweb', [WhatsappWebController::class, 'handle']);
-

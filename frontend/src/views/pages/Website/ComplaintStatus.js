@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import { getPublicComplaintStageLabel } from '../../../app/modules/aduan/complaintStage';
 
 const ComplaintStatus = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
@@ -81,7 +82,7 @@ const ComplaintStatus = () => {
                         </div>
                         <div className="status-row">
                             <span>Status</span>
-                            <strong>{result.current_stage || '-'}</strong>
+                            <strong>{getPublicComplaintStageLabel(result.current_stage || '-', result)}</strong>
                         </div>
                         <div className="status-row">
                             <span>Daerah</span>
