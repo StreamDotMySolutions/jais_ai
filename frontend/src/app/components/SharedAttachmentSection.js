@@ -43,6 +43,10 @@ const AttachmentSection = ({
     getUploadUrl,
     getDeleteUrl,
     getDownloadUrl,
+    extractUploadedItems,
+    uploadFields = null,
+    uploadPrefix = null,
+    uploadButtonLabel = 'Upload',
 }) => {
     const toast = useToast();
     const [selectedFiles, setSelectedFiles] = useState([]);
@@ -165,6 +169,15 @@ const AttachmentSection = ({
         setUploadMessage('');
 
         const form = new FormData();
+        const extraFields = typeof uploadFields === 'function' ? uploadFields() : uploadFields;
+        if (extraFields && typeof extraFields === 'object') {
+            Object.entries(extraFields).forEach(([key, value]) => {
+                if (value === undefined || value === null) {
+                    return;
+                }
+                form.append(String(key), value);
+            });
+        }
         selectedFiles.forEach((file) => form.append('files[]', file));
 
         const url = resolveUploadUrl();
@@ -182,7 +195,9 @@ const AttachmentSection = ({
             },
         })
             .then((response) => {
-                const newItems = response?.data?.data || [];
+                const newItems = typeof extractUploadedItems === 'function'
+                    ? (extractUploadedItems(response) || [])
+                    : (response?.data?.data || []);
                 updateAttachments((prev) => [...newItems, ...prev]);
                 const msg = response?.data?.message || 'Fail berjaya dimuat naik.';
                 setUploadMessage(msg);
@@ -355,6 +370,7 @@ const AttachmentSection = ({
                     <div className="app-form-field" style={{ gridColumn: '1 / -1' }}>
                         <label>{label} {helperText}</label>
                         <div className="app-upload-row">
+                            {uploadPrefix}
                             <input
                                 className="app-upload-file"
                                 type="file"
@@ -373,7 +389,7 @@ const AttachmentSection = ({
                                 disabled={disabledUpload}
                                 onClick={handleUpload}
                             >
-                                {uploading ? 'Uploading...' : 'Upload'}
+                                {uploading ? 'Uploading...' : uploadButtonLabel}
                             </button>
                         </div>
                         {!recordId && (

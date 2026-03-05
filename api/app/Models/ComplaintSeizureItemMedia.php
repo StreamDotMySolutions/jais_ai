@@ -6,15 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ComplaintOydMedia extends Model
+class ComplaintSeizureItemMedia extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $table = 'complaint_oyd_media';
+    protected $table = 'complaint_seizure_item_media';
     protected $guarded = ['id'];
 
-    public function oyd()
+    public function seizureItem()
     {
-        return $this->belongsTo(ComplaintOyd::class, 'complaint_oyd_id');
+        return $this->belongsTo(ComplaintSeizureItem::class, 'complaint_seizure_item_id');
     }
 }

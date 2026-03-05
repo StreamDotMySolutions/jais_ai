@@ -24,6 +24,7 @@ const ComplaintListInternalView = ({
     getIpStatusBadgeTone,
     getProsecutionStatusBadgeTone,
     getProsecutionStatusLabel,
+    getClassificationAlert,
     navigate,
     canDelete,
     setDeleteTarget,
@@ -163,13 +164,21 @@ const ComplaintListInternalView = ({
                                 const prosecutionStatus = item.case_type === 'AK'
                                     ? ''
                                     : (item.aj_prosecution_status || '');
-                                const show = Boolean(ipStatus || prosecutionStatus);
+                                const receiverName = item?.received_by?.name || item?.receivedBy?.name || '';
+                                const approverName = item?.approver_staff?.name || item?.approverStaff?.name || '';
+                                const classificationAlert = getClassificationAlert ? getClassificationAlert(item) : null;
+                                const show = Boolean(classificationAlert || ipStatus || prosecutionStatus || receiverName || approverName);
                                 if (!show) {
                                     return null;
                                 }
 
                                 return (
                                     <span className="app-status-stack">
+                                        {classificationAlert && (
+                                            <span className={`app-status-pill-mini ${classificationAlert.tone || 'is-muted'} ${classificationAlert.blink ? 'app-text-blink' : ''}`}>
+                                                {classificationAlert.text}
+                                            </span>
+                                        )}
                                         {ipStatus && (
                                             <span className={`app-status-pill-mini ${getIpStatusBadgeTone(ipStatus)}`}>
                                                 Siasatan: {ipStatus}
@@ -178,6 +187,16 @@ const ComplaintListInternalView = ({
                                         {prosecutionStatus && (
                                             <span className={`app-status-pill-mini ${getProsecutionStatusBadgeTone(prosecutionStatus)}`}>
                                                 Pendakwaan: {getProsecutionStatusLabel(prosecutionStatus)}
+                                            </span>
+                                        )}
+                                        {receiverName && (
+                                            <span className="app-status-meta-line" title={`Penerima Aduan: ${receiverName}`}>
+                                                Penerima: {receiverName}
+                                            </span>
+                                        )}
+                                        {approverName && (
+                                            <span className="app-status-meta-line" title={`Pegawai Pengesah: ${approverName}`}>
+                                                Pengesah: {approverName}
                                             </span>
                                         )}
                                     </span>
@@ -192,7 +211,7 @@ const ComplaintListInternalView = ({
                                 <button
                                     type="button"
                                     className="app-button app-button-ghost"
-                                    onClick={() => navigate(`/app/complaints/${item.id}`)}
+                                    onClick={() => handlePickup(item.id, true)}
                                 >
                                     Terima Aduan
                                 </button>

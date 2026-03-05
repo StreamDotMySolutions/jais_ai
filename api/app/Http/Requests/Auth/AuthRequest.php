@@ -34,9 +34,16 @@ class AuthRequest extends FormRequest
         $login = trim($loginRaw);
 
         $credentials = null;
+        $userStatus = null;
 
         if ($login !== '' && str_contains($login, '@')) {
-            $credentials = ['email' => $login, 'password' => $this->input('password')];
+            $user = DB::table('users')
+                ->where('email', $login)
+                ->first(['email', 'status']);
+            if ($user) {
+                $credentials = ['email' => $user->email, 'password' => $this->input('password')];
+                $userStatus = (int) ($user->status ?? 0);
+            }
         } else {
             // Normalize IC by removing non-digits; allow inputs like 900101-01-0001.
             $icDigits = preg_replace('/\\D+/', '', $login);
@@ -46,14 +53,31 @@ class AuthRequest extends FormRequest
                 ->value('user_id');
 
             if ($userId) {
-                $email = DB::table('users')->where('id', $userId)->value('email');
-                if ($email) {
-                    $credentials = ['email' => $email, 'password' => $this->input('password')];
+                $user = DB::table('users')
+                    ->where('id', $userId)
+                    ->first(['email', 'status']);
+                if ($user && !empty($user->email)) {
+                    $credentials = ['email' => $user->email, 'password' => $this->input('password')];
+                    $userStatus = (int) ($user->status ?? 0);
                 }
             }
         }
 
-        if (! $credentials || ! Auth::attempt($credentials, $this->boolean('remember'))) {
+        if (! $credentials) {
+            throw ValidationException::withMessages([
+                'login' => __('auth.failed'),
+                'email' => __('auth.failed'),
+            ]);
+        }
+
+        if ($userStatus !== 1) {
+            throw ValidationException::withMessages([
+                'login' => 'Akaun tidak aktif. Sila hubungi pentadbir sistem.',
+                'email' => 'Akaun tidak aktif. Sila hubungi pentadbir sistem.',
+            ]);
+        }
+
+        if (! Auth::attempt($credentials, $this->boolean('remember'))) {
             // Return under both keys so legacy & new UI can show the message.
             throw ValidationException::withMessages([
                 'login' => __('auth.failed'),

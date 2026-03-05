@@ -8,6 +8,7 @@ const AttachmentPreviewModal = ({
     url,
     onClose,
     onOpenTab,
+    onOpenNewTab,
 }) => {
     useEffect(() => {
         if (!isOpen) {
@@ -21,6 +22,8 @@ const AttachmentPreviewModal = ({
         window.addEventListener('keydown', onKeyDown);
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [isOpen, onClose]);
+
+    const handleOpenTab = onOpenTab || onOpenNewTab;
 
     if (!isOpen) {
         return null;
@@ -40,7 +43,7 @@ const AttachmentPreviewModal = ({
                     </div>
                     <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
                         {url && (
-                            <button type="button" className="app-button app-button-ghost" onClick={onOpenTab}>
+                            <button type="button" className="app-button app-button-ghost" onClick={handleOpenTab}>
                                 Buka Tab
                             </button>
                         )}

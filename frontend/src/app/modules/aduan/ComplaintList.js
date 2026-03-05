@@ -13,6 +13,43 @@ import ComplaintListDrawer from './ComplaintListDrawer';
 import ComplaintListHeader from './ComplaintListHeader';
 import ComplaintListFilter from './ComplaintListFilter';
 
+const parseSearchSyntax = (input) => {
+    const raw = (input || '').toString().trim();
+    if (!raw) {
+        return { text: '', tokens: {} };
+    }
+
+    const tokens = {};
+    const chunks = [];
+    const pattern = /([a-zA-Z_]+):("([^"]+)"|[^\s]+)/g;
+    let lastIndex = 0;
+    let match;
+
+    while ((match = pattern.exec(raw)) !== null) {
+        chunks.push(raw.slice(lastIndex, match.index));
+        lastIndex = pattern.lastIndex;
+
+        const key = (match[1] || '').toLowerCase();
+        const value = (match[3] || match[2] || '').replace(/^"|"$/g, '').trim();
+        if (!value) continue;
+        tokens[key] = value;
+    }
+    chunks.push(raw.slice(lastIndex));
+
+    const text = chunks.join(' ').replace(/\s+/g, ' ').trim();
+    return { text, tokens };
+};
+
+const parseDateRange = (value) => {
+    const raw = (value || '').toString().trim();
+    if (!raw) return { from: '', to: '' };
+    if (raw.includes('..')) {
+        const [from, to] = raw.split('..');
+        return { from: (from || '').trim(), to: (to || '').trim() };
+    }
+    return { from: raw, to: raw };
+};
+
 const getIpStatusBadgeTone = (value) => {
     if (!value) {
         return 'is-muted';
@@ -111,7 +148,6 @@ const ComplaintList = ({
     const toast = useToast();
     const navigate = useNavigate();
     const [complaints, setComplaints] = useState([]);
-    const [quickQuery, setQuickQuery] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const role = localStorage.getItem('role') || 'awam';
@@ -138,28 +174,48 @@ const ComplaintList = ({
     ]), []);
     const [filters, setFilters] = useState({
         keyword: '',
+        complaintNo: '',
+        complainant: '',
+        summaryText: '',
         status: '',
         district: '',
         fromDate: '',
         toDate: '',
         ipStatus: '',
         prosecutionStatus: '',
+        classification: '',
+        receiver: '',
+        approver: '',
+        channel: '',
+        incidentFromDate: '',
+        incidentToDate: '',
     });
     const [draftFilters, setDraftFilters] = useState({
         keyword: '',
+        complaintNo: '',
+        complainant: '',
+        summaryText: '',
         status: '',
         district: '',
         fromDate: '',
         toDate: '',
         ipStatus: '',
         prosecutionStatus: '',
+        classification: '',
+        receiver: '',
+        approver: '',
+        channel: '',
+        incidentFromDate: '',
+        incidentToDate: '',
     });
     const [showFilters, setShowFilters] = useState(true);
+    const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
     const [pickupMessage, setPickupMessage] = useState('');
     const [actionMessage, setActionMessage] = useState('');
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
     const [statusTab, setStatusTab] = useState('all');
+    const [timeTick, setTimeTick] = useState(Date.now());
     const [pendingApproval, setPendingApproval] = useState(false);
     const [sortKey, setSortKey] = useState('');
     const [sortDir, setSortDir] = useState('asc');
@@ -190,25 +246,58 @@ const ComplaintList = ({
             endpoint = `${apiUrl}${fetchEndpoint}`;
         }
 
-        const effectiveKeyword = quickQuery || filters.keyword;
+        const parsedKeyword = parseSearchSyntax(filters.keyword);
+        const syntax = parsedKeyword.tokens || {};
         const params = {
             page,
             per_page: perPage,
         };
-        if (effectiveKeyword) {
-            params.keyword = effectiveKeyword;
+        if (parsedKeyword.text) {
+            params.keyword = parsedKeyword.text;
+        }
+        if (filters.complaintNo) {
+            params.reference_no = filters.complaintNo;
+        } else if (syntax.no_aduan || syntax.reference_no) {
+            params.reference_no = syntax.no_aduan || syntax.reference_no;
+        }
+        if (filters.complainant) {
+            params.complainant_name = filters.complainant;
+        } else if (syntax.pengadu || syntax.complainant) {
+            params.complainant_name = syntax.pengadu || syntax.complainant;
+        }
+        if (filters.summaryText) {
+            params.summary = filters.summaryText;
+        } else if (syntax.ringkasan || syntax.summary) {
+            params.summary = syntax.ringkasan || syntax.summary;
         }
         if (filters.status) {
             params.status = filters.status;
+        } else if (syntax.status) {
+            params.status = syntax.status;
         }
         if (filters.district) {
             params.district_id = filters.district;
+        } else if (syntax.district || syntax.daerah) {
+            const districtToken = (syntax.district || syntax.daerah || '').toString().trim();
+            if (/^\d+$/.test(districtToken)) {
+                params.district_id = districtToken;
+            } else {
+                const normalized = districtToken.toLowerCase();
+                const district = districtOptions.find((d) => (d?.name || '').toLowerCase().includes(normalized));
+                if (district?.id) {
+                    params.district_id = district.id;
+                }
+            }
         }
         if (filters.fromDate) {
             params.from_date = filters.fromDate;
+        } else if (syntax.from) {
+            params.from_date = syntax.from;
         }
         if (filters.toDate) {
             params.to_date = filters.toDate;
+        } else if (syntax.to) {
+            params.to_date = syntax.to;
         }
         if (filters.ipStatus) {
             params.ip_status = filters.ipStatus;
@@ -216,8 +305,50 @@ const ComplaintList = ({
         if (filters.prosecutionStatus) {
             params.prosecution_status = filters.prosecutionStatus;
         }
+        if (filters.classification) {
+            params.classification = filters.classification;
+        } else if (syntax.classification || syntax.klasifikasi) {
+            params.classification = (syntax.classification || syntax.klasifikasi || '').toUpperCase();
+        }
+        if (filters.receiver) {
+            params.received_by = filters.receiver;
+        } else if (syntax.receiver || syntax.penerima) {
+            params.received_by = syntax.receiver || syntax.penerima;
+        }
+        if (filters.approver) {
+            params.approver = filters.approver;
+        } else if (syntax.approver || syntax.pengesah) {
+            params.approver = syntax.approver || syntax.pengesah;
+        }
+        if (filters.channel) {
+            params.channel = filters.channel;
+        } else if (syntax.channel || syntax.kaedah) {
+            params.channel = (syntax.channel || syntax.kaedah || '').toLowerCase();
+        }
+        if (filters.incidentFromDate) {
+            params.incident_from_date = filters.incidentFromDate;
+        } else if (syntax.incident_from) {
+            params.incident_from_date = syntax.incident_from;
+        }
+        if (filters.incidentToDate) {
+            params.incident_to_date = filters.incidentToDate;
+        } else if (syntax.incident_to) {
+            params.incident_to_date = syntax.incident_to;
+        }
+        if (!filters.fromDate && !filters.toDate && syntax.date) {
+            const r = parseDateRange(syntax.date);
+            if (r.from) params.from_date = r.from;
+            if (r.to) params.to_date = r.to;
+        }
+        if (!filters.incidentFromDate && !filters.incidentToDate && (syntax.incident || syntax.kejadian)) {
+            const r = parseDateRange(syntax.incident || syntax.kejadian);
+            if (r.from) params.incident_from_date = r.from;
+            if (r.to) params.incident_to_date = r.to;
+        }
         if (caseType) {
             params.case_type = caseType;
+        } else if (syntax.case || syntax.case_type || syntax.kategori) {
+            params.case_type = (syntax.case || syntax.case_type || syntax.kategori || '').toUpperCase();
         }
         if (isCase) {
             params.is_case = true;
@@ -273,8 +404,58 @@ const ComplaintList = ({
     };
 
     useEffect(() => {
+        const timer = window.setInterval(() => setTimeTick(Date.now()), 60 * 1000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    const getClassificationAlert = (item) => {
+        if (!item || item.case_type !== 'AJ') return null;
+        const classification = String(item.aj_ppa_classification || '').toUpperCase();
+        if (classification !== 'KIV' && classification !== 'NFA') return null;
+
+        const datePart = (item.complaint_date || '').toString().trim();
+        if (!datePart) return { text: `${classification} dipilih`, tone: 'is-warn', blink: false };
+
+        const rawTime = (item.complaint_time || '').toString().trim();
+        const timePart = rawTime ? (rawTime.split(':').length >= 3 ? rawTime : `${rawTime}:00`) : '00:00:00';
+        const submittedAt = new Date(`${datePart}T${timePart}`);
+        if (Number.isNaN(submittedAt.getTime())) return { text: `${classification} dipilih`, tone: 'is-warn', blink: false };
+
+        if (classification === 'KIV') {
+            const deadline = new Date(submittedAt.getTime() + (10 * 24 * 60 * 60 * 1000));
+            const remainingMs = deadline.getTime() - timeTick;
+            const dayMs = 24 * 60 * 60 * 1000;
+
+            if (remainingMs <= 0) {
+                return { text: 'KIV tamat (auto NFA)', tone: 'is-danger', blink: true };
+            }
+
+            const daysLeft = Math.ceil(remainingMs / dayMs);
+            if (daysLeft <= 8) {
+                return { text: `KIV: ${daysLeft} hari lagi`, tone: 'is-danger', blink: true };
+            }
+
+            return { text: `KIV: ${daysLeft} hari lagi`, tone: 'is-warn', blink: false };
+        }
+
+        const nfaDeadline = new Date(submittedAt.getTime() + (24 * 60 * 60 * 1000));
+        const remainingMs = nfaDeadline.getTime() - timeTick;
+        if (remainingMs <= 0) {
+            return { text: 'NFA tamat (24 jam)', tone: 'is-danger', blink: true };
+        }
+        const totalMinutes = Math.ceil(remainingMs / (60 * 1000));
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        const text = `NFA: ${hours}j ${minutes}m lagi`;
+        if (remainingMs <= (6 * 60 * 60 * 1000)) {
+            return { text, tone: 'is-warn', blink: true };
+        }
+        return { text, tone: 'is-info', blink: false };
+    };
+
+    useEffect(() => {
         fetchComplaints();
-    }, [apiUrl, role, fetchEndpoint, caseType, isCase, page, perPage, filters, quickQuery, pendingApproval]);
+    }, [apiUrl, role, fetchEndpoint, caseType, isCase, page, perPage, filters, pendingApproval]);
 
     useEffect(() => {
         setPage(1);
@@ -418,16 +599,24 @@ const ComplaintList = ({
     const handleReset = () => {
         const empty = {
             keyword: '',
+            complaintNo: '',
+            complainant: '',
+            summaryText: '',
             status: '',
             district: '',
             fromDate: '',
             toDate: '',
             ipStatus: '',
             prosecutionStatus: '',
+            classification: '',
+            receiver: '',
+            approver: '',
+            channel: '',
+            incidentFromDate: '',
+            incidentToDate: '',
         };
         setDraftFilters(empty);
         setFilters(empty);
-        setQuickQuery('');
         setStatusTab('all');
         setPendingApproval(false);
         setPage(1);
@@ -437,7 +626,7 @@ const ComplaintList = ({
     const endIndex = Math.min(pagination.current_page * pagination.per_page, pagination.total);
 
     return (
-        <div className="app-complaints">
+        <div className="app-complaints app-aduan-list">
             <ConfirmModal
                 isOpen={!!deleteTarget}
                 title="Padam Aduan"
@@ -461,9 +650,6 @@ const ComplaintList = ({
                 onOpenForm={() => setIsFormOpen(true)}
                 showFilters={showFilters}
                 onToggleFilters={() => setShowFilters((prev) => !prev)}
-                quickQuery={quickQuery}
-                setQuickQuery={setQuickQuery}
-                setPage={setPage}
             />
 
             {showFilters && (
@@ -478,6 +664,8 @@ const ComplaintList = ({
                     setDraftFilters={setDraftFilters}
                     onSearch={handleSearch}
                     onReset={handleReset}
+                    advancedOpen={advancedFiltersOpen}
+                    setAdvancedOpen={setAdvancedFiltersOpen}
                 />
             )}
 
@@ -523,6 +711,7 @@ const ComplaintList = ({
                                 getIpStatusBadgeTone={getIpStatusBadgeTone}
                                 getProsecutionStatusBadgeTone={getProsecutionStatusBadgeTone}
                                 getProsecutionStatusLabel={getProsecutionStatusLabel}
+                                getClassificationAlert={getClassificationAlert}
                                 navigate={navigate}
                                 canDelete={canDelete}
                                 setDeleteTarget={setDeleteTarget}

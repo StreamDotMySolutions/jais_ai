@@ -14,6 +14,7 @@ class ComplaintObserver
     private array $ignoredKeys = [
         'updated_at',
         'created_at',
+        'deleted_at',
     ];
 
     private function writeLog(Complaint $complaint, string $event, array $oldValues = null, array $newValues = null, array $changedKeys = null): void
@@ -67,5 +68,9 @@ class ComplaintObserver
     {
         $this->writeLog($complaint, 'deleted', $complaint->getOriginal(), null, array_keys($complaint->getOriginal()));
     }
-}
 
+    public function restored(Complaint $complaint): void
+    {
+        $this->writeLog($complaint, 'restored', null, $complaint->getAttributes(), ['deleted_at']);
+    }
+}

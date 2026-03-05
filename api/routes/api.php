@@ -13,7 +13,8 @@ use App\Http\Controllers\{
     StaffController,
     RoleController,
     MenuController,
-    UserController
+    UserController,
+    AuditTrailController
 };
 use App\Http\Controllers\IwaranWarrantController;
 use App\Http\Controllers\ArahanBeredarController;
@@ -177,7 +178,17 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj-report', [App\Http\Controllers\ComplaintController::class, 'updateAjReport'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/oyds', [App\Http\Controllers\ComplaintController::class, 'createOyd'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/seizure-items', [App\Http\Controllers\ComplaintController::class, 'createSeizureItem'])
+        ->whereNumber('complaint');
+    Route::put('/complaints/{complaint}/oyds/{oyd}', [App\Http\Controllers\ComplaintController::class, 'updateOyd'])
+        ->whereNumber('complaint')
+        ->whereNumber('oyd');
     Route::post('/complaints/{complaint}/oyds/{oyd}/media', [App\Http\Controllers\ComplaintController::class, 'uploadOydMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('oyd');
+    Route::delete('/complaints/{complaint}/oyds/{oyd}', [App\Http\Controllers\ComplaintController::class, 'deleteOyd'])
         ->whereNumber('complaint')
         ->whereNumber('oyd');
     Route::post('/complaints/{complaint}/oyds/{oyd}/scan-ic', [App\Http\Controllers\ComplaintController::class, 'scanOydIc'])
@@ -186,6 +197,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/scan-ic', [App\Http\Controllers\ComplaintController::class, 'scanIcTemp'])
         ->whereNumber('complaint');
     Route::delete('/complaints/{complaint}/oyd-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteOydMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('media');
+    Route::get('/complaints/{complaint}/oyd-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadOydMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('media');
+    Route::post('/complaints/{complaint}/seizure-items/{item}/media', [App\Http\Controllers\ComplaintController::class, 'uploadSeizureItemMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('item');
+    Route::delete('/complaints/{complaint}/seizure-item-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteSeizureItemMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('media');
+    Route::get('/complaints/{complaint}/seizure-item-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadSeizureItemMedia'])
         ->whereNumber('complaint')
         ->whereNumber('media');
     Route::post('/complaints/{complaint}/ak', [App\Http\Controllers\ComplaintController::class, 'updateAkPayload'])
@@ -210,6 +233,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/menus/bulk-roles', [MenuController::class, 'bulkRoles']);
     Route::put('/menus/{menu}', [MenuController::class, 'update'])->whereNumber('menu');
     Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->whereNumber('menu');
+    Route::get('/audit-trail', [AuditTrailController::class, 'index']);
+    Route::get('/audit-trail/export/csv', [AuditTrailController::class, 'exportCsv']);
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{user}', [UserController::class, 'update'])->whereNumber('user');

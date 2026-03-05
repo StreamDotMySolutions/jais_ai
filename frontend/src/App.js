@@ -29,6 +29,7 @@ import StaffList from './app/modules/staff/StaffList';
 import RoleList from './app/modules/roles/RoleList';
 import MenuList from './app/modules/menus/MenuList';
 import UserList from './app/modules/users/UserList';
+import AuditTrailList from './app/modules/audit/AuditTrailList';
 import ArahanBeredar from './app/modules/beredar/ArahanBeredar';
 import ArahanBeredarList from './app/modules/beredar/ArahanBeredarList';
 import ArahanBeredarDetail from './app/modules/beredar/ArahanBeredarDetail';
@@ -143,6 +144,7 @@ function App() {
             <Route path="/app/staff" element={<StaffList />} />
             <Route path="/app/roles" element={<RoleList />} />
             <Route path="/app/users" element={<UserList />} />
+            <Route path="/app/audit-trail" element={<AuditTrailList />} />
             <Route path="/app/menus" element={<MenuList />} />
             <Route path="/app/api-token" element={<ApiToken />} />
             <Route path="/app/api-logs" element={<ApiLog />} />

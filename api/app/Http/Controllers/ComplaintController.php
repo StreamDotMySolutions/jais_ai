@@ -9,6 +9,7 @@ use App\Models\Complaint;
 use App\Models\ComplaintOyd;
 use App\Models\ComplaintOydMedia;
 use App\Models\ComplaintSeizureItem;
+use App\Models\ComplaintSeizureItemMedia;
 use App\Models\Staff;
 use App\Models\District;
 use Carbon\Carbon;
@@ -132,6 +133,7 @@ class ComplaintController extends Controller
             'oyds:id,complaint_id,name,id_number,investigator_name,file_no',
             'oyds.media:id,complaint_oyd_id,category,file_name,mime,size,created_at',
             'seizureItems:id,complaint_id,item_no,description,storage',
+            'seizureItems.media:id,complaint_seizure_item_id,category,file_name,mime,size,created_at',
             'ajDirectiveStaff:id,name,staff_id,ic_number,phone,address,position,department',
             'ajArrestStaff:id,name,staff_id,ic_number,phone,address,position,department',
             'ajProsecutorStaff:id,name,staff_id,ic_number,phone,address,position,department',
@@ -320,14 +322,16 @@ class ComplaintController extends Controller
             ]);
         }
 
-        $payload = [];
-        if ($request->filled('approver_staff_id')) {
-            if ((int) $request->approver_staff_id !== (int) $complaint->approver_staff_id) {
-                $payload['approver_staff_id'] = $request->approver_staff_id;
-                $payload['approver_assigned_at'] = now();
-                $payload['current_stage'] = 'tunggu_pengesahan';
-            }
+        if (! $request->filled('approver_staff_id')) {
+            return response()->json(['message' => 'Sila pilih Pegawai Pengesah dahulu.'], 422);
         }
+
+        $payload = [];
+        $payload['approver_staff_id'] = $request->approver_staff_id;
+        if ((int) $request->approver_staff_id !== (int) $complaint->approver_staff_id || ! $complaint->approver_assigned_at) {
+            $payload['approver_assigned_at'] = now();
+        }
+        $payload['current_stage'] = 'tunggu_pengesahan';
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
 
@@ -443,6 +447,20 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        // Terima Aduan flow: once clicked from "baru", move to tindakan aduan immediately.
+        if ((string) $complaint->current_stage === 'baru') {
+            $complaint->update([
+                'received_by_user_id' => $user->id,
+                'received_at' => now(),
+                'current_stage' => 'dalam_tindakan',
+            ]);
+
+            return response()->json([
+                'message' => 'Aduan diterima. Sila teruskan Tindakan Aduan.',
+                'data' => $complaint->load(['receivedBy:id,name,email', 'picUser:id,name']),
+            ]);
+        }
+
         $assignment = DB::table('complaint_assignments')
             ->where('complaint_id', $complaint->id)
             ->where('user_id', $user->id)
@@ -504,6 +522,19 @@ class ComplaintController extends Controller
         $allowedPpa = ['FFA', 'KIV', 'NFA', 'OP'];
         if (! in_array($ppaClassification, $allowedPpa, true)) {
             $ppaClassification = null;
+        }
+
+        // Auto switch KIV -> NFA after 10 days from complaint date/time.
+        if ($ppaClassification === 'KIV' && $complaint->complaint_date) {
+            $complaintTime = $complaint->complaint_time ?: '00:00:00';
+            try {
+                $complaintAt = Carbon::parse($complaint->complaint_date . ' ' . $complaintTime);
+                if ($complaintAt->copy()->addDays(10)->lte(now())) {
+                    $ppaClassification = 'NFA';
+                }
+            } catch (\Throwable $e) {
+                // Keep original classification if datetime parsing fails.
+            }
         }
 
         $payload = [
@@ -633,12 +664,50 @@ class ComplaintController extends Controller
                 ]);
             }
 
-            ComplaintSeizureItem::where('complaint_id', $complaint->id)->delete();
-            $items = $report['seizure_items'] ?? [];
-            foreach ($items as $row) {
-                if (!array_filter($row ?? [])) {
+            $existingItems = ComplaintSeizureItem::where('complaint_id', $complaint->id)
+                ->with('media')
+                ->get()
+                ->keyBy('id');
+            $incomingItems = $report['seizure_items'] ?? [];
+            $incomingItemIds = collect($incomingItems)
+                ->pluck('id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            foreach ($existingItems as $existingItem) {
+                if (! in_array((int) $existingItem->id, $incomingItemIds, true)) {
+                    foreach ($existingItem->media as $media) {
+                        if ($media->path) {
+                            Storage::disk($media->disk ?: 'local')->delete($media->path);
+                        }
+                        $media->delete();
+                    }
+                    $existingItem->delete();
+                }
+            }
+
+            foreach ($incomingItems as $row) {
+                $rowId = isset($row['id']) && $row['id'] !== '' ? (int) $row['id'] : null;
+                $hasValue = collect([
+                    $row['item_no'] ?? null,
+                    $row['description'] ?? null,
+                    $row['storage'] ?? null,
+                ])->contains(fn ($value) => trim((string) $value) !== '');
+
+                if ($rowId && $existingItems->has($rowId)) {
+                    $existingItems->get($rowId)->update([
+                        'item_no' => $row['item_no'] ?? null,
+                        'description' => $row['description'] ?? null,
+                        'storage' => $row['storage'] ?? null,
+                    ]);
                     continue;
                 }
+
+                if (! $hasValue) {
+                    continue;
+                }
+
                 ComplaintSeizureItem::create([
                     'complaint_id' => $complaint->id,
                     'item_no' => $row['item_no'] ?? null,
@@ -654,6 +723,7 @@ class ComplaintController extends Controller
                 'oyds:id,complaint_id,name,id_number,investigator_name,file_no',
                 'oyds.media:id,complaint_oyd_id,category,file_name,mime,size,created_at',
                 'seizureItems:id,complaint_id,item_no,description,storage',
+                'seizureItems.media:id,complaint_seizure_item_id,category,file_name,mime,size,created_at',
             ]),
         ]);
     }
@@ -681,8 +751,11 @@ class ComplaintController extends Controller
         $disk = 'local';
         $folder = "complaints/oyds/{$complaint->id}/{$oyd->id}";
         $uploaded = [];
+        $scanResult = null;
+        $scanMessage = null;
 
-        foreach ($request->file('files', []) as $file) {
+        $files = $request->file('files', []);
+        foreach ($files as $file) {
             $storedName = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
             $path = $file->storeAs($folder, $storedName, $disk);
 
@@ -708,13 +781,242 @@ class ComplaintController extends Controller
             ];
         }
 
+        // If category is IC, auto-scan first uploaded image and sync OYDS name / id_number.
+        if ($category === 'ic') {
+            $firstImage = collect($files)->first(function ($file) {
+                $mime = strtolower((string) $file->getClientMimeType());
+                return str_starts_with($mime, 'image/');
+            });
+
+            if ($firstImage) {
+                $ocrText = $this->runTesseractOcr($firstImage->getRealPath());
+                if ($ocrText) {
+                    $unsupported = $this->detectUnsupportedDocumentType($ocrText);
+                    if ($unsupported === 'lesen_memandu') {
+                        $scanMessage = 'Lampiran IC dimuat naik, tetapi OCR ditolak: imej dikesan sebagai lesen memandu.';
+                    } else {
+                        $parsed = $this->parseMyKadText($ocrText);
+                        if (($parsed['name'] ?? '') !== '' || ($parsed['id_number'] ?? '') !== '') {
+                            $oyd->update([
+                                'name' => $parsed['name'] ?: ($oyd->name ?: null),
+                                'id_number' => $parsed['id_number'] ?: ($oyd->id_number ?: null),
+                            ]);
+                            $scanResult = [
+                                'name' => $oyd->fresh()->name,
+                                'id_number' => $oyd->fresh()->id_number,
+                            ];
+                            $scanMessage = 'OCR IC berjaya: nama/no. K/P dikemaskini.';
+                        } else {
+                            $scanMessage = 'Lampiran IC dimuat naik, tetapi OCR tidak dapat kesan nama/no. K/P.';
+                        }
+                    }
+                } else {
+                    $scanMessage = 'Lampiran IC dimuat naik, tetapi OCR gagal dijalankan.';
+                }
+            }
+        }
+
         return response()->json([
             'message' => 'Lampiran OYDS berjaya dimuat naik.',
             'uploaded' => $uploaded,
             'media' => $oyd->fresh()->media()->orderByDesc('id')->get([
                 'id', 'complaint_oyd_id', 'category', 'file_name', 'mime', 'size', 'created_at',
             ]),
+            'oyd' => $oyd->fresh(['media:id,complaint_oyd_id,category,file_name,mime,size,created_at']),
+            'scan_message' => $scanMessage,
+            'scan_result' => $scanResult,
         ]);
+    }
+
+    public function createOyd(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $data = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'id_number' => 'nullable|string|max:255',
+            'investigator_name' => 'nullable|string|max:255',
+            'file_no' => 'nullable|string|max:255',
+        ]);
+
+        $oyd = ComplaintOyd::create([
+            'complaint_id' => $complaint->id,
+            'name' => $data['name'] ?? null,
+            'id_number' => $data['id_number'] ?? null,
+            'investigator_name' => $data['investigator_name'] ?? null,
+            'file_no' => $data['file_no'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'OYDS dicipta.',
+            'data' => $oyd->fresh(['media:id,complaint_oyd_id,category,file_name,mime,size,created_at']),
+        ]);
+    }
+
+    public function updateOyd(Request $request, Complaint $complaint, ComplaintOyd $oyd)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $oyd->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'OYDS tidak sah untuk aduan ini.'], 422);
+        }
+
+        $data = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'id_number' => 'nullable|string|max:255',
+            'investigator_name' => 'nullable|string|max:255',
+            'file_no' => 'nullable|string|max:255',
+        ]);
+
+        $oyd->update([
+            'name' => array_key_exists('name', $data) ? $data['name'] : $oyd->name,
+            'id_number' => array_key_exists('id_number', $data) ? $data['id_number'] : $oyd->id_number,
+            'investigator_name' => array_key_exists('investigator_name', $data) ? $data['investigator_name'] : $oyd->investigator_name,
+            'file_no' => array_key_exists('file_no', $data) ? $data['file_no'] : $oyd->file_no,
+        ]);
+
+        return response()->json([
+            'message' => 'OYDS dikemaskini.',
+            'data' => $oyd->fresh(['media:id,complaint_oyd_id,category,file_name,mime,size,created_at']),
+        ]);
+    }
+
+    public function createSeizureItem(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $data = $request->validate([
+            'item_no' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'storage' => 'nullable|string|max:255',
+        ]);
+
+        $item = ComplaintSeizureItem::create([
+            'complaint_id' => $complaint->id,
+            'item_no' => $data['item_no'] ?? null,
+            'description' => $data['description'] ?? null,
+            'storage' => $data['storage'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'Barang kes dicipta.',
+            'data' => $item->fresh(['media:id,complaint_seizure_item_id,category,file_name,mime,size,created_at']),
+        ]);
+    }
+
+    public function uploadSeizureItemMedia(Request $request, Complaint $complaint, ComplaintSeizureItem $item)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $item->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Barang kes tidak sah untuk aduan ini.'], 422);
+        }
+
+        $request->validate([
+            'category' => 'nullable|in:ic,bukti,lain_lain',
+            'files' => 'required|array|min:1',
+            'files.*' => 'file|max:51200|mimes:jpg,jpeg,png,webp,pdf',
+        ]);
+
+        $category = $request->input('category', 'lain_lain');
+        $disk = 'local';
+        $folder = "complaints/seizure-items/{$complaint->id}/{$item->id}";
+        $files = $request->file('files', []);
+        foreach ($files as $file) {
+            $storedName = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs($folder, $storedName, $disk);
+
+            ComplaintSeizureItemMedia::create([
+                'complaint_seizure_item_id' => $item->id,
+                'category' => $category,
+                'file_name' => $file->getClientOriginalName(),
+                'stored_name' => $storedName,
+                'path' => $path,
+                'disk' => $disk,
+                'mime' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by_user_id' => $user->id,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Lampiran Barang Kes berjaya dimuat naik.',
+            'media' => $item->fresh()->media()->orderByDesc('id')->get([
+                'id', 'complaint_seizure_item_id', 'category', 'file_name', 'mime', 'size', 'created_at',
+            ]),
+            'item' => $item->fresh(['media:id,complaint_seizure_item_id,category,file_name,mime,size,created_at']),
+        ]);
+    }
+
+    public function deleteSeizureItemMedia(Request $request, Complaint $complaint, ComplaintSeizureItemMedia $media)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $item = ComplaintSeizureItem::find($media->complaint_seizure_item_id);
+        if (! $item || (int) $item->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Lampiran tidak sah untuk aduan ini.'], 422);
+        }
+
+        if ($media->path) {
+            Storage::disk($media->disk ?: 'local')->delete($media->path);
+        }
+        $media->delete();
+
+        return response()->json(['message' => 'Lampiran Barang Kes dipadam.']);
+    }
+
+    public function downloadSeizureItemMedia(Request $request, Complaint $complaint, ComplaintSeizureItemMedia $media)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $item = ComplaintSeizureItem::find($media->complaint_seizure_item_id);
+        if (! $item || (int) $item->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Lampiran tidak sah untuk aduan ini.'], 422);
+        }
+        if (! $media->path) {
+            return response()->json(['message' => 'Fail lampiran tidak ditemui.'], 404);
+        }
+
+        $disk = $media->disk ?: 'local';
+        if (! Storage::disk($disk)->exists($media->path)) {
+            return response()->json(['message' => 'Fail lampiran tidak ditemui.'], 404);
+        }
+
+        return Storage::disk($disk)->download($media->path, $media->file_name);
     }
 
     public function deleteOydMedia(Request $request, Complaint $complaint, ComplaintOydMedia $media)
@@ -738,6 +1040,58 @@ class ComplaintController extends Controller
         $media->delete();
 
         return response()->json(['message' => 'Lampiran OYDS dipadam.']);
+    }
+
+    public function deleteOyd(Request $request, Complaint $complaint, ComplaintOyd $oyd)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $oyd->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'OYDS tidak sah untuk aduan ini.'], 422);
+        }
+
+        $mediaItems = $oyd->media()->get();
+        foreach ($mediaItems as $media) {
+            if ($media->path) {
+                Storage::disk($media->disk ?: 'local')->delete($media->path);
+            }
+            $media->delete();
+        }
+
+        $oyd->delete();
+
+        return response()->json(['message' => 'OYDS dipadam.']);
+    }
+
+    public function downloadOydMedia(Request $request, Complaint $complaint, ComplaintOydMedia $media)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $oyd = ComplaintOyd::find($media->complaint_oyd_id);
+        if (! $oyd || (int) $oyd->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Lampiran tidak sah untuk aduan ini.'], 422);
+        }
+        if (! $media->path) {
+            return response()->json(['message' => 'Fail lampiran tidak ditemui.'], 404);
+        }
+
+        $disk = $media->disk ?: 'local';
+        if (! Storage::disk($disk)->exists($media->path)) {
+            return response()->json(['message' => 'Fail lampiran tidak ditemui.'], 404);
+        }
+
+        return Storage::disk($disk)->download($media->path, $media->file_name);
     }
 
     public function scanOydIc(Request $request, Complaint $complaint, ComplaintOyd $oyd)
@@ -1121,6 +1475,21 @@ class ComplaintController extends Controller
             });
         }
 
+        $referenceNo = trim((string) $request->query('reference_no', ''));
+        if ($referenceNo !== '') {
+            $query->where('reference_no', 'like', '%' . $referenceNo . '%');
+        }
+
+        $complainantName = trim((string) $request->query('complainant_name', ''));
+        if ($complainantName !== '') {
+            $query->where('complainant_name', 'like', '%' . $complainantName . '%');
+        }
+
+        $summary = trim((string) $request->query('summary', ''));
+        if ($summary !== '') {
+            $query->where('summary', 'like', '%' . $summary . '%');
+        }
+
         $status = trim((string) $request->query('status', ''));
         if ($status !== '') {
             $query->whereRaw('LOWER(current_stage) = ?', [strtolower($status)]);
@@ -1166,6 +1535,42 @@ class ComplaintController extends Controller
         $prosecutionStatus = trim((string) $request->query('prosecution_status', ''));
         if ($prosecutionStatus !== '') {
             $query->whereRaw('LOWER(aj_prosecution_status) = ?', [strtolower($prosecutionStatus)]);
+        }
+
+        $classification = strtoupper(trim((string) $request->query('classification', '')));
+        if ($classification !== '') {
+            $query->whereRaw('UPPER(aj_ppa_classification) = ?', [$classification]);
+        }
+
+        $receiver = trim((string) $request->query('received_by', ''));
+        if ($receiver !== '') {
+            $needle = strtolower($receiver);
+            $query->whereHas('receivedBy', function ($subQuery) use ($needle) {
+                $subQuery->whereRaw('LOWER(name) like ?', ['%' . $needle . '%']);
+            });
+        }
+
+        $approver = trim((string) $request->query('approver', ''));
+        if ($approver !== '') {
+            $needle = strtolower($approver);
+            $query->whereHas('approverStaff', function ($subQuery) use ($needle) {
+                $subQuery->whereRaw('LOWER(name) like ?', ['%' . $needle . '%']);
+            });
+        }
+
+        $channel = trim((string) $request->query('channel', ''));
+        if ($channel !== '') {
+            $query->whereRaw('LOWER(channel) = ?', [strtolower($channel)]);
+        }
+
+        $incidentFromDate = trim((string) $request->query('incident_from_date', ''));
+        if ($incidentFromDate !== '') {
+            $query->whereDate('incident_date', '>=', $incidentFromDate);
+        }
+
+        $incidentToDate = trim((string) $request->query('incident_to_date', ''));
+        if ($incidentToDate !== '') {
+            $query->whereDate('incident_date', '<=', $incidentToDate);
         }
 
         $isCase = $request->query('is_case');
@@ -1466,6 +1871,11 @@ class ComplaintController extends Controller
         if ($perPage <= 0 || $perPage > 100) {
             $perPage = 10;
         }
+
+        $query->with([
+            'receivedBy:id,name',
+            'approverStaff:id,name,staff_id',
+        ]);
 
         $items = $query->paginate($perPage);
 

@@ -8,10 +8,27 @@ const AppLayout = () => {
     const location = useLocation();
     const apiUrl = process.env.REACT_APP_API_URL;
     const role = localStorage.getItem('role') || 'awam';
+    const userName = localStorage.getItem('user_name') || 'Pengguna';
     const [menus, setMenus] = useState([]);
     const [menuLoaded, setMenuLoaded] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+    const attachPendingApprovalCount = (menuItems, pendingCount) => {
+        if (!Array.isArray(menuItems)) {
+            return [];
+        }
+        return menuItems.map((menu) => {
+            if ((menu?.path || '') !== '/app/complaints/pending-approval') {
+                return menu;
+            }
+            const baseLabel = String(menu.label || '').replace(/\s*\(\d+\)\s*$/, '').trim() || 'Aduan Untuk Disahkan';
+            if (!pendingCount || pendingCount <= 0) {
+                return { ...menu, label: baseLabel };
+            }
+            return { ...menu, label: `${baseLabel} (${pendingCount})` };
+        });
+    };
 
     const loadMenus = () => {
         if (!apiUrl) {
@@ -19,11 +36,18 @@ const AppLayout = () => {
             return;
         }
         const token = localStorage.getItem('token');
-        axios.get(`${apiUrl}/menus/my`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then((response) => {
-                setMenus(response?.data?.data || []);
+        const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+        Promise.all([
+            axios.get(`${apiUrl}/menus/my`, { headers }),
+            axios.get(`${apiUrl}/complaints/pending-approval`, {
+                headers,
+                params: { per_page: 1 },
+            }).catch(() => ({ data: { meta: { total: 0 } } })),
+        ])
+            .then(([menusResponse, pendingResponse]) => {
+                const menuItems = menusResponse?.data?.data || [];
+                const pendingCount = Number(pendingResponse?.data?.meta?.total || 0);
+                setMenus(attachPendingApprovalCount(menuItems, pendingCount));
             })
             .catch(() => {
                 setMenus([]);
@@ -75,10 +99,12 @@ const AppLayout = () => {
             <aside className={`app-shell-sidebar ${sidebarOpen ? 'is-open' : ''} ${sidebarCollapsed ? 'is-collapsed' : ''}`}>
                 <AppSidebar
                     role={role}
+                    userName={userName}
                     menus={menus}
                     isLoading={!menuLoaded}
                     isCollapsed={sidebarCollapsed}
                     onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+                    onLogout={handleLogout}
                 />
             </aside>
             {sidebarOpen && <button className="app-sidebar-backdrop" type="button" onClick={() => setSidebarOpen(false)}></button>}
@@ -90,26 +116,12 @@ const AppLayout = () => {
                                 <i className="bi bi-list"></i>
                             </button>
                         </div>
-                        {menuLoaded ? (
-                            <>
-                                <div className="app-title-skeleton app-title-skeleton--empty"></div>
-                            </>
-                        ) : (
+                        {!menuLoaded && (
                             <div className="app-title-skeleton">
                                 <span className="app-skeleton-line app-skeleton-line--sm"></span>
                                 <span className="app-skeleton-line app-skeleton-line--lg"></span>
                             </div>
                         )}
-                    </div>
-                    <div className="app-user">
-                        <span className="app-user-icon"><i className="bi bi-person-circle"></i></span>
-                        <div>
-                            <div className="app-user-name">{localStorage.getItem('user_name') || 'Pengguna'}</div>
-                            <div className="app-user-role">{role}</div>
-                        </div>
-                        <button className="app-logout" type="button" onClick={handleLogout}>
-                            Log Keluar
-                        </button>
                     </div>
                 </header>
                 <main className="app-content">

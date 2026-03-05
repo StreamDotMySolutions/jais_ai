@@ -9,6 +9,8 @@ import SharedInlineEditText from '../../components/SharedInlineEditText';
 import SharedIpStatusSelect from '../../components/SharedIpStatusSelect';
 import SharedMahkamahSelect from '../../components/SharedMahkamahSelect';
 import SharedProsecutionStatusSelect from '../../components/SharedProsecutionStatusSelect';
+import OydAttachmentSection from '../../components/OydAttachmentSection';
+import SeizureAttachmentSection from '../../components/SeizureAttachmentSection';
 import { useToast } from '../../components/SharedToastProvider';
 import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
 import LAPORAN_TINDAKAN_TEMPLATES from './laporanTindakanTemplates';
@@ -33,8 +35,8 @@ const ComplaintDetail = () => {
     const { id } = useParams();
     const apiUrl = process.env.REACT_APP_API_URL;
     const toast = useToast();
+    const token = localStorage.getItem('token');
     const detailHeaderRef = useRef(null);
-    const oydScanInputRefs = useRef({});
     const { items: offenseItems } = useOffenseOptions({ apiUrl });
     const [complaint, setComplaint] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -96,7 +98,7 @@ const ComplaintDetail = () => {
         ],
         seizure_status: '',
         seizure_items: [
-            { item_no: '', description: '', storage: '' },
+            { id: null, item_no: '', description: '', storage: '', media: [] },
         ],
     };
     const akPayloadDefault = {
@@ -150,9 +152,12 @@ const ComplaintDetail = () => {
         seizure: true,
     });
     const [oydUploadDrafts, setOydUploadDrafts] = useState({});
+    const [seizureUploadDrafts, setSeizureUploadDrafts] = useState({});
+    const [timeTick, setTimeTick] = useState(Date.now());
     const role = localStorage.getItem('role') || 'awam';
     const isPublicRole = ['awam', 'user'].includes(role);
     const isPegawaiRole = ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
+    const autoClassificationGuardRef = useRef({});
     const emailRecipients = [
         { label: 'bpn.siasatan@gmail.com', email: 'bpn.siasatan@gmail.com' },
         { label: 'bpn.gombak@gmail.com', email: 'bpn.gombak@gmail.com' },
@@ -338,6 +343,79 @@ const ComplaintDetail = () => {
         toast.success(msg);
         return updated;
     };
+
+    useEffect(() => {
+        const timer = window.setInterval(() => setTimeTick(Date.now()), 30 * 1000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    const complaintSubmittedAt = useMemo(() => {
+        const datePart = (complaint?.complaint_date || '').toString().trim();
+        if (!datePart) return null;
+
+        const timePartRaw = (complaint?.complaint_time || '').toString().trim();
+        const hasSeconds = timePartRaw.split(':').length >= 3;
+        const timePart = timePartRaw
+            ? (hasSeconds ? timePartRaw : `${timePartRaw}:00`)
+            : '00:00:00';
+        const dt = new Date(`${datePart}T${timePart}`);
+        if (Number.isNaN(dt.getTime())) return null;
+        return dt;
+    }, [complaint?.complaint_date, complaint?.complaint_time]);
+
+    const kivDeadlineAt = useMemo(() => {
+        if (!complaintSubmittedAt) return null;
+        return new Date(complaintSubmittedAt.getTime() + (10 * 24 * 60 * 60 * 1000));
+    }, [complaintSubmittedAt]);
+
+    const nfaDeadlineAt = useMemo(() => {
+        if (!complaintSubmittedAt) return null;
+        return new Date(complaintSubmittedAt.getTime() + (24 * 60 * 60 * 1000));
+    }, [complaintSubmittedAt]);
+
+    const kivRemainingMs = useMemo(() => {
+        if (!kivDeadlineAt) return null;
+        return kivDeadlineAt.getTime() - timeTick;
+    }, [kivDeadlineAt, timeTick]);
+
+    const nfaRemainingMs = useMemo(() => {
+        if (!nfaDeadlineAt) return null;
+        return nfaDeadlineAt.getTime() - timeTick;
+    }, [nfaDeadlineAt, timeTick]);
+
+    const formatKivCountdown = useCallback((ms) => {
+        if (ms == null) return '';
+        if (ms <= 0) return 'Tempoh tamat (auto NFA)';
+        const dayMs = 24 * 60 * 60 * 1000;
+        const daysLeft = Math.ceil(ms / dayMs);
+        return `${daysLeft} hari lagi`;
+    }, []);
+
+    const formatNfaCountdown = useCallback((ms) => {
+        if (ms == null) return '';
+        if (ms <= 0) return 'Tempoh 24 jam tamat';
+        const totalMinutes = Math.ceil(ms / (60 * 1000));
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        if (hours <= 0) return `${minutes} minit lagi`;
+        return `${hours}j ${minutes}m lagi`;
+    }, []);
+
+    useEffect(() => {
+        if (!isPegawaiRole || !id) return;
+        if (ajPayload.classification !== 'KIV') return;
+        if (kivRemainingMs == null || kivRemainingMs > 0) return;
+
+        const key = `kiv-expired-${id}`;
+        if (autoClassificationGuardRef.current[key]) return;
+        autoClassificationGuardRef.current[key] = true;
+
+        setAjPayload((prev) => {
+            if (prev.classification !== 'KIV') return prev;
+            return { ...prev, classification: 'NFA' };
+        });
+        toast.info('Tempoh KIV tamat. Klasifikasi ditukar kepada NFA. Sila klik Simpan.');
+    }, [ajPayload.classification, id, isPegawaiRole, kivRemainingMs, toast]);
 
     const saveBasic = () => {
         if (!apiUrl || !id || basicSaving) {
@@ -627,9 +705,11 @@ const ComplaintDetail = () => {
             seizure_status: complaint.aj_seizure_status || '',
             seizure_items: (complaint.seizure_items || []).length
                 ? complaint.seizure_items.map((row) => ({
+                    id: row.id,
                     item_no: row.item_no || '',
                     description: row.description || '',
                     storage: row.storage || '',
+                    media: row.media || [],
                 }))
                 : ajReportDefault.seizure_items,
         });
@@ -705,6 +785,82 @@ const ComplaintDetail = () => {
         });
     };
 
+    const isOydRowEmpty = (row) => {
+        const values = [
+            row?.name,
+            row?.id_number,
+            row?.investigator_name,
+            row?.file_no,
+        ];
+        return !values.some((value) => String(value || '').trim() !== '');
+    };
+
+    const ensureOydRecord = async (index, options = {}) => {
+        const { allowEmpty = false } = options;
+        const row = ajReport.oyds?.[index];
+        if (!row || !apiUrl || !id) return null;
+        if (row.id) return row.id;
+        if (!allowEmpty && isOydRowEmpty(row)) return null;
+
+        try {
+            const payload = {
+                name: row.name || '',
+                id_number: row.id_number || '',
+                investigator_name: row.investigator_name || '',
+                file_no: row.file_no || '',
+            };
+            const response = await axios.post(
+                `${apiUrl}/complaints/${id}/oyds`,
+                payload,
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+            const created = response?.data?.data;
+            if (created?.id) {
+                setAjReport((prev) => {
+                    const next = [...(prev.oyds || [])];
+                    if (!next[index]) return prev;
+                    next[index] = {
+                        ...next[index],
+                        ...created,
+                        media: created.media || next[index].media || [],
+                    };
+                    return { ...prev, oyds: next };
+                });
+                return created.id;
+            }
+            return null;
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Gagal cipta OYDS.');
+            return null;
+        }
+    };
+
+    const saveOydOnBlur = async (index) => {
+        const row = ajReport.oyds?.[index];
+        if (!row || !apiUrl || !id) return;
+        if (!row.id) {
+            await ensureOydRecord(index, { allowEmpty: false });
+            return;
+        }
+
+        const payload = {
+            name: row.name || '',
+            id_number: row.id_number || '',
+            investigator_name: row.investigator_name || '',
+            file_no: row.file_no || '',
+        };
+
+        try {
+            await axios.put(
+                `${apiUrl}/complaints/${id}/oyds/${row.id}`,
+                payload,
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Gagal simpan maklumat OYDS.');
+        }
+    };
+
     const addOyds = () => {
         setAjReport((prev) => ({
             ...prev,
@@ -719,26 +875,31 @@ const ComplaintDetail = () => {
         });
     };
 
+    const onRemoveOyds = async (index) => {
+        const ok = window.confirm('Padam row OYDS ini?');
+        if (!ok) return;
+
+        const row = ajReport.oyds?.[index];
+        if (row?.id) {
+            try {
+                await axios.delete(`${apiUrl}/complaints/${id}/oyds/${row.id}`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                toast.success('OYDS dipadam.');
+            } catch (error) {
+                toast.error(error?.response?.data?.message || 'Gagal padam OYDS.');
+                return;
+            }
+        }
+
+        removeOyds(index);
+    };
+
     const getOydDraftKey = (row, index) => (row?.id ? `id-${row.id}` : `idx-${index}`);
 
     const getOydDraft = (row, index) => {
         const key = getOydDraftKey(row, index);
         return oydUploadDrafts[key] || { category: 'ic', files: [], icImage: null, scanning: false };
-    };
-
-    const setOydScanInputRef = (row, index, el) => {
-        const key = getOydDraftKey(row, index);
-        if (el) {
-            oydScanInputRefs.current[key] = el;
-        } else {
-            delete oydScanInputRefs.current[key];
-        }
-    };
-
-    const triggerOydScanPicker = (row, index) => {
-        const key = getOydDraftKey(row, index);
-        const input = oydScanInputRefs.current[key];
-        if (input) input.click();
     };
 
     const updateOydDraft = (row, index, patch) => {
@@ -749,142 +910,7 @@ const ComplaintDetail = () => {
         }));
     };
 
-    const formatFileSize = (bytes) => {
-        const size = Number(bytes || 0);
-        if (!size) return '-';
-        if (size < 1024) return `${size} B`;
-        if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-        return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-    };
 
-    const getMediaCategoryLabel = (value) => {
-        if (value === 'ic') return 'IC';
-        if (value === 'bukti') return 'Bukti';
-        if (value === 'lain_lain') return 'Lain-lain';
-        return 'Lampiran';
-    };
-
-    const uploadOydMedia = async (row, index) => {
-        if (!apiUrl || !id) return;
-        if (!row?.id) {
-            toast.error('Sila simpan Laporan Pemeriksaan dahulu untuk jana rekod OYDS sebelum muat naik.');
-            return;
-        }
-        const draft = getOydDraft(row, index);
-        const files = draft.files || [];
-        if (!files.length) {
-            toast.error('Sila pilih fail untuk dimuat naik.');
-            return;
-        }
-
-        const token = localStorage.getItem('token');
-        const formData = new FormData();
-        formData.append('category', draft.category || 'ic');
-        files.forEach((file) => formData.append('files[]', file));
-
-        updateOydDraft(row, index, { uploading: true });
-        try {
-            const response = await axios.post(`${apiUrl}/complaints/${id}/oyds/${row.id}/media`, formData, {
-                headers: {
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-            const media = response?.data?.media || [];
-            setAjReport((prev) => {
-                const next = [...prev.oyds];
-                next[index] = { ...next[index], media };
-                return { ...prev, oyds: next };
-            });
-            updateOydDraft(row, index, { files: [], uploading: false });
-            toast.success('Lampiran OYDS berjaya dimuat naik.');
-        } catch (err) {
-            updateOydDraft(row, index, { uploading: false });
-            toast.error(err?.response?.data?.message || 'Gagal muat naik lampiran OYDS.');
-        }
-    };
-
-    const deleteOydMedia = async (row, index, mediaId) => {
-        if (!apiUrl || !id || !mediaId) return;
-        const ok = window.confirm('Padam lampiran ini?');
-        if (!ok) return;
-
-        const token = localStorage.getItem('token');
-        try {
-            await axios.delete(`${apiUrl}/complaints/${id}/oyd-media/${mediaId}`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            });
-            setAjReport((prev) => {
-                const next = [...prev.oyds];
-                const currentMedia = next[index]?.media || [];
-                next[index] = { ...next[index], media: currentMedia.filter((item) => item.id !== mediaId) };
-                return { ...prev, oyds: next };
-            });
-            toast.success('Lampiran OYDS dipadam.');
-        } catch (err) {
-            toast.error(err?.response?.data?.message || 'Gagal padam lampiran OYDS.');
-        }
-    };
-
-    const scanOydIc = async (row, index, selectedFile = null) => {
-        if (!apiUrl || !id) return;
-        const draft = getOydDraft(row, index);
-        const icFile = selectedFile || draft.icImage;
-        if (!icFile) {
-            toast.error('Sila pilih gambar IC dahulu.');
-            return;
-        }
-
-        const token = localStorage.getItem('token');
-        const formData = new FormData();
-        formData.append('ic_image', icFile);
-        updateOydDraft(row, index, { scanning: true });
-        const endpoint = row?.id
-            ? `${apiUrl}/complaints/${id}/oyds/${row.id}/scan-ic`
-            : `${apiUrl}/complaints/${id}/scan-ic`;
-
-        try {
-            const response = await axios.post(endpoint, formData, {
-                headers: {
-                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-                    'Content-Type': 'multipart/form-data',
-                },
-            });
-            const data = response?.data?.data || {};
-            const hasDetected = Boolean(data.name || data.id_number);
-            setAjReport((prev) => {
-                const next = [...prev.oyds];
-                next[index] = {
-                    ...next[index],
-                    name: data.name || next[index].name,
-                    id_number: data.id_number || next[index].id_number,
-                };
-                return { ...prev, oyds: next };
-            });
-            updateOydDraft(row, index, { scanning: false, icImage: null });
-            if (hasDetected) {
-                toast.success('Scan IC selesai. Semak semula nama dan no. K/P.');
-            } else {
-                toast.error(response?.data?.message || 'Scan IC selesai, tetapi nama/no. K/P tidak dapat dikesan.');
-            }
-        } catch (err) {
-            updateOydDraft(row, index, { scanning: false });
-            toast.error(err?.response?.data?.message || 'Gagal scan IC.');
-        }
-    };
-
-    const onOydUploadFilesChange = (row, index, fileList) => {
-        const files = Array.from(fileList || []);
-        updateOydDraft(row, index, { files });
-    };
-
-    const onOydScanFileChange = (row, index, event) => {
-        const file = event.target.files?.[0] || null;
-        if (!file) return;
-        updateOydDraft(row, index, { icImage: file });
-        scanOydIc(row, index, file);
-        event.target.value = '';
-    };
 
     const updateSeizureItem = (index, field, value) => {
         setAjReport((prev) => {
@@ -894,18 +920,81 @@ const ComplaintDetail = () => {
         });
     };
 
+    const isSeizureRowEmpty = (row) => {
+        const values = [
+            row?.item_no,
+            row?.description,
+            row?.storage,
+        ];
+        return !values.some((value) => String(value || '').trim() !== '');
+    };
+
+    const ensureSeizureItemRecord = async (index, options = {}) => {
+        const { allowEmpty = false } = options;
+        const row = ajReport.seizure_items?.[index];
+        if (!row || !apiUrl || !id) return null;
+        if (row.id) return row.id;
+        if (!allowEmpty && isSeizureRowEmpty(row)) return null;
+
+        try {
+            const payload = {
+                item_no: row.item_no || '',
+                description: row.description || '',
+                storage: row.storage || '',
+            };
+            const response = await axios.post(
+                `${apiUrl}/complaints/${id}/seizure-items`,
+                payload,
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+            const created = response?.data?.data;
+            if (created?.id) {
+                setAjReport((prev) => {
+                    const next = [...(prev.seizure_items || [])];
+                    if (!next[index]) return prev;
+                    next[index] = {
+                        ...next[index],
+                        ...created,
+                        media: created.media || next[index].media || [],
+                    };
+                    return { ...prev, seizure_items: next };
+                });
+                return created.id;
+            }
+            return null;
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Gagal cipta Barang Kes.');
+            return null;
+        }
+    };
+
     const addSeizureItem = () => {
         setAjReport((prev) => ({
             ...prev,
-            seizure_items: [...prev.seizure_items, { item_no: '', description: '', storage: '' }],
+            seizure_items: [...prev.seizure_items, { id: null, item_no: '', description: '', storage: '', media: [] }],
         }));
     };
 
     const removeSeizureItem = (index) => {
         setAjReport((prev) => {
             const next = prev.seizure_items.filter((_, i) => i !== index);
-            return { ...prev, seizure_items: next.length ? next : [{ item_no: '', description: '', storage: '' }] };
+            return { ...prev, seizure_items: next.length ? next : [{ id: null, item_no: '', description: '', storage: '', media: [] }] };
         });
+    };
+
+    const getSeizureDraftKey = (row, index) => (row?.id ? `id-${row.id}` : `idx-${index}`);
+
+    const getSeizureDraft = (row, index) => {
+        const key = getSeizureDraftKey(row, index);
+        return seizureUploadDrafts[key] || { category: 'bukti', files: [] };
+    };
+
+    const updateSeizureDraft = (row, index, patch) => {
+        const key = getSeizureDraftKey(row, index);
+        setSeizureUploadDrafts((prev) => ({
+            ...prev,
+            [key]: { ...(prev[key] || { category: 'bukti', files: [] }), ...patch },
+        }));
     };
 
     const openAppointmentCalendar = () => {
@@ -1116,10 +1205,14 @@ const ComplaintDetail = () => {
         })
             .then((response) => {
                 setComplaint((prev) => prev ? { ...prev, ...response?.data?.data } : prev);
-                setAssigneeMessage('Maklumat aduan telah dihantar kepada pengesah untuk pengesahan.');
+                const msg = 'Maklumat aduan telah dihantar kepada pengesah untuk pengesahan. Status: Menunggu Pengesahan.';
+                setAssigneeMessage(msg);
+                toast.success(msg);
             })
             .catch((err) => {
-                setAssigneeMessage(err?.response?.data?.message || 'Gagal kemaskini pegawai.');
+                const msg = err?.response?.data?.message || 'Gagal kemaskini pegawai.';
+                setAssigneeMessage(msg);
+                toast.error(msg);
             });
     };
 
@@ -1255,7 +1348,7 @@ const ComplaintDetail = () => {
     }
 
     return (
-        <div className="app-detail">
+        <div className="app-detail app-aduan-detail">
             <div className="app-detail-header" ref={detailHeaderRef}>
                 <div className="app-detail-header-block">
                     <Link className="app-back" to="/app/complaints">
@@ -1265,7 +1358,7 @@ const ComplaintDetail = () => {
                     <span className="app-detail-kicker">No Aduan</span>
                     <div className="app-detail-number">
                         <div className="app-detail-number-main">
-                            <h3>{complaint.reference_no || '-'}</h3>
+                            <h6>{complaint.reference_no || '-'}</h6>
                             <div className="app-detail-status-row">
                                 <span className="app-detail-status-label">Status Aduan :</span>
                                 <span className="app-status-pill">
@@ -1473,6 +1566,7 @@ const ComplaintDetail = () => {
                                                 placeholder="-"
                                                 canEdit={isPegawaiRole}
                                                 mode="textarea"
+                                                fullWidth
                                                 maxLength={1000}
                                                 onConfirm={(next) => saveBasicField('address', next)}
                                             />
@@ -1728,18 +1822,42 @@ const ComplaintDetail = () => {
                                 <div className="app-form-field app-span-full">
                                     <h5>Klasifikasi</h5>
                                     <div className="app-radio-cards">
-                                        {['FFA', 'KIV', 'NFA', 'OP'].map((label) => (
-                                            <label key={label} className={ajPayload.classification === label ? 'active' : ''}>
+                                        {[
+                                            { value: 'FFA', label: 'For Further Action (FFA)' },
+                                            { value: 'KIV', label: 'Keep In View (KIV)' },
+                                            { value: 'NFA', label: 'No Further Action (NFA)' },
+                                            { value: 'OP', label: 'Out of Procedure (OP)' },
+                                        ].map((option) => {
+                                            const isKiv = option.value === 'KIV';
+                                            const isNfa = option.value === 'NFA';
+                                            const kivText = isKiv ? formatKivCountdown(kivRemainingMs) : '';
+                                            const nfaText = isNfa ? formatNfaCountdown(nfaRemainingMs) : '';
+                                            const showTimer = ajPayload.classification === option.value && Boolean(kivText || nfaText);
+                                            const timerText = kivText || nfaText;
+                                            const isDanger = (isKiv && (kivRemainingMs ?? 0) <= (8 * 24 * 60 * 60 * 1000))
+                                                || (isNfa && (nfaRemainingMs ?? 1) <= 0);
+                                            const isWarning = (isKiv && (kivRemainingMs ?? 0) > (8 * 24 * 60 * 60 * 1000) && (kivRemainingMs ?? 0) <= (10 * 24 * 60 * 60 * 1000))
+                                                || (isNfa && (nfaRemainingMs ?? 0) > 0 && (nfaRemainingMs ?? 0) <= (6 * 60 * 60 * 1000));
+                                            return (
+                                            <label key={option.value} className={ajPayload.classification === option.value ? 'active' : ''}>
                                                 <input
                                                     type="radio"
                                                     name="aj_classification"
-                                                    value={label}
-                                                    checked={ajPayload.classification === label}
-                                                    onChange={() => setAjPayload((prev) => ({ ...prev, classification: label }))}
+                                                    value={option.value}
+                                                    checked={ajPayload.classification === option.value}
+                                                    onChange={() => setAjPayload((prev) => ({ ...prev, classification: option.value }))}
                                                 />
-                                                <span>{label}</span>
+                                                <span className="app-classification-option">
+                                                    <span>{option.label}</span>
+                                                    {showTimer && (
+                                                        <span className={`app-classification-timer ${isDanger ? 'is-danger app-text-blink' : ''} ${isWarning ? 'is-warning app-text-blink' : ''}`}>
+                                                            {timerText}
+                                                        </span>
+                                                    )}
+                                                </span>
                                             </label>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                     <small className="app-hint">Pilih satu klasifikasi untuk rekod tindakan.</small>
                                 </div>
@@ -1748,7 +1866,7 @@ const ComplaintDetail = () => {
                                     <SharedOffenseSelect
                                         apiUrl={apiUrl}
                                         value={ajPayload.offense_id || ''}
-                                        label=""
+                                        label="Kesalahan Disyaki *"
                                         onChange={(value) => setAjPayload((prev) => ({ ...prev, offense_id: value }))}
                                         onItemSelected={(item) => {
                                             if (!item) return;
@@ -1762,6 +1880,7 @@ const ComplaintDetail = () => {
                                     <span>Butiran Aduan (Borang 5)</span>
                                     <small className="app-hint">Template akan diisi automatik selepas memilih Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
                                     <textarea
+                                        className="app-textarea-250"
                                         rows="10"
                                         value={basicDraft.borang5_statement}
                                         onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
@@ -1819,6 +1938,7 @@ const ComplaintDetail = () => {
                                 <label className="app-form-field app-span-full">
                                     <span>Catatan Pegawai</span>
                                     <textarea
+                                        className="app-textarea-300"
                                         rows="3"
                                         value={ajPayload.notes || ''}
                                         onChange={(event) => setAjPayload((prev) => ({ ...prev, notes: event.target.value }))}
@@ -1904,7 +2024,7 @@ const ComplaintDetail = () => {
                                     <SharedOffenseSelect
                                         apiUrl={apiUrl}
                                         value={akPayload.offense_id || ''}
-                                        label=""
+                                        label="Kesalahan Disyaki *"
                                         onChange={(value) => setAkPayload((prev) => ({ ...prev, offense_id: value }))}
                                         onItemSelected={(item) => {
                                             if (!item) return;
@@ -1918,6 +2038,7 @@ const ComplaintDetail = () => {
                                     <span>Butiran Aduan (Borang 5)</span>
                                     <small className="app-hint">Template akan diisi automatik selepas memilih Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
                                     <textarea
+                                        className="app-textarea-250"
                                         rows="10"
                                         value={basicDraft.borang5_statement}
                                         onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
@@ -2339,103 +2460,91 @@ const ComplaintDetail = () => {
                                             <small className="app-hint">
                                                 Masukkan maklumat OYDS terlebih dahulu untuk memudahkan penjanaan laporan.
                                             </small>
-                                            <div className="app-inline-table app-oyds-table app-inline-clean">
-                                                <div className="app-inline-table-header">
-                                                    <span>Nama OYDS</span>
-                                                    <span>No. K/P atau Passport</span>
-                                                    <span>Nama Pegawai Penyiasat</span>
-                                                    <span>Nombor Daftar Fail</span>
-                                                    <span>Lampiran OYDS</span>
+                                            <div className="app-oyds-table-wrap">
+                                                <div className="app-oyds-table-head">
+                                                    <div>Nama OYDS</div>
+                                                    <div>No. K/P atau Passport</div>
+                                                    <div>Nama Pegawai Penyiasat</div>
+                                                    <div>Lampiran</div>
+                                                    <div></div>
                                                 </div>
                                                 {ajReport.oyds.map((row, index) => (
-                                                    <div className="app-inline-table-row" key={`oyds-${index}`}>
-                                                        <div className="app-oyds-name-row">
+                                                    <div className="app-oyds-table-row" key={`oyds-${index}`}>
+                                                        <div className="app-oyds-table-cell">
+                                                            <div className="app-oyds-name-row">
+                                                                <input
+                                                                    type="text"
+                                                                    value={row.name}
+                                                                    onChange={(event) => updateOyds(index, 'name', event.target.value)}
+                                                                    onBlur={() => saveOydOnBlur(index)}
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="app-oyds-table-cell">
                                                             <input
                                                                 type="text"
-                                                                value={row.name}
-                                                                onChange={(event) => updateOyds(index, 'name', event.target.value)}
+                                                                value={row.id_number}
+                                                                onChange={(event) => updateOyds(index, 'id_number', event.target.value)}
+                                                                onBlur={() => saveOydOnBlur(index)}
                                                             />
+                                                        </div>
+
+                                                        <div className="app-oyds-table-cell">
                                                             <input
-                                                                ref={(el) => setOydScanInputRef(row, index, el)}
-                                                                type="file"
-                                                                className="app-hidden-file"
-                                                                accept=".jpg,.jpeg,.png,.webp"
-                                                                onChange={(event) => onOydScanFileChange(row, index, event)}
+                                                                type="text"
+                                                                value={row.investigator_name}
+                                                                onChange={(event) => updateOyds(index, 'investigator_name', event.target.value)}
+                                                                onBlur={() => saveOydOnBlur(index)}
                                                             />
+                                                        </div>
+
+                                                        <div className="app-oyds-table-cell app-oyds-table-cell-attachment">
+                                                            <OydAttachmentSection
+                                                                compact
+                                                                apiUrl={apiUrl}
+                                                                token={token}
+                                                                complaintId={id}
+                                                                recordId={row.id}
+                                                                onBeforeUpload={() => ensureOydRecord(index, { allowEmpty: true })}
+                                                                attachments={row.media || []}
+                                                                category={getOydDraft(row, index).category || 'ic'}
+                                                                onCategoryChange={(value) => updateOydDraft(row, index, { category: value })}
+                                                                onOydScanned={(scanResult) => {
+                                                                    setAjReport((prev) => {
+                                                                        const next = [...(prev.oyds || [])];
+                                                                        if (!next[index]) return prev;
+                                                                        next[index] = {
+                                                                            ...next[index],
+                                                                            name: scanResult?.name ?? next[index].name,
+                                                                            id_number: scanResult?.id_number ?? next[index].id_number,
+                                                                        };
+                                                                        return { ...prev, oyds: next };
+                                                                    });
+                                                                }}
+                                                                onAttachmentsChange={(updater) => {
+                                                                    setAjReport((prev) => {
+                                                                        const next = [...prev.oyds];
+                                                                        const current = next[index]?.media || [];
+                                                                        next[index] = {
+                                                                            ...next[index],
+                                                                            media: typeof updater === 'function' ? updater(current) : updater,
+                                                                        };
+                                                                        return { ...prev, oyds: next };
+                                                                    });
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <div className="app-oyds-table-cell app-oyds-table-cell-action">
                                                             <button
                                                                 type="button"
-                                                                className="app-button app-button-ghost app-button-mini"
-                                                                disabled={getOydDraft(row, index).scanning}
-                                                                onClick={() => triggerOydScanPicker(row, index)}
+                                                                className="app-icon-button"
+                                                                onClick={() => onRemoveOyds(index)}
+                                                                aria-label="Padam OYDS"
+                                                                title="Padam OYDS"
                                                             >
-                                                                {getOydDraft(row, index).scanning ? 'Scanning...' : 'Scan IC'}
+                                                                <i className="bi bi-trash"></i>
                                                             </button>
-                                                        </div>
-                                                        <input
-                                                            type="text"
-                                                            value={row.id_number}
-                                                            onChange={(event) => updateOyds(index, 'id_number', event.target.value)}
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            value={row.investigator_name}
-                                                            onChange={(event) => updateOyds(index, 'investigator_name', event.target.value)}
-                                                        />
-                                                        <input
-                                                            type="text"
-                                                            value={row.file_no}
-                                                            onChange={(event) => updateOyds(index, 'file_no', event.target.value)}
-                                                        />
-                                                        <div className="app-oyds-media-cell">
-                                                            <div className="app-oyds-upload-row">
-                                                                <select
-                                                                    value={getOydDraft(row, index).category}
-                                                                    onChange={(event) => updateOydDraft(row, index, { category: event.target.value })}
-                                                                >
-                                                                    <option value="ic">IC</option>
-                                                                    <option value="bukti">Gambar Bukti</option>
-                                                                    <option value="lain_lain">Lain-lain</option>
-                                                                </select>
-                                                                <input
-                                                                    type="file"
-                                                                    multiple
-                                                                    accept=".jpg,.jpeg,.png,.webp,.pdf"
-                                                                    onChange={(event) => onOydUploadFilesChange(row, index, event.target.files)}
-                                                                />
-                                                                <button
-                                                                    type="button"
-                                                                    className="app-button app-button-ghost app-button-mini"
-                                                                    disabled={getOydDraft(row, index).uploading}
-                                                                    onClick={() => uploadOydMedia(row, index)}
-                                                                >
-                                                                    {getOydDraft(row, index).uploading ? 'Memuat naik...' : 'Muat Naik'}
-                                                                </button>
-                                                            </div>
-                                                            <small className="app-hint">
-                                                                Butang <strong>Scan IC</strong> di sebelah Nama OYDS untuk ambil nama/no. K/P.
-                                                            </small>
-                                                            <div className="app-oyds-media-list">
-                                                                {(row.media || []).map((media) => (
-                                                                    <div key={media.id} className="app-oyds-media-item">
-                                                                        <span>
-                                                                            {getMediaCategoryLabel(media.category)}: {media.file_name}
-                                                                            {' '}({formatFileSize(media.size)})
-                                                                        </span>
-                                                                        <button
-                                                                            type="button"
-                                                                            className="app-link app-link-danger"
-                                                                            onClick={() => deleteOydMedia(row, index, media.id)}
-                                                                        >
-                                                                            Padam
-                                                                        </button>
-                                                                    </div>
-                                                                ))}
-                                                                {!row.id && (
-                                                                    <small className="app-hint">
-                                                                        Simpan laporan dahulu sebelum muat naik lampiran OYDS.
-                                                                    </small>
-                                                                )}
-                                                            </div>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -2449,7 +2558,7 @@ const ComplaintDetail = () => {
 
                                         <label className="app-form-field app-span-full">
                                             <div className="app-field-inline-head">
-                                                <span>Laporan</span>
+                                                <span>LAPORAN TINDAKAN</span>
                                                 <button
                                                     type="button"
                                                     className="app-button app-button-ghost app-button-mini"
@@ -2460,6 +2569,7 @@ const ComplaintDetail = () => {
                                                 </button>
                                             </div>
                                             <textarea
+                                                className="app-textarea-400"
                                                 rows="4"
                                                 value={ajReport.report_notes}
                                                 onChange={(event) => updateReportField('report_notes', event.target.value)}
@@ -2483,26 +2593,28 @@ const ComplaintDetail = () => {
                                         <>
                                             <div className="app-form-field">
                                                 <span>Sitaan Barang</span>
-                                                <label className="app-inline-radio">
-                                                    <input
-                                                        type="radio"
-                                                        name="aj_seizure_status"
-                                                        value="ada"
-                                                        checked={ajReport.seizure_status === 'ada'}
-                                                        onChange={() => updateReportField('seizure_status', 'ada')}
-                                                    />
-                                                    <span>Ada Barang Sitaan</span>
-                                                </label>
-                                                <label className="app-inline-radio">
-                                                    <input
-                                                        type="radio"
-                                                        name="aj_seizure_status"
-                                                        value="tiada"
-                                                        checked={ajReport.seizure_status === 'tiada'}
-                                                        onChange={() => updateReportField('seizure_status', 'tiada')}
-                                                    />
-                                                    <span>Tiada Barang Sitaan</span>
-                                                </label>
+                                                <div className="app-radio-cards app-radio-cards-2">
+                                                    <label className={ajReport.seizure_status === 'ada' ? 'active' : ''}>
+                                                        <input
+                                                            type="radio"
+                                                            name="aj_seizure_status"
+                                                            value="ada"
+                                                            checked={ajReport.seizure_status === 'ada'}
+                                                            onChange={() => updateReportField('seizure_status', 'ada')}
+                                                        />
+                                                        <span>Ada Barang Sitaan</span>
+                                                    </label>
+                                                    <label className={ajReport.seizure_status === 'tiada' ? 'active' : ''}>
+                                                        <input
+                                                            type="radio"
+                                                            name="aj_seizure_status"
+                                                            value="tiada"
+                                                            checked={ajReport.seizure_status === 'tiada'}
+                                                            onChange={() => updateReportField('seizure_status', 'tiada')}
+                                                        />
+                                                        <span>Tiada Barang Sitaan</span>
+                                                    </label>
+                                                </div>
                                             </div>
 
                                             {ajReport.seizure_status === 'ada' && (
@@ -2513,37 +2625,72 @@ const ComplaintDetail = () => {
                                                             + Tambah Barang
                                                         </button>
                                                     </div>
-                                                    <div className="app-inline-table app-barang-table">
-                                                        <div className="app-inline-table-header">
-                                                            <span>No. Barang</span>
-                                                            <span>Maklumat Barang</span>
-                                                            <span>Stor Simpanan</span>
-                                                            <span></span>
+                                                    <div className="app-oyds-table-wrap app-seizure-table-wrap">
+                                                        <div className="app-seizure-table-head">
+                                                            <div>No. Barang</div>
+                                                            <div>Maklumat Barang</div>
+                                                            <div>Stor Simpanan</div>
+                                                            <div>Lampiran</div>
+                                                            <div></div>
                                                         </div>
                                                         {ajReport.seizure_items.map((row, index) => (
-                                                            <div className="app-inline-table-row" key={`barang-${index}`}>
-                                                                <input
-                                                                    type="text"
-                                                                    value={row.item_no}
-                                                                    onChange={(event) => updateSeizureItem(index, 'item_no', event.target.value)}
-                                                                />
-                                                                <input
-                                                                    type="text"
-                                                                    value={row.description}
-                                                                    onChange={(event) => updateSeizureItem(index, 'description', event.target.value)}
-                                                                />
-                                                                <input
-                                                                    type="text"
-                                                                    value={row.storage}
-                                                                    onChange={(event) => updateSeizureItem(index, 'storage', event.target.value)}
-                                                                />
-                                                                <button
-                                                                    type="button"
-                                                                    className="app-link app-link-danger"
-                                                                    onClick={() => removeSeizureItem(index)}
-                                                                >
-                                                                    Buang
-                                                                </button>
+                                                            <div className="app-seizure-table-row" key={`barang-${index}`}>
+                                                                <div className="app-seizure-table-cell">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={row.item_no}
+                                                                        onChange={(event) => updateSeizureItem(index, 'item_no', event.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="app-seizure-table-cell">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={row.description}
+                                                                        onChange={(event) => updateSeizureItem(index, 'description', event.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="app-seizure-table-cell">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={row.storage}
+                                                                        onChange={(event) => updateSeizureItem(index, 'storage', event.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="app-seizure-table-cell app-seizure-table-cell-attachment">
+                                                                    <SeizureAttachmentSection
+                                                                        compact
+                                                                        apiUrl={apiUrl}
+                                                                        token={token}
+                                                                        complaintId={id}
+                                                                        recordId={row.id}
+                                                                        onBeforeUpload={() => ensureSeizureItemRecord(index, { allowEmpty: true })}
+                                                                        attachments={row.media || []}
+                                                                        category={getSeizureDraft(row, index).category || 'bukti'}
+                                                                        onCategoryChange={(value) => updateSeizureDraft(row, index, { category: value })}
+                                                                        onAttachmentsChange={(updater) => {
+                                                                            setAjReport((prev) => {
+                                                                                const next = [...prev.seizure_items];
+                                                                                const current = next[index]?.media || [];
+                                                                                next[index] = {
+                                                                                    ...next[index],
+                                                                                    media: typeof updater === 'function' ? updater(current) : updater,
+                                                                                };
+                                                                                return { ...prev, seizure_items: next };
+                                                                            });
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <div className="app-seizure-table-cell app-seizure-table-cell-action">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="app-icon-button"
+                                                                        onClick={() => removeSeizureItem(index)}
+                                                                        aria-label="Buang Barang"
+                                                                        title="Buang Barang"
+                                                                    >
+                                                                        <i className="bi bi-trash"></i>
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>

@@ -1,7 +1,15 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 
-const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onToggleCollapse }) => {
+const AppSidebar = ({
+    menus = [],
+    isLoading = false,
+    isCollapsed = false,
+    onToggleCollapse,
+    userName = 'Pengguna',
+    role = 'awam',
+    onLogout,
+}) => {
     const location = useLocation();
     const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
     const { roots, childrenMap } = useMemo(() => {
@@ -41,6 +49,38 @@ const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onTogg
         setOpenGroups((prev) => ({ ...prev, [menuId]: !prev[menuId] }));
     };
 
+    const shouldShowVerificationNotification = (label) => {
+        const text = (label || '').toString().toLowerCase();
+        return text.includes('disahkan') || text.includes('pengesahan');
+    };
+
+    const parseLabelAndCount = (label) => {
+        const raw = (label || '').toString();
+        const match = raw.match(/^(.*?)(?:\s*\((\d+)\))\s*$/);
+        if (!match) {
+            return { text: raw, count: 0 };
+        }
+        return {
+            text: (match[1] || '').trim(),
+            count: Number(match[2] || 0),
+        };
+    };
+
+    const renderMenuLabel = (label) => {
+        const { text, count } = parseLabelAndCount(label);
+        const shouldShowBadge = shouldShowVerificationNotification(label) && Number.isFinite(count) && count > 0;
+        return (
+            <>
+                <span>{shouldShowBadge ? text : label}</span>
+                {shouldShowBadge && (
+                    <span className="app-nav-alert-badge" aria-label={`${count} aduan perlu disahkan`}>
+                        {count}
+                    </span>
+                )}
+            </>
+        );
+    };
+
     return (
         <div className="app-sidebar">
             <div className="app-brand">
@@ -78,7 +118,7 @@ const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onTogg
                                     title={item.label}
                                 >
                                     <i className={`bi ${item.icon || 'bi-dot'}`}></i>
-                                    <span className="app-nav-label">{item.label}</span>
+                                    <span className="app-nav-label">{renderMenuLabel(item.label)}</span>
                                     <i className={`bi app-nav-caret ${isOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
                                 </button>
                                 {isOpen && (
@@ -94,7 +134,7 @@ const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onTogg
                                                 title={child.label}
                                             >
                                                 <i className={`bi ${child.icon || 'bi-dot'}`}></i>
-                                                <span className="app-nav-label">{child.label}</span>
+                                                <span className="app-nav-label">{renderMenuLabel(child.label)}</span>
                                             </NavLink>
                                         ))}
                                     </div>
@@ -113,13 +153,31 @@ const AppSidebar = ({ menus = [], isLoading = false, isCollapsed = false, onTogg
                             title={item.label}
                         >
                             <i className={`bi ${item.icon || 'bi-dot'}`}></i>
-                            <span className="app-nav-label">{item.label}</span>
+                            <span className="app-nav-label">{renderMenuLabel(item.label)}</span>
                         </NavLink>
                     );
                 })}
             </nav>
 
             <div className="app-side-footer">
+                <div className="app-side-user">
+                    <span className="app-side-user-icon">
+                        <i className="bi bi-person-circle"></i>
+                    </span>
+                    <div className="app-side-user-meta">
+                        <div className="app-side-user-name">{userName}</div>
+                        <div className="app-side-user-role">{role}</div>
+                    </div>
+                    <button
+                        type="button"
+                        className="app-side-logout"
+                        onClick={onLogout}
+                        title="Log Keluar"
+                        aria-label="Log Keluar"
+                    >
+                        <i className="bi bi-box-arrow-right"></i>
+                    </button>
+                </div>
                 <div className="app-status">
                     <span className="app-dot"></span>
                     <span className="app-nav-label">Sistem Aktif</span>
