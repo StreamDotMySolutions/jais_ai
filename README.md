@@ -43,6 +43,14 @@ WhatsAppWeb JS folder
 3. scan QR code guna phone Linked Devices dalam app WhatsApp
 4. guna phone lain mesej wasap 'hello'
 
+GitHub Webhook Auto-Deploy
+---
+1. Set `GITHUB_WEBHOOK_SECRET` in `api/.env`
+2. Set the same secret in GitHub repo > Settings > Webhooks
+3. Payload URL: `https://yourdomain.com/api/github-webhook`
+4. Content type: `application/json`
+5. Events: Just the push event
+
 Link download Laragon:
 https://io.bikegremlin.com/35435/laragon-6-php-8-4-install/
 
