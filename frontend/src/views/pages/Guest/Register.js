@@ -174,6 +174,9 @@ function Register() {
                     <div className="auth-note">
                         Pendaftaran tertakluk kepada polisi keselamatan JAIS AI.
                     </div>
+                    <div className="mt-3 text-center">
+                        <Link to="/" className="auth-link"><i className="bi bi-house-door"></i> Utama</Link>
+                    </div>
                 </div>
             </div>
         </div>

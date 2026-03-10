@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 
 const PublicHeader = () => {
     const [menuOpen, setMenuOpen] = useState(false);
@@ -22,21 +22,21 @@ const PublicHeader = () => {
                     </button>
                 </div>
                 <nav className={`public-nav${menuOpen ? " is-open" : ""}`}>
-                    <Link to="/" className="public-link" onClick={() => setMenuOpen(false)}>
+                    <NavLink to="/" end className="public-link" onClick={() => setMenuOpen(false)}>
                         Utama
-                    </Link>
-                    <Link to="/about-us" className="public-link" onClick={() => setMenuOpen(false)}>
+                    </NavLink>
+                    <NavLink to="/about-us" className="public-link" onClick={() => setMenuOpen(false)}>
                         Mengenai Kami
-                    </Link>
-                    <Link to="/complaint" className="public-link" onClick={() => setMenuOpen(false)}>
+                    </NavLink>
+                    <NavLink to="/complaint" className="public-link" onClick={() => setMenuOpen(false)}>
                         Aduan Online
-                    </Link>
-                    <Link to="/semak-status" className="public-link" onClick={() => setMenuOpen(false)}>
+                    </NavLink>
+                    <NavLink to="/semak-status" className="public-link" onClick={() => setMenuOpen(false)}>
                         Semak Status
-                    </Link>
-                    <Link to="/contact-us" className="public-link" onClick={() => setMenuOpen(false)}>
+                    </NavLink>
+                    <NavLink to="/contact-us" className="public-link" onClick={() => setMenuOpen(false)}>
                         Hubungi Kami
-                    </Link>
+                    </NavLink>
                     <Link to="/sign-in" className="public-link public-link-solid" onClick={() => setMenuOpen(false)}>
                         Log Masuk
                     </Link>
