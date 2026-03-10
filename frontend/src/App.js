@@ -87,8 +87,6 @@ function App() {
           <Route path="/" element={<HomePage/>} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/logout" element={<LoginPage />} />
-          <Route path="/about-us" element={<AboutUs />} />
-          <Route path="/contact-us" element={<ContactUs />} />
         </Route>
 
         {/* Auth Layout */}
@@ -99,6 +97,8 @@ function App() {
 
         {/* Public Layout */}
         <Route element={<PublicLayout />}>
+          <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/contact-us" element={<ContactUs />} />
           <Route path="/complaint" element={<Complaint />} />
           <Route path="/semak-status" element={<ComplaintStatus />} />
         </Route>
