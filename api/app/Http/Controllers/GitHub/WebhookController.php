@@ -4,12 +4,30 @@ namespace App\Http\Controllers\GitHub;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class WebhookController extends Controller
 {
-    public function handleWebhook(): JsonResponse
+    public function handleWebhook(Request $request): JsonResponse
     {
+        $secret = config('services.github.webhook_secret');
+
+        if ($secret) {
+            $signature = $request->header('X-Hub-Signature-256');
+
+            if (!$signature) {
+                return response()->json(['error' => 'Missing signature'], 403);
+            }
+
+            $payload = $request->getContent();
+            $expected = 'sha256=' . hash_hmac('sha256', $payload, $secret);
+
+            if (!hash_equals($expected, $signature)) {
+                Log::warning('GitHub Webhook - Invalid signature');
+                return response()->json(['error' => 'Invalid signature'], 403);
+            }
+        }
         $projectRoot = base_path('..');
         $frontendPath = base_path('../frontend');
         $apiPath = base_path();
