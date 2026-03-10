@@ -17,7 +17,9 @@ export default function PublicHomePage() {
             <div className="row align-items-center g-4">
               <div className="col-md-6">
                 <h1 className="fw-bold mb-3 display-4">
-                Syariah Management Enforcement System (i-SYAEMS)
+                Syariah Management Enforcement System 
+                <br />
+                (i-SYAEMS)
                 </h1>
                 <h3>
                    Selangor Islamic Religious Department
