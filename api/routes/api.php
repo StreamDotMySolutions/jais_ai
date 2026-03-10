@@ -279,3 +279,7 @@ Route::post('/whatsapp', [WhatsAppWebhookController::class, 'handleWebhook']);
 // Whatsapp Web Webhook
 use App\Http\Controllers\WhatsApp\WhatsappWebController;
 Route::post('/whatsappweb', [WhatsappWebController::class, 'handle']);
+
+// GitHub Webhook
+use App\Http\Controllers\GitHub\WebhookController as GitHubWebhookController;
+Route::post('/github-webhook', [GitHubWebhookController::class, 'handleWebhook']);
