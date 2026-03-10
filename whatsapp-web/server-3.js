@@ -1,11 +1,15 @@
+require('dotenv').config();
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const axios = require('axios');
 
+const API_URL = process.env.API_URL || 'http://127.0.0.1:8000/api/whatsappweb';
+const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser';
+
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
-    executablePath: '/usr/bin/chromium-browser',
+    executablePath: CHROMIUM_PATH,
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -53,11 +57,7 @@ client.on('message', async msg => {
       }
     }
 
-    const response = await axios.post(
-      'http://host.docker.internal:8000/api/whatsappweb', // use this if API is on host machine
-      // 'http://127.0.0.1:8000/api/whatsappweb',         // use this if API is in same container
-      payload
-    );
+    const response = await axios.post(API_URL, payload);
 
     const message = response.data.message;
 
