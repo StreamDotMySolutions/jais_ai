@@ -17,9 +17,10 @@ export default function PublicHomePage() {
             <div className="row align-items-center g-4">
               <div className="col-md-6">
                 <h1 className="fw-bold mb-3 display-4">
-                  Sistem Aduan Rasmi
+                Syariah Management Enforcement System (i-SYAEMS)
+
                   <br />
-                  Jabatan Agama Islam Selangor
+                  Selangor Islamic Religious Department
                 </h1>
                 <p className="text-muted">
                   Saluran rasmi untuk orang awam membuat aduan berkaitan hal ehwal Islam
