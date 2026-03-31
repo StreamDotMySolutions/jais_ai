@@ -14,7 +14,8 @@ use App\Http\Controllers\{
     RoleController,
     MenuController,
     UserController,
-    AuditTrailController
+    AuditTrailController,
+    MobilePushTokenController
 };
 use App\Http\Controllers\IwaranWarrantController;
 use App\Http\Controllers\ArahanBeredarController;
@@ -61,6 +62,9 @@ Route::group(['middleware' => ['auth:sanctum']], function () {
     Route::get('/account', [AccountController::class, 'show']);
     Route::put('/account/update', [AccountController::class, 'update']);
     Route::put('/account/change_password', [AccountController::class, 'changePassword']);
+    Route::post('/mobile/push-tokens', [MobilePushTokenController::class, 'store']);
+    Route::delete('/mobile/push-tokens', [MobilePushTokenController::class, 'destroy']);
+    Route::post('/mobile/push-tokens/test', [MobilePushTokenController::class, 'test']);
 });
 
 

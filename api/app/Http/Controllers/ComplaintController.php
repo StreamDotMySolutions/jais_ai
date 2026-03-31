@@ -17,10 +17,16 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Services\MobilePushNotificationService;
 
 
 class ComplaintController extends Controller
 {
+    public function __construct(
+        private MobilePushNotificationService $mobilePushNotificationService
+    ) {
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -1402,6 +1408,8 @@ class ComplaintController extends Controller
         if ($isAkFlow && $creatorId) {
             $this->assignPpaToDistrict($complaint, (int) $creatorId);
         }
+
+        $this->mobilePushNotificationService->sendNewComplaintNotification($complaint);
 
         return response()->json([
             'message' => 'Complaint Submitted',
