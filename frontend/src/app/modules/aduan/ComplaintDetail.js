@@ -1020,8 +1020,9 @@ const ComplaintDetail = () => {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
             .then((response) => {
-                setActionMessage('Aduan telah disahkan.');
-                toast.success('Aduan telah disahkan.');
+                const msg = response?.data?.message || 'Aduan telah disahkan.';
+                setActionMessage(msg);
+                toast.success(msg);
                 setApprovalMeta((prev) => ({
                     ...prev,
                     approvals_count: response?.data?.approvals_count ?? prev.approvals_count,
@@ -1205,7 +1206,7 @@ const ComplaintDetail = () => {
         })
             .then((response) => {
                 setComplaint((prev) => prev ? { ...prev, ...response?.data?.data } : prev);
-                const msg = 'Maklumat aduan telah dihantar kepada pengesah untuk pengesahan. Status: Menunggu Pengesahan.';
+                const msg = response?.data?.message || 'Maklumat aduan telah dihantar kepada pengesah untuk pengesahan. Status: Menunggu Pengesahan.';
                 setAssigneeMessage(msg);
                 toast.success(msg);
             })
@@ -2069,7 +2070,7 @@ const ComplaintDetail = () => {
                                         <span>Kesalahan Tak Boleh Tangkap</span>
                                     </label>
                                     <small className="app-hint">
-                                        Jika pilih <strong>Kesalahan Boleh Tangkap</strong>, aduan akan masuk ke menu <strong>KES</strong> selepas disahkan (approve).
+                                        Jika pilih <strong>Kesalahan Boleh Tangkap</strong>, aduan akan masuk ke menu <strong>KES</strong> selepas status aduan menjadi <strong>Disahkan</strong>.
                                     </small>
                                 </div>
                                 <div className="app-form-actions app-span-full app-align-right">

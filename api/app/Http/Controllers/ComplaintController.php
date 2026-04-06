@@ -247,6 +247,7 @@ class ComplaintController extends Controller
         ]);
 
         $this->assignPpaToDistrict($complaint, $user->id);
+        $this->mobilePushNotificationService->sendApprovedComplaintToDistrictNotification($complaint);
 
         return response()->json([
             'message' => 'Approved',
@@ -1237,6 +1238,9 @@ class ComplaintController extends Controller
         $appointmentMessage = null;
         $complaint->update($payload);
         $this->assignPpaToDistrict($complaint, $user->id);
+        if (($payload['current_stage'] ?? null) === 'disahkan') {
+            $this->mobilePushNotificationService->sendApprovedComplaintToDistrictNotification($complaint);
+        }
 
         if (! empty($payload['ak_investigation_datetime'])) {
             $startAt = Carbon::parse($payload['ak_investigation_datetime']);
@@ -1373,8 +1377,6 @@ class ComplaintController extends Controller
             $now->format('ymd')
         );
 
-        $isAkFlow = strtoupper((string) $caseType) === 'AK';
-
         $complaint = Complaint::create([
             'reference_no' => $referenceNo,
             'case_type' => $caseType,
@@ -1394,8 +1396,10 @@ class ComplaintController extends Controller
             'aj_offense_id' => ($caseType === 'AJ' && $offenseId) ? (int) $offenseId : null,
             'ak_offense_id' => ($caseType === 'AK' && $offenseId) ? (int) $offenseId : null,
             'channel' => $channel,
-            'current_stage' => $isAkFlow ? 'disahkan' : 'baru',
-            'approver_confirmed_at' => $isAkFlow ? $now : null,
+            // New complaints start as "baru". AK skips approver flow later, but should still
+            // be received through the normal complaint intake flow before becoming "disahkan".
+            'current_stage' => 'baru',
+            'approver_confirmed_at' => null,
             'submitted_at' => $now,
             'submitted_by_user_id' => Auth::guard('sanctum')->id(),
             'name' => $request->complainant_name,
@@ -1403,13 +1407,7 @@ class ComplaintController extends Controller
             'contents' => trim($summary) !== '' ? $summary : $borang5Statement,
         ]);
 
-        // AK skips approval flow. Assign district PPA immediately when creator is authenticated.
-        $creatorId = Auth::guard('sanctum')->id();
-        if ($isAkFlow && $creatorId) {
-            $this->assignPpaToDistrict($complaint, (int) $creatorId);
-        }
-
-        $this->mobilePushNotificationService->sendNewComplaintNotification($complaint);
+        $this->mobilePushNotificationService->sendNewComplaintToHqNotification($complaint);
 
         return response()->json([
             'message' => 'Complaint Submitted',

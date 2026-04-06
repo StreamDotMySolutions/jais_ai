@@ -40,7 +40,11 @@ class AuthController extends Controller
         $request->authenticate(); // check AuthRequest->authenticate
 
         // find user
-        $user = User::with('staff:id,user_id,staff_id,name')->where('id', Auth::user()->id)->first();
+        $user = User::with([
+            'district:id,name',
+            'staff:id,user_id,staff_id,name,district_id',
+            'staff.district:id,name',
+        ])->where('id', Auth::user()->id)->first();
 
         if ($user) {
             // create token in User Model

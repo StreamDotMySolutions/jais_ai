@@ -391,15 +391,19 @@ const ComplaintList = ({
         axios.post(`${apiUrl}/complaints/${complaintId}/pickup`, {}, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
-            .then(() => {
-                setPickupMessage('Aduan berjaya diambil.');
+            .then((response) => {
+                const msg = response?.data?.message || 'Aduan berjaya diambil.';
+                setPickupMessage(msg);
+                toast.success(msg);
                 fetchComplaints();
                 if (openDetail) {
                     navigate(`/app/complaints/${complaintId}`);
                 }
             })
             .catch((err) => {
-                setPickupMessage(err?.response?.data?.message || 'Gagal ambil aduan.');
+                const msg = err?.response?.data?.message || 'Gagal ambil aduan.';
+                setPickupMessage(msg);
+                toast.error(msg);
             });
     };
 
