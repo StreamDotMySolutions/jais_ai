@@ -14,6 +14,13 @@ const AppLayout = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+    const filterRetiredMenus = (menuItems) => {
+        if (!Array.isArray(menuItems)) {
+            return [];
+        }
+        return menuItems.filter((menu) => (menu?.path || '') !== '/app/case');
+    };
+
     const attachPendingApprovalCount = (menuItems, pendingCount) => {
         if (!Array.isArray(menuItems)) {
             return [];
@@ -45,7 +52,7 @@ const AppLayout = () => {
             }).catch(() => ({ data: { meta: { total: 0 } } })),
         ])
             .then(([menusResponse, pendingResponse]) => {
-                const menuItems = menusResponse?.data?.data || [];
+                const menuItems = filterRetiredMenus(menusResponse?.data?.data || []);
                 const pendingCount = Number(pendingResponse?.data?.meta?.total || 0);
                 setMenus(attachPendingApprovalCount(menuItems, pendingCount));
             })

@@ -168,7 +168,7 @@ function ComplaintForm({
 
         if (Object.keys(localErrors).length > 0) {
             store.setValue('errors', localErrors);
-            setErrorMessage('Sila lengkapkan Butir-butir Pemberi Maklumat / Pengadu dan Butiran Kejadian.');
+            setErrorMessage('Sila lengkapkan Butir-butir Pengadu dan Butiran Kejadian.');
             return;
         }
 
@@ -209,6 +209,7 @@ function ComplaintForm({
             { key: 'complainant_name', value: store.getValue('complainant_name') },
             { key: 'identification_number', value: store.getValue('identification_number') },
             { key: 'contact_number', value: store.getValue('contact_number') },
+            { key: 'complainant_occupation', value: store.getValue('complainant_occupation') },
             { key: 'address', value: store.getValue('address') },
             { key: 'district_id', value: store.getValue('district_id') },
             { key: 'summary', value: store.getValue('summary') },
@@ -878,7 +879,7 @@ function ComplaintForm({
 
                 <div className="complaint-grid">
                     <div className="complaint-section">
-                        <h3>Butir-butir Pemberi Maklumat / Pengadu <span className="complaint-required">*</span></h3>
+                        <h3>Butir-butir Pengadu <span className="complaint-required">*</span></h3>
                         <Row className='mb-4'>
                             <InputText 
                                 fieldName='complainant_name' 
@@ -905,6 +906,16 @@ function ComplaintForm({
                                 onToggleMask={() => setMaskedFields((prev) => ({ ...prev, identification_number: !prev.identification_number }))}
                                 maskOnLabel="HIDE"
                                 maskOffLabel="SHOW"
+                            />
+                        </Row>
+
+                        <Row className='mb-4'>
+                            <InputText 
+                                type='text'
+                                fieldName='complainant_occupation' 
+                                placeholder='Pekerjaan Pengadu'
+                                icon='bi-briefcase'
+                                isLoading={isLoading}
                             />
                         </Row>
 

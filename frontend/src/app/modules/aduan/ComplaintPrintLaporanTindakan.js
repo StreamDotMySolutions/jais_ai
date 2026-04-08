@@ -44,14 +44,7 @@ const ComplaintPrintLaporanTindakan = () => {
         return <div className="print-loading">Aduan tidak ditemui.</div>;
     }
 
-    const laporanText = (
-        complaint?.aj_directive_notes ||
-        complaint?.aj_report_notes ||
-        complaint?.ak_notes ||
-        complaint?.summary ||
-        complaint?.borang5_statement ||
-        ''
-    );
+    const laporanText = complaint?.aj_report_notes || '';
 
     const pad2 = (value) => String(value ?? '').padStart(2, '0');
 
@@ -112,14 +105,12 @@ const ComplaintPrintLaporanTindakan = () => {
         return `${prefix} - ${district || '-'} / ${no || '-'} / ${year || '-'}`;
     })();
 
-    const complainantName = complaint?.complainant_name || '';
-    const complainantIdNo = complaint?.identification_number || '';
-    const complainantJob =
-        complaint?.submittedBy?.staff?.position ||
-        complaint?.submittedBy?.position ||
-        '-';
-    const complainantPhone = complaint?.contact_number || '';
-    const complainantAddress = complaint?.address || '';
+    const officer = complaint?.aj_handover_staff || null;
+    const officerName = officer?.name || '';
+    const officerIdNo = officer?.staff_id || officer?.ic_number || '-';
+    const officerJob = officer?.position || '-';
+    const officerPhone = officer?.phone || '-';
+    const officerAddress = officer?.address || officer?.department || '-';
     const reportParagraph = String(laporanText || '').trim().toUpperCase();
     const reportDate = formatDateDMY(tarikhMasa);
     const reportTime = formatTime12hDot(tarikhMasa);
@@ -157,35 +148,35 @@ const ComplaintPrintLaporanTindakan = () => {
                 <div className="print-form-table print-form-table-identity">
                     <div className="print-form-row">
                         <div className="print-form-label">Nama</div>
-                        <div className="print-form-value">{renderValue(complainantName)}</div>
+                        <div className="print-form-value">{renderValue(officerName)}</div>
                     </div>
                     <div className="print-form-row">
                         <div className="print-form-label">No. ID / K. Pengenalan</div>
-                        <div className="print-form-value">{renderValue(complainantIdNo)}</div>
+                        <div className="print-form-value">{renderValue(officerIdNo)}</div>
                     </div>
                     <div className="print-form-row">
                         <div className="print-form-label">Pekerjaan</div>
-                        <div className="print-form-value">{renderValue(complainantJob)}</div>
+                        <div className="print-form-value">{renderValue(officerJob)}</div>
                     </div>
                     <div className="print-form-row">
                         <div className="print-form-label">No. Telefon</div>
-                        <div className="print-form-value">{renderValue(complainantPhone)}</div>
+                        <div className="print-form-value">{renderValue(officerPhone)}</div>
                     </div>
                     <div className="print-form-row">
                         <div className="print-form-label">Alamat</div>
-                        <div className="print-form-value">{renderValue(complainantAddress)}</div>
+                        <div className="print-form-value">{renderValue(officerAddress)}</div>
                     </div>
                 </div>
 
                 <div className="print-block-title-laporan">SAYA DENGAN INI MEMBERIKAN MAKLUMAT BERIKUT :</div>
                 <div className="print-paragraph print-paragraph-justify print-paragraph-laporan">
-                    {renderValue(reportParagraph || '-')}
+                    {reportParagraph || 'LAPORAN MASIH BELUM DIISI'}
                 </div>
 
                 <div className="print-signature print-signature-laporan">
                     <div className="print-sign-col print-sign-col-centered">
                         <div className="print-sign-label">Tandatangan Pemberi Maklumat</div>
-                        <div className="print-sign-name print-sign-name-uppercase">{renderValue(complainantName)}</div>
+                        <div className="print-sign-name print-sign-name-uppercase">{renderValue(officerName)}</div>
                     </div>
                 </div>
 
@@ -198,6 +189,10 @@ const ComplaintPrintLaporanTindakan = () => {
                     <div className="print-sign-col print-sign-col-centered">
                         <div className="print-sign-label">Tandatangan Pegawai Penguatkuasa Agama</div>
                     </div>
+                </div>
+
+                <div className="print-footer-note print-footer-note-left print-footer-note-laporan">
+                    {`Bertarikh pada ${reportDate}`}
                 </div>
             </div>
         </div>

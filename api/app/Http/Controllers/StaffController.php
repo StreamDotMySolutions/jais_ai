@@ -58,10 +58,26 @@ class StaffController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $staff = Staff::query()
+        $query = Staff::query()
             ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'name', 'staff_id']);
+            ->orderBy('name');
+
+        $officeType = trim((string) $request->query('office_type', ''));
+        if (in_array($officeType, ['hq', 'daerah'], true)) {
+            $query->where('office_type', $officeType);
+        }
+
+        $sameDistrictOfStaffId = (int) $request->query('same_district_of_staff_id', 0);
+        if ($sameDistrictOfStaffId > 0) {
+            $districtId = Staff::query()->where('id', $sameDistrictOfStaffId)->value('district_id');
+            if ($districtId) {
+                $query->where('district_id', $districtId);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        $staff = $query->get(['id', 'name', 'staff_id', 'office_type', 'district_id']);
 
         return response()->json([
             'message' => 'Staff options',

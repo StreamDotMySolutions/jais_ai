@@ -19,8 +19,6 @@ class MenuSeeder extends Seeder
             ['label' => 'Aduan Untuk Disahkan', 'path' => '/app/complaints/pending-approval', 'icon' => 'bi-check2-square', 'sort_order' => 4],
             ['label' => 'Aduan Untuk Diambil', 'path' => '/app/complaints/pickup-queue', 'icon' => 'bi-inbox', 'sort_order' => 5],
             ['label' => 'Aduan Saya (PIC)', 'path' => '/app/complaints/my-pic', 'icon' => 'bi-person-check', 'sort_order' => 6],
-            // Root menu: shown after Aduan group, before Temujanji.
-            ['label' => 'KES', 'path' => '/app/case', 'icon' => 'bi-briefcase', 'sort_order' => 3],
             ['label' => 'Laporan Aduan', 'path' => '/app/complaints/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 8],
             ['label' => 'Temujanji', 'path' => '/app/appointments-root', 'icon' => 'bi-calendar2-week', 'sort_order' => 4],
             ['label' => 'Kalendar', 'path' => '/app/appointments', 'icon' => 'bi-calendar2-week', 'sort_order' => 1],
@@ -77,13 +75,6 @@ class MenuSeeder extends Seeder
                         'updated_at' => now(),
                     ]);
                 }
-            }
-            // KES is a standalone main menu (not under Aduan).
-            if ($menu['path'] === '/app/case') {
-                DB::table('sys_menus')->where('id', $menuRecord->id)->update([
-                    'parent_id' => null,
-                    'updated_at' => now(),
-                ]);
             }
             if (in_array($menu['path'], [
                 '/app/roles',
@@ -199,9 +190,6 @@ class MenuSeeder extends Seeder
             }
             if (in_array($menu['path'], ['/app/complaints/pickup-queue', '/app/complaints/my-pic'], true)) {
                 $allowedRoles = ['system', 'admin', 'pegawai_daerah'];
-            }
-            if ($menu['path'] === '/app/case') {
-                $allowedRoles = ['system', 'admin', 'pegawai_hq', 'pegawai_daerah'];
             }
             if (in_array($menu['path'], ['/app/i-waran-root', '/app/i-waran', '/app/i-waran/report', '/app/i-waran/semakan-okt'], true)) {
                 $allowedRoles = ['system', 'admin', 'pegawai', 'pegawai_hq', 'pegawai_daerah'];

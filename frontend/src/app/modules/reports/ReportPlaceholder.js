@@ -11,13 +11,6 @@ const ReportPlaceholder = ({ title, description }) => {
                 </div>
             </div>
 
-            <div className="app-card">
-                <div className="app-tab-panel">
-                    <div className="app-placeholder-card">
-                        <p>Seksyen ini akan ditambah seterusnya.</p>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 };

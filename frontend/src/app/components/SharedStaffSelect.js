@@ -20,11 +20,13 @@ const SharedStaffSelect = ({
     token,
     value,
     onChange,
+    officeType = '',
+    sameDistrictOfStaffId = '',
     placeholder = '-- Pilih Pegawai --',
     disabled = false,
     className = '',
 }) => {
-    const { items, isLoading } = useStaffOptions({ apiUrl, token });
+    const { items, isLoading } = useStaffOptions({ apiUrl, token, officeType, sameDistrictOfStaffId });
 
     const normalizedValue = value ?? '';
     const options = useMemo(() => (items || []).map((item) => ({
@@ -50,4 +52,3 @@ const SharedStaffSelect = ({
 };
 
 export default SharedStaffSelect;
-

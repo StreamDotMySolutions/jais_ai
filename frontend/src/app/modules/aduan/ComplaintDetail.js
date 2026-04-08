@@ -117,6 +117,7 @@ const ComplaintDetail = () => {
         court_date: '',
         report_notes: '',
         directive_staff_id: '',
+        handover_staff_id: '',
         directive_at: '',
         directive_notes: '',
         handover_at: '',
@@ -131,6 +132,7 @@ const ComplaintDetail = () => {
     };
     const ajActionReportDefault = {
         directive_staff_id: '',
+        handover_staff_id: '',
         directive_at: '',
         directive_notes: '',
         handover_at: '',
@@ -181,6 +183,10 @@ const ComplaintDetail = () => {
         complainant_name: '',
         identification_number: '',
         contact_number: '',
+        informant_name: '',
+        informant_identification_number: '',
+        informant_contact_number: '',
+        complainant_occupation: '',
         complaint_date: '',
         complaint_time: '',
         incident_date: '',
@@ -358,6 +364,10 @@ const ComplaintDetail = () => {
             complainant_name: complaint.complainant_name || '',
             identification_number: complaint.identification_number || '',
             contact_number: complaint.contact_number || '',
+            informant_name: complaint.informant_name || '',
+            informant_identification_number: complaint.informant_identification_number || '',
+            informant_contact_number: complaint.informant_contact_number || '',
+            complainant_occupation: complaint.complainant_occupation || '',
             complaint_date: complaint.complaint_date || '',
             complaint_time: (complaint.complaint_time || '').slice(0, 5),
             incident_date: complaint.incident_date || '',
@@ -734,6 +744,7 @@ const ComplaintDetail = () => {
             court_date: complaint.aj_court_date || '',
             report_notes: complaint.aj_report_notes || '',
             directive_staff_id: complaint.aj_directive_staff_id ? String(complaint.aj_directive_staff_id) : '',
+            handover_staff_id: complaint.aj_handover_staff_id ? String(complaint.aj_handover_staff_id) : '',
             directive_at: complaint.aj_directive_at || '',
             directive_notes: complaint.aj_directive_notes || '',
             handover_at: complaint.handover_at || '',
@@ -780,6 +791,7 @@ const ComplaintDetail = () => {
         setAjActionReport({
             ...ajActionReportDefault,
             directive_staff_id: complaint.aj_directive_staff_id ? String(complaint.aj_directive_staff_id) : '',
+            handover_staff_id: complaint.aj_handover_staff_id ? String(complaint.aj_handover_staff_id) : '',
             directive_at: complaint.aj_directive_at || '',
             directive_notes: complaint.aj_directive_notes || '',
             handover_at: complaint.handover_at || '',
@@ -1389,6 +1401,8 @@ const ComplaintDetail = () => {
     };
 
     const currentCaseType = complaint?.case_type || 'AJ';
+    const isCaseTypeLocked = Boolean(complaint?.approver_confirmed_at) || complaint?.current_stage === 'disahkan';
+    const isAwaitingApproval = complaint?.current_stage === 'tunggu_pengesahan' && !complaint?.approver_confirmed_at;
     const localUserName = (localStorage.getItem('user_name') || '').trim().toLowerCase();
     const localStaffId = localStorage.getItem('staff_id') || '';
     const approverName = (complaint?.approverStaff?.name || '').trim().toLowerCase();
@@ -1629,10 +1643,10 @@ const ComplaintDetail = () => {
                         <div className="app-basic-kv">
                             <div className="app-basic-kv-col">
                                 <div className="app-card-subheader">
-                                    <h5>Butir-butir Pemberi Maklumat / Pengadu</h5>
+                                    <h5>Butir-butir Pengadu</h5>
                                 </div>
                                 <div className="app-kv">
-                                    <span className="app-kv-label">Nama</span>
+                                    <span className="app-kv-label">Nama Pengadu</span>
                                     <span className="app-kv-value">
                                         <SharedInlineEditText
                                             value={complaint.complainant_name}
@@ -1644,7 +1658,7 @@ const ComplaintDetail = () => {
                                     </span>
                                 </div>
                                 <div className="app-kv">
-                                    <span className="app-kv-label">No Kad Pengenalan</span>
+                                    <span className="app-kv-label">No K/P Pengadu</span>
                                     <span className="app-kv-value">
                                         <SharedInlineEditText
                                             value={complaint.identification_number}
@@ -1656,7 +1670,19 @@ const ComplaintDetail = () => {
                                     </span>
                                 </div>
                                 <div className="app-kv">
-                                    <span className="app-kv-label">No HP</span>
+                                    <span className="app-kv-label">Pekerjaan Pengadu</span>
+                                    <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={complaint.complainant_occupation}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            maxLength={255}
+                                            onConfirm={(next) => saveBasicField('complainant_occupation', next)}
+                                        />
+                                    </span>
+                                </div>
+                                <div className="app-kv">
+                                    <span className="app-kv-label">No Telefon Pengadu</span>
                                     <span className="app-kv-value">
                                         <SharedInlineEditText
                                             value={complaint.contact_number}
@@ -1735,11 +1761,11 @@ const ComplaintDetail = () => {
                         <div className="app-basic-kv">
                             <div className="app-basic-kv-col">
                                 <div className="app-card-subheader">
-                                    <h5>Butir-butir Pemberi Maklumat / Pengadu</h5>
+                                    <h5>Butir-butir Pengadu</h5>
                                 </div>
                                 <div className="app-form-grid app-form-grid-single">
                                     <label className="app-form-field">
-                                        <span>Nama</span>
+                                        <span>Nama Pengadu</span>
                                         <input
                                             type="text"
                                             value={basicDraft.complainant_name}
@@ -1747,7 +1773,7 @@ const ComplaintDetail = () => {
                                         />
                                     </label>
                                     <label className="app-form-field">
-                                        <span>No Kad Pengenalan</span>
+                                        <span>No K/P Pengadu</span>
                                         <input
                                             type="text"
                                             value={basicDraft.identification_number}
@@ -1755,7 +1781,15 @@ const ComplaintDetail = () => {
                                         />
                                     </label>
                                     <label className="app-form-field">
-                                        <span>No HP</span>
+                                        <span>Pekerjaan Pengadu</span>
+                                        <input
+                                            type="text"
+                                            value={basicDraft.complainant_occupation}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, complainant_occupation: event.target.value }))}
+                                        />
+                                    </label>
+                                    <label className="app-form-field">
+                                        <span>No Telefon Pengadu</span>
                                         <input
                                             type="text"
                                             value={basicDraft.contact_number}
@@ -1851,6 +1885,77 @@ const ComplaintDetail = () => {
                             <span>Kaedah Aduan:</span>
                             <strong>{formatChannelLabel(complaint.channel)}</strong>
                         </div>
+                        <div className="app-card-subheader">
+                            <h5>Butir-butir Pemberi Maklumat</h5>
+                        </div>
+                        {!basicEditing && (
+                            <div className="app-detail-stack">
+                                <div className="app-kv">
+                                    <span className="app-kv-label">Nama Pemberi Maklumat</span>
+                                    <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={complaint.informant_name}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            maxLength={255}
+                                            onConfirm={(next) => saveBasicField('informant_name', next)}
+                                        />
+                                    </span>
+                                </div>
+                                <div className="app-kv">
+                                    <span className="app-kv-label">No K/P Pemberi Maklumat</span>
+                                    <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={complaint.informant_identification_number}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            maxLength={255}
+                                            onConfirm={(next) => saveBasicField('informant_identification_number', next)}
+                                        />
+                                    </span>
+                                </div>
+                                <div className="app-kv">
+                                    <span className="app-kv-label">No Telefon Pemberi Maklumat</span>
+                                    <span className="app-kv-value">
+                                        <SharedInlineEditText
+                                            value={complaint.informant_contact_number}
+                                            placeholder="-"
+                                            canEdit={isPegawaiRole}
+                                            maxLength={255}
+                                            onConfirm={(next) => saveBasicField('informant_contact_number', next)}
+                                        />
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                        {basicEditing && (
+                            <div className="app-form-grid app-form-grid-single">
+                                <label className="app-form-field">
+                                    <span>Nama Pemberi Maklumat</span>
+                                    <input
+                                        type="text"
+                                        value={basicDraft.informant_name}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, informant_name: event.target.value }))}
+                                    />
+                                </label>
+                                <label className="app-form-field">
+                                    <span>No K/P Pemberi Maklumat</span>
+                                    <input
+                                        type="text"
+                                        value={basicDraft.informant_identification_number}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, informant_identification_number: event.target.value }))}
+                                    />
+                                </label>
+                                <label className="app-form-field">
+                                    <span>No Telefon Pemberi Maklumat</span>
+                                    <input
+                                        type="text"
+                                        value={basicDraft.informant_contact_number}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, informant_contact_number: event.target.value }))}
+                                    />
+                                </label>
+                            </div>
+                        )}
                         {!isPublicRole && (
                             <div className="app-detail-meta">
                                 <span>Penerima Aduan:</span>
@@ -1907,25 +2012,30 @@ const ComplaintDetail = () => {
                 <div className="app-card app-category-card">
                     <div>
                         <h4>Kategori Aduan</h4>
-                        <p>Pilih kategori aduan untuk menentukan kes atau keluarga.</p>
+                        <p>
+                            Pilih kategori aduan untuk menentukan kes atau keluarga.
+                            {isCaseTypeLocked ? ' Kategori dikunci selepas aduan disahkan.' : ''}
+                        </p>
                     </div>
                     <div className="app-case-toggle">
-                        <label className={complaint.case_type === 'AJ' ? 'active' : ''}>
+                        <label className={`${complaint.case_type === 'AJ' ? 'active' : ''} ${isCaseTypeLocked ? 'disabled' : ''}`.trim()}>
                             <input
                                 type="radio"
                                 name="case_type"
                                 value="AJ"
                                 checked={complaint.case_type === 'AJ'}
+                                disabled={isCaseTypeLocked}
                                 onChange={() => updateCaseType('AJ')}
                             />
                             <span>KES - Aduan Jenayah (AJ)</span>
                         </label>
-                        <label className={complaint.case_type === 'AK' ? 'active' : ''}>
+                        <label className={`${complaint.case_type === 'AK' ? 'active' : ''} ${isCaseTypeLocked ? 'disabled' : ''}`.trim()}>
                             <input
                                 type="radio"
                                 name="case_type"
                                 value="AK"
                                 checked={complaint.case_type === 'AK'}
+                                disabled={isCaseTypeLocked}
                                 onChange={() => updateCaseType('AK')}
                             />
                             <span>KELUARGA - Aduan Keluarga (AK)</span>
@@ -2123,6 +2233,7 @@ const ComplaintDetail = () => {
                                                     apiUrl={apiUrl}
                                                     value={approverStaffId}
                                                     onChange={setApproverStaffId}
+                                                    officeType="hq"
                                                     disabled={Boolean(complaint.approver_confirmed_at)}
                                                 />
                                             </div>
@@ -2134,10 +2245,15 @@ const ComplaintDetail = () => {
                                         </div>
                                     </div>
                                     <div className="app-approver-actions">
-                                        {!complaint.approver_confirmed_at && !canApprove && (
+                                        {!complaint.approver_confirmed_at && !canApprove && !isAwaitingApproval && (
                                             <button className="app-button app-button-ghost" type="button" onClick={submitAssignees}>
                                                 Hantar Pengesahan
                                             </button>
+                                        )}
+                                        {isAwaitingApproval && !canApprove && (
+                                            <span className="app-status-pill app-status-pill-soft">
+                                                Menunggu tindakan pengesah
+                                            </span>
                                         )}
                                         {!complaint.approver_confirmed_at && canApprove && (
                                             <button className="app-button" type="button" onClick={submitApproval}>
@@ -2405,14 +2521,14 @@ const ComplaintDetail = () => {
                                 />
                             )}
                             <div className="app-form-grid">
-                                <div className="app-form-field">
+                                <label className="app-form-field">
                                     <span>Pegawai Yang Mengeluarkan Arahan</span>
                                     <SharedStaffSelect
                                         apiUrl={apiUrl}
                                         value={ajActionReport.directive_staff_id || ''}
                                         onChange={(value) => updateActionReportField('directive_staff_id', value)}
                                     />
-                                </div>
+                                </label>
 
                                 <label className="app-form-field">
                                     <span>Tarikh / Masa Maklum Aduan</span>
@@ -2420,6 +2536,27 @@ const ComplaintDetail = () => {
                                         type="datetime-local"
                                         value={ajActionReport.directive_at || ''}
                                         onChange={(event) => updateActionReportField('directive_at', event.target.value)}
+                                    />
+                                </label>
+
+                                <div className="app-form-field">
+                                    <span>Pegawai Yang Menerima Arahan</span>
+                                    <SharedStaffSelect
+                                        apiUrl={apiUrl}
+                                        value={ajActionReport.handover_staff_id || ''}
+                                        onChange={(value) => updateActionReportField('handover_staff_id', value)}
+                                        sameDistrictOfStaffId={ajActionReport.directive_staff_id || ''}
+                                        placeholder={ajActionReport.directive_staff_id ? '-- Pilih Pegawai Daerah --' : '-- Pilih Pegawai Yang Mengeluarkan Arahan dahulu --'}
+                                        disabled={!ajActionReport.directive_staff_id}
+                                    />
+                                </div>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh / Masa Arahan Diterima</span>
+                                    <input
+                                        type="datetime-local"
+                                        value={ajActionReport.handover_at || ''}
+                                        onChange={(event) => updateActionReportField('handover_at', event.target.value)}
                                     />
                                 </label>
 
@@ -3147,7 +3284,6 @@ const ComplaintDetail = () => {
                     {((complaint.case_type === 'AJ' && !['ppa', 'laporan', 'siasatan', 'pendakwaan'].includes(activeKey)) ||
                         (complaint.case_type === 'AK' && !['tindakan', 'siasatan'].includes(activeKey))) && (
                         <div className="app-tab-panel">
-                            <div className="app-empty">Seksi ini akan ditambah seterusnya.</div>
                         </div>
                     )}
 

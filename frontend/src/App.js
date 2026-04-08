@@ -147,10 +147,6 @@ function App() {
               path="/app/complaints/my-pic"
               element={<AppComplaintList title="Aduan Saya (PIC)" description="Senarai aduan yang telah anda ambil." fetchEndpoint="/complaints/my-pic" />}
             />
-            <Route
-              path="/app/case"
-              element={<AppComplaintList title="KES" description="Senarai aduan yang berada dalam domain kerja kes untuk tindakan dan susulan." isCase />}
-            />
             <Route path="/app/complaints/:id" element={<AppComplaintDetail />} />
             <Route path="/app/staff" element={<StaffList />} />
             <Route path="/app/roles" element={<RoleList />} />

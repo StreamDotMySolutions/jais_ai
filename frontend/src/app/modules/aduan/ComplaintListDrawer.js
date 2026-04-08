@@ -71,10 +71,10 @@ const ComplaintListDrawer = ({
                 <div className="app-basic-kv app-drawer-basic-kv">
                     <div className="app-drawer-section">
                         <div className="app-card-subheader">
-                            <h5>Butir-butir Pemberi Maklumat / Pengadu</h5>
+                            <h5>Butir-butir Pengadu</h5>
                         </div>
                         <div className="app-kv">
-                            <span className="app-kv-label">Nama</span>
+                            <span className="app-kv-label">Nama Pengadu</span>
                             <span className="app-kv-value">
                                 <SharedInlineEditText
                                     value={selectedComplaint.complainant_name || ''}
@@ -85,7 +85,7 @@ const ComplaintListDrawer = ({
                             </span>
                         </div>
                         <div className="app-kv">
-                            <span className="app-kv-label">No Kad Pengenalan</span>
+                            <span className="app-kv-label">No K/P Pengadu</span>
                             <span className="app-kv-value">
                                 <SharedInlineEditText
                                     value={selectedComplaint.identification_number || ''}
@@ -96,7 +96,18 @@ const ComplaintListDrawer = ({
                             </span>
                         </div>
                         <div className="app-kv">
-                            <span className="app-kv-label">No HP</span>
+                            <span className="app-kv-label">Pekerjaan Pengadu</span>
+                            <span className="app-kv-value">
+                                <SharedInlineEditText
+                                    value={selectedComplaint.complainant_occupation || ''}
+                                    placeholder="-"
+                                    canEdit={canInlineEdit}
+                                    onConfirm={(val) => saveInlineField('complainant_occupation', val)}
+                                />
+                            </span>
+                        </div>
+                        <div className="app-kv">
+                            <span className="app-kv-label">No Telefon Pengadu</span>
                             <span className="app-kv-value">
                                 <SharedInlineEditText
                                     value={selectedComplaint.contact_number || ''}

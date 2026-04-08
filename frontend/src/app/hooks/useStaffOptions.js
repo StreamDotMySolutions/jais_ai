@@ -7,14 +7,21 @@ let staffCache = {
     items: null,
     fetchedAt: 0,
 };
-let staffInFlight = null;
+const staffInFlightMap = new Map();
 
-const buildKey = (apiUrl, token) => `${apiUrl || ''}::${token || ''}`;
+const buildKey = (apiUrl, token, officeType, sameDistrictOfStaffId) => (
+    `${apiUrl || ''}::${token || ''}::${officeType || ''}::${sameDistrictOfStaffId || ''}`
+);
 
-export default function useStaffOptions({ apiUrl, token, ttlMs = 5 * 60 * 1000 } = {}) {
+export default function useStaffOptions({ apiUrl, token, officeType = '', sameDistrictOfStaffId = '', ttlMs = 5 * 60 * 1000 } = {}) {
     const effectiveApiUrl = apiUrl || process.env.REACT_APP_API_URL;
     const effectiveToken = token ?? localStorage.getItem('token');
-    const cacheKey = useMemo(() => buildKey(effectiveApiUrl, effectiveToken), [effectiveApiUrl, effectiveToken]);
+    const normalizedOfficeType = (officeType || '').toString().trim().toLowerCase();
+    const normalizedSameDistrictOfStaffId = (sameDistrictOfStaffId || '').toString().trim();
+    const cacheKey = useMemo(
+        () => buildKey(effectiveApiUrl, effectiveToken, normalizedOfficeType, normalizedSameDistrictOfStaffId),
+        [effectiveApiUrl, effectiveToken, normalizedOfficeType, normalizedSameDistrictOfStaffId]
+    );
 
     const [items, setItems] = useState(() => {
         if (staffCache.key === cacheKey && Array.isArray(staffCache.items)) {
@@ -46,12 +53,20 @@ export default function useStaffOptions({ apiUrl, token, ttlMs = 5 * 60 * 1000 }
         setError('');
 
         try {
-            if (!staffInFlight) {
-                staffInFlight = axios.get(`${effectiveApiUrl}/staff/options`, {
+            if (!staffInFlightMap.has(cacheKey)) {
+                const params = {};
+                if (normalizedOfficeType) {
+                    params.office_type = normalizedOfficeType;
+                }
+                if (normalizedSameDistrictOfStaffId) {
+                    params.same_district_of_staff_id = normalizedSameDistrictOfStaffId;
+                }
+                staffInFlightMap.set(cacheKey, axios.get(`${effectiveApiUrl}/staff/options`, {
                     headers: effectiveToken ? { Authorization: `Bearer ${effectiveToken}` } : undefined,
-                });
+                    params,
+                }));
             }
-            const response = await staffInFlight;
+            const response = await staffInFlightMap.get(cacheKey);
             const nextItems = response?.data?.data || [];
             staffCache = { key: cacheKey, items: nextItems, fetchedAt: Date.now() };
             setItems(nextItems);
@@ -59,10 +74,10 @@ export default function useStaffOptions({ apiUrl, token, ttlMs = 5 * 60 * 1000 }
             setItems([]);
             setError(err?.response?.data?.message || 'Gagal memuatkan senarai pegawai.');
         } finally {
-            staffInFlight = null;
+            staffInFlightMap.delete(cacheKey);
             setIsLoading(false);
         }
-    }, [cacheKey, effectiveApiUrl, effectiveToken, ttlMs]);
+    }, [cacheKey, effectiveApiUrl, effectiveToken, normalizedOfficeType, normalizedSameDistrictOfStaffId, ttlMs]);
 
     useEffect(() => {
         fetchStaff();
@@ -72,4 +87,3 @@ export default function useStaffOptions({ apiUrl, token, ttlMs = 5 * 60 * 1000 }
 
     return { items, isLoading, error, refresh };
 }
-

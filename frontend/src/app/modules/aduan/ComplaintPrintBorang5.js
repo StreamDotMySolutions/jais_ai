@@ -91,6 +91,9 @@ const ComplaintPrintBorang5 = () => {
     const reportText = String(complaint?.borang5_statement || complaint?.summary || '').trim().toUpperCase();
     const reportDate = formatDateDMY(complaint?.complaint_date);
     const reportTime = complaint?.complaint_time ? formatTime12hDot(complaint.complaint_time) : '-';
+    const informantName = complaint?.informant_name || complaint?.complainant_name || '';
+    const informantIdNumber = complaint?.informant_identification_number || '';
+    const informantContactNumber = complaint?.informant_contact_number || '';
 
     return (
         <div className="print-page">
@@ -131,23 +134,38 @@ const ComplaintPrintBorang5 = () => {
 
                 <div className="print-form-table print-form-table-identity">
                     <div className="print-form-row">
-                        <div className="print-form-label">Nama</div>
+                        <div className="print-form-label">Nama Pemberi Maklumat</div>
+                        <div className="print-form-value">{renderValue(informantName)}</div>
+                    </div>
+                    <div className="print-form-row">
+                        <div className="print-form-label">No. K/P Pemberi Maklumat</div>
+                        <div className="print-form-value">{renderValue(informantIdNumber)}</div>
+                    </div>
+                    <div className="print-form-row">
+                        <div className="print-form-label">No. Telefon Pemberi Maklumat</div>
+                        <div className="print-form-value">{renderValue(informantContactNumber)}</div>
+                    </div>
+                </div>
+
+                <div className="print-form-table print-form-table-identity">
+                    <div className="print-form-row">
+                        <div className="print-form-label">Nama Pengadu</div>
                         <div className="print-form-value">{renderValue(complaint.complainant_name)}</div>
                     </div>
                     <div className="print-form-row">
-                        <div className="print-form-label">No. Pengenalan Diri</div>
+                        <div className="print-form-label">No. K/P Pengadu</div>
                         <div className="print-form-value">{renderValue(complaint.identification_number)}</div>
                     </div>
                     <div className="print-form-row">
-                        <div className="print-form-label">Pekerjaan</div>
-                        <div className="print-form-value">{renderValue(complaint.occupation)}</div>
+                        <div className="print-form-label">Pekerjaan Pengadu</div>
+                        <div className="print-form-value">{renderValue(complaint.complainant_occupation)}</div>
                     </div>
                     <div className="print-form-row">
-                        <div className="print-form-label">No. Telefon</div>
+                        <div className="print-form-label">No. Telefon Pengadu</div>
                         <div className="print-form-value">{renderValue(complaint.contact_number)}</div>
                     </div>
                     <div className="print-form-row">
-                        <div className="print-form-label">Alamat</div>
+                        <div className="print-form-label">Alamat Pengadu</div>
                         <div className="print-form-value">{renderValue(complaint.address)}</div>
                     </div>
                 </div>
@@ -158,7 +176,7 @@ const ComplaintPrintBorang5 = () => {
                 <div className="print-signature print-signature-laporan">
                     <div className="print-sign-col print-sign-col-centered">
                         <div className="print-sign-label">Tandatangan Pemberi Maklumat</div>
-                        <div className="print-sign-name print-sign-name-uppercase">{renderValue(complaint.complainant_name)}</div>
+                        <div className="print-sign-name print-sign-name-uppercase">{renderValue(informantName)}</div>
                     </div>
                 </div>
 

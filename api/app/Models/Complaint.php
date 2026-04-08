@@ -74,6 +74,11 @@ class Complaint extends Model
         return $this->belongsTo(Staff::class, 'aj_directive_staff_id');
     }
 
+    public function ajHandoverStaff()
+    {
+        return $this->belongsTo(Staff::class, 'aj_handover_staff_id');
+    }
+
     public function ajArrestStaff()
     {
         return $this->belongsTo(Staff::class, 'aj_arrest_staff_id');

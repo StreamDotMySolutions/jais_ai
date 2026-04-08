@@ -390,7 +390,7 @@ const ComplaintList = ({
     const [selectedComplaint, setSelectedComplaint] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const canInlineEdit = !isPublicRole;
-    const canCreateComplaint = isPublicRole || role === 'pegawai' || role === 'admin' || role === 'system';
+    const canCreateComplaint = isPublicRole || ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
 
     const showCaseTabs = !isPublicRole && !caseType && !fetchEndpoint && !isCase;
 
