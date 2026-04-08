@@ -44,7 +44,8 @@ const ComplaintPrintLaporanTindakan = () => {
         return <div className="print-loading">Aduan tidak ditemui.</div>;
     }
 
-    const ringkasanAduan = (
+    const laporanText = (
+        complaint?.aj_directive_notes ||
         complaint?.aj_report_notes ||
         complaint?.ak_notes ||
         complaint?.summary ||
@@ -93,6 +94,8 @@ const ComplaintPrintLaporanTindakan = () => {
     };
 
     const tarikhMasa =
+        complaint?.aj_directive_at ||
+        complaint?.handover_at ||
         complaint?.aj_statement_datetime ||
         complaint?.aj_action_datetime ||
         `${complaint?.complaint_date || ''} ${complaint?.complaint_time || ''}`.trim();
@@ -109,16 +112,17 @@ const ComplaintPrintLaporanTindakan = () => {
         return `${prefix} - ${district || '-'} / ${no || '-'} / ${year || '-'}`;
     })();
 
-    const ppa =
-        complaint?.ajArrestStaff ||
-        complaint?.submittedBy?.staff ||
-        null;
-
-    const ppaName = ppa?.name || '';
-    const ppaIdNo = ppa?.staff_id || ppa?.ic_number || '';
-    const ppaJob = ppa?.position || 'Pegawai Penguatkuasa Agama';
-    const ppaPhone = ppa?.phone || '';
-    const ppaOfficeAddress = ppa?.address || '';
+    const complainantName = complaint?.complainant_name || '';
+    const complainantIdNo = complaint?.identification_number || '';
+    const complainantJob =
+        complaint?.submittedBy?.staff?.position ||
+        complaint?.submittedBy?.position ||
+        '-';
+    const complainantPhone = complaint?.contact_number || '';
+    const complainantAddress = complaint?.address || '';
+    const reportParagraph = String(laporanText || '').trim().toUpperCase();
+    const reportDate = formatDateDMY(tarikhMasa);
+    const reportTime = formatTime12hDot(tarikhMasa);
 
     return (
         <div className="print-page">
@@ -131,71 +135,69 @@ const ComplaintPrintLaporanTindakan = () => {
                 </button>
             </div>
 
-            <div className="print-sheet">
-                <div className="print-header">
-                    <div className="print-meta">REK-BPN-02</div>
-                    <h1 className="print-title-underline">Laporan Tindakan</h1>
+            <div className="print-sheet print-sheet-laporan-tindakan">
+                <div className="print-header-laporan-tindakan">
+                    <div className="print-meta-strong print-meta-top-right">REK-BPN-02</div>
+                    <h1 className="print-title-underline print-title-laporan-tindakan">LAPORAN TINDAKAN</h1>
                 </div>
 
-                <div className="print-grid print-grid-tight">
-                    <div className="print-row">
-                        <span>No. Daftar</span>
-                        <strong>{renderValue(noDaftar)}</strong>
+                <div className="print-form-table">
+                    <div className="print-form-row">
+                        <div className="print-form-label">No. Daftar</div>
+                        <div className="print-form-value">{renderValue(noDaftar)}</div>
                     </div>
-                    <div className="print-row">
-                        <span>Tarikh</span>
-                        <strong>{formatDateDMY(tarikhMasa)}</strong>
-                    </div>
-                    <div className="print-row">
-                        <span>Masa</span>
-                        <strong>{formatTime12hDot(tarikhMasa)}</strong>
-                    </div>
-                </div>
-
-                <div className="print-grid print-grid-tight print-mt">
-                    <div className="print-row">
-                        <span>Nama</span>
-                        <strong>{renderValue(ppaName)}</strong>
-                    </div>
-                    <div className="print-row">
-                        <span>No. ID / K. Pengenalan</span>
-                        <strong>{renderValue(ppaIdNo)}</strong>
-                    </div>
-                    <div className="print-row">
-                        <span>Pekerjaan</span>
-                        <strong>{renderValue(ppaJob)}</strong>
-                    </div>
-                    <div className="print-row">
-                        <span>No. Telefon</span>
-                        <strong>{renderValue(ppaPhone)}</strong>
-                    </div>
-                    <div className="print-row">
-                        <span>Alamat</span>
-                        <strong>{renderValue(ppaOfficeAddress)}</strong>
+                    <div className="print-form-row print-form-row-inline">
+                        <div className="print-form-label">Tarikh</div>
+                        <div className="print-form-value">{reportDate}</div>
+                        <div className="print-form-inline-label">Masa</div>
+                        <div className="print-form-inline-value">{reportTime}</div>
                     </div>
                 </div>
 
-                <div className="print-block-title print-mt-lg">Saya dengan ini memberikan maklumat berikut :</div>
-                <div className="print-notes-box print-notes-box--plain">{renderValue(ringkasanAduan)}</div>
-
-                <div className="print-signature print-signature-split">
-                    <div className="print-sign-col">
-                        <div className="print-sign-line">Tandatangan Pemberi Maklumat</div>
-                        <div className="print-sign-name">{renderValue(complaint.complainant_name)}</div>
+                <div className="print-form-table print-form-table-identity">
+                    <div className="print-form-row">
+                        <div className="print-form-label">Nama</div>
+                        <div className="print-form-value">{renderValue(complainantName)}</div>
                     </div>
-                    <div className="print-sign-col">
-                        <div className="print-sign-line">Tandatangan Pegawai Penguatkuasa Agama</div>
-                        <div className="print-sign-name">{renderValue(ppaName)}</div>
+                    <div className="print-form-row">
+                        <div className="print-form-label">No. ID / K. Pengenalan</div>
+                        <div className="print-form-value">{renderValue(complainantIdNo)}</div>
+                    </div>
+                    <div className="print-form-row">
+                        <div className="print-form-label">Pekerjaan</div>
+                        <div className="print-form-value">{renderValue(complainantJob)}</div>
+                    </div>
+                    <div className="print-form-row">
+                        <div className="print-form-label">No. Telefon</div>
+                        <div className="print-form-value">{renderValue(complainantPhone)}</div>
+                    </div>
+                    <div className="print-form-row">
+                        <div className="print-form-label">Alamat</div>
+                        <div className="print-form-value">{renderValue(complainantAddress)}</div>
                     </div>
                 </div>
 
-                <div className="print-footer-note print-footer-note-left">
-                    Maklumat di atas diberikan secara bertulis / lisan dan telah ditandatangani oleh pegawai di bawah ini dan dibacakan
-                    kepada Pemberi Maklumat.
+                <div className="print-block-title-laporan">SAYA DENGAN INI MEMBERIKAN MAKLUMAT BERIKUT :</div>
+                <div className="print-paragraph print-paragraph-justify print-paragraph-laporan">
+                    {renderValue(reportParagraph || '-')}
                 </div>
 
-                <div className="print-footer-note print-footer-note-left print-footer-date">
-                    Bertarikh pada {formatDateDMY(tarikhMasa)}
+                <div className="print-signature print-signature-laporan">
+                    <div className="print-sign-col print-sign-col-centered">
+                        <div className="print-sign-label">Tandatangan Pemberi Maklumat</div>
+                        <div className="print-sign-name print-sign-name-uppercase">{renderValue(complainantName)}</div>
+                    </div>
+                </div>
+
+                <div className="print-footer-note print-footer-note-left print-footer-note-laporan">
+                    Maklumat di atas diberikan secara bertulis / lisan dan telah ditandatangani oleh pegawai di bawah ini dan dibacakan kepada
+                    Pemberi Maklumat.
+                </div>
+
+                <div className="print-signature print-signature-laporan print-signature-laporan-bottom">
+                    <div className="print-sign-col print-sign-col-centered">
+                        <div className="print-sign-label">Tandatangan Pegawai Penguatkuasa Agama</div>
+                    </div>
                 </div>
             </div>
         </div>

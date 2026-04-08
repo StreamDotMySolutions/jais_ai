@@ -99,21 +99,25 @@ const ComplaintListInternalView = ({
         {isLoading && (
             <div className="app-table app-table-actions app-table-skeleton">
                 <div className="app-table-header">
+                    <span>Bil</span>
                     <span>No Aduan</span>
                     <span>Tarikh</span>
                     <span>Pengadu</span>
                     <span>Daerah</span>
                     <span>Kategori</span>
                     <span>Status</span>
+                    <span>Status Tindakan</span>
                     <span>Ringkasan</span>
                     <span>Tindakan</span>
                 </div>
                 {Array.from({ length: 6 }, (_, index) => (
                     <div key={`skeleton-row-${index}`} className="app-table-row">
+                        <span className="app-skeleton-line app-skeleton-line--sm"></span>
                         <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
+                        <span className="app-skeleton-line app-skeleton-line--sm"></span>
                         <span className="app-skeleton-line app-skeleton-line--sm"></span>
                         <span className="app-skeleton-line app-skeleton-line--sm"></span>
                         <span className="app-skeleton-line"></span>
@@ -135,11 +139,12 @@ const ComplaintListInternalView = ({
                     sortDir={sortDir}
                     onSort={handleSort}
                 />
-                {sortedComplaints.map((item) => (
+                {sortedComplaints.map((item, index) => (
                     <div
                         key={item.id}
                         className={`app-table-row ${selectedComplaint?.id === item.id ? 'is-selected' : ''}`}
                     >
+                        <span>{startIndex + index}</span>
                         <span className="app-code">
                             <button
                                 type="button"
@@ -202,6 +207,15 @@ const ComplaintListInternalView = ({
                                     </span>
                                 );
                             })()}
+                        </span>
+                        <span>
+                            {item.case_type === 'AJ' && item.aj_current_status ? (
+                                <span className="app-status-pill app-status-pill-soft">
+                                    {item.aj_current_status}
+                                </span>
+                            ) : (
+                                '-'
+                            )}
                         </span>
                         <span className="app-summary">
                             {item.summary || '-'}

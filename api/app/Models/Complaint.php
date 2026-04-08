@@ -64,6 +64,11 @@ class Complaint extends Model
         return $this->hasOne(Appointment::class);
     }
 
+    public function actionUpdates()
+    {
+        return $this->hasMany(ComplaintActionUpdate::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function ajDirectiveStaff()
     {
         return $this->belongsTo(Staff::class, 'aj_directive_staff_id');

@@ -18,6 +18,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Services\MobilePushNotificationService;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 
 class ComplaintController extends Controller
@@ -118,6 +122,1246 @@ class ComplaintController extends Controller
         return $this->respondWithPagination($query, $request, 'PIC complaints');
     }
 
+    public function exportXlsx(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = $this->buildComplaintListQuery($request, $user);
+        if (! $query) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $rows = $query
+            ->with([
+                'receivedBy:id,name',
+                'approverStaff:id,name',
+            ])
+            ->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Senarai Aduan');
+
+        $headers = [
+            'Bil',
+            'No Aduan',
+            'Tarikh Aduan',
+            'Tarikh Kejadian',
+            'Kategori',
+            'Daerah',
+            'Pengadu',
+            'No. K/P',
+            'Telefon',
+            'Kaedah Aduan',
+            'Status Aduan',
+            'Status Tindakan',
+            'Status Siasatan',
+            'Klasifikasi',
+            'Status Pendakwaan',
+            'No. Daftar Kes',
+            'Nombor Fail',
+            'Penerima Aduan',
+            'Pegawai Pengesah',
+            'Ringkasan',
+            'Dicipta Pada',
+            'Dikemas Kini Pada',
+        ];
+
+        $sheet->fromArray($headers, null, 'A1');
+        $lastCol = Coordinate::stringFromColumnIndex(count($headers));
+        $sheet->getStyle("A1:{$lastCol}1")->getFont()->setBold(true);
+        $sheet->getStyle("A1:{$lastCol}1")->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFEFF6F2');
+        $sheet->freezePane('A2');
+
+        $rowIndex = 2;
+        foreach ($rows as $index => $complaint) {
+            $sheet->fromArray([[
+                $index + 1,
+                $complaint->reference_no,
+                $complaint->complaint_date,
+                $complaint->incident_date,
+                $complaint->case_type,
+                $complaint->district_name,
+                $complaint->complainant_name,
+                $complaint->identification_number,
+                $complaint->contact_number,
+                $complaint->channel,
+                $complaint->current_stage,
+                $complaint->aj_current_status,
+                $complaint->aj_ip_status ?: $complaint->ak_ip_status,
+                $complaint->aj_ppa_classification,
+                $complaint->aj_prosecution_status,
+                $complaint->case_register_no,
+                $complaint->aj_file_no,
+                optional($complaint->receivedBy)->name,
+                optional($complaint->approverStaff)->name,
+                $complaint->summary,
+                optional($complaint->created_at)?->format('Y-m-d H:i:s'),
+                optional($complaint->updated_at)?->format('Y-m-d H:i:s'),
+            ]], null, "A{$rowIndex}");
+            $rowIndex++;
+        }
+
+        $widths = [6, 18, 14, 14, 12, 18, 24, 18, 16, 18, 18, 24, 18, 14, 18, 18, 18, 22, 22, 44, 20, 20];
+        foreach ($widths as $i => $width) {
+            $col = Coordinate::stringFromColumnIndex($i + 1);
+            $sheet->getColumnDimension($col)->setWidth($width);
+        }
+        $sheet->getStyle("A1:{$lastCol}" . max(1, $rowIndex - 1))->getAlignment()->setWrapText(true);
+
+        $writer = new Xlsx($spreadsheet);
+        $writer->setPreCalculateFormulas(false);
+
+        $filename = 'aduan-export-' . now()->format('Ymd-His') . '.xlsx';
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function reportSummary(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query();
+        $this->applyComplaintAccessScope($query, $user);
+        $this->applyComplaintFilters($query, $request);
+
+        $total = (clone $query)->count();
+        $totalAj = (clone $query)->where('case_type', 'AJ')->count();
+        $totalAk = (clone $query)->where('case_type', 'AK')->count();
+        $totalKes = (clone $query)->where('is_case', true)->count();
+        $totalSelesai = (clone $query)->where('current_stage', 'selesai')->count();
+
+        $byCaseType = (clone $query)
+            ->select('case_type', DB::raw('COUNT(*) as total'))
+            ->groupBy('case_type')
+            ->orderByDesc('total')
+            ->get();
+
+        $byStage = (clone $query)
+            ->select('current_stage', DB::raw('COUNT(*) as total'))
+            ->groupBy('current_stage')
+            ->orderByDesc('total')
+            ->get();
+
+        $byActionStatus = (clone $query)
+            ->where('case_type', 'AJ')
+            ->whereNotNull('aj_current_status')
+            ->where('aj_current_status', '!=', '')
+            ->select('aj_current_status', DB::raw('COUNT(*) as total'))
+            ->groupBy('aj_current_status')
+            ->orderByDesc('total')
+            ->get();
+
+        $byIpStatus = (clone $query)
+            ->selectRaw("COALESCE(NULLIF(aj_ip_status, ''), NULLIF(ak_ip_status, '')) as ip_status, COUNT(*) as total")
+            ->where(function ($subQuery) {
+                $subQuery->where(function ($nested) {
+                    $nested->whereNotNull('aj_ip_status')
+                        ->where('aj_ip_status', '!=', '');
+                })->orWhere(function ($nested) {
+                    $nested->whereNotNull('ak_ip_status')
+                        ->where('ak_ip_status', '!=', '');
+                });
+            })
+            ->groupBy(DB::raw("COALESCE(NULLIF(aj_ip_status, ''), NULLIF(ak_ip_status, ''))"))
+            ->orderByDesc('total')
+            ->get();
+
+        $byClassification = (clone $query)
+            ->where('case_type', 'AJ')
+            ->whereNotNull('aj_ppa_classification')
+            ->where('aj_ppa_classification', '!=', '')
+            ->select('aj_ppa_classification', DB::raw('COUNT(*) as total'))
+            ->groupBy('aj_ppa_classification')
+            ->orderByDesc('total')
+            ->get();
+
+        $byDistrict = (clone $query)
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->select(
+                'districts.id as district_id',
+                'districts.name as district_name',
+                DB::raw('COUNT(complaints.id) as total')
+            )
+            ->groupBy('districts.id', 'districts.name')
+            ->orderByDesc('total')
+            ->get();
+
+        $byDate = (clone $query)
+            ->whereNotNull('complaint_date')
+            ->selectRaw('DATE(complaint_date) as date, COUNT(*) as total')
+            ->groupBy(DB::raw('DATE(complaint_date)'))
+            ->orderBy('date')
+            ->get();
+
+        return response()->json([
+            'message' => 'Ringkasan laporan aduan',
+            'data' => [
+                'total' => $total,
+                'total_aj' => $totalAj,
+                'total_ak' => $totalAk,
+                'total_kes' => $totalKes,
+                'total_selesai' => $totalSelesai,
+                'by_case_type' => $byCaseType,
+                'by_stage' => $byStage,
+                'by_action_status' => $byActionStatus,
+                'by_ip_status' => $byIpStatus,
+                'by_classification' => $byClassification,
+                'by_district' => $byDistrict,
+                'by_date' => $byDate,
+            ],
+        ]);
+    }
+
+    public function exportReportCsv(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query()
+            ->latest('id')
+            ->with(['receivedBy:id,name', 'approverStaff:id,name,staff_id']);
+
+        $this->applyComplaintAccessScope($query, $user);
+        $this->applyComplaintFilters($query, $request);
+
+        $filename = 'complaint-report-' . now()->format('Ymd-His') . '.csv';
+
+        return response()->streamDownload(function () use ($query) {
+            echo "\xEF\xBB\xBF";
+            echo $this->csvRow([
+                'ID',
+                'No Aduan',
+                'Tarikh Aduan',
+                'Pengadu',
+                'Daerah',
+                'Kategori',
+                'Status',
+                'Status Tindakan',
+                'Klasifikasi',
+                'Status Siasatan',
+                'Status Pendakwaan',
+                'No Daftar Kes',
+                'Nombor Fail',
+                'Penerima Aduan',
+                'Pegawai Pengesah',
+                'Ringkasan',
+            ]);
+
+            $query->chunk(500, function ($rows) {
+                foreach ($rows as $complaint) {
+                    echo $this->csvRow([
+                        $complaint->id,
+                        $complaint->reference_no,
+                        $complaint->complaint_date,
+                        $complaint->complainant_name,
+                        $complaint->district_name,
+                        $complaint->case_type,
+                        $complaint->current_stage,
+                        $complaint->aj_current_status,
+                        $complaint->aj_ppa_classification,
+                        $complaint->aj_ip_status ?: $complaint->ak_ip_status,
+                        $complaint->aj_prosecution_status,
+                        $complaint->case_register_no,
+                        $complaint->aj_file_no,
+                        $complaint->receivedBy?->name,
+                        $complaint->approverStaff?->name,
+                        trim((string) ($complaint->summary ?: $complaint->borang5_statement ?: '')),
+                    ]);
+                }
+            });
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function reportArrestByDistrict(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query()
+            ->where('case_type', 'AJ')
+            ->where(function ($subQuery) {
+                $subQuery->whereNotNull('aj_male_count')
+                    ->orWhereNotNull('aj_female_count')
+                    ->orWhereNotNull('aj_other_count');
+            });
+
+        $this->applyComplaintAccessScope($query, $user);
+
+        if ($request->filled('district_id')) {
+            $query->where('district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate(DB::raw('COALESCE(aj_action_datetime, complaint_date)'), '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate(DB::raw('COALESCE(aj_action_datetime, complaint_date)'), '<=', $request->string('to_date')->toString());
+        }
+
+        $rows = (clone $query)
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->select(
+                'districts.id as district_id',
+                'districts.name as district_name',
+                DB::raw('COALESCE(SUM(complaints.aj_male_count), 0) as total_male'),
+                DB::raw('COALESCE(SUM(complaints.aj_female_count), 0) as total_female'),
+                DB::raw('COALESCE(SUM(complaints.aj_other_count), 0) as total_other'),
+                DB::raw('COUNT(complaints.id) as total_records')
+            )
+            ->groupBy('districts.id', 'districts.name')
+            ->orderByDesc(DB::raw('(COALESCE(SUM(complaints.aj_male_count), 0) + COALESCE(SUM(complaints.aj_female_count), 0) + COALESCE(SUM(complaints.aj_other_count), 0))'))
+            ->get();
+
+        $totals = [
+            'male' => (int) $rows->sum(fn ($row) => (int) ($row->total_male ?? 0)),
+            'female' => (int) $rows->sum(fn ($row) => (int) ($row->total_female ?? 0)),
+            'other' => (int) $rows->sum(fn ($row) => (int) ($row->total_other ?? 0)),
+            'records' => (int) $rows->sum(fn ($row) => (int) ($row->total_records ?? 0)),
+        ];
+
+        return response()->json([
+            'message' => 'Statistik tangkapan mengikut daerah',
+            'data' => [
+                'totals' => $totals,
+                'rows' => $rows,
+            ],
+        ]);
+    }
+
+    public function reportArrestByOffense(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query()
+            ->where('case_type', 'AJ')
+            ->where(function ($subQuery) {
+                $subQuery->whereNotNull('aj_male_count')
+                    ->orWhereNotNull('aj_female_count')
+                    ->orWhereNotNull('aj_other_count');
+            });
+
+        $this->applyComplaintAccessScope($query, $user);
+
+        if ($request->filled('district_id')) {
+            $query->where('district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate(DB::raw('COALESCE(aj_action_datetime, complaint_date)'), '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate(DB::raw('COALESCE(aj_action_datetime, complaint_date)'), '<=', $request->string('to_date')->toString());
+        }
+
+        $rows = (clone $query)
+            ->leftJoin('ref_offenses', 'complaints.aj_report_offense_id', '=', 'ref_offenses.id')
+            ->select(
+                'ref_offenses.id as offense_id',
+                'ref_offenses.code as offense_code',
+                'ref_offenses.section as offense_section',
+                'ref_offenses.name as offense_name',
+                DB::raw('COALESCE(SUM(complaints.aj_male_count), 0) as total_male'),
+                DB::raw('COALESCE(SUM(complaints.aj_female_count), 0) as total_female'),
+                DB::raw('COALESCE(SUM(complaints.aj_other_count), 0) as total_other'),
+                DB::raw('COUNT(complaints.id) as total_records')
+            )
+            ->groupBy('ref_offenses.id', 'ref_offenses.code', 'ref_offenses.section', 'ref_offenses.name')
+            ->orderByDesc(DB::raw('(COALESCE(SUM(complaints.aj_male_count), 0) + COALESCE(SUM(complaints.aj_female_count), 0) + COALESCE(SUM(complaints.aj_other_count), 0))'))
+            ->get()
+            ->map(function ($row) {
+                $parts = array_filter([
+                    $row->offense_code ?: null,
+                    $row->offense_section ? 'Sec ' . $row->offense_section : null,
+                    $row->offense_name ?: null,
+                ]);
+                $row->offense_label = $parts ? implode(' / ', $parts) : 'Tidak diketahui';
+                return $row;
+            })
+            ->values();
+
+        $totals = [
+            'male' => (int) $rows->sum(fn ($row) => (int) ($row->total_male ?? 0)),
+            'female' => (int) $rows->sum(fn ($row) => (int) ($row->total_female ?? 0)),
+            'other' => (int) $rows->sum(fn ($row) => (int) ($row->total_other ?? 0)),
+            'records' => (int) $rows->sum(fn ($row) => (int) ($row->total_records ?? 0)),
+        ];
+
+        return response()->json([
+            'message' => 'Rekod tangkapan mengikut kesalahan',
+            'data' => [
+                'totals' => $totals,
+                'rows' => $rows,
+            ],
+        ]);
+    }
+
+    public function reportIpStatus(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query()
+            ->where(function ($subQuery) {
+                $subQuery->where(function ($nested) {
+                    $nested->whereNotNull('aj_ip_status')
+                        ->where('aj_ip_status', '!=', '');
+                })->orWhere(function ($nested) {
+                    $nested->whereNotNull('ak_ip_status')
+                        ->where('ak_ip_status', '!=', '');
+                });
+            });
+
+        $this->applyComplaintAccessScope($query, $user);
+
+        if ($request->filled('district_id')) {
+            $query->where('district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('case_type')) {
+            $query->where('case_type', strtoupper($request->string('case_type')->toString()));
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('complaint_date', '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('complaint_date', '<=', $request->string('to_date')->toString());
+        }
+
+        $rows = (clone $query)
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->selectRaw("
+                COALESCE(NULLIF(complaints.aj_ip_status, ''), NULLIF(complaints.ak_ip_status, '')) as ip_status,
+                complaints.case_type,
+                districts.id as district_id,
+                districts.name as district_name,
+                COUNT(complaints.id) as total
+            ")
+            ->groupBy(
+                DB::raw("COALESCE(NULLIF(complaints.aj_ip_status, ''), NULLIF(complaints.ak_ip_status, ''))"),
+                'complaints.case_type',
+                'districts.id',
+                'districts.name'
+            )
+            ->orderByDesc('total')
+            ->get();
+
+        $statusRows = $rows
+            ->groupBy('ip_status')
+            ->map(function ($group, $status) {
+                return [
+                    'ip_status' => $status ?: 'Tidak diketahui',
+                    'total' => (int) $group->sum('total'),
+                    'aj_total' => (int) $group->where('case_type', 'AJ')->sum('total'),
+                    'ak_total' => (int) $group->where('case_type', 'AK')->sum('total'),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $districtRows = $rows
+            ->groupBy(fn ($row) => $row->district_id ?: 'unknown')
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return [
+                    'district_id' => $first->district_id,
+                    'district_name' => $first->district_name ?: 'Tidak diketahui',
+                    'total' => (int) $group->sum('total'),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $totals = [
+            'records' => (int) $rows->sum('total'),
+            'statuses' => (int) $statusRows->count(),
+            'aj' => (int) $rows->where('case_type', 'AJ')->sum('total'),
+            'ak' => (int) $rows->where('case_type', 'AK')->sum('total'),
+        ];
+
+        return response()->json([
+            'message' => 'Statistik status IP',
+            'data' => [
+                'totals' => $totals,
+                'status_rows' => $statusRows,
+                'district_rows' => $districtRows,
+            ],
+        ]);
+    }
+
+    public function reportActionStatus(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query()
+            ->where('case_type', 'AJ')
+            ->whereNotNull('aj_current_status')
+            ->where('aj_current_status', '!=', '');
+
+        $this->applyComplaintAccessScope($query, $user);
+
+        if ($request->filled('district_id')) {
+            $query->where('district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('classification')) {
+            $query->whereRaw('UPPER(aj_ppa_classification) = ?', [strtoupper($request->string('classification')->toString())]);
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('complaint_date', '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('complaint_date', '<=', $request->string('to_date')->toString());
+        }
+
+        $rows = (clone $query)
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->select(
+                'complaints.aj_current_status',
+                'complaints.aj_ppa_classification',
+                'districts.id as district_id',
+                'districts.name as district_name',
+                DB::raw('COUNT(complaints.id) as total')
+            )
+            ->groupBy(
+                'complaints.aj_current_status',
+                'complaints.aj_ppa_classification',
+                'districts.id',
+                'districts.name'
+            )
+            ->orderByDesc('total')
+            ->get();
+
+        $statusRows = $rows
+            ->groupBy('aj_current_status')
+            ->map(function ($group, $status) {
+                return [
+                    'action_status' => $status ?: 'Tidak diketahui',
+                    'total' => (int) $group->sum('total'),
+                    'ffa_total' => (int) $group->where('aj_ppa_classification', 'FFA')->sum('total'),
+                    'kiv_total' => (int) $group->where('aj_ppa_classification', 'KIV')->sum('total'),
+                    'nfa_total' => (int) $group->where('aj_ppa_classification', 'NFA')->sum('total'),
+                    'op_total' => (int) $group->where('aj_ppa_classification', 'OP')->sum('total'),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $classificationRows = $rows
+            ->groupBy('aj_ppa_classification')
+            ->map(function ($group, $classification) {
+                return [
+                    'classification' => $classification ?: 'Tidak diketahui',
+                    'total' => (int) $group->sum('total'),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $districtRows = $rows
+            ->groupBy(fn ($row) => $row->district_id ?: 'unknown')
+            ->map(function ($group) {
+                $first = $group->first();
+
+                return [
+                    'district_id' => $first->district_id,
+                    'district_name' => $first->district_name ?: 'Tidak diketahui',
+                    'total' => (int) $group->sum('total'),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $totals = [
+            'records' => (int) $rows->sum('total'),
+            'statuses' => (int) $statusRows->count(),
+            'classifications' => (int) $classificationRows->count(),
+            'districts' => (int) $districtRows->count(),
+        ];
+
+        return response()->json([
+            'message' => 'Statistik status tindakan',
+            'data' => [
+                'totals' => $totals,
+                'status_rows' => $statusRows,
+                'classification_rows' => $classificationRows,
+                'district_rows' => $districtRows,
+            ],
+        ]);
+    }
+
+    public function exportArrestByDistrictXlsx(Request $request)
+    {
+        $response = $this->reportArrestByDistrict($request);
+        $payload = $response->getData(true);
+        $data = $payload['data'] ?? ['totals' => [], 'rows' => []];
+
+        $spreadsheet = $this->makeReportSpreadsheet(
+            'Summary',
+            ['Metrik', 'Nilai'],
+            [
+                ['Jumlah Lelaki', $data['totals']['male'] ?? 0],
+                ['Jumlah Perempuan', $data['totals']['female'] ?? 0],
+                ['Jumlah Lain-lain', $data['totals']['other'] ?? 0],
+                ['Rekod Laporan', $data['totals']['records'] ?? 0],
+            ]
+        );
+
+        $sheet = $this->addReportSheet($spreadsheet, 'By District', ['Daerah', 'Lelaki', 'Perempuan', 'Lain-lain', 'Jumlah', 'Rekod']);
+        $rows = collect($data['rows'] ?? [])->map(function ($row) {
+            $male = (int) ($row['total_male'] ?? 0);
+            $female = (int) ($row['total_female'] ?? 0);
+            $other = (int) ($row['total_other'] ?? 0);
+            return [
+                $row['district_name'] ?? 'Tidak diketahui',
+                $male,
+                $female,
+                $other,
+                $male + $female + $other,
+                (int) ($row['total_records'] ?? 0),
+            ];
+        })->values()->all();
+        if ($rows) {
+            $sheet->fromArray($rows, null, 'A2');
+        }
+        foreach ([22, 12, 12, 12, 12, 12] as $i => $width) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($i + 1))->setWidth($width);
+        }
+
+        return $this->downloadSpreadsheet($spreadsheet, 'aduan-arrest-by-district-' . now()->format('Ymd-His') . '.xlsx');
+    }
+
+    public function exportIpStatusXlsx(Request $request)
+    {
+        $response = $this->reportIpStatus($request);
+        $payload = $response->getData(true);
+        $data = $payload['data'] ?? ['totals' => [], 'status_rows' => [], 'district_rows' => []];
+
+        $spreadsheet = $this->makeReportSpreadsheet(
+            'Summary',
+            ['Metrik', 'Nilai'],
+            [
+                ['Jumlah Rekod', $data['totals']['records'] ?? 0],
+                ['Bil Status IP', $data['totals']['statuses'] ?? 0],
+                ['Jumlah AJ', $data['totals']['aj'] ?? 0],
+                ['Jumlah AK', $data['totals']['ak'] ?? 0],
+            ]
+        );
+
+        $statusSheet = $this->addReportSheet($spreadsheet, 'By Status IP', ['Status IP', 'AJ', 'AK', 'Jumlah']);
+        $statusRows = collect($data['status_rows'] ?? [])->map(fn ($row) => [
+            $row['ip_status'] ?? 'Tidak diketahui',
+            (int) ($row['aj_total'] ?? 0),
+            (int) ($row['ak_total'] ?? 0),
+            (int) ($row['total'] ?? 0),
+        ])->values()->all();
+        if ($statusRows) {
+            $statusSheet->fromArray($statusRows, null, 'A2');
+        }
+        foreach ([28, 12, 12, 12] as $i => $width) {
+            $statusSheet->getColumnDimension(Coordinate::stringFromColumnIndex($i + 1))->setWidth($width);
+        }
+
+        $districtSheet = $this->addReportSheet($spreadsheet, 'By District', ['Daerah', 'Jumlah']);
+        $districtRows = collect($data['district_rows'] ?? [])->map(fn ($row) => [
+            $row['district_name'] ?? 'Tidak diketahui',
+            (int) ($row['total'] ?? 0),
+        ])->values()->all();
+        if ($districtRows) {
+            $districtSheet->fromArray($districtRows, null, 'A2');
+        }
+        foreach ([24, 12] as $i => $width) {
+            $districtSheet->getColumnDimension(Coordinate::stringFromColumnIndex($i + 1))->setWidth($width);
+        }
+
+        return $this->downloadSpreadsheet($spreadsheet, 'aduan-ip-status-' . now()->format('Ymd-His') . '.xlsx');
+    }
+
+    public function exportActionStatusXlsx(Request $request)
+    {
+        $response = $this->reportActionStatus($request);
+        $payload = $response->getData(true);
+        $data = $payload['data'] ?? ['totals' => [], 'status_rows' => [], 'classification_rows' => [], 'district_rows' => []];
+
+        $spreadsheet = $this->makeReportSpreadsheet(
+            'Summary',
+            ['Metrik', 'Nilai'],
+            [
+                ['Jumlah Rekod', $data['totals']['records'] ?? 0],
+                ['Bil Status', $data['totals']['statuses'] ?? 0],
+                ['Bil Klasifikasi', $data['totals']['classifications'] ?? 0],
+                ['Bil Daerah', $data['totals']['districts'] ?? 0],
+            ]
+        );
+
+        $statusSheet = $this->addReportSheet($spreadsheet, 'By Action Status', ['Status Tindakan', 'FFA', 'KIV', 'NFA', 'OP', 'Jumlah']);
+        $statusRows = collect($data['status_rows'] ?? [])->map(fn ($row) => [
+            $row['action_status'] ?? 'Tidak diketahui',
+            (int) ($row['ffa_total'] ?? 0),
+            (int) ($row['kiv_total'] ?? 0),
+            (int) ($row['nfa_total'] ?? 0),
+            (int) ($row['op_total'] ?? 0),
+            (int) ($row['total'] ?? 0),
+        ])->values()->all();
+        if ($statusRows) {
+            $statusSheet->fromArray($statusRows, null, 'A2');
+        }
+        foreach ([28, 10, 10, 10, 10, 12] as $i => $width) {
+            $statusSheet->getColumnDimension(Coordinate::stringFromColumnIndex($i + 1))->setWidth($width);
+        }
+
+        $classificationSheet = $this->addReportSheet($spreadsheet, 'By Classification', ['Klasifikasi', 'Jumlah']);
+        $classificationRows = collect($data['classification_rows'] ?? [])->map(fn ($row) => [
+            $row['classification'] ?? 'Tidak diketahui',
+            (int) ($row['total'] ?? 0),
+        ])->values()->all();
+        if ($classificationRows) {
+            $classificationSheet->fromArray($classificationRows, null, 'A2');
+        }
+        foreach ([20, 12] as $i => $width) {
+            $classificationSheet->getColumnDimension(Coordinate::stringFromColumnIndex($i + 1))->setWidth($width);
+        }
+
+        $districtSheet = $this->addReportSheet($spreadsheet, 'By District', ['Daerah', 'Jumlah']);
+        $districtRows = collect($data['district_rows'] ?? [])->map(fn ($row) => [
+            $row['district_name'] ?? 'Tidak diketahui',
+            (int) ($row['total'] ?? 0),
+        ])->values()->all();
+        if ($districtRows) {
+            $districtSheet->fromArray($districtRows, null, 'A2');
+        }
+        foreach ([24, 12] as $i => $width) {
+            $districtSheet->getColumnDimension(Coordinate::stringFromColumnIndex($i + 1))->setWidth($width);
+        }
+
+        return $this->downloadSpreadsheet($spreadsheet, 'aduan-action-status-' . now()->format('Ymd-His') . '.xlsx');
+    }
+
+    public function reportArrestors(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query()
+            ->where('case_type', 'AJ')
+            ->where(function ($subQuery) {
+                $subQuery->whereNotNull('aj_arrest_by')
+                    ->where('aj_arrest_by', '!=', '');
+            });
+
+        $this->applyComplaintAccessScope($query, $user);
+
+        if ($request->filled('district_id')) {
+            $query->where('district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('arrest_by')) {
+            $query->whereRaw('LOWER(aj_arrest_by) = ?', [strtolower($request->string('arrest_by')->toString())]);
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate(DB::raw('COALESCE(aj_action_datetime, complaint_date)'), '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate(DB::raw('COALESCE(aj_action_datetime, complaint_date)'), '<=', $request->string('to_date')->toString());
+        }
+
+        $rows = (clone $query)
+            ->leftJoin('staff as arrest_staff', 'complaints.aj_arrest_staff_id', '=', 'arrest_staff.id')
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->select(
+                'complaints.aj_arrest_by',
+                'complaints.aj_arrest_staff_id',
+                'arrest_staff.name as arrest_staff_name',
+                'districts.id as district_id',
+                'districts.name as district_name',
+                DB::raw('COALESCE(SUM(complaints.aj_male_count), 0) as total_male'),
+                DB::raw('COALESCE(SUM(complaints.aj_female_count), 0) as total_female'),
+                DB::raw('COALESCE(SUM(complaints.aj_other_count), 0) as total_other'),
+                DB::raw('COUNT(complaints.id) as total_records')
+            )
+            ->groupBy(
+                'complaints.aj_arrest_by',
+                'complaints.aj_arrest_staff_id',
+                'arrest_staff.name',
+                'districts.id',
+                'districts.name'
+            )
+            ->orderByDesc(DB::raw('(COALESCE(SUM(complaints.aj_male_count), 0) + COALESCE(SUM(complaints.aj_female_count), 0) + COALESCE(SUM(complaints.aj_other_count), 0))'))
+            ->get()
+            ->map(function ($row) {
+                $row->arrestor_label = $row->arrest_staff_name
+                    ? $row->arrest_staff_name . ' (' . $row->aj_arrest_by . ')'
+                    : ($row->aj_arrest_by ?: 'Tidak diketahui');
+                return $row;
+            })
+            ->values();
+
+        $typeRows = $rows
+            ->groupBy('aj_arrest_by')
+            ->map(function ($group, $type) {
+                return [
+                    'arrest_by' => $type ?: 'Tidak diketahui',
+                    'total_male' => (int) $group->sum('total_male'),
+                    'total_female' => (int) $group->sum('total_female'),
+                    'total_other' => (int) $group->sum('total_other'),
+                    'total_records' => (int) $group->sum('total_records'),
+                ];
+            })
+            ->sortByDesc(fn ($row) => $row['total_male'] + $row['total_female'] + $row['total_other'])
+            ->values();
+
+        $totals = [
+            'male' => (int) $rows->sum('total_male'),
+            'female' => (int) $rows->sum('total_female'),
+            'other' => (int) $rows->sum('total_other'),
+            'records' => (int) $rows->sum('total_records'),
+            'arrestors' => (int) $rows->count(),
+        ];
+
+        return response()->json([
+            'message' => 'Senarai penangkap',
+            'data' => [
+                'totals' => $totals,
+                'type_rows' => $typeRows,
+                'rows' => $rows,
+            ],
+        ]);
+    }
+
+    public function reportArrestTotals(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query()
+            ->where('case_type', 'AJ')
+            ->where(function ($subQuery) {
+                $subQuery->whereNotNull('aj_male_count')
+                    ->orWhereNotNull('aj_female_count')
+                    ->orWhereNotNull('aj_other_count');
+            });
+
+        $this->applyComplaintAccessScope($query, $user);
+
+        if ($request->filled('district_id')) {
+            $query->where('district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate(DB::raw('COALESCE(aj_action_datetime, complaint_date)'), '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate(DB::raw('COALESCE(aj_action_datetime, complaint_date)'), '<=', $request->string('to_date')->toString());
+        }
+
+        $totals = [
+            'male' => (int) (clone $query)->sum('aj_male_count'),
+            'female' => (int) (clone $query)->sum('aj_female_count'),
+            'other' => (int) (clone $query)->sum('aj_other_count'),
+            'records' => (int) (clone $query)->count(),
+        ];
+        $totals['all'] = $totals['male'] + $totals['female'] + $totals['other'];
+
+        $trendRows = (clone $query)
+            ->selectRaw("
+                DATE_FORMAT(COALESCE(aj_action_datetime, complaint_date), '%Y-%m') as period,
+                COALESCE(SUM(aj_male_count), 0) as total_male,
+                COALESCE(SUM(aj_female_count), 0) as total_female,
+                COALESCE(SUM(aj_other_count), 0) as total_other,
+                COUNT(id) as total_records
+            ")
+            ->groupBy(DB::raw("DATE_FORMAT(COALESCE(aj_action_datetime, complaint_date), '%Y-%m')"))
+            ->orderBy('period')
+            ->get()
+            ->map(function ($row) {
+                $row->total_all = (int) $row->total_male + (int) $row->total_female + (int) $row->total_other;
+                return $row;
+            })
+            ->values();
+
+        $districtRows = (clone $query)
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->select(
+                'districts.id as district_id',
+                'districts.name as district_name',
+                DB::raw('COALESCE(SUM(complaints.aj_male_count), 0) as total_male'),
+                DB::raw('COALESCE(SUM(complaints.aj_female_count), 0) as total_female'),
+                DB::raw('COALESCE(SUM(complaints.aj_other_count), 0) as total_other'),
+                DB::raw('COUNT(complaints.id) as total_records')
+            )
+            ->groupBy('districts.id', 'districts.name')
+            ->orderByDesc(DB::raw('(COALESCE(SUM(complaints.aj_male_count), 0) + COALESCE(SUM(complaints.aj_female_count), 0) + COALESCE(SUM(complaints.aj_other_count), 0))'))
+            ->get()
+            ->map(function ($row) {
+                $row->total_all = (int) $row->total_male + (int) $row->total_female + (int) $row->total_other;
+                return $row;
+            })
+            ->values();
+
+        return response()->json([
+            'message' => 'Jumlah tangkapan',
+            'data' => [
+                'totals' => $totals,
+                'trend_rows' => $trendRows,
+                'district_rows' => $districtRows,
+            ],
+        ]);
+    }
+
+    public function reportCaseProsecution(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query()
+            ->where('case_type', 'AJ')
+            ->where(function ($subQuery) {
+                $subQuery->where('is_case', true)
+                    ->orWhere(function ($nested) {
+                        $nested->whereNotNull('aj_prosecution_status')
+                            ->where('aj_prosecution_status', '!=', '');
+                    });
+            });
+
+        $this->applyComplaintAccessScope($query, $user);
+
+        if ($request->filled('district_id')) {
+            $query->where('district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('prosecution_status')) {
+            $query->whereRaw('LOWER(aj_prosecution_status) = ?', [strtolower($request->string('prosecution_status')->toString())]);
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('complaint_date', '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('complaint_date', '<=', $request->string('to_date')->toString());
+        }
+
+        $statusRows = (clone $query)
+            ->selectRaw("
+                COALESCE(NULLIF(aj_prosecution_status, ''), 'Belum Direkodkan') as prosecution_status,
+                COUNT(id) as total
+            ")
+            ->groupBy(DB::raw("COALESCE(NULLIF(aj_prosecution_status, ''), 'Belum Direkodkan')"))
+            ->orderByDesc('total')
+            ->get();
+
+        $districtRows = (clone $query)
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->select(
+                'districts.id as district_id',
+                'districts.name as district_name',
+                DB::raw('COUNT(complaints.id) as total')
+            )
+            ->groupBy('districts.id', 'districts.name')
+            ->orderByDesc('total')
+            ->get();
+
+        $mahkamahRows = (clone $query)
+            ->leftJoin('ref_mahkamah', 'complaints.aj_mahkamah_id', '=', 'ref_mahkamah.id')
+            ->selectRaw("
+                COALESCE(ref_mahkamah.name, 'Belum Direkodkan') as mahkamah_name,
+                COUNT(complaints.id) as total
+            ")
+            ->groupBy(DB::raw("COALESCE(ref_mahkamah.name, 'Belum Direkodkan')"))
+            ->orderByDesc('total')
+            ->get();
+
+        $totals = [
+            'cases' => (int) (clone $query)->where('is_case', true)->count(),
+            'records' => (int) (clone $query)->count(),
+            'registered_cases' => (int) (clone $query)->whereNotNull('case_register_no')->where('case_register_no', '!=', '')->count(),
+            'with_prosecution_status' => (int) (clone $query)->whereNotNull('aj_prosecution_status')->where('aj_prosecution_status', '!=', '')->count(),
+            'with_mahkamah' => (int) (clone $query)->whereNotNull('aj_mahkamah_id')->count(),
+        ];
+
+        return response()->json([
+            'message' => 'Statistik KES dan pendakwaan',
+            'data' => [
+                'totals' => $totals,
+                'status_rows' => $statusRows,
+                'district_rows' => $districtRows,
+                'mahkamah_rows' => $mahkamahRows,
+            ],
+        ]);
+    }
+
+    public function reportOyds(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = ComplaintOyd::query()
+            ->join('complaints', 'complaint_oyds.complaint_id', '=', 'complaints.id')
+            ->whereNull('complaint_oyds.deleted_at')
+            ->whereNull('complaints.deleted_at');
+
+        if ($user->hasAnyRole(['system', 'admin', 'pegawai', 'pegawai_hq'])) {
+            // no extra scope
+        } elseif ($user->hasRole('pegawai_daerah')) {
+            $districtId = $this->resolveUserDistrictId($user);
+            if ($districtId) {
+                $query->where('complaints.district_id', $districtId);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($user->hasAnyRole(['awam', 'user'])) {
+            $query->where('complaints.submitted_by_user_id', $user->id);
+        } else {
+            $query->whereRaw('1 = 0');
+        }
+
+        if ($request->filled('district_id')) {
+            $query->where('complaints.district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('complaints.complaint_date', '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('complaints.complaint_date', '<=', $request->string('to_date')->toString());
+        }
+
+        $totals = [
+            'oyds' => (int) (clone $query)->count('complaint_oyds.id'),
+            'with_id_number' => (int) (clone $query)->whereNotNull('complaint_oyds.id_number')->where('complaint_oyds.id_number', '!=', '')->count('complaint_oyds.id'),
+            'with_investigator' => (int) (clone $query)->whereNotNull('complaint_oyds.investigator_name')->where('complaint_oyds.investigator_name', '!=', '')->count('complaint_oyds.id'),
+            'complaints' => (int) (clone $query)->distinct('complaint_oyds.complaint_id')->count('complaint_oyds.complaint_id'),
+        ];
+
+        $districtRows = (clone $query)
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->select(
+                'districts.id as district_id',
+                'districts.name as district_name',
+                DB::raw('COUNT(complaint_oyds.id) as total')
+            )
+            ->groupBy('districts.id', 'districts.name')
+            ->orderByDesc('total')
+            ->get();
+
+        $investigatorRows = (clone $query)
+            ->selectRaw("
+                COALESCE(NULLIF(complaint_oyds.investigator_name, ''), 'Belum Direkodkan') as investigator_name,
+                COUNT(complaint_oyds.id) as total
+            ")
+            ->groupBy(DB::raw("COALESCE(NULLIF(complaint_oyds.investigator_name, ''), 'Belum Direkodkan')"))
+            ->orderByDesc('total')
+            ->get();
+
+        return response()->json([
+            'message' => 'Statistik OYDS',
+            'data' => [
+                'totals' => $totals,
+                'district_rows' => $districtRows,
+                'investigator_rows' => $investigatorRows,
+            ],
+        ]);
+    }
+
+    public function reportSeizureItems(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = ComplaintSeizureItem::query()
+            ->join('complaints', 'complaint_seizure_items.complaint_id', '=', 'complaints.id')
+            ->whereNull('complaint_seizure_items.deleted_at')
+            ->whereNull('complaints.deleted_at');
+
+        if ($user->hasAnyRole(['system', 'admin', 'pegawai', 'pegawai_hq'])) {
+            // no extra scope
+        } elseif ($user->hasRole('pegawai_daerah')) {
+            $districtId = $this->resolveUserDistrictId($user);
+            if ($districtId) {
+                $query->where('complaints.district_id', $districtId);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($user->hasAnyRole(['awam', 'user'])) {
+            $query->where('complaints.submitted_by_user_id', $user->id);
+        } else {
+            $query->whereRaw('1 = 0');
+        }
+
+        if ($request->filled('district_id')) {
+            $query->where('complaints.district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('complaints.complaint_date', '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('complaints.complaint_date', '<=', $request->string('to_date')->toString());
+        }
+
+        $totals = [
+            'items' => (int) (clone $query)->count('complaint_seizure_items.id'),
+            'complaints' => (int) (clone $query)->distinct('complaint_seizure_items.complaint_id')->count('complaint_seizure_items.complaint_id'),
+            'with_storage' => (int) (clone $query)->whereNotNull('complaint_seizure_items.storage')->where('complaint_seizure_items.storage', '!=', '')->count('complaint_seizure_items.id'),
+            'with_item_no' => (int) (clone $query)->whereNotNull('complaint_seizure_items.item_no')->where('complaint_seizure_items.item_no', '!=', '')->count('complaint_seizure_items.id'),
+        ];
+
+        $districtRows = (clone $query)
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->select(
+                'districts.id as district_id',
+                'districts.name as district_name',
+                DB::raw('COUNT(complaint_seizure_items.id) as total')
+            )
+            ->groupBy('districts.id', 'districts.name')
+            ->orderByDesc('total')
+            ->get();
+
+        $storageRows = (clone $query)
+            ->selectRaw("
+                COALESCE(NULLIF(complaint_seizure_items.storage, ''), 'Belum Direkodkan') as storage_name,
+                COUNT(complaint_seizure_items.id) as total
+            ")
+            ->groupBy(DB::raw("COALESCE(NULLIF(complaint_seizure_items.storage, ''), 'Belum Direkodkan')"))
+            ->orderByDesc('total')
+            ->get();
+
+        return response()->json([
+            'message' => 'Statistik barang kes / sitaan',
+            'data' => [
+                'totals' => $totals,
+                'district_rows' => $districtRows,
+                'storage_rows' => $storageRows,
+            ],
+        ]);
+    }
+
+    public function reportCourtsAndProsecutors(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $query = Complaint::query()
+            ->where('case_type', 'AJ')
+            ->where(function ($subQuery) {
+                $subQuery->whereNotNull('aj_mahkamah_id')
+                    ->orWhereNotNull('aj_prosecutor_staff_id');
+            });
+
+        $this->applyComplaintAccessScope($query, $user);
+
+        if ($request->filled('district_id')) {
+            $query->where('district_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('from_date')) {
+            $query->whereDate('complaint_date', '>=', $request->string('from_date')->toString());
+        }
+
+        if ($request->filled('to_date')) {
+            $query->whereDate('complaint_date', '<=', $request->string('to_date')->toString());
+        }
+
+        $mahkamahRows = (clone $query)
+            ->leftJoin('ref_mahkamah', 'complaints.aj_mahkamah_id', '=', 'ref_mahkamah.id')
+            ->selectRaw("
+                COALESCE(ref_mahkamah.name, 'Belum Direkodkan') as mahkamah_name,
+                COUNT(complaints.id) as total
+            ")
+            ->groupBy(DB::raw("COALESCE(ref_mahkamah.name, 'Belum Direkodkan')"))
+            ->orderByDesc('total')
+            ->get();
+
+        $prosecutorRows = (clone $query)
+            ->leftJoin('staff as prosecutors', 'complaints.aj_prosecutor_staff_id', '=', 'prosecutors.id')
+            ->selectRaw("
+                COALESCE(prosecutors.name, 'Belum Direkodkan') as prosecutor_name,
+                COUNT(complaints.id) as total
+            ")
+            ->groupBy(DB::raw("COALESCE(prosecutors.name, 'Belum Direkodkan')"))
+            ->orderByDesc('total')
+            ->get();
+
+        $districtRows = (clone $query)
+            ->leftJoin('districts', 'complaints.district_id', '=', 'districts.id')
+            ->select(
+                'districts.id as district_id',
+                'districts.name as district_name',
+                DB::raw('COUNT(complaints.id) as total')
+            )
+            ->groupBy('districts.id', 'districts.name')
+            ->orderByDesc('total')
+            ->get();
+
+        $totals = [
+            'records' => (int) (clone $query)->count(),
+            'with_mahkamah' => (int) (clone $query)->whereNotNull('aj_mahkamah_id')->count(),
+            'with_prosecutor' => (int) (clone $query)->whereNotNull('aj_prosecutor_staff_id')->count(),
+            'mahkamah_count' => (int) $mahkamahRows->count(),
+            'prosecutor_count' => (int) $prosecutorRows->count(),
+        ];
+
+        return response()->json([
+            'message' => 'Statistik mahkamah dan pendakwa',
+            'data' => [
+                'totals' => $totals,
+                'mahkamah_rows' => $mahkamahRows,
+                'prosecutor_rows' => $prosecutorRows,
+                'district_rows' => $districtRows,
+            ],
+        ]);
+    }
+
     public function show(Request $request, Complaint $complaint)
     {
         $user = $request->user();
@@ -136,6 +1380,7 @@ class ComplaintController extends Controller
             'approverStaff:id,name,staff_id',
             'picUser:id,name',
             'appointment:id,complaint_id,start_at,end_at,status',
+            'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note,created_at',
             'oyds:id,complaint_id,name,id_number,investigator_name,file_no',
             'oyds.media:id,complaint_oyd_id,category,file_name,mime,size,created_at',
             'seizureItems:id,complaint_id,item_no,description,storage',
@@ -220,25 +1465,9 @@ class ComplaintController extends Controller
             ->where('decision', 'approved')
             ->count();
 
-        // Mark as "KES" only after sah (approve).
-        // NOTE: aj_offense_type/ak_offense_type is stored as ref_offense_types.id (string), not the code.
-        $isCase = false;
-        $caseType = strtoupper((string) ($complaint->case_type ?: 'AJ'));
-        $offenseTypeCode = $caseType === 'AK'
-            ? $complaint->ak_offense_type
-            : $complaint->aj_offense_type;
-        if ($offenseTypeCode) {
-            // Some older rows store the code directly (BT/TBT), newer rows store the ref_offense_types.id.
-            $resolvedCode = null;
-            if (is_numeric($offenseTypeCode)) {
-                $resolvedCode = DB::table('ref_offense_types')
-                    ->where('id', (int) $offenseTypeCode)
-                    ->value('code');
-            } else {
-                $resolvedCode = $offenseTypeCode;
-            }
-            $isCase = strtoupper((string) $resolvedCode) === 'BT';
-        }
+        // Temporary working rule: treat approved complaints as part of the KES domain first.
+        // Status Terkini represents the current outcome/state of the case, not whether it is a case.
+        $isCase = true;
 
         $complaint->update([
             'approver_confirmed_at' => now(),
@@ -731,6 +1960,108 @@ class ComplaintController extends Controller
                 'oyds.media:id,complaint_oyd_id,category,file_name,mime,size,created_at',
                 'seizureItems:id,complaint_id,item_no,description,storage',
                 'seizureItems.media:id,complaint_seizure_item_id,category,file_name,mime,size,created_at',
+            ]),
+        ]);
+    }
+
+    public function updateAjActionReport(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'report' => 'required|array',
+            'report.directive_staff_id' => 'nullable|exists:staff,id',
+            'report.directive_at' => 'nullable|date',
+            'report.directive_notes' => 'nullable|string|max:20000',
+            'report.handover_at' => 'nullable|date',
+            'report.handover_notes' => 'nullable|string|max:20000',
+            'report.current_status' => 'nullable|string|max:255',
+            'report.case_register_no' => 'nullable|string|max:255',
+            'report.op_category' => 'nullable|string|max:255',
+            'report.op_case_status' => 'nullable|string|max:255',
+            'report.op_notes' => 'nullable|string|max:20000',
+            'report.file_no' => 'nullable|string|max:255',
+            'report.history_entries' => 'nullable|array',
+            'report.history_entries.*.classification' => 'nullable|string|max:10',
+            'report.history_entries.*.action_date' => 'nullable|date',
+            'report.history_entries.*.action_time' => 'nullable|string|max:10',
+            'report.history_entries.*.note' => 'nullable|string|max:20000',
+        ]);
+
+        $report = $validated['report'];
+        $historyEntries = collect($report['history_entries'] ?? [])
+            ->map(function ($row, $index) {
+                $classification = strtoupper(trim((string) ($row['classification'] ?? '')));
+                if (! in_array($classification, ['FFA', 'KIV', 'NFA', 'OP'], true)) {
+                    $classification = null;
+                }
+
+                return [
+                    'sort_order' => $index + 1,
+                    'classification' => $classification,
+                    'action_date' => $row['action_date'] ?? null,
+                    'action_time' => trim((string) ($row['action_time'] ?? '')) ?: null,
+                    'note' => $row['note'] ?? null,
+                ];
+            })
+            ->filter(function ($row) {
+                return $row['classification']
+                    || $row['action_date']
+                    || $row['action_time']
+                    || trim((string) ($row['note'] ?? '')) !== '';
+            })
+            ->values();
+
+        $latestClassification = $historyEntries->last()['classification'] ?? $complaint->aj_ppa_classification;
+
+        DB::transaction(function () use ($complaint, $report, $historyEntries, $latestClassification) {
+            $complaint->update([
+                'aj_directive_staff_id' => $report['directive_staff_id'] ?? null,
+                'aj_directive_at' => $report['directive_at'] ?? null,
+                'aj_directive_notes' => $report['directive_notes'] ?? null,
+                'handover_at' => $report['handover_at'] ?? null,
+                'handover_notes' => $report['handover_notes'] ?? null,
+                'aj_current_status' => $report['current_status'] ?? null,
+                'case_register_no' => $report['case_register_no'] ?? null,
+                'aj_op_category' => $report['op_category'] ?? null,
+                'aj_op_case_status' => $report['op_case_status'] ?? null,
+                'aj_op_notes' => $report['op_notes'] ?? null,
+                'aj_file_no' => $report['file_no'] ?? null,
+                'aj_ppa_classification' => $latestClassification,
+            ]);
+
+            DB::table('complaint_action_updates')->where('complaint_id', $complaint->id)->delete();
+
+            if ($historyEntries->isNotEmpty()) {
+                $now = now();
+                DB::table('complaint_action_updates')->insert(
+                    $historyEntries->map(fn ($row) => [
+                        'complaint_id' => $complaint->id,
+                        'sort_order' => $row['sort_order'],
+                        'classification' => $row['classification'],
+                        'action_date' => $row['action_date'],
+                        'action_time' => $row['action_time'],
+                        'note' => $row['note'],
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ])->all()
+                );
+            }
+        });
+
+        return response()->json([
+            'message' => 'Laporan tindakan dikemaskini.',
+            'data' => $complaint->fresh()->load([
+                'receivedBy:id,name,email',
+                'approverStaff:id,name,staff_id',
+                'ajDirectiveStaff:id,name,staff_id,ic_number,phone,address,position,department',
+                'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note,created_at',
             ]),
         ]);
     }
@@ -1468,6 +2799,18 @@ class ComplaintController extends Controller
         }
     }
 
+    private function csvRow(array $cells): string
+    {
+        $escaped = array_map(function ($cell) {
+            $text = (string) ($cell ?? '');
+            $text = str_replace('"', '""', $text);
+
+            return '"' . $text . '"';
+        }, $cells);
+
+        return implode(',', $escaped) . "\r\n";
+    }
+
     private function applyComplaintFilters($query, Request $request): void
     {
         $keyword = trim((string) $request->query('keyword', ''));
@@ -1538,6 +2881,11 @@ class ComplaintController extends Controller
             });
         }
 
+        $actionStatus = trim((string) $request->query('action_status', ''));
+        if ($actionStatus !== '') {
+            $query->whereRaw('LOWER(aj_current_status) = ?', [strtolower($actionStatus)]);
+        }
+
         $prosecutionStatus = trim((string) $request->query('prosecution_status', ''));
         if ($prosecutionStatus !== '') {
             $query->whereRaw('LOWER(aj_prosecution_status) = ?', [strtolower($prosecutionStatus)]);
@@ -1587,6 +2935,68 @@ class ComplaintController extends Controller
                 $query->whereNotNull('approver_confirmed_at');
             }
         }
+    }
+
+    private function buildComplaintListQuery(Request $request, $user)
+    {
+        $scope = trim((string) $request->query('scope', 'index'));
+
+        switch ($scope) {
+            case 'my':
+                $query = Complaint::query()
+                    ->where('submitted_by_user_id', $user->id)
+                    ->orderByDesc('id');
+                break;
+            case 'pending-approval':
+                if (! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+                    return null;
+                }
+                $query = Complaint::query()
+                    ->whereNotNull('approver_staff_id')
+                    ->whereNull('approver_confirmed_at')
+                    ->orderByDesc('id');
+
+                if ($user->staff) {
+                    $query->where('approver_staff_id', $user->staff->id);
+                } elseif ($user->name) {
+                    $query->whereHas('approverStaff', function ($subQuery) use ($user) {
+                        $subQuery->whereRaw('LOWER(name) = ?', [strtolower($user->name)]);
+                    });
+                }
+                break;
+            case 'pickup-queue':
+                if (! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+                    return null;
+                }
+                $complaintIds = DB::table('complaint_assignments')
+                    ->where('user_id', $user->id)
+                    ->where('status', 'active')
+                    ->pluck('complaint_id');
+
+                $query = Complaint::query()
+                    ->whereIn('id', $complaintIds)
+                    ->whereNull('pic_user_id')
+                    ->whereNotNull('approver_confirmed_at')
+                    ->orderByDesc('id');
+                break;
+            case 'my-pic':
+                if (! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+                    return null;
+                }
+                $query = Complaint::query()
+                    ->where('pic_user_id', $user->id)
+                    ->orderByDesc('id');
+                break;
+            case 'index':
+            default:
+                $query = Complaint::query()->orderByDesc('id');
+                $this->applyComplaintAccessScope($query, $user);
+                break;
+        }
+
+        $this->applyComplaintFilters($query, $request);
+
+        return $query;
     }
 
     private function applyComplaintAccessScope($query, $user): void
@@ -1874,7 +3284,7 @@ class ComplaintController extends Controller
     private function respondWithPagination($query, Request $request, string $message)
     {
         $perPage = (int) $request->query('per_page', 10);
-        if ($perPage <= 0 || $perPage > 100) {
+        if ($perPage <= 0 || $perPage > 500) {
             $perPage = 10;
         }
 
@@ -1894,6 +3304,50 @@ class ComplaintController extends Controller
                 'per_page' => $items->perPage(),
                 'total' => $items->total(),
             ],
+        ]);
+    }
+
+    private function makeReportSpreadsheet(string $sheetTitle, array $headers, array $rows): Spreadsheet
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle($sheetTitle);
+        $sheet->fromArray($headers, null, 'A1');
+        if ($rows) {
+            $sheet->fromArray($rows, null, 'A2');
+        }
+        $this->styleReportSheetHeader($sheet, count($headers));
+        return $spreadsheet;
+    }
+
+    private function addReportSheet(Spreadsheet $spreadsheet, string $title, array $headers)
+    {
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle($title);
+        $sheet->fromArray($headers, null, 'A1');
+        $this->styleReportSheetHeader($sheet, count($headers));
+        return $sheet;
+    }
+
+    private function styleReportSheetHeader($sheet, int $columnCount): void
+    {
+        $lastCol = Coordinate::stringFromColumnIndex($columnCount);
+        $sheet->getStyle("A1:{$lastCol}1")->getFont()->setBold(true);
+        $sheet->getStyle("A1:{$lastCol}1")->getFill()
+            ->setFillType(Fill::FILL_SOLID)
+            ->getStartColor()->setARGB('FFEFF6F2');
+        $sheet->freezePane('A2');
+    }
+
+    private function downloadSpreadsheet(Spreadsheet $spreadsheet, string $filename)
+    {
+        $writer = new Xlsx($spreadsheet);
+        $writer->setPreCalculateFormulas(false);
+
+        return response()->streamDownload(function () use ($writer) {
+            $writer->save('php://output');
+        }, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 }

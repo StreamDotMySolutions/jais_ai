@@ -30,10 +30,6 @@ const ComplaintPrintBorang5 = () => {
             });
     }, [apiUrl, id]);
 
-    const renderValue = (value) => value || '-';
-    const complaintDateTime = `${complaint?.complaint_date || '-'}${complaint?.complaint_time ? ` ${complaint.complaint_time}` : ''}`;
-    const issuerName = complaint?.submitted_by?.staff?.name || complaint?.submitted_by?.name || '-';
-
     if (isLoading) {
         return <div className="print-loading">Memuatkan borang...</div>;
     }
@@ -46,6 +42,56 @@ const ComplaintPrintBorang5 = () => {
         return <div className="print-loading">Aduan tidak ditemui.</div>;
     }
 
+    const renderValue = (value) => value || '-';
+    const pad2 = (value) => String(value ?? '').padStart(2, '0');
+
+    const formatDateDMY = (value) => {
+        if (!value) {
+            return '-';
+        }
+
+        const str = String(value);
+        const datePart = str.includes('T')
+            ? str.split('T')[0]
+            : (str.includes(' ') ? str.split(' ')[0] : str);
+        const parts = datePart.split('-');
+        if (parts.length !== 3) {
+            return value;
+        }
+        return `${pad2(parts[2])}-${pad2(parts[1])}-${parts[0]}`;
+    };
+
+    const formatTime12hDot = (value) => {
+        if (!value) {
+            return '-';
+        }
+
+        const str = String(value);
+        const timePart = str.includes('T')
+            ? (str.split('T')[1] || '')
+            : (str.includes(' ') ? (str.split(' ')[1] || '') : str);
+
+        if (!timePart) {
+            return value;
+        }
+
+        const raw = timePart.replace('Z', '').split('.')[0];
+        const [hhStr = '0', mmStr = '0'] = raw.split(':');
+        const hh = Number(hhStr) || 0;
+        const mm = Number(mmStr) || 0;
+        const isPm = hh >= 12;
+        const hh12 = ((hh + 11) % 12) + 1;
+        return `${hh12}.${pad2(mm)} ${isPm ? 'PM' : 'AM'}`;
+    };
+
+    const issuerName =
+        complaint?.submittedBy?.staff?.name ||
+        complaint?.submittedBy?.name ||
+        '-';
+    const reportText = String(complaint?.borang5_statement || complaint?.summary || '').trim().toUpperCase();
+    const reportDate = formatDateDMY(complaint?.complaint_date);
+    const reportTime = complaint?.complaint_time ? formatTime12hDot(complaint.complaint_time) : '-';
+
     return (
         <div className="print-page">
             <div className="print-toolbar no-print">
@@ -57,86 +103,75 @@ const ComplaintPrintBorang5 = () => {
                 </button>
             </div>
 
-            <div className="print-sheet">
-                <div className="print-header">
-                    <div className="print-meta">REK: BPN-01</div>
-                    <h1>BORANG 5</h1>
-                    <div className="print-subtitle">
-                        ENAKMEN TATACARA JENAYAH SYARIAH (NEGERI SELANGOR) 2003
+            <div className="print-sheet print-sheet-laporan-tindakan">
+                <div className="print-header-laporan-tindakan">
+                    <div className="print-meta-strong print-meta-top-right">REK-BPN-01</div>
+                    <h1 className="print-title-underline print-title-laporan-tindakan">BORANG 5</h1>
+                    <div className="print-borang5-subtitle">ENAKMEN TATACARA JENAYAH SYARIAH (NEGERI SELANGOR) 2003</div>
+                    <div className="print-borang5-subtitle">SUBSEKSYEN 54(2) / 5(1)</div>
+                    <div className="print-borang5-subtitle">MAKLUMAT KEPADA PEGAWAI PENGUATKUASA AGAMA</div>
+                </div>
+
+                <div className="print-form-table">
+                    <div className="print-form-row">
+                        <div className="print-form-label">No. Daftar Aduan</div>
+                        <div className="print-form-value">{renderValue(complaint.reference_no)}</div>
                     </div>
-                    <div className="print-subtitle">
-                        Subseksyen 54(2) / 5(1)
+                    <div className="print-form-row">
+                        <div className="print-form-label">Daerah</div>
+                        <div className="print-form-value">{renderValue(complaint.district_name)}</div>
                     </div>
-                    <div className="print-subtitle">
-                        MAKLUMAT KEPADA PEGAWAI PENGUATKUASA AGAMA
+                    <div className="print-form-row print-form-row-inline">
+                        <div className="print-form-label">Tarikh</div>
+                        <div className="print-form-value">{renderValue(reportDate)}</div>
+                        <div className="print-form-inline-label">Masa</div>
+                        <div className="print-form-inline-value">{renderValue(reportTime)}</div>
                     </div>
                 </div>
 
-                <div className="print-grid">
-                    <div className="print-row">
-                        <span>No. Daftar Aduan</span>
-                        <strong>{renderValue(complaint.reference_no)}</strong>
+                <div className="print-form-table print-form-table-identity">
+                    <div className="print-form-row">
+                        <div className="print-form-label">Nama</div>
+                        <div className="print-form-value">{renderValue(complaint.complainant_name)}</div>
                     </div>
-                    <div className="print-row">
-                        <span>Daerah</span>
-                        <strong>{renderValue(complaint.district_name)}</strong>
+                    <div className="print-form-row">
+                        <div className="print-form-label">No. Pengenalan Diri</div>
+                        <div className="print-form-value">{renderValue(complaint.identification_number)}</div>
                     </div>
-                    <div className="print-row">
-                        <span>Tarikh / Masa</span>
-                        <strong>{renderValue(complaintDateTime)}</strong>
+                    <div className="print-form-row">
+                        <div className="print-form-label">Pekerjaan</div>
+                        <div className="print-form-value">{renderValue(complaint.occupation)}</div>
                     </div>
-                </div>
-
-                <div className="print-section">
-                    <h2>Butir-Butir Pemberi Maklumat</h2>
-                    <div className="print-grid">
-                        <div className="print-row">
-                            <span>Nama</span>
-                            <strong>{renderValue(complaint.complainant_name)}</strong>
-                        </div>
-                        <div className="print-row">
-                            <span>No. Pengenalan Diri</span>
-                            <strong>{renderValue(complaint.identification_number)}</strong>
-                        </div>
-                        <div className="print-row">
-                            <span>Alamat</span>
-                            <strong>{renderValue(complaint.address)}</strong>
-                        </div>
-                        <div className="print-row">
-                            <span>Pekerjaan</span>
-                            <strong>{renderValue(complaint.occupation)}</strong>
-                        </div>
-                        <div className="print-row">
-                            <span>No. Telefon</span>
-                            <strong>{renderValue(complaint.contact_number)}</strong>
-                        </div>
+                    <div className="print-form-row">
+                        <div className="print-form-label">No. Telefon</div>
+                        <div className="print-form-value">{renderValue(complaint.contact_number)}</div>
+                    </div>
+                    <div className="print-form-row">
+                        <div className="print-form-label">Alamat</div>
+                        <div className="print-form-value">{renderValue(complaint.address)}</div>
                     </div>
                 </div>
 
-                <div className="print-section">
-                    <p>Saya dengan ini memberikan maklumat berikut:</p>
-                    <p className="print-paragraph">{renderValue(complaint.borang5_statement || complaint.summary)}</p>
-                </div>
+                <div className="print-block-title-laporan">SAYA DENGAN INI MEMBERIKAN MAKLUMAT BERIKUT :</div>
+                <div className="print-paragraph print-paragraph-justify print-paragraph-laporan">{renderValue(reportText || '-')}</div>
 
-                <div className="print-signature">
-                    <div className="print-sign-line">
-                        Tandatangan Pemberi Maklumat
+                <div className="print-signature print-signature-laporan">
+                    <div className="print-sign-col print-sign-col-centered">
+                        <div className="print-sign-label">Tandatangan Pemberi Maklumat</div>
+                        <div className="print-sign-name print-sign-name-uppercase">{renderValue(complaint.complainant_name)}</div>
                     </div>
-                    <div className="print-sign-name">{renderValue(complaint.complainant_name)}</div>
                 </div>
 
-                <div className="print-section">
-                    <p>
-                        Maklumat di atas diberikan secara bertulis / lisan dan telah ditandatangani oleh pegawai di bawah ini dan
-                        dibacakan kepada Pemberi Maklumat.
-                    </p>
+                <div className="print-footer-note print-footer-note-left print-footer-note-laporan">
+                    Maklumat di atas diberikan secara bertulis / lisan dan telah ditandatangani oleh pegawai di bawah ini dan dibacakan kepada
+                    Pemberi Maklumat.
                 </div>
 
-                <div className="print-signature">
-                    <div className="print-sign-line">
-                        Tandatangan Pegawai Penguatkuasa Agama
+                <div className="print-signature print-signature-laporan print-signature-laporan-bottom">
+                    <div className="print-sign-col print-sign-col-centered">
+                        <div className="print-sign-label">Tandatangan Pegawai Penguatkuasa Agama</div>
+                        <div className="print-sign-name print-sign-name-uppercase">{renderValue(issuerName)}</div>
                     </div>
-                    <div className="print-sign-name">{issuerName}</div>
                 </div>
             </div>
         </div>

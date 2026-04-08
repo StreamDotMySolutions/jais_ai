@@ -13,6 +13,22 @@ import ComplaintListDrawer from './ComplaintListDrawer';
 import ComplaintListHeader from './ComplaintListHeader';
 import ComplaintListFilter from './ComplaintListFilter';
 
+const getListScope = ({ isPublicRole, fetchEndpoint }) => {
+    if (isPublicRole) {
+        return 'my';
+    }
+    if (fetchEndpoint === '/complaints/pending-approval') {
+        return 'pending-approval';
+    }
+    if (fetchEndpoint === '/complaints/pickup-queue') {
+        return 'pickup-queue';
+    }
+    if (fetchEndpoint === '/complaints/my-pic') {
+        return 'my-pic';
+    }
+    return 'index';
+};
+
 const parseSearchSyntax = (input) => {
     const raw = (input || '').toString().trim();
     if (!raw) {
@@ -135,6 +151,139 @@ const formatDateTime = (value) => {
     });
 };
 
+const buildComplaintQueryParams = ({
+    filters,
+    districtOptions,
+    page,
+    perPage,
+    caseType,
+    isCase,
+    pendingApproval,
+    isPublicRole,
+    fetchEndpoint,
+}) => {
+    const parsedKeyword = parseSearchSyntax(filters.keyword);
+    const syntax = parsedKeyword.tokens || {};
+    const params = {
+        scope: getListScope({ isPublicRole, fetchEndpoint }),
+        page,
+        per_page: perPage,
+    };
+
+    if (parsedKeyword.text) {
+        params.keyword = parsedKeyword.text;
+    }
+    if (filters.complaintNo) {
+        params.reference_no = filters.complaintNo;
+    } else if (syntax.no_aduan || syntax.reference_no) {
+        params.reference_no = syntax.no_aduan || syntax.reference_no;
+    }
+    if (filters.complainant) {
+        params.complainant_name = filters.complainant;
+    } else if (syntax.pengadu || syntax.complainant) {
+        params.complainant_name = syntax.pengadu || syntax.complainant;
+    }
+    if (filters.summaryText) {
+        params.summary = filters.summaryText;
+    } else if (syntax.ringkasan || syntax.summary) {
+        params.summary = syntax.ringkasan || syntax.summary;
+    }
+    if (filters.status) {
+        params.status = filters.status;
+    } else if (syntax.status) {
+        params.status = syntax.status;
+    }
+    if (filters.district) {
+        params.district_id = filters.district;
+    } else if (syntax.district || syntax.daerah) {
+        const districtToken = (syntax.district || syntax.daerah || '').toString().trim();
+        if (/^\d+$/.test(districtToken)) {
+            params.district_id = districtToken;
+        } else {
+            const normalized = districtToken.toLowerCase();
+            const district = districtOptions.find((d) => (d?.name || '').toLowerCase().includes(normalized));
+            if (district?.id) {
+                params.district_id = district.id;
+            }
+        }
+    }
+    if (filters.fromDate) {
+        params.from_date = filters.fromDate;
+    } else if (syntax.from) {
+        params.from_date = syntax.from;
+    }
+    if (filters.toDate) {
+        params.to_date = filters.toDate;
+    } else if (syntax.to) {
+        params.to_date = syntax.to;
+    }
+    if (filters.ipStatus) {
+        params.ip_status = filters.ipStatus;
+    }
+    if (filters.actionStatus) {
+        params.action_status = filters.actionStatus;
+    } else if (syntax.action_status || syntax.status_tindakan) {
+        params.action_status = syntax.action_status || syntax.status_tindakan;
+    }
+    if (filters.prosecutionStatus) {
+        params.prosecution_status = filters.prosecutionStatus;
+    }
+    if (filters.classification) {
+        params.classification = filters.classification;
+    } else if (syntax.classification || syntax.klasifikasi) {
+        params.classification = (syntax.classification || syntax.klasifikasi || '').toUpperCase();
+    }
+    if (filters.receiver) {
+        params.received_by = filters.receiver;
+    } else if (syntax.receiver || syntax.penerima) {
+        params.received_by = syntax.receiver || syntax.penerima;
+    }
+    if (filters.approver) {
+        params.approver = filters.approver;
+    } else if (syntax.approver || syntax.pengesah) {
+        params.approver = syntax.approver || syntax.pengesah;
+    }
+    if (filters.channel) {
+        params.channel = filters.channel;
+    } else if (syntax.channel || syntax.kaedah) {
+        params.channel = (syntax.channel || syntax.kaedah || '').toLowerCase();
+    }
+    if (filters.incidentFromDate) {
+        params.incident_from_date = filters.incidentFromDate;
+    } else if (syntax.incident_from) {
+        params.incident_from_date = syntax.incident_from;
+    }
+    if (filters.incidentToDate) {
+        params.incident_to_date = filters.incidentToDate;
+    } else if (syntax.incident_to) {
+        params.incident_to_date = syntax.incident_to;
+    }
+    if (!filters.fromDate && !filters.toDate && syntax.date) {
+        const r = parseDateRange(syntax.date);
+        if (r.from) params.from_date = r.from;
+        if (r.to) params.to_date = r.to;
+    }
+    if (!filters.incidentFromDate && !filters.incidentToDate && (syntax.incident || syntax.kejadian)) {
+        const r = parseDateRange(syntax.incident || syntax.kejadian);
+        if (r.from) params.incident_from_date = r.from;
+        if (r.to) params.incident_to_date = r.to;
+    }
+    if (caseType) {
+        params.case_type = caseType;
+    } else if (syntax.case || syntax.case_type || syntax.kategori) {
+        params.case_type = (syntax.case || syntax.case_type || syntax.kategori || '').toUpperCase();
+    }
+    if (isCase) {
+        params.is_case = true;
+        params.status = 'disahkan';
+    }
+    if (pendingApproval) {
+        params.pending_approval = 1;
+    }
+
+    return params;
+};
+
 const ComplaintList = ({
     caseType = '',
     isCase = false,
@@ -165,6 +314,16 @@ const ComplaintList = ({
         { value: 'Semakan JPSS', label: 'Semakan JPSS' },
         { value: 'Selesai', label: 'Selesai' },
     ]), []);
+    const actionStatusOptions = useMemo(() => ([
+        { value: '', label: 'Semua' },
+        { value: 'Selesai Dengan Kes', label: 'Selesai Dengan Kes' },
+        { value: 'Selesai Tanpa Kes', label: 'Selesai Tanpa Kes' },
+        { value: 'KIV - Dalam siasatan', label: 'KIV - Dalam siasatan' },
+        { value: 'NFA - Melebihi 10 hari', label: 'NFA - Melebihi 10 hari' },
+        { value: 'NFA - Maklumat Palsu', label: 'NFA - Maklumat Palsu' },
+        { value: 'Belum menerima maklum balas', label: 'Belum menerima maklum balas' },
+        { value: 'Other', label: 'Other' },
+    ]), []);
     const prosecutionStatusOptions = useMemo(() => ([
         { value: '', label: 'Semua' },
         { value: 'dalam_proses', label: 'Dalam Proses' },
@@ -181,6 +340,7 @@ const ComplaintList = ({
         district: '',
         fromDate: '',
         toDate: '',
+        actionStatus: '',
         ipStatus: '',
         prosecutionStatus: '',
         classification: '',
@@ -199,6 +359,7 @@ const ComplaintList = ({
         district: '',
         fromDate: '',
         toDate: '',
+        actionStatus: '',
         ipStatus: '',
         prosecutionStatus: '',
         classification: '',
@@ -212,6 +373,7 @@ const ComplaintList = ({
     const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
     const [pickupMessage, setPickupMessage] = useState('');
     const [actionMessage, setActionMessage] = useState('');
+    const [isExporting, setIsExporting] = useState(false);
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
     const [statusTab, setStatusTab] = useState('all');
@@ -246,118 +408,17 @@ const ComplaintList = ({
             endpoint = `${apiUrl}${fetchEndpoint}`;
         }
 
-        const parsedKeyword = parseSearchSyntax(filters.keyword);
-        const syntax = parsedKeyword.tokens || {};
-        const params = {
+        const params = buildComplaintQueryParams({
+            filters,
+            districtOptions,
             page,
-            per_page: perPage,
-        };
-        if (parsedKeyword.text) {
-            params.keyword = parsedKeyword.text;
-        }
-        if (filters.complaintNo) {
-            params.reference_no = filters.complaintNo;
-        } else if (syntax.no_aduan || syntax.reference_no) {
-            params.reference_no = syntax.no_aduan || syntax.reference_no;
-        }
-        if (filters.complainant) {
-            params.complainant_name = filters.complainant;
-        } else if (syntax.pengadu || syntax.complainant) {
-            params.complainant_name = syntax.pengadu || syntax.complainant;
-        }
-        if (filters.summaryText) {
-            params.summary = filters.summaryText;
-        } else if (syntax.ringkasan || syntax.summary) {
-            params.summary = syntax.ringkasan || syntax.summary;
-        }
-        if (filters.status) {
-            params.status = filters.status;
-        } else if (syntax.status) {
-            params.status = syntax.status;
-        }
-        if (filters.district) {
-            params.district_id = filters.district;
-        } else if (syntax.district || syntax.daerah) {
-            const districtToken = (syntax.district || syntax.daerah || '').toString().trim();
-            if (/^\d+$/.test(districtToken)) {
-                params.district_id = districtToken;
-            } else {
-                const normalized = districtToken.toLowerCase();
-                const district = districtOptions.find((d) => (d?.name || '').toLowerCase().includes(normalized));
-                if (district?.id) {
-                    params.district_id = district.id;
-                }
-            }
-        }
-        if (filters.fromDate) {
-            params.from_date = filters.fromDate;
-        } else if (syntax.from) {
-            params.from_date = syntax.from;
-        }
-        if (filters.toDate) {
-            params.to_date = filters.toDate;
-        } else if (syntax.to) {
-            params.to_date = syntax.to;
-        }
-        if (filters.ipStatus) {
-            params.ip_status = filters.ipStatus;
-        }
-        if (filters.prosecutionStatus) {
-            params.prosecution_status = filters.prosecutionStatus;
-        }
-        if (filters.classification) {
-            params.classification = filters.classification;
-        } else if (syntax.classification || syntax.klasifikasi) {
-            params.classification = (syntax.classification || syntax.klasifikasi || '').toUpperCase();
-        }
-        if (filters.receiver) {
-            params.received_by = filters.receiver;
-        } else if (syntax.receiver || syntax.penerima) {
-            params.received_by = syntax.receiver || syntax.penerima;
-        }
-        if (filters.approver) {
-            params.approver = filters.approver;
-        } else if (syntax.approver || syntax.pengesah) {
-            params.approver = syntax.approver || syntax.pengesah;
-        }
-        if (filters.channel) {
-            params.channel = filters.channel;
-        } else if (syntax.channel || syntax.kaedah) {
-            params.channel = (syntax.channel || syntax.kaedah || '').toLowerCase();
-        }
-        if (filters.incidentFromDate) {
-            params.incident_from_date = filters.incidentFromDate;
-        } else if (syntax.incident_from) {
-            params.incident_from_date = syntax.incident_from;
-        }
-        if (filters.incidentToDate) {
-            params.incident_to_date = filters.incidentToDate;
-        } else if (syntax.incident_to) {
-            params.incident_to_date = syntax.incident_to;
-        }
-        if (!filters.fromDate && !filters.toDate && syntax.date) {
-            const r = parseDateRange(syntax.date);
-            if (r.from) params.from_date = r.from;
-            if (r.to) params.to_date = r.to;
-        }
-        if (!filters.incidentFromDate && !filters.incidentToDate && (syntax.incident || syntax.kejadian)) {
-            const r = parseDateRange(syntax.incident || syntax.kejadian);
-            if (r.from) params.incident_from_date = r.from;
-            if (r.to) params.incident_to_date = r.to;
-        }
-        if (caseType) {
-            params.case_type = caseType;
-        } else if (syntax.case || syntax.case_type || syntax.kategori) {
-            params.case_type = (syntax.case || syntax.case_type || syntax.kategori || '').toUpperCase();
-        }
-        if (isCase) {
-            params.is_case = true;
-            // KES only shows items that have been approved (disahkan).
-            params.status = 'disahkan';
-        }
-        if (pendingApproval) {
-            params.pending_approval = 1;
-        }
+            perPage,
+            caseType,
+            isCase,
+            pendingApproval,
+            isPublicRole,
+            fetchEndpoint,
+        });
 
         axios.get(endpoint, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -405,6 +466,55 @@ const ComplaintList = ({
                 setPickupMessage(msg);
                 toast.error(msg);
             });
+    };
+
+    const handleExportExcel = async () => {
+        if (!apiUrl) {
+            toast.error('API URL tidak diset.');
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        setIsExporting(true);
+
+        try {
+            const response = await axios.get(`${apiUrl}/complaints/export/xlsx`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                params: buildComplaintQueryParams({
+                    filters,
+                    districtOptions,
+                    page,
+                    perPage,
+                    caseType,
+                    isCase,
+                    pendingApproval,
+                    isPublicRole,
+                    fetchEndpoint,
+                }),
+                responseType: 'blob',
+            });
+
+            const disposition = response?.headers?.['content-disposition'] || '';
+            const match = disposition.match(/filename="?([^"]+)"?/i);
+            const filename = match?.[1] || `aduan-export-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
+            const blob = new Blob([response.data], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', filename);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+            toast.success('Export Excel berjaya dijana.');
+        } catch (err) {
+            const msg = err?.response?.data?.message || 'Gagal export Excel.';
+            toast.error(msg);
+        } finally {
+            setIsExporting(false);
+        }
     };
 
     useEffect(() => {
@@ -467,12 +577,14 @@ const ComplaintList = ({
     }, [role, fetchEndpoint, caseType, isCase]);
 
     const sortColumns = [
+        { key: 'row_no', label: 'Bil', sortable: false },
         { key: 'reference_no', label: 'No Aduan', sortable: true },
         { key: 'complaint_date', label: 'Tarikh', sortable: true },
         { key: 'complainant_name', label: 'Pengadu', sortable: true },
         { key: 'district_name', label: 'Daerah', sortable: true },
         { key: 'case_type', label: 'Kategori', sortable: true },
         { key: 'current_stage', label: 'Status', sortable: true },
+        { key: 'aj_current_status', label: 'Status Tindakan', sortable: true },
         { key: 'summary', label: 'Ringkasan', sortable: false },
         { key: 'actions', label: 'Tindakan', sortable: false },
     ];
@@ -484,6 +596,7 @@ const ComplaintList = ({
         district_name: (item) => item.district_name || '',
         case_type: (item) => item.case_type || '',
         current_stage: (item) => item.current_stage || '',
+        aj_current_status: (item) => item.aj_current_status || '',
     }), []);
 
     const sortedComplaints = useMemo(
@@ -618,6 +731,7 @@ const ComplaintList = ({
             channel: '',
             incidentFromDate: '',
             incidentToDate: '',
+            actionStatus: '',
         };
         setDraftFilters(empty);
         setFilters(empty);
@@ -654,6 +768,8 @@ const ComplaintList = ({
                 onOpenForm={() => setIsFormOpen(true)}
                 showFilters={showFilters}
                 onToggleFilters={() => setShowFilters((prev) => !prev)}
+                onExportExcel={handleExportExcel}
+                isExporting={isExporting}
             />
 
             {showFilters && (
@@ -662,6 +778,7 @@ const ComplaintList = ({
                     caseType={caseType}
                     statusOptions={statusOptions}
                     districtOptions={districtOptions}
+                    actionStatusOptions={actionStatusOptions}
                     ipStatusOptions={ipStatusOptions}
                     prosecutionStatusOptions={prosecutionStatusOptions}
                     draftFilters={draftFilters}

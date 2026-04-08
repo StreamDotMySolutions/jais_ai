@@ -8,6 +8,8 @@ const ComplaintListHeader = ({
     onOpenForm,
     showFilters,
     onToggleFilters,
+    onExportExcel,
+    isExporting,
 }) => (
     <div className="app-complaints-header">
         <div>
@@ -28,6 +30,15 @@ const ComplaintListHeader = ({
                     Tambah Aduan
                 </button>
             )}
+            <button
+                className="app-button app-button-ghost"
+                type="button"
+                onClick={onExportExcel}
+                disabled={isExporting}
+            >
+                <i className={`bi ${isExporting ? 'bi-hourglass-split' : 'bi-file-earmark-excel'}`}></i>
+                {isExporting ? 'Sedang Export...' : 'Export Excel'}
+            </button>
             <button
                 className="app-button app-button-ghost"
                 type="button"

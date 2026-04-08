@@ -33,6 +33,17 @@ import AuditTrailList from './app/modules/audit/AuditTrailList';
 import ArahanBeredar from './app/modules/beredar/ArahanBeredar';
 import ArahanBeredarList from './app/modules/beredar/ArahanBeredarList';
 import ArahanBeredarDetail from './app/modules/beredar/ArahanBeredarDetail';
+import ComplaintActionStatusReport from './app/modules/reports/ComplaintActionStatusReport';
+import ComplaintArrestByDistrictReport from './app/modules/reports/ComplaintArrestByDistrictReport';
+import ComplaintArrestByOffenseReport from './app/modules/reports/ComplaintArrestByOffenseReport';
+import ComplaintArrestorsReport from './app/modules/reports/ComplaintArrestorsReport';
+import ComplaintArrestTotalsReport from './app/modules/reports/ComplaintArrestTotalsReport';
+import ComplaintCaseProsecutionReport from './app/modules/reports/ComplaintCaseProsecutionReport';
+import ComplaintCourtsProsecutorsReport from './app/modules/reports/ComplaintCourtsProsecutorsReport';
+import ComplaintIpStatusReport from './app/modules/reports/ComplaintIpStatusReport';
+import ComplaintOydsReport from './app/modules/reports/ComplaintOydsReport';
+import ComplaintReport from './app/modules/reports/ComplaintReport';
+import ComplaintSeizureItemsReport from './app/modules/reports/ComplaintSeizureItemsReport';
 import ReportPlaceholder from './app/modules/reports/ReportPlaceholder';
 import WaranFormStepper from './app/modules/waran/WaranFormStepper';
 import WaranList from './app/modules/waran/WaranList';
@@ -138,7 +149,7 @@ function App() {
             />
             <Route
               path="/app/case"
-              element={<AppComplaintList title="KES" description="Senarai aduan yang disahkan sebagai kes (Kesalahan Boleh Tangkap)." isCase />}
+              element={<AppComplaintList title="KES" description="Senarai aduan yang berada dalam domain kerja kes untuk tindakan dan susulan." isCase />}
             />
             <Route path="/app/complaints/:id" element={<AppComplaintDetail />} />
             <Route path="/app/staff" element={<StaffList />} />
@@ -164,7 +175,47 @@ function App() {
             />
             <Route
               path="/app/complaints/report"
-              element={<ReportPlaceholder title="Laporan Aduan" description="Ringkasan laporan aduan mengikut tarikh, status, dan daerah." />}
+              element={<ComplaintReport />}
+            />
+            <Route
+              path="/app/complaints/report/arrest-by-district"
+              element={<ComplaintArrestByDistrictReport />}
+            />
+            <Route
+              path="/app/complaints/report/arrest-by-offense"
+              element={<ComplaintArrestByOffenseReport />}
+            />
+            <Route
+              path="/app/complaints/report/arrestors"
+              element={<ComplaintArrestorsReport />}
+            />
+            <Route
+              path="/app/complaints/report/arrest-totals"
+              element={<ComplaintArrestTotalsReport />}
+            />
+            <Route
+              path="/app/complaints/report/case-prosecution"
+              element={<ComplaintCaseProsecutionReport />}
+            />
+            <Route
+              path="/app/complaints/report/oyds"
+              element={<ComplaintOydsReport />}
+            />
+            <Route
+              path="/app/complaints/report/seizure-items"
+              element={<ComplaintSeizureItemsReport />}
+            />
+            <Route
+              path="/app/complaints/report/courts-prosecutors"
+              element={<ComplaintCourtsProsecutorsReport />}
+            />
+            <Route
+              path="/app/complaints/report/ip-status"
+              element={<ComplaintIpStatusReport />}
+            />
+            <Route
+              path="/app/complaints/report/action-status"
+              element={<ComplaintActionStatusReport />}
             />
             <Route
               path="/app/appointments/report"

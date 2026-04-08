@@ -5,6 +5,7 @@ const ComplaintListFilter = ({
     caseType,
     statusOptions,
     districtOptions,
+    actionStatusOptions,
     ipStatusOptions,
     prosecutionStatusOptions,
     draftFilters,
@@ -33,6 +34,7 @@ const ComplaintListFilter = ({
         draftFilters.channel ? { key: 'channel', label: `Kaedah:${draftFilters.channel}` } : null,
         draftFilters.fromDate ? { key: 'fromDate', label: `Dari:${draftFilters.fromDate}` } : null,
         draftFilters.toDate ? { key: 'toDate', label: `Hingga:${draftFilters.toDate}` } : null,
+        draftFilters.actionStatus ? { key: 'actionStatus', label: `Status Tindakan:${draftFilters.actionStatus}` } : null,
         draftFilters.incidentFromDate ? { key: 'incidentFromDate', label: `Kejadian Dari:${draftFilters.incidentFromDate}` } : null,
         draftFilters.incidentToDate ? { key: 'incidentToDate', label: `Kejadian Hingga:${draftFilters.incidentToDate}` } : null,
     ].filter(Boolean);
@@ -238,6 +240,21 @@ const ComplaintListFilter = ({
                                             onChange={(event) => setDraftFilters({ ...draftFilters, incidentToDate: event.target.value })}
                                         />
                                     </div>
+                                    {!isPublicRole && caseType !== 'AK' && (
+                                        <div className="app-filter-field">
+                                            <label>Status Tindakan</label>
+                                            <select
+                                                value={draftFilters.actionStatus}
+                                                onChange={(event) => setDraftFilters({ ...draftFilters, actionStatus: event.target.value })}
+                                            >
+                                                {actionStatusOptions.map((opt) => (
+                                                    <option key={opt.value || opt.label} value={opt.value}>
+                                                        {opt.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
                                     {!isPublicRole && (
                                         <div className="app-filter-field">
                                             <label>Status Siasatan</label>

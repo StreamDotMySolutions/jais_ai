@@ -167,6 +167,22 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/pickup', [App\Http\Controllers\ComplaintController::class, 'pickup'])
         ->whereNumber('complaint');
+    Route::get('/complaints/export/xlsx', [App\Http\Controllers\ComplaintController::class, 'exportXlsx']);
+    Route::get('/complaints/report/summary', [App\Http\Controllers\ComplaintController::class, 'reportSummary']);
+    Route::get('/complaints/report/export/csv', [App\Http\Controllers\ComplaintController::class, 'exportReportCsv']);
+    Route::get('/complaints/report/arrest-by-district', [App\Http\Controllers\ComplaintController::class, 'reportArrestByDistrict']);
+    Route::get('/complaints/report/arrest-by-district/export/xlsx', [App\Http\Controllers\ComplaintController::class, 'exportArrestByDistrictXlsx']);
+    Route::get('/complaints/report/arrest-by-offense', [App\Http\Controllers\ComplaintController::class, 'reportArrestByOffense']);
+    Route::get('/complaints/report/arrestors', [App\Http\Controllers\ComplaintController::class, 'reportArrestors']);
+    Route::get('/complaints/report/arrest-totals', [App\Http\Controllers\ComplaintController::class, 'reportArrestTotals']);
+    Route::get('/complaints/report/case-prosecution', [App\Http\Controllers\ComplaintController::class, 'reportCaseProsecution']);
+    Route::get('/complaints/report/oyds', [App\Http\Controllers\ComplaintController::class, 'reportOyds']);
+    Route::get('/complaints/report/seizure-items', [App\Http\Controllers\ComplaintController::class, 'reportSeizureItems']);
+    Route::get('/complaints/report/courts-prosecutors', [App\Http\Controllers\ComplaintController::class, 'reportCourtsAndProsecutors']);
+    Route::get('/complaints/report/ip-status', [App\Http\Controllers\ComplaintController::class, 'reportIpStatus']);
+    Route::get('/complaints/report/ip-status/export/xlsx', [App\Http\Controllers\ComplaintController::class, 'exportIpStatusXlsx']);
+    Route::get('/complaints/report/action-status', [App\Http\Controllers\ComplaintController::class, 'reportActionStatus']);
+    Route::get('/complaints/report/action-status/export/xlsx', [App\Http\Controllers\ComplaintController::class, 'exportActionStatusXlsx']);
     Route::get('/complaints/pending-approval', [App\Http\Controllers\ComplaintController::class, 'pendingApprovals']);
     Route::get('/complaints/pickup-queue', [App\Http\Controllers\ComplaintController::class, 'pickupQueue']);
     Route::get('/complaints/my-pic', [App\Http\Controllers\ComplaintController::class, 'myPicComplaints']);
@@ -179,6 +195,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/basic', [App\Http\Controllers\ComplaintController::class, 'updateBasic'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj', [App\Http\Controllers\ComplaintController::class, 'updateAjPayload'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/aj-action-report', [App\Http\Controllers\ComplaintController::class, 'updateAjActionReport'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj-report', [App\Http\Controllers\ComplaintController::class, 'updateAjReport'])
         ->whereNumber('complaint');
