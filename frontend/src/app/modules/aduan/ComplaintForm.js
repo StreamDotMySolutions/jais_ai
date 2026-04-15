@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Row, Col, Form } from 'react-bootstrap';
 import axios from 'axios';
 import useStore from '../../../store';
@@ -82,6 +82,8 @@ function ComplaintForm({
     const [agreementAccepted, setAgreementAccepted] = useState(false);
     const [agreementError, setAgreementError] = useState('');
     const [familyAttachments, setFamilyAttachments] = useState([]);
+    const [attachmentReplaceIndex, setAttachmentReplaceIndex] = useState(null);
+    const attachmentReplaceInputRef = useRef(null);
     const [maskedFields, setMaskedFields] = useState({
         complainant_name: false,
         identification_number: false,
@@ -978,6 +980,36 @@ function ComplaintForm({
         return '';
     }
 
+    const appendFamilyAttachments = (files = []) => {
+        const nextRows = (Array.isArray(files) ? files : []).map((file) => ({
+            file,
+            title: file.name.replace(/\.[^.]+$/, ''),
+        }));
+        if (!nextRows.length) {
+            return;
+        }
+        setFamilyAttachments((prev) => [...prev, ...nextRows]);
+    };
+
+    const replaceFamilyAttachment = (index, file) => {
+        if (!file || index === null || index === undefined) {
+            return;
+        }
+        setFamilyAttachments((prev) => prev.map((row, rowIndex) => {
+            if (rowIndex !== index) {
+                return row;
+            }
+            const nextDefaultTitle = file.name.replace(/\.[^.]+$/, '');
+            const currentTitle = (row.title || '').trim();
+            const oldDefaultTitle = (row.file?.name || '').replace(/\.[^.]+$/, '');
+            return {
+                ...row,
+                file,
+                title: !currentTitle || currentTitle === oldDefaultTitle ? nextDefaultTitle : row.title,
+            };
+        }));
+    };
+
     const applySummaryTemplate = (key) => {
         if (!key) {
             return;
@@ -1446,10 +1478,22 @@ function ComplaintForm({
                                     disabled={isLoading}
                                     onChange={(event) => {
                                         const files = Array.from(event.target.files || []);
-                                        setFamilyAttachments(files.map((file) => ({
-                                            file,
-                                            title: file.name.replace(/\.[^.]+$/, ''),
-                                        })));
+                                        appendFamilyAttachments(files);
+                                        event.target.value = '';
+                                    }}
+                                />
+                                <input
+                                    ref={attachmentReplaceInputRef}
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                    style={{ display: 'none' }}
+                                    onChange={(event) => {
+                                        const file = event.target.files?.[0];
+                                        if (file && attachmentReplaceIndex !== null) {
+                                            replaceFamilyAttachment(attachmentReplaceIndex, file);
+                                        }
+                                        setAttachmentReplaceIndex(null);
+                                        event.target.value = '';
                                     }}
                                 />
                                 <small className="complaint-attachment-hint">
@@ -1475,6 +1519,29 @@ function ComplaintForm({
                                                         )));
                                                     }}
                                                 />
+                                                <div className="complaint-attachment-row-actions">
+                                                    <button
+                                                        type="button"
+                                                        className="complaint-ref-copy"
+                                                        disabled={isLoading}
+                                                        onClick={() => {
+                                                            setAttachmentReplaceIndex(index);
+                                                            attachmentReplaceInputRef.current?.click();
+                                                        }}
+                                                    >
+                                                        Tukar Fail
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="complaint-ref-copy complaint-ref-copy-danger"
+                                                        disabled={isLoading}
+                                                        onClick={() => {
+                                                            setFamilyAttachments((prev) => prev.filter((_, rowIndex) => rowIndex !== index));
+                                                        }}
+                                                    >
+                                                        Buang
+                                                    </button>
+                                                </div>
                                             </div>
                                         ))}
                                     </div>

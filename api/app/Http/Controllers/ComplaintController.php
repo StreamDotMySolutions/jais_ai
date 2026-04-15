@@ -1394,6 +1394,11 @@ class ComplaintController extends Controller
             'ajProsecutorStaff:id,name,staff_id,ic_number,phone,address,position,department',
         ]);
         $complaint->attachments?->each(function ($attachment) use ($complaint) {
+            $attachment->original_file_name = $attachment->file_name;
+            if (! empty($attachment->title)) {
+                $attachment->file_name = $attachment->title;
+                $attachment->title = null;
+            }
             $attachment->download_url = route('complaints.attachments.download', [
                 'complaint' => $complaint->id,
                 'attachment' => $attachment->id,
@@ -2983,7 +2988,14 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'Lampiran tidak ditemui.'], 404);
         }
 
-        return Storage::disk($disk)->download($attachment->path, $attachment->file_name);
+        $originalExtension = pathinfo((string) $attachment->file_name, PATHINFO_EXTENSION);
+        $downloadNameBase = trim((string) ($attachment->title ?: $attachment->file_name));
+        $safeBase = preg_replace('/[\\\\\\/:"*?<>|]+/', '-', $downloadNameBase) ?: 'lampiran';
+        $downloadName = $originalExtension !== ''
+            ? "{$safeBase}.{$originalExtension}"
+            : $safeBase;
+
+        return Storage::disk($disk)->download($attachment->path, $downloadName);
     }
 
     private function generateReferenceNo(string $caseType, ?string $districtCode, string $dateCode): string

@@ -9,6 +9,7 @@ import SharedInlineEditText from '../../components/SharedInlineEditText';
 import SharedIpStatusSelect from '../../components/SharedIpStatusSelect';
 import SharedMahkamahSelect from '../../components/SharedMahkamahSelect';
 import SharedProsecutionStatusSelect from '../../components/SharedProsecutionStatusSelect';
+import SharedAttachmentSection from '../../components/SharedAttachmentSection';
 import OydAttachmentSection from '../../components/OydAttachmentSection';
 import SeizureAttachmentSection from '../../components/SeizureAttachmentSection';
 import { useToast } from '../../components/SharedToastProvider';
@@ -242,6 +243,7 @@ const ComplaintDetail = () => {
     const isPublicRole = ['awam', 'user'].includes(role);
     const isPegawaiRole = ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
     const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase();
+    const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp_web'].includes(complaintChannelNormalized);
     const isBasicEditLockedBySource = LOCKED_BASIC_EDIT_CHANNELS.includes(complaintChannelNormalized);
     const canEditBasicComplaint = isPegawaiRole && !isBasicEditLockedBySource;
     const autoClassificationGuardRef = useRef({});
@@ -724,34 +726,6 @@ const ComplaintDetail = () => {
 
         setBasicDraft((prev) => ({ ...prev, borang5_statement: nextText }));
     };
-
-    const downloadComplaintAttachment = async (attachment) => {
-        if (!apiUrl || !attachment?.id) {
-            return;
-        }
-
-        try {
-            const response = await axios.get(
-                `${apiUrl}/complaints/${id}/attachments/${attachment.id}/download`,
-                {
-                    responseType: 'blob',
-                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-                }
-            );
-            const blob = new Blob([response.data], { type: attachment.mime || 'application/octet-stream' });
-            const blobUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            link.download = attachment.file_name || `lampiran-${attachment.id}`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(blobUrl);
-        } catch (_error) {
-            toast.error?.('Gagal memuat turun lampiran.');
-        }
-    };
-
 
     useEffect(() => {
         if (!apiUrl) {
@@ -2095,38 +2069,6 @@ const ComplaintDetail = () => {
                                         </span>
                                     </div>
                                 )}
-                                {isAkFamilyDetail && (
-                                    <div className="app-kv app-kv--stack">
-                                        <span className="app-kv-label">{`Lampiran Dokumen ${akDetailSectionTitle}`}</span>
-                                        <div className="app-kv-stack">
-                                            {(complaint.attachments || []).length > 0 ? (
-                                                <div className="app-complaint-attachment-list">
-                                                    {(complaint.attachments || []).map((attachment) => (
-                                                        <div key={attachment.id} className="app-complaint-attachment-item">
-                                                            <div className="app-complaint-attachment-meta">
-                                                                <strong>{attachment.title || attachment.file_name}</strong>
-                                                                <small>
-                                                                    {attachment.title ? `${attachment.file_name} • ` : ''}
-                                                                    {(attachment.mime || '').toUpperCase() || 'FILE'}
-                                                                    {attachment.size ? ` • ${Math.max(1, Math.round(attachment.size / 1024))} KB` : ''}
-                                                                </small>
-                                                            </div>
-                                                            <button
-                                                                type="button"
-                                                                className="app-button app-button-ghost"
-                                                                onClick={() => downloadComplaintAttachment(attachment)}
-                                                            >
-                                                                Muat Turun
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <span className="app-kv-value">-</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
                                 {akSubtype === 'poligami' && (
                                     <div className="app-kv">
                                         <span className="app-kv-label">Bilangan Perkahwinan</span>
@@ -2412,80 +2354,109 @@ const ComplaintDetail = () => {
                             </div>
                         )}
 
+                        {isAkFamilyDetail && (
+                            <div className="app-card-subsection">
+                                <div className="app-card-subheader">
+                                    <h5>{`Lampiran Dokumen ${akDetailSectionTitle}`}</h5>
+                                </div>
+                                <SharedAttachmentSection
+                                    apiUrl={apiUrl}
+                                    token={token}
+                                    recordId={complaint.id}
+                                    attachments={complaint.attachments || []}
+                                    canUpload={false}
+                                    canDelete={false}
+                                    getDownloadUrl={({ apiUrl: baseUrl, attachment }) => {
+                                        if (attachment?.download_url) {
+                                            return attachment.download_url;
+                                        }
+                                        if (!baseUrl || !complaint?.id || !attachment?.id) {
+                                            return '';
+                                        }
+                                        return `${baseUrl}/complaints/${complaint.id}/attachments/${attachment.id}/download`;
+                                    }}
+                                />
+                            </div>
+                        )}
+
                         <div className="app-detail-meta">
                             <span>Kaedah Aduan:</span>
                             <strong>{formatChannelLabel(complaint.channel)}</strong>
                         </div>
-                        <div className="app-card-subheader">
-                            <h5>Butir-butir Pemberi Maklumat</h5>
-                        </div>
-                        {!basicEditing && (
-                            <div className="app-detail-stack">
-                                <div className="app-kv">
-                                    <span className="app-kv-label">Nama Pemberi Maklumat</span>
-                                    <span className="app-kv-value">
-                                        <SharedInlineEditText
-                                            value={complaint.informant_name}
-                                            placeholder="-"
-                                            canEdit={canEditBasicComplaint}
-                                            maxLength={255}
-                                            onConfirm={(next) => saveBasicField('informant_name', next)}
-                                        />
-                                    </span>
+                        {!shouldHideInformantSection && (
+                            <>
+                                <div className="app-card-subheader">
+                                    <h5>Butir-butir Pemberi Maklumat</h5>
                                 </div>
-                                <div className="app-kv">
-                                    <span className="app-kv-label">No K/P Pemberi Maklumat</span>
-                                    <span className="app-kv-value">
-                                        <SharedInlineEditText
-                                            value={complaint.informant_identification_number}
-                                            placeholder="-"
-                                            canEdit={canEditBasicComplaint}
-                                            maxLength={255}
-                                            onConfirm={(next) => saveBasicField('informant_identification_number', next)}
-                                        />
-                                    </span>
-                                </div>
-                                <div className="app-kv">
-                                    <span className="app-kv-label">No Telefon Pemberi Maklumat</span>
-                                    <span className="app-kv-value">
-                                        <SharedInlineEditText
-                                            value={complaint.informant_contact_number}
-                                            placeholder="-"
-                                            canEdit={canEditBasicComplaint}
-                                            maxLength={255}
-                                            onConfirm={(next) => saveBasicField('informant_contact_number', next)}
-                                        />
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-                        {basicEditing && (
-                            <div className="app-form-grid app-form-grid-single">
-                                <label className="app-form-field">
-                                    <span>Nama Pemberi Maklumat</span>
-                                    <input
-                                        type="text"
-                                        value={basicDraft.informant_name}
-                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, informant_name: event.target.value }))}
-                                    />
-                                </label>
-                                <label className="app-form-field">
-                                    <span>No K/P Pemberi Maklumat</span>
-                                    <input
-                                        type="text"
-                                        value={basicDraft.informant_identification_number}
-                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, informant_identification_number: event.target.value }))}
-                                    />
-                                </label>
-                                <label className="app-form-field">
-                                    <span>No Telefon Pemberi Maklumat</span>
-                                    <input
-                                        type="text"
-                                        value={basicDraft.informant_contact_number}
-                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, informant_contact_number: event.target.value }))}
-                                    />
-                                </label>
-                            </div>
+                                {!basicEditing && (
+                                    <div className="app-detail-stack">
+                                        <div className="app-kv">
+                                            <span className="app-kv-label">Nama Pemberi Maklumat</span>
+                                            <span className="app-kv-value">
+                                                <SharedInlineEditText
+                                                    value={complaint.informant_name}
+                                                    placeholder="-"
+                                                    canEdit={canEditBasicComplaint}
+                                                    maxLength={255}
+                                                    onConfirm={(next) => saveBasicField('informant_name', next)}
+                                                />
+                                            </span>
+                                        </div>
+                                        <div className="app-kv">
+                                            <span className="app-kv-label">No K/P Pemberi Maklumat</span>
+                                            <span className="app-kv-value">
+                                                <SharedInlineEditText
+                                                    value={complaint.informant_identification_number}
+                                                    placeholder="-"
+                                                    canEdit={canEditBasicComplaint}
+                                                    maxLength={255}
+                                                    onConfirm={(next) => saveBasicField('informant_identification_number', next)}
+                                                />
+                                            </span>
+                                        </div>
+                                        <div className="app-kv">
+                                            <span className="app-kv-label">No Telefon Pemberi Maklumat</span>
+                                            <span className="app-kv-value">
+                                                <SharedInlineEditText
+                                                    value={complaint.informant_contact_number}
+                                                    placeholder="-"
+                                                    canEdit={canEditBasicComplaint}
+                                                    maxLength={255}
+                                                    onConfirm={(next) => saveBasicField('informant_contact_number', next)}
+                                                />
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                                {basicEditing && (
+                                    <div className="app-form-grid app-form-grid-single">
+                                        <label className="app-form-field">
+                                            <span>Nama Pemberi Maklumat</span>
+                                            <input
+                                                type="text"
+                                                value={basicDraft.informant_name}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, informant_name: event.target.value }))}
+                                            />
+                                        </label>
+                                        <label className="app-form-field">
+                                            <span>No K/P Pemberi Maklumat</span>
+                                            <input
+                                                type="text"
+                                                value={basicDraft.informant_identification_number}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, informant_identification_number: event.target.value }))}
+                                            />
+                                        </label>
+                                        <label className="app-form-field">
+                                            <span>No Telefon Pemberi Maklumat</span>
+                                            <input
+                                                type="text"
+                                                value={basicDraft.informant_contact_number}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, informant_contact_number: event.target.value }))}
+                                            />
+                                        </label>
+                                    </div>
+                                )}
+                            </>
                         )}
                         {!isPublicRole && (
                             <div className="app-detail-meta">

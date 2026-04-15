@@ -945,6 +945,25 @@ body {
   overflow-wrap: anywhere;
 }
 
+.complaint-attachment-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.complaint-ref-copy-danger {
+  color: #b42318;
+  border-color: #f1b6b2;
+  background: #fff7f6;
+}
+
+.complaint-ref-copy-danger:hover {
+  color: #8e1b12;
+  border-color: #e58a84;
+  background: #fff1ef;
+}
+
 .complaint-attachment-item span,
 .complaint-attachment-item small {
   overflow-wrap: anywhere;
@@ -3439,35 +3458,8 @@ body {
   font-size: 0.9rem;
 }
 
-.app-complaint-attachment-list {
-  display: grid;
-  gap: 0.55rem;
-}
-
-.app-complaint-attachment-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid #e0e9e4;
-  border-radius: 12px;
-  background: #f8fbf9;
-}
-
-.app-complaint-attachment-meta {
-  display: grid;
-  gap: 0.18rem;
-  min-width: 0;
-}
-
-.app-complaint-attachment-meta strong,
-.app-complaint-attachment-meta small {
-  overflow-wrap: anywhere;
-}
-
-.app-complaint-attachment-meta small {
-  color: #6b7a83;
+.app-card-subsection {
+  margin-top: 1rem;
 }
 
 .app-menu-header,
