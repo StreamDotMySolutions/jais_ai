@@ -167,6 +167,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/pickup', [App\Http\Controllers\ComplaintController::class, 'pickup'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/release-intake', [App\Http\Controllers\ComplaintController::class, 'releaseIntake'])
+        ->whereNumber('complaint');
     Route::get('/complaints/export/xlsx', [App\Http\Controllers\ComplaintController::class, 'exportXlsx']);
     Route::get('/complaints/report/summary', [App\Http\Controllers\ComplaintController::class, 'reportSummary']);
     Route::get('/complaints/report/export/csv', [App\Http\Controllers\ComplaintController::class, 'exportReportCsv']);
@@ -227,6 +229,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/seizure-items/{item}/media', [App\Http\Controllers\ComplaintController::class, 'uploadSeizureItemMedia'])
         ->whereNumber('complaint')
         ->whereNumber('item');
+    Route::get('/complaints/{complaint}/attachments/{attachment}/download', [App\Http\Controllers\ComplaintController::class, 'downloadAttachment'])
+        ->whereNumber('complaint')
+        ->whereNumber('attachment')
+        ->name('complaints.attachments.download');
     Route::delete('/complaints/{complaint}/seizure-item-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteSeizureItemMedia'])
         ->whereNumber('complaint')
         ->whereNumber('media');

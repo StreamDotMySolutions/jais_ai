@@ -7,6 +7,19 @@ import SubmitButton from '../../../libs/SubmitButton';
 import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
 import SharedOffenseSelect from '../../components/SharedOffenseSelect';
 
+const AK_SUBTYPE_OPTIONS = [
+    { value: 'nikah', label: 'Nikah', templateKey: 'ak_nikah_tanpa_kebenaran' },
+    { value: 'cerai', label: 'Cerai', templateKey: 'ak_cerai_luar_mahkamah' },
+    { value: 'rujuk', label: 'Rujuk', templateKey: 'ak_rujuk_tidak_lapor' },
+    { value: 'poligami', label: 'Poligami', templateKey: 'ak_poligami_tanpa_kebenaran' },
+];
+
+const COUNT_OPTIONS = [
+    { id: '1', name: '1' },
+    { id: '2', name: '2' },
+    { id: '3', name: '3' },
+];
+
 const escapePdfText = (value = '') => String(value)
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
@@ -61,10 +74,14 @@ function ComplaintForm({
     const [errorMessage, setErrorMessage] = useState('');
     const [summaryTemplate, setSummaryTemplate] = useState('');
     const [templateError, setTemplateError] = useState('');
+    const [familySubtypeError, setFamilySubtypeError] = useState('');
     const [officerOffenseId, setOfficerOffenseId] = useState('');
     const [officerAkTemplateKey, setOfficerAkTemplateKey] = useState('');
     const [officerOffenseError, setOfficerOffenseError] = useState('');
     const [addressDraft, setAddressDraft] = useState('');
+    const [agreementAccepted, setAgreementAccepted] = useState(false);
+    const [agreementError, setAgreementError] = useState('');
+    const [familyAttachments, setFamilyAttachments] = useState([]);
     const [maskedFields, setMaskedFields] = useState({
         complainant_name: false,
         identification_number: false,
@@ -91,8 +108,23 @@ function ComplaintForm({
         store.setValue('case_type', normalizedFixedCaseType || 'AJ');
         store.setValue('borang5_statement', '');
         store.setValue('offense_id', '');
+        store.setValue('ak_subtype', '');
+        store.setValue('ak_partner_name', '');
+        store.setValue('ak_cerai_count', '');
+        store.setValue('ak_cerai_talaq_count', '');
+        store.setValue('ak_poligami_marriage_count', '');
+        store.setValue('ak_poligami_wife_count', '');
+        store.setValue('ak_event_date', '');
+        store.setValue('ak_event_place', '');
+        store.setValue('ak_event_time', '');
+        store.setValue('ak_event_location', '');
+        store.setValue('ak_rujuk_date', '');
         setAddressDraft('');
         setOfficerAkTemplateKey('');
+        setFamilySubtypeError('');
+        setAgreementAccepted(false);
+        setAgreementError('');
+        setFamilyAttachments([]);
     }, [fixedCaseType]);
 
     useEffect(() => {
@@ -152,24 +184,90 @@ function ComplaintForm({
         const incidentTime = (store.getValue('incident_time') || '').trim();
         const summary = (store.getValue('summary') || '').trim();
         const borang5Statement = (store.getValue('borang5_statement') || '').trim();
+        const akSubtype = (store.getValue('ak_subtype') || '').trim();
+        const akPartnerName = (store.getValue('ak_partner_name') || '').trim();
+        const akCeraiCount = (store.getValue('ak_cerai_count') || '').toString().trim();
+        const akCeraiTalaqCount = (store.getValue('ak_cerai_talaq_count') || '').toString().trim();
+        const akPoligamiMarriageCount = (store.getValue('ak_poligami_marriage_count') || '').toString().trim();
+        const akPoligamiWifeCount = (store.getValue('ak_poligami_wife_count') || '').toString().trim();
+        const akEventDate = (store.getValue('ak_event_date') || '').trim();
+        const akEventPlace = (store.getValue('ak_event_place') || '').trim();
+        const akEventTime = (store.getValue('ak_event_time') || '').trim();
+        const akEventLocation = (store.getValue('ak_event_location') || '').trim();
+        const akRujukDate = (store.getValue('ak_rujuk_date') || '').trim();
+        const useFamilyEventSection = selectedCaseType === 'AK' && ['nikah', 'cerai', 'rujuk', 'poligami'].includes(akSubtype);
+        const usePlaceAsAddress = useFamilyEventSection;
+        const effectiveAddress = useFamilyEventSection ? (usePlaceAsAddress ? akEventPlace : akEventLocation) : address;
+        const effectiveIncidentDate = useFamilyEventSection ? akEventDate : incidentDate;
 
         store.setValue('errors', null);
         setErrorMessage('');
         setTemplateError('');
+        setFamilySubtypeError('');
         setOfficerOffenseError('');
+        setAgreementError('');
+
+        if (!officerMode && !agreementAccepted) {
+            setAgreementError('Sila sahkan persetujuan sebelum menghantar aduan.');
+            return;
+        }
+
+        if (selectedCaseType === 'AK' && useFamilyEventSection) {
+            const hasEmptyAttachmentTitle = familyAttachments.some((item) => !(item.title || '').trim());
+            if (hasEmptyAttachmentTitle) {
+                setErrorMessage('Sila isi Nama Dokumen bagi setiap lampiran.');
+                return;
+            }
+        }
 
         if (!complainantName) localErrors.complainant_name = 'Wajib diisi';
         if (!idNo) localErrors.identification_number = 'Wajib diisi';
         if (!phone) localErrors.contact_number = 'Wajib diisi';
         if (!districtId) localErrors.district_id = 'Wajib diisi';
-        if (!address) localErrors.address = 'Wajib diisi';
-        if (!incidentDate) localErrors.incident_date = 'Wajib diisi';
+        if (!effectiveAddress) {
+            localErrors[useFamilyEventSection ? (usePlaceAsAddress ? 'ak_event_place' : 'ak_event_location') : 'address'] = 'Wajib diisi';
+        }
+        if (!effectiveIncidentDate) {
+            localErrors[useFamilyEventSection ? 'ak_event_date' : 'incident_date'] = 'Wajib diisi';
+        }
         // incident_time is optional (can be empty)
 
         if (Object.keys(localErrors).length > 0) {
             store.setValue('errors', localErrors);
             setErrorMessage('Sila lengkapkan Butir-butir Pengadu dan Butiran Kejadian.');
             return;
+        }
+
+        if (selectedCaseType === 'AK') {
+            if (!akSubtype) {
+                setFamilySubtypeError('Sila pilih subkategori aduan keluarga.');
+                setErrorMessage('Sila pilih subkategori aduan keluarga.');
+                return;
+            }
+
+            if (['nikah', 'cerai', 'rujuk', 'poligami'].includes(akSubtype)) {
+                const eventLabel = akSubtype === 'nikah'
+                    ? 'nikah'
+                    : akSubtype === 'poligami'
+                        ? 'poligami'
+                        : (akSubtype === 'rujuk' ? 'rujuk' : 'cerai');
+                const familyErrors = {};
+                if (!akPartnerName) familyErrors.ak_partner_name = 'Wajib diisi';
+                if (['cerai', 'rujuk'].includes(akSubtype) && !akCeraiCount) familyErrors.ak_cerai_count = 'Wajib diisi';
+                if (akSubtype === 'cerai' && !akCeraiTalaqCount) familyErrors.ak_cerai_talaq_count = 'Wajib diisi';
+                if (akSubtype === 'poligami' && !akPoligamiMarriageCount) familyErrors.ak_poligami_marriage_count = 'Wajib diisi';
+                if (akSubtype === 'poligami' && !akPoligamiWifeCount) familyErrors.ak_poligami_wife_count = 'Wajib diisi';
+                if (!akEventDate) familyErrors.ak_event_date = 'Wajib diisi';
+                if (!akEventPlace) familyErrors.ak_event_place = 'Wajib diisi';
+                if (!akEventTime) familyErrors.ak_event_time = 'Wajib diisi';
+                if (!usePlaceAsAddress && !akEventLocation) familyErrors.ak_event_location = 'Wajib diisi';
+                if (akSubtype === 'rujuk' && !akRujukDate) familyErrors.ak_rujuk_date = 'Wajib diisi';
+                if (Object.keys(familyErrors).length > 0) {
+                    store.setValue('errors', familyErrors);
+                    setErrorMessage(`Sila lengkapkan maklumat tambahan ${eventLabel}.`);
+                    return;
+                }
+            }
         }
 
         if (!officerMode) {
@@ -210,18 +308,35 @@ function ComplaintForm({
             { key: 'identification_number', value: store.getValue('identification_number') },
             { key: 'contact_number', value: store.getValue('contact_number') },
             { key: 'complainant_occupation', value: store.getValue('complainant_occupation') },
-            { key: 'address', value: store.getValue('address') },
+            { key: 'address', value: useFamilyEventSection ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location')) : store.getValue('address') },
             { key: 'district_id', value: store.getValue('district_id') },
             { key: 'summary', value: store.getValue('summary') },
             { key: 'borang5_statement', value: store.getValue('borang5_statement') },
             { key: 'offense_id', value: store.getValue('offense_id') },
             { key: 'case_type', value: store.getValue('case_type') || 'AJ' },
             { key: 'channel', value: channelSource },
-            { key: 'incident_date', value: store.getValue('incident_date') },
-            { key: 'incident_time', value: store.getValue('incident_time') },
+            { key: 'incident_date', value: useFamilyEventSection ? store.getValue('ak_event_date') : store.getValue('incident_date') },
+            { key: 'incident_time', value: useFamilyEventSection ? store.getValue('ak_event_time') : store.getValue('incident_time') },
+            { key: 'ak_subtype', value: store.getValue('ak_subtype') },
+            { key: 'ak_partner_name', value: store.getValue('ak_partner_name') },
+            { key: 'ak_cerai_count', value: store.getValue('ak_cerai_count') },
+            { key: 'ak_cerai_talaq_count', value: store.getValue('ak_cerai_talaq_count') },
+            { key: 'ak_poligami_marriage_count', value: store.getValue('ak_poligami_marriage_count') },
+            { key: 'ak_poligami_wife_count', value: store.getValue('ak_poligami_wife_count') },
+            { key: 'ak_event_date', value: store.getValue('ak_event_date') },
+            { key: 'ak_event_place', value: store.getValue('ak_event_place') },
+            { key: 'ak_event_time', value: store.getValue('ak_event_time') },
+            { key: 'ak_event_location', value: store.getValue('ak_event_location') },
+            { key: 'ak_rujuk_date', value: store.getValue('ak_rujuk_date') },
         ];
 
         appendFormData(formData, dataArray);
+        if (selectedCaseType === 'AK' && useFamilyEventSection && familyAttachments.length) {
+            familyAttachments.forEach((item) => {
+                formData.append('attachments[]', item.file);
+                formData.append('attachment_titles[]', item.title || '');
+            });
+        }
 
         const token = localStorage.getItem('token');
 
@@ -260,6 +375,19 @@ function ComplaintForm({
     };
 
     const caseType = store.getValue('case_type') || 'AJ';
+    const akSubtype = store.getValue('ak_subtype') || '';
+    const akPartnerName = store.getValue('ak_partner_name') || '';
+    const akCeraiCount = store.getValue('ak_cerai_count') || '';
+    const akCeraiTalaqCount = store.getValue('ak_cerai_talaq_count') || '';
+    const akPoligamiMarriageCount = store.getValue('ak_poligami_marriage_count') || '';
+    const akPoligamiWifeCount = store.getValue('ak_poligami_wife_count') || '';
+    const akEventDate = store.getValue('ak_event_date') || '';
+    const akEventPlace = store.getValue('ak_event_place') || '';
+    const akEventTime = store.getValue('ak_event_time') || '';
+    const akEventLocation = store.getValue('ak_event_location') || '';
+    const akRujukDate = store.getValue('ak_rujuk_date') || '';
+    const useFamilyEventSection = caseType === 'AK' && ['nikah', 'cerai', 'rujuk', 'poligami'].includes(akSubtype);
+    const usePlaceAsAddress = useFamilyEventSection;
     const incidentTitle = 'Butiran Kejadian';
     const districtPlaceholder = caseType === 'AJ' ? 'Pilih Daerah Kejadian *' : 'Pilih Daerah *';
     const addressPlaceholder = caseType === 'AJ' ? 'Alamat/Lokasi Kejadian *' : 'Alamat *';
@@ -283,12 +411,24 @@ function ComplaintForm({
         ],
     };
     const districtName = districtOptions.find((d) => String(d.id) === String(store.getValue('district_id') || ''))?.name || '';
+    const akEventNoun = ['nikah', 'poligami'].includes(akSubtype) ? 'Nikah' : 'Cerai';
     const isFixedCaseType = ['AJ', 'AK'].includes((fixedCaseType || '').toUpperCase());
+    const akSectionTitle = akSubtype === 'rujuk'
+        ? 'Rujuk'
+        : akSubtype === 'poligami'
+            ? 'Poligami'
+            : akEventNoun;
     const shouldLockSummary = Boolean(
-        templatesByCaseType[caseType]?.length > 0
-        && !summaryTemplate
-        && !(store.getValue('summary') || '').trim()
-        && !officerMode
+        !officerMode
+        && (
+            (caseType === 'AK' && !akSubtype)
+            || (
+                templatesByCaseType[caseType]?.length > 0
+                && !summaryTemplate
+                && !(store.getValue('summary') || '').trim()
+                && caseType !== 'AK'
+            )
+        )
     );
 
     const formatBorang5TemplateDate = (isoDate) => {
@@ -416,6 +556,7 @@ function ComplaintForm({
     const tryAutoSuggestTemplate = (nextAddress) => {
         if (isLoading) return;
         if (officerMode) return;
+        if (caseType === 'AK') return;
         if (summaryTemplate) return; // user already picked
         if ((store.getValue('summary') || '').trim()) return; // don't override typed content
 
@@ -435,13 +576,68 @@ function ComplaintForm({
         tryAutoSuggestTemplate(addressValue);
     }, [caseType, addressValue, isLoading, summaryTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    useEffect(() => {
+        if (officerMode || caseType !== 'AK' || !summaryTemplate) {
+            return;
+        }
+        const next = buildSummaryTemplate(summaryTemplate);
+        if (next) {
+            store.setValue('summary', next);
+        }
+    }, [
+        officerMode,
+        caseType,
+        summaryTemplate,
+        akSubtype,
+        akPartnerName,
+        akCeraiCount,
+        akEventDate,
+        akEventPlace,
+        akEventTime,
+        akEventLocation,
+        akRujukDate,
+        districtName,
+        addressValue,
+    ]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    useEffect(() => {
+        if (!officerMode || caseType !== 'AK' || !officerAkTemplateKey) {
+            return;
+        }
+        const next = buildSummaryTemplate(officerAkTemplateKey);
+        if (next) {
+            store.setValue('borang5_statement', next);
+        }
+    }, [
+        officerMode,
+        caseType,
+        officerAkTemplateKey,
+        akSubtype,
+        akPartnerName,
+        akCeraiCount,
+        akCeraiTalaqCount,
+        akPoligamiMarriageCount,
+        akPoligamiWifeCount,
+        akEventDate,
+        akEventPlace,
+        akEventTime,
+        akEventLocation,
+        akRujukDate,
+        districtName,
+        addressValue,
+    ]); // eslint-disable-line react-hooks/exhaustive-deps
+
     if (success && showSuccessMessage) {
         const submittedAt = new Date().toLocaleString('ms-MY');
         const pdfFileName = `aduan-${(referenceNo || 'rujukan').replace(/[^A-Za-z0-9-_]/g, '_')}.pdf`;
+        const akFollowUpMessage = caseType === 'AK'
+            ? `Sila hadir ke Bahagian Penguatkuasaan Daerah ${districtName || '-'} dalam tempoh tidak melebihi 14 hari dari aduan ini dibuat, bagi membolehkan aduan ini diproses dengan segera.`
+            : '';
         const shareText = [
             'Aduan JAIS berjaya dihantar.',
             `No Aduan: ${referenceNo || '-'}`,
             `Tarikh/Masa: ${submittedAt}`,
+            ...(akFollowUpMessage ? ['', akFollowUpMessage] : []),
         ].join('\n');
 
         return (
@@ -451,7 +647,10 @@ function ComplaintForm({
                 </div>
                 <div>
                     <h2>Terima Kasih!</h2>
-                    <p>Aduan anda telah berjaya dihantar. Kami akan memproses aduan anda secepat mungkin.</p>
+                    <p>Aduan anda telah berjaya dihantar.</p>
+                    {akFollowUpMessage && (
+                        <p>{akFollowUpMessage}</p>
+                    )}
                     {referenceNo && (
                         <div className="complaint-ref-row">
                             <div className="complaint-ref">
@@ -484,6 +683,7 @@ function ComplaintForm({
                                     '',
                                     `No Aduan: ${referenceNo || '-'}`,
                                     `Tarikh/Masa Hantar: ${submittedAt}`,
+                                    ...(akFollowUpMessage ? ['', akFollowUpMessage] : []),
                                     '',
                                     'Sila simpan nombor aduan ini untuk rujukan semakan status.',
                                 ];
@@ -521,10 +721,12 @@ function ComplaintForm({
         return null;
     }
 
-    const buildSummaryTemplate = (key) => {
-        const date = store.getValue('incident_date') || '[TARIKH]';
-        const time = store.getValue('incident_time') || '[MASA]';
-        const lokasi = (store.getValue('address') || '').trim() || '[Nama premis/hotel, alamat penuh, bilik (jika ada)]';
+    function buildSummaryTemplate(key) {
+        const date = (useFamilyEventSection ? store.getValue('ak_event_date') : store.getValue('incident_date')) || '[TARIKH]';
+        const time = (useFamilyEventSection ? store.getValue('ak_event_time') : store.getValue('incident_time')) || '[MASA]';
+        const lokasi = ((useFamilyEventSection
+            ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location'))
+            : store.getValue('address')) || '').trim() || '[Nama premis/hotel, alamat penuh, bilik (jika ada)]';
         const daerah = districtName || '[Daerah]';
 
         if (key === 'aj_hotel') {
@@ -649,10 +851,14 @@ function ComplaintForm({
                 `Lokasi: ${lokasi}`,
                 '',
                 'Butiran aduan (Poligami tanpa kebenaran):',
-                '- Saya mengesyaki suami/individu telah berkahwin lain tanpa kebenaran Mahkamah.',
-                '- Nama pihak terlibat: [nama suami/individu], [nama isteri pertama], [nama isteri kedua jika diketahui]',
-                '- Tarikh pernikahan (jika diketahui): [__]',
-                '- Tempat pernikahan (jika diketahui): [__]',
+                '- Saya ingin membuat aduan berkaitan poligami tanpa kebenaran Mahkamah.',
+                `- Nama pasangan: ${akPartnerName || '[Nama pasangan]'}`,
+                `- Bilangan perkahwinan: ${akPoligamiMarriageCount || '[__]'}`,
+                `- Bilangan isteri: ${akPoligamiWifeCount || '[__]'}`,
+                `- Tarikh nikah: ${akEventDate || '[__]'}`,
+                `- Tempat nikah: ${akEventPlace || '[__]'}`,
+                `- Waktu nikah: ${akEventTime || '[__]'}`,
+                `- Lokasi nikah: ${akEventLocation || '[__]'}`,
                 '',
                 'Maklumat tambahan:',
                 '- [apa-apa maklumat lain]',
@@ -670,9 +876,13 @@ function ComplaintForm({
                 '',
                 'Butiran aduan (Cerai luar mahkamah / lafaz cerai):',
                 '- Saya ingin membuat aduan berkaitan lafaz cerai yang berlaku di luar Mahkamah.',
-                '- Tarikh lafaz (jika diketahui): [__]',
-                '- Tempat lafaz (jika diketahui): [__]',
-                '- Lafaz/Butiran ringkas: [__]',
+                `- Nama pasangan: ${akPartnerName || '[Nama pasangan]'}`,
+                `- Bilangan perceraian: ${akCeraiCount || '[__]'}`,
+                `- Bilangan talaq: ${akCeraiTalaqCount || '[__]'}`,
+                `- Tarikh cerai: ${akEventDate || '[__]'}`,
+                `- Tempat cerai: ${akEventPlace || '[__]'}`,
+                `- Waktu cerai: ${akEventTime || '[__]'}`,
+                `- Lokasi cerai: ${akEventLocation || '[__]'}`,
                 '',
                 'Maklumat tambahan:',
                 '- [apa-apa maklumat lain]',
@@ -690,8 +900,13 @@ function ComplaintForm({
                 '',
                 'Butiran aduan (Rujuk tapi tidak lapor):',
                 '- Saya ingin membuat aduan berkaitan rujuk semula selepas cerai tetapi tidak dilaporkan/ didaftarkan.',
-                '- Tarikh rujuk (jika diketahui): [__]',
-                '- Bukti/rujukan (jika ada): [No perintah mahkamah / dokumen / dll]',
+                `- Nama pasangan: ${akPartnerName || '[Nama pasangan]'}`,
+                `- Bilangan perceraian: ${akCeraiCount || '[__]'}`,
+                `- Tarikh cerai: ${akEventDate || '[__]'}`,
+                `- Tempat cerai: ${akEventPlace || '[__]'}`,
+                `- Waktu cerai: ${akEventTime || '[__]'}`,
+                `- Lokasi cerai: ${akEventLocation || '[__]'}`,
+                `- Tarikh rujuk: ${akRujukDate || '[__]'}`,
                 '',
                 'Maklumat tambahan:',
                 '- [apa-apa maklumat lain]',
@@ -729,9 +944,11 @@ function ComplaintForm({
                 '',
                 'Butiran aduan (Nikah tanpa kebenaran):',
                 '- Saya ingin membuat aduan berkaitan pernikahan tanpa kebenaran / nikah luar negara.',
-                '- Tarikh pernikahan (jika diketahui): [__]',
-                '- Tempat pernikahan (jika diketahui): [__]',
-                '- Pihak terlibat (jika diketahui): [__]',
+                `- Nama pasangan: ${akPartnerName || '[Nama pasangan]'}`,
+                `- Tarikh nikah: ${akEventDate || '[__]'}`,
+                `- Tempat nikah: ${akEventPlace || '[__]'}`,
+                `- Waktu nikah: ${akEventTime || '[__]'}`,
+                `- Lokasi nikah: ${akEventLocation || '[__]'}`,
                 '',
                 'Maklumat tambahan:',
                 '- [apa-apa maklumat lain]',
@@ -759,7 +976,7 @@ function ComplaintForm({
         }
 
         return '';
-    };
+    }
 
     const applySummaryTemplate = (key) => {
         if (!key) {
@@ -861,12 +1078,24 @@ function ComplaintForm({
                                             store.setValue('case_type', option.value);
                                             setSummaryTemplate('');
                                             setTemplateError('');
+                                            setFamilySubtypeError('');
                                             setOfficerAkTemplateKey('');
                                             setOfficerOffenseId('');
                                             setOfficerOffenseError('');
                                             store.setValue('summary', '');
                                             store.setValue('offense_id', '');
                                             store.setValue('borang5_statement', '');
+                                            store.setValue('ak_subtype', '');
+                                            store.setValue('ak_partner_name', '');
+                                            store.setValue('ak_cerai_count', '');
+                                            store.setValue('ak_cerai_talaq_count', '');
+                                            store.setValue('ak_poligami_marriage_count', '');
+                                            store.setValue('ak_poligami_wife_count', '');
+                                            store.setValue('ak_event_date', '');
+                                            store.setValue('ak_event_place', '');
+                                            store.setValue('ak_event_time', '');
+                                            store.setValue('ak_event_location', '');
+                                            store.setValue('ak_rujuk_date', '');
                                             setAddressDraft('');
                                         }}
                                     />
@@ -876,6 +1105,54 @@ function ComplaintForm({
                         )}
                     </div>
                 </div>
+
+                {caseType === 'AK' && (
+                    <div className="complaint-category complaint-category-subtype">
+                        <div>
+                            <h3>Subkategori Aduan Keluarga <span className="complaint-required">*</span></h3>
+                            <p>Pilih sama ada aduan ini berkaitan Nikah, Cerai, Rujuk atau Poligami.</p>
+                            {familySubtypeError && (
+                                <div className="app-input-error complaint-inline-error">{familySubtypeError}</div>
+                            )}
+                        </div>
+                        <div className="complaint-category-options complaint-category-options-4">
+                            {AK_SUBTYPE_OPTIONS.map((option) => (
+                                <label
+                                    key={option.value}
+                                    className={`complaint-category-card ${akSubtype === option.value ? 'active' : ''}`}
+                                >
+                                    <input
+                                        type="radio"
+                                        name="ak_subtype"
+                                        value={option.value}
+                                        checked={akSubtype === option.value}
+                                        onChange={() => {
+                                            store.setValue('ak_subtype', option.value);
+                                            setFamilySubtypeError('');
+                                            setTemplateError('');
+                                            store.setValue('ak_cerai_count', '');
+                                            store.setValue('ak_cerai_talaq_count', '');
+                                            store.setValue('ak_poligami_marriage_count', '');
+                                            store.setValue('ak_poligami_wife_count', '');
+                                            store.setValue('ak_rujuk_date', '');
+                                            setSummaryTemplate(option.templateKey);
+                                            setOfficerAkTemplateKey(option.templateKey);
+                                            const next = buildSummaryTemplate(option.templateKey);
+                                            if (next) {
+                                                if (officerMode) {
+                                                    store.setValue('borang5_statement', next);
+                                                } else {
+                                                    store.setValue('summary', next);
+                                                }
+                                            }
+                                        }}
+                                    />
+                                    <span>{option.label}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 <div className="complaint-grid">
                     <div className="complaint-section">
@@ -935,59 +1212,189 @@ function ComplaintForm({
                         </Row>
                     </div>
 
-                    <div className="complaint-section">
-                        <h3>{incidentTitle} <span className="complaint-required">*</span></h3>
-                        <Row className='mb-4'>
-                            <Col md={6} className="mb-4 mb-md-0">
-                                <InputText
-                                    fieldName='incident_date'
-                                    placeholder='Tarikh Kejadian *'
-                                    icon='bi-calendar'
-                                    type='date'
+                    {!useFamilyEventSection ? (
+                        <div className="complaint-section">
+                            <h3>{incidentTitle} <span className="complaint-required">*</span></h3>
+                            <Row className='mb-4'>
+                                <Col md={6} className="mb-4 mb-md-0">
+                                    <InputText
+                                        fieldName='incident_date'
+                                        placeholder='Tarikh Kejadian *'
+                                        icon='bi-calendar'
+                                        type='date'
+                                        isLoading={isLoading}
+                                    />
+                                </Col>
+                                <Col md={6}>
+                                    <InputText
+                                        fieldName='incident_time'
+                                        placeholder='Masa Kejadian (Jika ada)'
+                                        icon='bi-clock'
+                                        type='time'
+                                        isLoading={isLoading}
+                                    />
+                                </Col>
+                            </Row>
+                            <Row className='mb-4'>
+                                <InputSelect
+                                    fieldName='district_id'
+                                    placeholder={districtPlaceholder}
+                                    icon='bi-geo'
                                     isLoading={isLoading}
+                                    options={districtOptions}
                                 />
-                            </Col>
-                            <Col md={6}>
-                                <InputText
-                                    fieldName='incident_time'
-                                    placeholder='Masa Kejadian (Jika ada)'
-                                    icon='bi-clock'
-                                    type='time'
-                                    isLoading={isLoading}
-                                />
-                            </Col>
-                        </Row>
-                        <Row className='mb-4'>
-                            <InputSelect
-                                fieldName='district_id'
-                                placeholder={districtPlaceholder}
-                                icon='bi-geo'
-                                isLoading={isLoading}
-                                options={districtOptions}
-                            />
-                        </Row>
+                            </Row>
 
-                        <Row className='mb-4'>
-                            <InputTextarea 
-                                type='text'
-                                fieldName='address' 
-                                placeholder={addressPlaceholder}
-                                icon='bi-geo-alt'
-                                rows='4'
-                                isLoading={isLoading}
-                                onValueChange={(val) => {
-                                    setAddressDraft(val);
-                                    tryAutoSuggestTemplate(val);
+                            <Row className='mb-4'>
+                                <InputTextarea 
+                                    type='text'
+                                    fieldName='address' 
+                                    placeholder={addressPlaceholder}
+                                    icon='bi-geo-alt'
+                                    rows='4'
+                                    isLoading={isLoading}
+                                    onValueChange={(val) => {
+                                        setAddressDraft(val);
+                                        tryAutoSuggestTemplate(val);
                                 }}
                             />
                         </Row>
-                    </div>
+                        </div>
+                    ) : (
+                        <div className="complaint-section">
+                            <h3>Maklumat Tambahan {akSectionTitle} <span className="complaint-required">*</span></h3>
+                            <Row className='mb-4'>
+                                <InputSelect
+                                    fieldName='district_id'
+                                    placeholder='Pilih Daerah *'
+                                    icon='bi-geo'
+                                    isLoading={isLoading}
+                                    options={districtOptions}
+                                />
+                            </Row>
+                        <Row className='mb-4'>
+                            <InputText
+                                fieldName='ak_partner_name'
+                                placeholder='Nama Pasangan *'
+                                icon='bi-people'
+                                isLoading={isLoading}
+                            />
+                        </Row>
+                        <Row className='mb-4'>
+                                <Col md={akSubtype === 'cerai' ? 6 : ['cerai', 'rujuk'].includes(akSubtype) ? 5 : 6} className="mb-4 mb-md-0">
+                                    <div className="complaint-field-title">{`Tarikh ${akEventNoun}`}</div>
+                                    <InputText
+                                        fieldName='ak_event_date'
+                                        placeholder={`Tarikh ${akEventNoun} *`}
+                                        icon='bi-calendar-event'
+                                        type='date'
+                                        isLoading={isLoading}
+                                    />
+                                </Col>
+                                <Col md={akSubtype === 'cerai' ? 6 : ['cerai', 'rujuk'].includes(akSubtype) ? 4 : 6} className={['cerai', 'rujuk'].includes(akSubtype) ? 'mb-4 mb-md-0' : ''}>
+                                    <div className={`complaint-field-title ${['cerai', 'rujuk'].includes(akSubtype) ? 'complaint-field-title--compact' : ''}`}>{`Masa ${akEventNoun}`}</div>
+                                    <InputText
+                                        fieldName='ak_event_time'
+                                        placeholder={`Masa ${akEventNoun} *`}
+                                        icon='bi-clock-history'
+                                        type='time'
+                                        isLoading={isLoading}
+                                    />
+                                </Col>
+                                {akSubtype === 'rujuk' && (
+                                    <Col md={3}>
+                                        <div className="complaint-field-title complaint-field-title--compact">Bilangan Perceraian</div>
+                                        <InputSelect
+                                            fieldName='ak_cerai_count'
+                                            placeholder='Bilangan Perceraian *'
+                                            icon='bi-list-ol'
+                                            isLoading={isLoading}
+                                            options={COUNT_OPTIONS}
+                                        />
+                                    </Col>
+                                )}
+                            </Row>
+                            {akSubtype === 'cerai' && (
+                                <Row className='mb-4'>
+                                    <Col md={6} className="mb-4 mb-md-0">
+                                        <div className="complaint-field-title complaint-field-title--compact">Bilangan Perceraian</div>
+                                        <InputSelect
+                                            fieldName='ak_cerai_count'
+                                            placeholder='Bilangan Perceraian *'
+                                            icon='bi-list-ol'
+                                            isLoading={isLoading}
+                                            options={COUNT_OPTIONS}
+                                        />
+                                    </Col>
+                                    <Col md={6}>
+                                        <div className="complaint-field-title complaint-field-title--compact">Bilangan Talaq</div>
+                                        <InputSelect
+                                            fieldName='ak_cerai_talaq_count'
+                                            placeholder='Bilangan Talaq *'
+                                            icon='bi-123'
+                                            isLoading={isLoading}
+                                            options={COUNT_OPTIONS}
+                                        />
+                                    </Col>
+                                </Row>
+                            )}
+                            {akSubtype === 'poligami' && (
+                                <Row className='mb-4'>
+                                    <Col md={6} className="mb-4 mb-md-0">
+                                        <div className="complaint-field-title complaint-field-title--compact">Bilangan Perkahwinan</div>
+                                        <InputText
+                                            fieldName='ak_poligami_marriage_count'
+                                            placeholder='Bilangan Perkahwinan *'
+                                            icon='bi-diagram-3'
+                                            type='number'
+                                            isLoading={isLoading}
+                                        />
+                                    </Col>
+                                    <Col md={6}>
+                                        <div className="complaint-field-title complaint-field-title--compact">Bilangan Isteri</div>
+                                        <InputText
+                                            fieldName='ak_poligami_wife_count'
+                                            placeholder='Bilangan Isteri *'
+                                            icon='bi-people'
+                                            type='number'
+                                            isLoading={isLoading}
+                                        />
+                                    </Col>
+                                </Row>
+                            )}
+                            <Row className='mb-4'>
+                                <Col md={12} className="mb-4 mb-md-0">
+                                    <InputText
+                                        fieldName='ak_event_place'
+                                        placeholder={`Tempat ${akEventNoun} *`}
+                                        icon='bi-building'
+                                        isLoading={isLoading}
+                                    />
+                                </Col>
+                            </Row>
+                            {akSubtype === 'rujuk' && (
+                                <Row className='mb-4'>
+                                    <Col md={6}>
+                                        <div className="complaint-field-title">Tarikh Rujuk</div>
+                                        <InputText
+                                            fieldName='ak_rujuk_date'
+                                            placeholder='Tarikh Rujuk *'
+                                            icon='bi-calendar-check'
+                                            type='date'
+                                            isLoading={isLoading}
+                                        />
+                                    </Col>
+                                    <Col md={6}></Col>
+                                </Row>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {!officerMode && (
                     <div className="complaint-section complaint-span-full">
                         <h3>Ringkasan Aduan <span className="complaint-required">*</span></h3>
-                        {templatesByCaseType[caseType]?.length > 0 && (
+                        {caseType !== 'AK' && templatesByCaseType[caseType]?.length > 0 && (
                             <div className="complaint-template">
                                 <div className="complaint-template-left">
                                     <strong>Kategori Template <span className="complaint-required">*</span></strong>
@@ -1029,6 +1436,51 @@ function ComplaintForm({
                                 readOnly={shouldLockSummary}
                             />
                         </Row>
+                        {useFamilyEventSection && (
+                            <div className="complaint-attachment-box">
+                                <div className="complaint-field-title">{`Lampiran Dokumen ${akSectionTitle}`}</div>
+                                <Form.Control
+                                    type="file"
+                                    multiple
+                                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                    disabled={isLoading}
+                                    onChange={(event) => {
+                                        const files = Array.from(event.target.files || []);
+                                        setFamilyAttachments(files.map((file) => ({
+                                            file,
+                                            title: file.name.replace(/\.[^.]+$/, ''),
+                                        })));
+                                    }}
+                                />
+                                <small className="complaint-attachment-hint">
+                                    Sokongan fail: PDF, JPG, PNG, DOC, DOCX. Boleh pilih lebih daripada satu dokumen.
+                                </small>
+                                {familyAttachments.length > 0 && (
+                                    <div className="complaint-attachment-list">
+                                        {familyAttachments.map((item, index) => (
+                                            <div key={`${item.file?.name || 'file'}-${index}`} className="complaint-attachment-item complaint-attachment-item-stacked">
+                                                <div className="complaint-attachment-filemeta">
+                                                    <strong>{item.file?.name}</strong>
+                                                    <small>{Math.max(1, Math.round(((item.file?.size) || 0) / 1024))} KB</small>
+                                                </div>
+                                                <Form.Control
+                                                    type="text"
+                                                    value={item.title || ''}
+                                                    placeholder="Nama Dokumen *"
+                                                    disabled={isLoading}
+                                                    onChange={(event) => {
+                                                        const nextTitle = event.target.value;
+                                                        setFamilyAttachments((prev) => prev.map((row, rowIndex) => (
+                                                            rowIndex === index ? { ...row, title: nextTitle } : row
+                                                        )));
+                                                    }}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -1100,13 +1552,43 @@ function ComplaintForm({
                             <InputTextarea
                                 type='text'
                                 fieldName='borang5_statement'
-                                placeholder={officerOffenseId ? 'Butiran Aduan (Borang 5) *' : 'Sila pilih Kesalahan Disyaki dahulu.'}
+                                placeholder={
+                                    caseType === 'AK'
+                                        ? (officerAkTemplateKey ? 'Butiran Aduan (Borang 5) *' : 'Sila pilih Template Keluarga dahulu.')
+                                        : (officerOffenseId ? 'Butiran Aduan (Borang 5) *' : 'Sila pilih Kesalahan Disyaki dahulu.')
+                                }
                                 icon='bi-file-earmark-text'
                                 rows='10'
                                 isLoading={isLoading}
-                                readOnly={!officerOffenseId && !store.getValue('borang5_statement')}
+                                readOnly={caseType === 'AK'
+                                    ? (!officerAkTemplateKey && !store.getValue('borang5_statement'))
+                                    : (!officerOffenseId && !store.getValue('borang5_statement'))}
                             />
                         </Row>
+                    </div>
+                )}
+
+                {!officerMode && (
+                    <div className="complaint-section complaint-span-full">
+                        <div className={`complaint-checkbox-row ${agreementError ? 'has-error' : ''}`}>
+                            <Form.Check
+                                id="complaint_agreement"
+                                type="checkbox"
+                                checked={agreementAccepted}
+                                onChange={(event) => {
+                                    const checked = event.target.checked;
+                                    setAgreementAccepted(checked);
+                                    if (checked) {
+                                        setAgreementError('');
+                                    }
+                                }}
+                                disabled={isLoading}
+                                label="Saya mengesahkan bahawa maklumat yang diberikan adalah benar berdasarkan pengetahuan saya dan saya bersetuju untuk menghantar aduan ini kepada JAIS untuk tindakan lanjut."
+                            />
+                            {agreementError && (
+                                <div className="complaint-checkbox-error">{agreementError}</div>
+                            )}
+                        </div>
                     </div>
                 )}
 

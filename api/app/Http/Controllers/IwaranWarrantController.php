@@ -68,6 +68,7 @@ class IwaranWarrantController extends Controller
         if ($pendaftarStaffId) {
             $data['pendaftar_staff_id'] = $pendaftarStaffId;
         }
+        $data['status'] = $data['status'] ?? 'draf';
 
         $iwaranWarrant = IwaranWarrant::create($data);
 
@@ -845,6 +846,8 @@ class IwaranWarrantController extends Controller
             'laporan' => ['nullable', 'string'],
             'catatan_pelaksana' => ['nullable', 'string'],
         ]);
+
+        $data['status'] = $data['status'] ?? ($iwaranWarrant->status ?: 'draf');
 
         $iwaranWarrant->update($data);
 

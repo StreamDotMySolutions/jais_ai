@@ -12,6 +12,8 @@ import ComplaintListInternalView from './ComplaintListInternalView';
 import ComplaintListDrawer from './ComplaintListDrawer';
 import ComplaintListHeader from './ComplaintListHeader';
 import ComplaintListFilter from './ComplaintListFilter';
+import useOffenseOptions from '../../hooks/useOffenseOptions';
+import useMahkamahOptions from '../../hooks/useMahkamahOptions';
 
 const getListScope = ({ isPublicRole, fetchEndpoint }) => {
     if (isPublicRole) {
@@ -128,6 +130,8 @@ const formatChannelLabel = (channel) => {
     if (!value) return '-';
     if (value === 'portal') return 'Portal (Awam)';
     if (value === 'web') return 'Web';
+    if (value === 'whatsapp') return 'WhatsApp AI';
+    if (value === 'whatsapp_web') return 'WhatsApp Web AI';
     if (value === 'walkin') return 'Walk-in / Kaunter';
     if (value === 'telefon') return 'Telefon';
     if (value === 'email') return 'Email';
@@ -225,6 +229,55 @@ const buildComplaintQueryParams = ({
     } else if (syntax.action_status || syntax.status_tindakan) {
         params.action_status = syntax.action_status || syntax.status_tindakan;
     }
+    if (filters.caseRegisterNo) {
+        params.case_register_no = filters.caseRegisterNo;
+    } else if (syntax.no_daftar_kes || syntax.case_register_no) {
+        params.case_register_no = syntax.no_daftar_kes || syntax.case_register_no;
+    }
+    if (filters.offenseText) {
+        params.offense_id = filters.offenseText;
+    } else if (syntax.offense_id) {
+        params.offense_id = syntax.offense_id;
+    } else if (syntax.kesalahan || syntax.offense) {
+        params.offense = syntax.kesalahan || syntax.offense;
+    }
+    if (filters.reportText) {
+        params.report = filters.reportText;
+    } else if (syntax.laporan || syntax.report) {
+        params.report = syntax.laporan || syntax.report;
+    }
+    if (filters.oydText) {
+        params.oyd = filters.oydText;
+    } else if (syntax.oyd || syntax.maklumat_oyds) {
+        params.oyd = syntax.oyd || syntax.maklumat_oyds;
+    }
+    if (filters.courtDate) {
+        params.court_date = filters.courtDate;
+    } else if (syntax.tarikh_sebutan || syntax.court_date) {
+        params.court_date = syntax.tarikh_sebutan || syntax.court_date;
+    }
+    if (filters.investigationNotes) {
+        params.investigation_notes = filters.investigationNotes;
+    } else if (syntax.catatan_siasatan || syntax.investigation_notes) {
+        params.investigation_notes = syntax.catatan_siasatan || syntax.investigation_notes;
+    }
+    if (filters.courtText) {
+        params.mahkamah_id = filters.courtText;
+    } else if (syntax.mahkamah_id) {
+        params.mahkamah_id = syntax.mahkamah_id;
+    } else if (syntax.mahkamah || syntax.court) {
+        params.mahkamah = syntax.mahkamah || syntax.court;
+    }
+    if (filters.modifiedDate) {
+        params.modified_date = filters.modifiedDate;
+    } else if (syntax.modified_date || syntax.modified_time) {
+        params.modified_date = syntax.modified_date || syntax.modified_time;
+    }
+    if (filters.modifiedUser) {
+        params.modified_user = filters.modifiedUser;
+    } else if (syntax.modified_user || syntax.user_kemaskini) {
+        params.modified_user = syntax.modified_user || syntax.user_kemaskini;
+    }
     if (filters.prosecutionStatus) {
         params.prosecution_status = filters.prosecutionStatus;
     }
@@ -296,6 +349,8 @@ const ComplaintList = ({
     const apiUrl = process.env.REACT_APP_API_URL;
     const toast = useToast();
     const navigate = useNavigate();
+    const { items: offenseItems } = useOffenseOptions({ apiUrl });
+    const { items: mahkamahItems } = useMahkamahOptions({ apiUrl, token: localStorage.getItem('token') });
     const [complaints, setComplaints] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -331,11 +386,32 @@ const ComplaintList = ({
         { value: 'selesai', label: 'Selesai' },
         { value: 'kiv', label: 'KIV' },
     ]), []);
+    const offenseOptions = useMemo(() => (
+        (offenseItems || []).map((item) => ({
+            value: String(item.id),
+            label: [item.section, item.name].filter(Boolean).join(' - '),
+        }))
+    ), [offenseItems]);
+    const mahkamahOptions = useMemo(() => (
+        (mahkamahItems || []).map((item) => ({
+            value: String(item.id),
+            label: item.nama || '',
+        }))
+    ), [mahkamahItems]);
     const [filters, setFilters] = useState({
         keyword: '',
         complaintNo: '',
         complainant: '',
         summaryText: '',
+        caseRegisterNo: '',
+        offenseText: '',
+        reportText: '',
+        oydText: '',
+        courtDate: '',
+        investigationNotes: '',
+        courtText: '',
+        modifiedDate: '',
+        modifiedUser: '',
         status: '',
         district: '',
         fromDate: '',
@@ -355,6 +431,15 @@ const ComplaintList = ({
         complaintNo: '',
         complainant: '',
         summaryText: '',
+        caseRegisterNo: '',
+        offenseText: '',
+        reportText: '',
+        oydText: '',
+        courtDate: '',
+        investigationNotes: '',
+        courtText: '',
+        modifiedDate: '',
+        modifiedUser: '',
         status: '',
         district: '',
         fromDate: '',
@@ -381,6 +466,7 @@ const ComplaintList = ({
     const [pendingApproval, setPendingApproval] = useState(false);
     const [sortKey, setSortKey] = useState('');
     const [sortDir, setSortDir] = useState('asc');
+    const [expandedComplaintIds, setExpandedComplaintIds] = useState([]);
     const [pagination, setPagination] = useState({
         current_page: 1,
         last_page: 1,
@@ -574,17 +660,14 @@ const ComplaintList = ({
     useEffect(() => {
         setPage(1);
         setSelectedComplaint(null);
+        setExpandedComplaintIds([]);
     }, [role, fetchEndpoint, caseType, isCase]);
 
     const sortColumns = [
         { key: 'row_no', label: 'Bil', sortable: false },
-        { key: 'reference_no', label: 'No Aduan', sortable: true },
-        { key: 'complaint_date', label: 'Tarikh', sortable: true },
-        { key: 'complainant_name', label: 'Pengadu', sortable: true },
-        { key: 'district_name', label: 'Daerah', sortable: true },
-        { key: 'case_type', label: 'Kategori', sortable: true },
-        { key: 'current_stage', label: 'Status', sortable: true },
-        { key: 'aj_current_status', label: 'Status Tindakan', sortable: true },
+        { key: 'aduan', label: 'Aduan', sortable: false },
+        { key: 'lokasi', label: 'Daerah / Kategori', sortable: false },
+        { key: 'status_group', label: 'Status / Tindakan', sortable: false },
         { key: 'summary', label: 'Ringkasan', sortable: false },
         { key: 'actions', label: 'Tindakan', sortable: false },
     ];
@@ -635,6 +718,14 @@ const ComplaintList = ({
             .catch((err) => {
                 setActionMessage(err?.response?.data?.message || 'Gagal memadam aduan.');
             });
+    };
+
+    const toggleExpandedComplaint = (complaintId) => {
+        setExpandedComplaintIds((prev) => (
+            prev.includes(complaintId)
+                ? prev.filter((id) => id !== complaintId)
+                : [...prev, complaintId]
+        ));
     };
 
     const syncUpdatedComplaint = (updated) => {
@@ -719,6 +810,15 @@ const ComplaintList = ({
             complaintNo: '',
             complainant: '',
             summaryText: '',
+            caseRegisterNo: '',
+            offenseText: '',
+            reportText: '',
+            oydText: '',
+            courtDate: '',
+            investigationNotes: '',
+            courtText: '',
+            modifiedDate: '',
+            modifiedUser: '',
             status: '',
             district: '',
             fromDate: '',
@@ -781,6 +881,8 @@ const ComplaintList = ({
                     actionStatusOptions={actionStatusOptions}
                     ipStatusOptions={ipStatusOptions}
                     prosecutionStatusOptions={prosecutionStatusOptions}
+                    offenseOptions={offenseOptions}
+                    mahkamahOptions={mahkamahOptions}
                     draftFilters={draftFilters}
                     setDraftFilters={setDraftFilters}
                     onSearch={handleSearch}
@@ -844,6 +946,8 @@ const ComplaintList = ({
                                 startIndex={startIndex}
                                 endIndex={endIndex}
                                 setPerPage={setPerPage}
+                                expandedComplaintIds={expandedComplaintIds}
+                                toggleExpandedComplaint={toggleExpandedComplaint}
                             />
                         )}
                     </div>

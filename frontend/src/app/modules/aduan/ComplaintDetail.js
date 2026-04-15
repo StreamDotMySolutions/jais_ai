@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import SearchSelect from '../../../libs/SearchSelect';
 import SharedStaffSelect from '../../components/SharedStaffSelect';
@@ -23,6 +23,12 @@ const AJ_STEPS = [
     { key: 'laporan_pemeriksaan', label: 'Laporan Pemeriksaan' },
     { key: 'siasatan', label: 'Butiran Siasatan' },
     { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
+];
+
+const COUNT_SELECT_OPTIONS = [
+    { value: '1', label: '1' },
+    { value: '2', label: '2' },
+    { value: '3', label: '3' },
 ];
 const AK_STEPS = [
     { key: 'tindakan', label: 'Tindakan Aduan' },
@@ -56,6 +62,8 @@ const AJ_OP_CASE_STATUS_OPTIONS = [
     'Selesai - Tiada alasan mencukupi untuk bertindak',
     'Other',
 ];
+
+const LOCKED_BASIC_EDIT_CHANNELS = ['portal', 'web', 'whatsapp', 'whatsapp_web'];
 
 const ComplaintDetail = () => {
     const navigate = useNavigate();
@@ -150,7 +158,6 @@ const ComplaintDetail = () => {
     const akPayloadDefault = {
         offense_id: '',
         offense_type_id: '',
-        email_cc: [],
         investigation_datetime: '',
         investigator_name: '',
         investigator_staff_id: '',
@@ -158,8 +165,20 @@ const ComplaintDetail = () => {
         ip_status: '',
         ip_due_date: '',
         prosecution_date: '',
+        charge_recommendations: [
+            { portfolio: '', name: '', offense_id: '' },
+        ],
         notes: '',
         supervisor_staff_id: '',
+        prosecution_status: '',
+        prosecution_notes: '',
+        prosecutor_staff_id: '',
+        hearing_date: '',
+        mahkamah_id: '',
+        court_decision: '',
+        prosecution_charges: [
+            { accused_name: '', id_number: '', offense_id: '', case_no: '' },
+        ],
     };
     const [ajPayload, setAjPayload] = useState(ajPayloadDefault);
     const [ajReport, setAjReport] = useState(ajReportDefault);
@@ -191,6 +210,17 @@ const ComplaintDetail = () => {
         complaint_time: '',
         incident_date: '',
         incident_time: '',
+        ak_subtype: '',
+        ak_partner_name: '',
+        ak_cerai_count: '',
+        ak_cerai_talaq_count: '',
+        ak_poligami_marriage_count: '',
+        ak_poligami_wife_count: '',
+        ak_event_date: '',
+        ak_event_place: '',
+        ak_event_time: '',
+        ak_event_location: '',
+        ak_rujuk_date: '',
         district_id: '',
         address: '',
         summary: '',
@@ -207,26 +237,23 @@ const ComplaintDetail = () => {
     const [seizureUploadDrafts, setSeizureUploadDrafts] = useState({});
     const [timeTick, setTimeTick] = useState(Date.now());
     const role = localStorage.getItem('role') || 'awam';
+    const localUserName = (localStorage.getItem('user_name') || '').trim().toLowerCase();
+    const localStaffId = localStorage.getItem('staff_id') || '';
     const isPublicRole = ['awam', 'user'].includes(role);
     const isPegawaiRole = ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
+    const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase();
+    const isBasicEditLockedBySource = LOCKED_BASIC_EDIT_CHANNELS.includes(complaintChannelNormalized);
+    const canEditBasicComplaint = isPegawaiRole && !isBasicEditLockedBySource;
     const autoClassificationGuardRef = useRef({});
-    const emailRecipients = [
-        { label: 'bpn.siasatan@gmail.com', email: 'bpn.siasatan@gmail.com' },
-        { label: 'bpn.gombak@gmail.com', email: 'bpn.gombak@gmail.com' },
-        { label: 'bpn.hululangat@gmail.com', email: 'bpn.hululangat@gmail.com' },
-        { label: 'bpn.huluselangor@gmail.com', email: 'bpn.huluselangor@gmail.com' },
-        { label: 'bpn.klang@gmail.com', email: 'bpn.klang@gmail.com' },
-        { label: 'bpn.kualalangat22@gmail.com', email: 'bpn.kualalangat22@gmail.com' },
-        { label: 'bpn.kualaselangor@gmail.com', email: 'bpn.kualaselangor@gmail.com' },
-        { label: 'bpn.sabakbernam@gmail.com', email: 'bpn.sabakbernam@gmail.com' },
-        { label: 'jais.sepang@gmail.com', email: 'jais.sepang@gmail.com' },
-    ];
-
+    const suppressUnloadReleaseRef = useRef(false);
+    const autoPickupGuardRef = useRef({});
     const formatChannelLabel = (channel) => {
         const value = (channel || '').toString().trim().toLowerCase();
         if (!value) return '-';
         if (value === 'portal') return 'Portal (Awam)';
         if (value === 'web') return 'Web';
+        if (value === 'whatsapp') return 'WhatsApp AI';
+        if (value === 'whatsapp_web') return 'WhatsApp Web AI';
         if (value === 'walkin') return 'Walk-in / Kaunter';
         if (value === 'telefon') return 'Telefon';
         if (value === 'email') return 'Email';
@@ -307,6 +334,12 @@ const ComplaintDetail = () => {
     }, [complaint?.reference_no, complaint?.current_stage, sortedIds.length]);
 
     useEffect(() => {
+        if (!canEditBasicComplaint && basicEditing) {
+            setBasicEditing(false);
+        }
+    }, [basicEditing, canEditBasicComplaint]);
+
+    useEffect(() => {
         if (!apiUrl) {
             return;
         }
@@ -372,6 +405,17 @@ const ComplaintDetail = () => {
             complaint_time: (complaint.complaint_time || '').slice(0, 5),
             incident_date: complaint.incident_date || '',
             incident_time: (complaint.incident_time || '').slice(0, 5),
+            ak_subtype: complaint.ak_subtype || '',
+            ak_partner_name: complaint.ak_partner_name || '',
+            ak_cerai_count: complaint.ak_cerai_count ? String(complaint.ak_cerai_count) : '',
+            ak_cerai_talaq_count: complaint.ak_cerai_talaq_count ? String(complaint.ak_cerai_talaq_count) : '',
+            ak_poligami_marriage_count: complaint.ak_poligami_marriage_count ? String(complaint.ak_poligami_marriage_count) : '',
+            ak_poligami_wife_count: complaint.ak_poligami_wife_count ? String(complaint.ak_poligami_wife_count) : '',
+            ak_event_date: complaint.ak_event_date || '',
+            ak_event_place: complaint.ak_event_place || '',
+            ak_event_time: (complaint.ak_event_time || '').slice(0, 5),
+            ak_event_location: complaint.ak_event_location || '',
+            ak_rujuk_date: complaint.ak_rujuk_date || '',
             district_id: complaint.district_id ? String(complaint.district_id) : '',
             address: complaint.address || '',
             summary: complaint.summary || '',
@@ -681,24 +725,74 @@ const ComplaintDetail = () => {
         setBasicDraft((prev) => ({ ...prev, borang5_statement: nextText }));
     };
 
+    const downloadComplaintAttachment = async (attachment) => {
+        if (!apiUrl || !attachment?.id) {
+            return;
+        }
+
+        try {
+            const response = await axios.get(
+                `${apiUrl}/complaints/${id}/attachments/${attachment.id}/download`,
+                {
+                    responseType: 'blob',
+                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                }
+            );
+            const blob = new Blob([response.data], { type: attachment.mime || 'application/octet-stream' });
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = attachment.file_name || `lampiran-${attachment.id}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (_error) {
+            toast.error?.('Gagal memuat turun lampiran.');
+        }
+    };
+
 
     useEffect(() => {
         if (!apiUrl) {
             return;
         }
-        const token = localStorage.getItem('token');
+        let cancelled = false;
+        const authToken = localStorage.getItem('token');
         const endpoint = isPublicRole ? `${apiUrl}/complaints/my` : `${apiUrl}/complaints`;
-        axios.get(endpoint, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            params: { per_page: 500 },
-        })
-            .then((response) => {
-                const ids = (response?.data?.data || []).map((item) => item.id);
-                setSortedIds(ids);
-            })
-            .catch(() => {
-                setSortedIds([]);
-            });
+
+        const loadSortedIds = async () => {
+            try {
+                const collectedIds = [];
+                let page = 1;
+                let lastPage = 1;
+
+                while (page <= lastPage) {
+                    const response = await axios.get(endpoint, {
+                        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
+                        params: { per_page: 500, page },
+                    });
+                    const pageIds = (response?.data?.data || []).map((item) => item.id);
+                    collectedIds.push(...pageIds);
+                    lastPage = Number(response?.data?.meta?.last_page || 1);
+                    page += 1;
+                }
+
+                if (!cancelled) {
+                    setSortedIds(collectedIds);
+                }
+            } catch (_error) {
+                if (!cancelled) {
+                    setSortedIds([]);
+                }
+            }
+        };
+
+        loadSortedIds();
+
+        return () => {
+            cancelled = true;
+        };
     }, [apiUrl, isPublicRole]);
 
     useEffect(() => {
@@ -808,7 +902,6 @@ const ComplaintDetail = () => {
             ...akPayloadDefault,
             offense_id: complaint.ak_offense_id ? String(complaint.ak_offense_id) : '',
             offense_type_id: complaint.ak_offense_type || '',
-            email_cc: complaint.ak_email_cc || [],
             investigation_datetime: complaint.ak_investigation_datetime || '',
             investigator_name: complaint.ak_investigator_name || '',
             investigator_staff_id: complaint.ak_investigator_staff_id ? String(complaint.ak_investigator_staff_id) : '',
@@ -816,8 +909,29 @@ const ComplaintDetail = () => {
             ip_status: complaint.ak_ip_status || '',
             ip_due_date: complaint.ak_ip_due_date || '',
             prosecution_date: complaint.ak_prosecution_date || '',
+            charge_recommendations: (complaint.ak_charge_recommendations || []).length
+                ? complaint.ak_charge_recommendations.map((row) => ({
+                    portfolio: row?.portfolio || '',
+                    name: row?.name || '',
+                    offense_id: row?.offense_id ? String(row.offense_id) : '',
+                }))
+                : [{ portfolio: '', name: '', offense_id: '' }],
             notes: complaint.ak_notes || '',
             supervisor_staff_id: complaint.ak_supervisor_staff_id ? String(complaint.ak_supervisor_staff_id) : '',
+            prosecution_status: complaint.ak_prosecution_status || '',
+            prosecution_notes: complaint.ak_prosecution_notes || '',
+            prosecutor_staff_id: complaint.ak_prosecutor_staff_id ? String(complaint.ak_prosecutor_staff_id) : '',
+            hearing_date: complaint.ak_hearing_date || '',
+            mahkamah_id: complaint.ak_mahkamah_id ? String(complaint.ak_mahkamah_id) : '',
+            court_decision: complaint.ak_court_decision || '',
+            prosecution_charges: (complaint.ak_prosecution_charges || []).length
+                ? complaint.ak_prosecution_charges.map((row) => ({
+                    accused_name: row?.accused_name || '',
+                    id_number: row?.id_number || '',
+                    offense_id: row?.offense_id ? String(row.offense_id) : '',
+                    case_no: row?.case_no || '',
+                }))
+                : [{ accused_name: '', id_number: '', offense_id: '', case_no: '' }],
         });
         setApproverStaffId(complaint.approver_staff_id ? String(complaint.approver_staff_id) : '');
     }, [complaint]);
@@ -1244,7 +1358,11 @@ const ComplaintDetail = () => {
                     }, {
                         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
                     })
-                        .then(() => {
+                        .then((basicResponse) => {
+                            const latest = basicResponse?.data?.data;
+                            if (latest) {
+                                setComplaint((prev) => prev ? { ...prev, ...latest } : prev);
+                            }
                             toast.success('Maklumat telah dikemaskini.');
                         })
                         .catch(() => {
@@ -1260,6 +1378,12 @@ const ComplaintDetail = () => {
 
     const submitAkPayload = () => {
         if (!apiUrl) {
+            return;
+        }
+        if (!akPayload.offense_id) {
+            const msg = 'Sila pilih Kesalahan Disyaki dahulu.';
+            setPayloadMessage(msg);
+            toast.error(msg);
             return;
         }
         const token = localStorage.getItem('token');
@@ -1283,7 +1407,11 @@ const ComplaintDetail = () => {
                     }, {
                         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
                     })
-                        .then(() => {
+                        .then((basicResponse) => {
+                            const latest = basicResponse?.data?.data;
+                            if (latest) {
+                                setComplaint((prev) => prev ? { ...prev, ...latest } : prev);
+                            }
                             toast.success('Maklumat telah dikemaskini.');
                         })
                         .catch(() => {
@@ -1382,11 +1510,48 @@ const ComplaintDetail = () => {
             });
     };
 
+    const canReleaseIntakeLock = useCallback(() => {
+        const receiverName = (complaint?.received_by?.name || complaint?.receivedBy?.name || '').trim().toLowerCase();
+        return Boolean(
+            apiUrl
+            && complaint
+            && complaint.current_stage === 'baru'
+            && localUserName
+            && receiverName
+            && receiverName === localUserName
+        );
+    }, [apiUrl, complaint, localUserName]);
+
+    const releaseIntakeLockQuietly = useCallback(() => {
+        if (!canReleaseIntakeLock()) {
+            return;
+        }
+
+        fetch(`${apiUrl}/complaints/${id}/release-intake`, {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+            },
+            body: '{}',
+            keepalive: true,
+        }).catch(() => {});
+    }, [apiUrl, canReleaseIntakeLock, id, token]);
+
+    const handleNavigateBackToList = useCallback(() => {
+        suppressUnloadReleaseRef.current = true;
+        releaseIntakeLockQuietly();
+        navigate('/app/complaints');
+    }, [navigate, releaseIntakeLockQuietly]);
+
     const handleNext = () => {
         const currentIndex = sortedIds.indexOf(Number(id));
         if (currentIndex === -1 || currentIndex === sortedIds.length - 1) {
             return;
         }
+        suppressUnloadReleaseRef.current = true;
+        releaseIntakeLockQuietly();
         const nextId = sortedIds[currentIndex + 1];
         navigate(`/app/complaints/${nextId}`);
     };
@@ -1396,15 +1561,23 @@ const ComplaintDetail = () => {
         if (currentIndex <= 0) {
             return;
         }
+        suppressUnloadReleaseRef.current = true;
+        releaseIntakeLockQuietly();
         const prevId = sortedIds[currentIndex - 1];
         navigate(`/app/complaints/${prevId}`);
     };
 
     const currentCaseType = complaint?.case_type || 'AJ';
+    const akSubtype = (complaint?.ak_subtype || '').toLowerCase();
+    const isAkFamilyDetail = currentCaseType === 'AK' && ['nikah', 'cerai', 'rujuk', 'poligami'].includes(akSubtype);
+    const akEventNoun = ['nikah', 'poligami'].includes(akSubtype) ? 'Nikah' : 'Cerai';
+    const akDetailSectionTitle = akSubtype === 'rujuk'
+        ? 'Rujuk'
+        : akSubtype === 'poligami'
+            ? 'Poligami'
+            : akEventNoun;
     const isCaseTypeLocked = Boolean(complaint?.approver_confirmed_at) || complaint?.current_stage === 'disahkan';
     const isAwaitingApproval = complaint?.current_stage === 'tunggu_pengesahan' && !complaint?.approver_confirmed_at;
-    const localUserName = (localStorage.getItem('user_name') || '').trim().toLowerCase();
-    const localStaffId = localStorage.getItem('staff_id') || '';
     const approverName = (complaint?.approverStaff?.name || '').trim().toLowerCase();
     const canApprove = Boolean(
         !complaint?.approver_confirmed_at
@@ -1414,6 +1587,9 @@ const ComplaintDetail = () => {
             || (localUserName && approverName && localUserName === approverName)
         )
     );
+    const isAkFirstIntakeSave = currentCaseType === 'AK'
+        && complaint?.current_stage === 'baru'
+        && !complaint?.approver_confirmed_at;
     const steps = currentCaseType === 'AK' ? AK_STEPS : AJ_STEPS;
     const isApproved = currentCaseType === 'AK'
         ? true
@@ -1443,6 +1619,91 @@ const ComplaintDetail = () => {
             setActiveStep(0);
         }
     }, [activeKey, isStepLocked]);
+
+    useEffect(() => {
+        if (!apiUrl || !token || !id || !complaint || !isPegawaiRole) {
+            return;
+        }
+
+        const guardKey = String(id);
+        const receiverName = (complaint?.received_by?.name || complaint?.receivedBy?.name || '').trim();
+        if ((complaint.current_stage || '') !== 'baru' || receiverName) {
+            return;
+        }
+        if (autoPickupGuardRef.current[guardKey]) {
+            return;
+        }
+
+        autoPickupGuardRef.current[guardKey] = true;
+
+        axios.post(`${apiUrl}/complaints/${id}/pickup`, {}, {
+            headers: { Authorization: `Bearer ${token}` },
+        })
+            .then((response) => {
+                const updated = response?.data?.data;
+                if (updated) {
+                    setComplaint((prev) => (prev ? { ...prev, ...updated } : prev));
+                }
+            })
+            .catch((err) => {
+                const msg = err?.response?.data?.message || '';
+                if (msg) {
+                    setActionMessage(msg);
+                }
+            });
+    }, [apiUrl, complaint, id, isPegawaiRole, token]);
+
+    useEffect(() => {
+        if (!apiUrl || !token || !id || !complaint) {
+            return undefined;
+        }
+
+        const reloadKey = `complaint-intake-reload-${id}`;
+        const navigationEntry = window.performance?.getEntriesByType?.('navigation')?.[0];
+        const isReload = navigationEntry?.type === 'reload';
+        const reloadMarker = sessionStorage.getItem(reloadKey);
+        const receiverName = (complaint?.received_by?.name || complaint?.receivedBy?.name || '').trim().toLowerCase();
+
+        if (
+            isReload
+            && reloadMarker
+            && complaint.current_stage === 'baru'
+            && localUserName
+            && !receiverName
+        ) {
+            axios.post(`${apiUrl}/complaints/${id}/pickup`, {}, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+                .then((response) => {
+                    const updated = response?.data?.data;
+                    if (updated) {
+                        setComplaint((prev) => (prev ? { ...prev, ...updated } : prev));
+                    }
+                })
+                .catch(() => {
+                    // Silent restore attempt. User can still continue manually if needed.
+                })
+                .finally(() => {
+                    sessionStorage.removeItem(reloadKey);
+                });
+        } else if (reloadMarker) {
+            sessionStorage.removeItem(reloadKey);
+        }
+
+        const handlePageHide = () => {
+            if (!canReleaseIntakeLock() || suppressUnloadReleaseRef.current) {
+                return;
+            }
+
+            sessionStorage.setItem(reloadKey, String(Date.now()));
+            releaseIntakeLockQuietly();
+        };
+
+        window.addEventListener('pagehide', handlePageHide);
+        return () => {
+            window.removeEventListener('pagehide', handlePageHide);
+        };
+    }, [apiUrl, canReleaseIntakeLock, complaint, id, localUserName, releaseIntakeLockQuietly, token]);
     // NOTE: For offenses, prefer SharedOffenseSelect (it loads options from API).
     const offenseOptions = useMemo(() => ([]), []);
     const offenseTypeOptions = useMemo(() => (
@@ -1519,10 +1780,14 @@ const ComplaintDetail = () => {
         <div className="app-detail app-aduan-detail">
             <div className="app-detail-header" ref={detailHeaderRef}>
                 <div className="app-detail-header-block">
-                    <Link className="app-back" to="/app/complaints">
+                    <button
+                        type="button"
+                        className="app-back app-back-button"
+                        onClick={handleNavigateBackToList}
+                    >
                         <i className="bi bi-arrow-left"></i>
                         Kembali ke Senarai
-                    </Link>
+                    </button>
                     <span className="app-detail-kicker">No Aduan</span>
                     <div className="app-detail-number">
                         <div className="app-detail-number-main">
@@ -1628,6 +1893,11 @@ const ComplaintDetail = () => {
                                 <strong>{complaint.submitted_at ? formatDateTime(complaint.submitted_at) : '-'}</strong>
                             </div>
                         </div>
+                        {isPegawaiRole && isBasicEditLockedBySource && (
+                            <div className="app-detail-note">
+                                Aduan dari portal atau WhatsApp AI hanya boleh disemak. Kemaskini asas dikunci untuk pegawai.
+                            </div>
+                        )}
                     </div>
 
                     {!basicEditing && basicMessage && (
@@ -1651,7 +1921,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.complainant_name}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('complainant_name', next)}
                                         />
@@ -1663,7 +1933,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.identification_number}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('identification_number', next)}
                                         />
@@ -1675,7 +1945,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.complainant_occupation}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('complainant_occupation', next)}
                                         />
@@ -1687,7 +1957,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.contact_number}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('contact_number', next)}
                                         />
@@ -1697,39 +1967,201 @@ const ComplaintDetail = () => {
 
                             <div className="app-basic-kv-col">
                                 <div className="app-card-subheader">
-                                    <h5>Maklumat Kejadian</h5>
+                                    <h5>{isAkFamilyDetail ? `Maklumat Tambahan ${akDetailSectionTitle}` : 'Maklumat Kejadian'}</h5>
                                 </div>
+                                {currentCaseType === 'AK' && (
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">Subkategori Keluarga</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.ak_subtype || ''}
+                                                placeholder="-"
+                                                canEdit={canEditBasicComplaint}
+                                                mode="select"
+                                                options={[
+                                                    { value: 'nikah', label: 'Nikah' },
+                                                    { value: 'cerai', label: 'Cerai' },
+                                                    { value: 'rujuk', label: 'Rujuk' },
+                                                    { value: 'poligami', label: 'Poligami' },
+                                                ]}
+                                                formatDisplay={() => {
+                                                    const value = (complaint.ak_subtype || '').toLowerCase();
+                                                    if (value === 'nikah') return 'Nikah';
+                                                    if (value === 'cerai') return 'Cerai';
+                                                    if (value === 'rujuk') return 'Rujuk';
+                                                    if (value === 'poligami') return 'Poligami';
+                                                    return '-';
+                                                }}
+                                                onConfirm={(next) => saveBasicField('ak_subtype', next || null)}
+                                            />
+                                        </span>
+                                    </div>
+                                )}
+                                {isAkFamilyDetail && (
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">Nama Pasangan</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.ak_partner_name}
+                                                placeholder="-"
+                                                canEdit={canEditBasicComplaint}
+                                                maxLength={255}
+                                                onConfirm={(next) => saveBasicField('ak_partner_name', next)}
+                                            />
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="app-kv">
-                                    <span className="app-kv-label">Tarikh Kejadian</span>
+                                    <span className="app-kv-label">{isAkFamilyDetail ? `Tarikh ${akEventNoun}` : 'Tarikh Kejadian'}</span>
                                     <span className="app-kv-value">
                                         <SharedInlineEditText
-                                            value={complaint.incident_date}
+                                            value={isAkFamilyDetail ? complaint.ak_event_date : complaint.incident_date}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             inputType="date"
-                                            onConfirm={(next) => saveBasicField('incident_date', next)}
+                                            onConfirm={(next) => saveBasicField(isAkFamilyDetail ? 'ak_event_date' : 'incident_date', next)}
                                         />
                                     </span>
                                 </div>
                                 <div className="app-kv">
-                                    <span className="app-kv-label">Masa Kejadian</span>
+                                    <span className="app-kv-label">{isAkFamilyDetail ? `Masa ${akEventNoun}` : 'Masa Kejadian'}</span>
                                     <span className="app-kv-value">
                                         <SharedInlineEditText
-                                            value={complaint.incident_time ? String(complaint.incident_time).slice(0, 5) : ''}
+                                            value={isAkFamilyDetail
+                                                ? (complaint.ak_event_time ? String(complaint.ak_event_time).slice(0, 5) : '')
+                                                : (complaint.incident_time ? String(complaint.incident_time).slice(0, 5) : '')}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             inputType="time"
-                                            onConfirm={(next) => saveBasicField('incident_time', next)}
+                                            onConfirm={(next) => saveBasicField(isAkFamilyDetail ? 'ak_event_time' : 'incident_time', next)}
                                         />
                                     </span>
                                 </div>
+                                {isAkFamilyDetail && (
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">{`Tempat ${akEventNoun}`}</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.ak_event_place}
+                                                placeholder="-"
+                                                canEdit={canEditBasicComplaint}
+                                                maxLength={255}
+                                                onConfirm={(next) => saveBasicField('ak_event_place', next)}
+                                            />
+                                        </span>
+                                    </div>
+                                )}
+                                {akSubtype === 'rujuk' && (
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">Tarikh Rujuk</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.ak_rujuk_date}
+                                                placeholder="-"
+                                                canEdit={canEditBasicComplaint}
+                                                inputType="date"
+                                                onConfirm={(next) => saveBasicField('ak_rujuk_date', next)}
+                                            />
+                                        </span>
+                                    </div>
+                                )}
+                                {['cerai', 'rujuk'].includes((complaint?.ak_subtype || '').toLowerCase()) && (
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">Bilangan Perceraian</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.ak_cerai_count ? String(complaint.ak_cerai_count) : ''}
+                                                placeholder="-"
+                                                canEdit={canEditBasicComplaint}
+                                                mode="select"
+                                                options={COUNT_SELECT_OPTIONS}
+                                                onConfirm={(next) => saveBasicField('ak_cerai_count', next || null)}
+                                            />
+                                        </span>
+                                    </div>
+                                )}
+                                {akSubtype === 'cerai' && (
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">Bilangan Talaq</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.ak_cerai_talaq_count ? String(complaint.ak_cerai_talaq_count) : ''}
+                                                placeholder="-"
+                                                canEdit={canEditBasicComplaint}
+                                                mode="select"
+                                                options={COUNT_SELECT_OPTIONS}
+                                                onConfirm={(next) => saveBasicField('ak_cerai_talaq_count', next || null)}
+                                            />
+                                        </span>
+                                    </div>
+                                )}
+                                {isAkFamilyDetail && (
+                                    <div className="app-kv app-kv--stack">
+                                        <span className="app-kv-label">{`Lampiran Dokumen ${akDetailSectionTitle}`}</span>
+                                        <div className="app-kv-stack">
+                                            {(complaint.attachments || []).length > 0 ? (
+                                                <div className="app-complaint-attachment-list">
+                                                    {(complaint.attachments || []).map((attachment) => (
+                                                        <div key={attachment.id} className="app-complaint-attachment-item">
+                                                            <div className="app-complaint-attachment-meta">
+                                                                <strong>{attachment.title || attachment.file_name}</strong>
+                                                                <small>
+                                                                    {attachment.title ? `${attachment.file_name} • ` : ''}
+                                                                    {(attachment.mime || '').toUpperCase() || 'FILE'}
+                                                                    {attachment.size ? ` • ${Math.max(1, Math.round(attachment.size / 1024))} KB` : ''}
+                                                                </small>
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                className="app-button app-button-ghost"
+                                                                onClick={() => downloadComplaintAttachment(attachment)}
+                                                            >
+                                                                Muat Turun
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : (
+                                                <span className="app-kv-value">-</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                                {akSubtype === 'poligami' && (
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">Bilangan Perkahwinan</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.ak_poligami_marriage_count ? String(complaint.ak_poligami_marriage_count) : ''}
+                                                placeholder="-"
+                                                canEdit={canEditBasicComplaint}
+                                                inputType="number"
+                                                onConfirm={(next) => saveBasicField('ak_poligami_marriage_count', next || null)}
+                                            />
+                                        </span>
+                                    </div>
+                                )}
+                                {akSubtype === 'poligami' && (
+                                    <div className="app-kv">
+                                        <span className="app-kv-label">Bilangan Isteri</span>
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.ak_poligami_wife_count ? String(complaint.ak_poligami_wife_count) : ''}
+                                                placeholder="-"
+                                                canEdit={canEditBasicComplaint}
+                                                inputType="number"
+                                                onConfirm={(next) => saveBasicField('ak_poligami_wife_count', next || null)}
+                                            />
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="app-kv">
                                     <span className="app-kv-label">Daerah</span>
                                     <span className="app-kv-value">
                                         <SharedInlineEditText
                                             value={complaint.district_id ? String(complaint.district_id) : ''}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             mode="select"
                                             options={districtOptions.map((d) => ({ value: String(d.id), label: d.name }))}
                                             formatDisplay={() => complaint.district_name || '-'}
@@ -1737,22 +2169,24 @@ const ComplaintDetail = () => {
                                         />
                                     </span>
                                 </div>
-                                <div className="app-kv app-kv--stack">
-                                    <span className="app-kv-label">Alamat</span>
-                                    <div className="app-kv-stack">
-                                        <span className="app-kv-value">
+                                {!isAkFamilyDetail && (
+                                    <div className="app-kv app-kv--stack">
+                                        <span className="app-kv-label">{isAkFamilyDetail ? `Lokasi ${akEventNoun}` : 'Alamat'}</span>
+                                        <div className="app-kv-stack">
+                                            <span className="app-kv-value">
                                             <SharedInlineEditText
-                                                value={complaint.address}
+                                                value={isAkFamilyDetail ? complaint.ak_event_location : complaint.address}
                                                 placeholder="-"
-                                                canEdit={isPegawaiRole}
+                                                canEdit={canEditBasicComplaint}
                                                 mode="textarea"
                                                 fullWidth
                                                 maxLength={1000}
-                                                onConfirm={(next) => saveBasicField('address', next)}
-                                            />
-                                        </span>
+                                                    onConfirm={(next) => saveBasicField(isAkFamilyDetail ? 'ak_event_location' : 'address', next)}
+                                                />
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     )}
@@ -1801,25 +2235,120 @@ const ComplaintDetail = () => {
 
                             <div className="app-basic-kv-col">
                                 <div className="app-card-subheader">
-                                    <h5>Maklumat Kejadian</h5>
+                                    <h5>{isAkFamilyDetail ? `Maklumat Tambahan ${akDetailSectionTitle}` : 'Maklumat Kejadian'}</h5>
                                 </div>
                                 <div className="app-form-grid">
+                                    {currentCaseType === 'AK' && (
+                                        <label className="app-form-field app-span-full">
+                                            <span>Subkategori Keluarga</span>
+                                            <select
+                                                value={basicDraft.ak_subtype}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_subtype: event.target.value }))}
+                                            >
+                                                <option value="">-- Pilih Subkategori --</option>
+                                                <option value="nikah">Nikah</option>
+                                                <option value="cerai">Cerai</option>
+                                                <option value="rujuk">Rujuk</option>
+                                                <option value="poligami">Poligami</option>
+                                            </select>
+                                        </label>
+                                    )}
+                                    {isAkFamilyDetail && (
+                                        <label className="app-form-field app-span-full">
+                                            <span>Nama Pasangan</span>
+                                            <input
+                                                type="text"
+                                                value={basicDraft.ak_partner_name}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_partner_name: event.target.value }))}
+                                            />
+                                        </label>
+                                    )}
+                                    {['cerai', 'rujuk'].includes((basicDraft.ak_subtype || '').toLowerCase()) && (
+                                        <label className="app-form-field app-span-full">
+                                            <span>Bilangan Perceraian</span>
+                                            <select
+                                                value={basicDraft.ak_cerai_count}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_cerai_count: event.target.value }))}
+                                            >
+                                                <option value="">-- Pilih Bilangan Perceraian --</option>
+                                                {COUNT_SELECT_OPTIONS.map((option) => (
+                                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    )}
+                                    {(basicDraft.ak_subtype || '').toLowerCase() === 'cerai' && (
+                                        <label className="app-form-field app-span-full">
+                                            <span>Bilangan Talaq</span>
+                                            <select
+                                                value={basicDraft.ak_cerai_talaq_count}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_cerai_talaq_count: event.target.value }))}
+                                            >
+                                                <option value="">-- Pilih Bilangan Talaq --</option>
+                                                {COUNT_SELECT_OPTIONS.map((option) => (
+                                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    )}
+                                    {(basicDraft.ak_subtype || '').toLowerCase() === 'poligami' && (
+                                        <label className="app-form-field">
+                                            <span>Bilangan Perkahwinan</span>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={basicDraft.ak_poligami_marriage_count}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_poligami_marriage_count: event.target.value }))}
+                                            />
+                                        </label>
+                                    )}
+                                    {(basicDraft.ak_subtype || '').toLowerCase() === 'poligami' && (
+                                        <label className="app-form-field">
+                                            <span>Bilangan Isteri</span>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={basicDraft.ak_poligami_wife_count}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_poligami_wife_count: event.target.value }))}
+                                            />
+                                        </label>
+                                    )}
                                     <label className="app-form-field">
-                                        <span>Tarikh</span>
+                                        <span>{isAkFamilyDetail ? `Tarikh ${akEventNoun}` : 'Tarikh'}</span>
                                         <input
                                             type="date"
-                                            value={basicDraft.complaint_date}
-                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, complaint_date: event.target.value }))}
+                                            value={isAkFamilyDetail ? basicDraft.ak_event_date : basicDraft.complaint_date}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, [isAkFamilyDetail ? 'ak_event_date' : 'complaint_date']: event.target.value }))}
                                         />
                                     </label>
                                     <label className="app-form-field">
-                                        <span>Masa</span>
+                                        <span>{isAkFamilyDetail ? `Masa ${akEventNoun}` : 'Masa'}</span>
                                         <input
                                             type="time"
-                                            value={basicDraft.complaint_time}
-                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, complaint_time: event.target.value }))}
+                                            value={isAkFamilyDetail ? basicDraft.ak_event_time : basicDraft.complaint_time}
+                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, [isAkFamilyDetail ? 'ak_event_time' : 'complaint_time']: event.target.value }))}
                                         />
                                     </label>
+                                    {isAkFamilyDetail && (
+                                        <label className="app-form-field app-span-full">
+                                            <span>{`Tempat ${akEventNoun}`}</span>
+                                            <input
+                                                type="text"
+                                                value={basicDraft.ak_event_place}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_event_place: event.target.value }))}
+                                            />
+                                        </label>
+                                    )}
+                                    {basicDraft.ak_subtype === 'rujuk' && (
+                                        <label className="app-form-field app-span-full">
+                                            <span>Tarikh Rujuk</span>
+                                            <input
+                                                type="date"
+                                                value={basicDraft.ak_rujuk_date}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_rujuk_date: event.target.value }))}
+                                            />
+                                        </label>
+                                    )}
                                     <label className="app-form-field app-span-full">
                                         <span>Daerah</span>
                                         <select
@@ -1832,14 +2361,16 @@ const ComplaintDetail = () => {
                                             ))}
                                         </select>
                                     </label>
-                                    <label className="app-form-field app-span-full">
-                                        <span>Alamat</span>
-                                        <textarea
-                                            rows="4"
-                                            value={basicDraft.address}
-                                            onChange={(event) => setBasicDraft((prev) => ({ ...prev, address: event.target.value }))}
-                                        />
-                                    </label>
+                                {!isAkFamilyDetail && (
+                                        <label className="app-form-field app-span-full">
+                                            <span>{isAkFamilyDetail ? `Lokasi ${akEventNoun}` : 'Alamat'}</span>
+                                            <textarea
+                                                rows="4"
+                                                value={isAkFamilyDetail ? basicDraft.ak_event_location : basicDraft.address}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, [isAkFamilyDetail ? 'ak_event_location' : 'address']: event.target.value }))}
+                                            />
+                                        </label>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1896,7 +2427,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.informant_name}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('informant_name', next)}
                                         />
@@ -1908,7 +2439,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.informant_identification_number}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('informant_identification_number', next)}
                                         />
@@ -1920,7 +2451,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.informant_contact_number}
                                             placeholder="-"
-                                            canEdit={isPegawaiRole}
+                                            canEdit={canEditBasicComplaint}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('informant_contact_number', next)}
                                         />
@@ -1964,7 +2495,7 @@ const ComplaintDetail = () => {
                         )}
                     </div>
 
-                    {isPegawaiRole && (
+                    {canEditBasicComplaint && (
                         <div className="app-card-footer-actions">
                             {!basicEditing && (
                                 <button
@@ -2291,7 +2822,7 @@ const ComplaintDetail = () => {
                                     <SharedOffenseSelect
                                         apiUrl={apiUrl}
                                         value={akPayload.offense_id || ''}
-                                        label="Kesalahan Disyaki *"
+                                        label={<><span>Kesalahan Disyaki </span><span className="complaint-required">*</span></>}
                                         onChange={(value) => setAkPayload((prev) => ({ ...prev, offense_id: value }))}
                                         onItemSelected={(item) => {
                                             if (!item) return;
@@ -2313,35 +2844,9 @@ const ComplaintDetail = () => {
                                     />
                                 </label>
 
-                                <div className="app-form-field">
-                                    <span>Jenis Kesalahan</span>
-                                    <label className="app-inline-radio">
-                                        <input
-                                            type="radio"
-                                            name="ak_offense_type"
-                                            value="BT"
-                                            checked={akPayload.offense_type_id === 'BT'}
-                                            onChange={() => setAkPayload((prev) => ({ ...prev, offense_type_id: 'BT' }))}
-                                        />
-                                        <span>Kesalahan Boleh Tangkap</span>
-                                    </label>
-                                    <label className="app-inline-radio">
-                                        <input
-                                            type="radio"
-                                            name="ak_offense_type"
-                                            value="TBT"
-                                            checked={akPayload.offense_type_id === 'TBT'}
-                                            onChange={() => setAkPayload((prev) => ({ ...prev, offense_type_id: 'TBT' }))}
-                                        />
-                                        <span>Kesalahan Tak Boleh Tangkap</span>
-                                    </label>
-                                    <small className="app-hint">
-                                        Jika pilih <strong>Kesalahan Boleh Tangkap</strong>, aduan akan masuk ke menu <strong>KES</strong> selepas status aduan menjadi <strong>Disahkan</strong>.
-                                    </small>
-                                </div>
                                 <div className="app-form-actions app-span-full app-align-right">
                                     <button className="app-button" type="button" onClick={submitAkPayload}>
-                                        Simpan
+                                        {isAkFirstIntakeSave ? 'Terima & Sahkan Aduan' : 'Simpan'}
                                     </button>
                                 </div>
 
@@ -2357,6 +2862,18 @@ const ComplaintDetail = () => {
                                                 <span>Tarikh Terima</span>
                                                 <span>:</span>
                                                 <strong>{formatDateTime(complaint.received_at)}</strong>
+                                            </div>
+                                        </div>
+                                        <div className="app-approver-block">
+                                            <div className="app-approver-row">
+                                                <span>Pegawai Pengesah</span>
+                                                <span>:</span>
+                                                <strong>{complaint.approverStaff?.name || '-'}</strong>
+                                            </div>
+                                            <div className="app-approver-row">
+                                                <span>Tarikh Sahkan</span>
+                                                <span>:</span>
+                                                <strong>{formatDateTime(complaint.approver_confirmed_at)}</strong>
                                             </div>
                                         </div>
                                     </div>
@@ -2467,29 +2984,103 @@ const ComplaintDetail = () => {
                                     />
                                 </label>
 
-                                <label className="app-form-field app-span-full">
-                                    <span>Email Salinan Aduan</span>
-                                    <div className="app-checkbox-grid">
-                                        {emailRecipients.map((item) => (
-                                            <label key={item.email} className="app-checkbox">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={akPayload.email_cc?.includes(item.email) || false}
-                                                    onChange={(event) => {
-                                                        const nextEmails = new Set(akPayload.email_cc || []);
-                                                        if (event.target.checked) {
-                                                            nextEmails.add(item.email);
-                                                        } else {
-                                                            nextEmails.delete(item.email);
-                                                        }
-                                                        setAkPayload((prev) => ({ ...prev, email_cc: Array.from(nextEmails) }));
-                                                    }}
-                                                />
-                                                <span>{item.label || item.email}</span>
-                                            </label>
-                                        ))}
+                                <div className="app-form-field app-span-full">
+                                    <span>Cadangan Pertuduhan</span>
+                                    <div className="app-seizure-table-wrap app-charge-recommendation-table">
+                                        <div className="app-seizure-table-head">
+                                            <div>Portfolio</div>
+                                            <div>Nama</div>
+                                            <div>Kesalahan</div>
+                                            <div>&nbsp;</div>
+                                        </div>
+
+                                        <div className="app-seizure-table-body">
+                                            {(akPayload.charge_recommendations || []).map((row, index) => (
+                                                <div className="app-seizure-table-row" key={`ak-charge-recommendation-${index}`}>
+                                                    <div className="app-seizure-table-cell">
+                                                        <input
+                                                            type="text"
+                                                            value={row.portfolio || ''}
+                                                            placeholder="Contoh: B.x"
+                                                            onChange={(event) => setAkPayload((prev) => ({
+                                                                ...prev,
+                                                                charge_recommendations: (prev.charge_recommendations || []).map((item, itemIndex) => (
+                                                                    itemIndex === index ? { ...item, portfolio: event.target.value } : item
+                                                                )),
+                                                            }))}
+                                                        />
+                                                    </div>
+
+                                                    <div className="app-seizure-table-cell">
+                                                        <input
+                                                            type="text"
+                                                            value={row.name || ''}
+                                                            placeholder="Nama pesalah / OYDS"
+                                                            onChange={(event) => setAkPayload((prev) => ({
+                                                                ...prev,
+                                                                charge_recommendations: (prev.charge_recommendations || []).map((item, itemIndex) => (
+                                                                    itemIndex === index ? { ...item, name: event.target.value } : item
+                                                                )),
+                                                            }))}
+                                                        />
+                                                    </div>
+
+                                                    <div className="app-seizure-table-cell">
+                                                        <SharedOffenseSelect
+                                                            apiUrl={apiUrl}
+                                                            value={row.offense_id || ''}
+                                                            label=""
+                                                            onChange={(value) => setAkPayload((prev) => ({
+                                                                ...prev,
+                                                                charge_recommendations: (prev.charge_recommendations || []).map((item, itemIndex) => (
+                                                                    itemIndex === index ? { ...item, offense_id: value } : item
+                                                                )),
+                                                            }))}
+                                                        />
+                                                    </div>
+
+                                                    <div className="app-seizure-table-cell app-seizure-table-cell-action">
+                                                        <button
+                                                            type="button"
+                                                            className="app-icon-button"
+                                                            onClick={() => setAkPayload((prev) => {
+                                                                const rows = prev.charge_recommendations || [];
+                                                                if (rows.length <= 1) {
+                                                                        return {
+                                                                            ...prev,
+                                                                            charge_recommendations: [{ portfolio: '', name: '', offense_id: '' }],
+                                                                        };
+                                                                    }
+                                                                return {
+                                                                    ...prev,
+                                                                    charge_recommendations: rows.filter((_, itemIndex) => itemIndex !== index),
+                                                                };
+                                                            })}
+                                                            aria-label="Buang Cadangan Pertuduhan"
+                                                            title="Buang Cadangan Pertuduhan"
+                                                        >
+                                                            <i className="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
-                                </label>
+
+                                    <button
+                                        type="button"
+                                        className="app-link app-link-button"
+                                        onClick={() => setAkPayload((prev) => ({
+                                            ...prev,
+                                            charge_recommendations: [
+                                                ...(prev.charge_recommendations || []),
+                                                { portfolio: '', name: '', offense_id: '' },
+                                            ],
+                                        }))}
+                                    >
+                                        + Add New
+                                    </button>
+                                </div>
 
                                 <label className="app-form-field app-span-full">
                                     <span>Catatan</span>
@@ -2497,6 +3088,193 @@ const ComplaintDetail = () => {
                                         rows="3"
                                         value={akPayload.notes || ''}
                                         onChange={(event) => setAkPayload((prev) => ({ ...prev, notes: event.target.value }))}
+                                    />
+                                </label>
+
+                                <div className="app-form-actions app-span-full app-align-right">
+                                    <button className="app-button" type="button" onClick={submitAkPayload}>
+                                        Simpan
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {complaint.case_type === 'AK' && activeKey === 'pendakwaan' && (
+                        <div className="app-tab-panel">
+                            {payloadMessage && (
+                                <SharedInlineAlert
+                                    type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                    message={payloadMessage}
+                                    dismissible
+                                    onClose={() => setPayloadMessage('')}
+                                    className=" app-detail-note"
+                                />
+                            )}
+
+                            <div className="app-form-grid">
+                                <SharedProsecutionStatusSelect
+                                    value={akPayload.prosecution_status || ''}
+                                    onChange={(value) => setAkPayload((prev) => ({ ...prev, prosecution_status: value }))}
+                                    label="Status Pendakwaan"
+                                />
+
+                                <div className="app-form-field app-span-full">
+                                    <span>Pertuduhan</span>
+                                    <div className="app-seizure-table-wrap app-ak-prosecution-table">
+                                        <div className="app-seizure-table-head">
+                                            <div>Nama Tertuduh</div>
+                                            <div>Kad Pengenalan</div>
+                                            <div>Kesalahan</div>
+                                            <div>Nombor Kes</div>
+                                            <div>&nbsp;</div>
+                                        </div>
+
+                                        <div className="app-seizure-table-body">
+                                            {(akPayload.prosecution_charges || []).map((row, index) => (
+                                                <div className="app-seizure-table-row" key={`ak-prosecution-charge-${index}`}>
+                                                    <div className="app-seizure-table-cell">
+                                                        <input
+                                                            type="text"
+                                                            value={row.accused_name || ''}
+                                                            placeholder="Nama tertuduh"
+                                                            onChange={(event) => setAkPayload((prev) => ({
+                                                                ...prev,
+                                                                prosecution_charges: (prev.prosecution_charges || []).map((item, itemIndex) => (
+                                                                    itemIndex === index ? { ...item, accused_name: event.target.value } : item
+                                                                )),
+                                                            }))}
+                                                        />
+                                                    </div>
+
+                                                    <div className="app-seizure-table-cell">
+                                                        <input
+                                                            type="text"
+                                                            value={row.id_number || ''}
+                                                            placeholder="No. K/P"
+                                                            onChange={(event) => setAkPayload((prev) => ({
+                                                                ...prev,
+                                                                prosecution_charges: (prev.prosecution_charges || []).map((item, itemIndex) => (
+                                                                    itemIndex === index ? { ...item, id_number: event.target.value } : item
+                                                                )),
+                                                            }))}
+                                                        />
+                                                    </div>
+
+                                                    <div className="app-seizure-table-cell">
+                                                        <SharedOffenseSelect
+                                                            apiUrl={apiUrl}
+                                                            value={row.offense_id || ''}
+                                                            label=""
+                                                            onChange={(value) => setAkPayload((prev) => ({
+                                                                ...prev,
+                                                                prosecution_charges: (prev.prosecution_charges || []).map((item, itemIndex) => (
+                                                                    itemIndex === index ? { ...item, offense_id: value } : item
+                                                                )),
+                                                            }))}
+                                                        />
+                                                    </div>
+
+                                                    <div className="app-seizure-table-cell">
+                                                        <input
+                                                            type="text"
+                                                            value={row.case_no || ''}
+                                                            placeholder="Nombor kes"
+                                                            onChange={(event) => setAkPayload((prev) => ({
+                                                                ...prev,
+                                                                prosecution_charges: (prev.prosecution_charges || []).map((item, itemIndex) => (
+                                                                    itemIndex === index ? { ...item, case_no: event.target.value } : item
+                                                                )),
+                                                            }))}
+                                                        />
+                                                    </div>
+
+                                                    <div className="app-seizure-table-cell app-seizure-table-cell-action">
+                                                        <button
+                                                            type="button"
+                                                            className="app-icon-button"
+                                                            onClick={() => setAkPayload((prev) => {
+                                                                const rows = prev.prosecution_charges || [];
+                                                                if (rows.length <= 1) {
+                                                                    return {
+                                                                        ...prev,
+                                                                        prosecution_charges: [{ accused_name: '', id_number: '', offense_id: '', case_no: '' }],
+                                                                    };
+                                                                }
+                                                                return {
+                                                                    ...prev,
+                                                                    prosecution_charges: rows.filter((_, itemIndex) => itemIndex !== index),
+                                                                };
+                                                            })}
+                                                            aria-label="Buang Pertuduhan"
+                                                            title="Buang Pertuduhan"
+                                                        >
+                                                            <i className="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        className="app-link app-link-button"
+                                        onClick={() => setAkPayload((prev) => ({
+                                            ...prev,
+                                            prosecution_charges: [
+                                                ...(prev.prosecution_charges || []),
+                                                { accused_name: '', id_number: '', offense_id: '', case_no: '' },
+                                            ],
+                                        }))}
+                                    >
+                                        + Add New
+                                    </button>
+                                </div>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Catatan Pendakwaan</span>
+                                    <textarea
+                                        rows="4"
+                                        value={akPayload.prosecution_notes || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, prosecution_notes: event.target.value }))}
+                                    />
+                                </label>
+
+                                <div className="app-form-field">
+                                    <span>Nama Pendakwa</span>
+                                    <SharedStaffSelect
+                                        apiUrl={apiUrl}
+                                        value={akPayload.prosecutor_staff_id || ''}
+                                        onChange={(value) => setAkPayload((prev) => ({ ...prev, prosecutor_staff_id: value }))}
+                                        placeholder="-- Pilih Pendakwa --"
+                                    />
+                                </div>
+
+                                <label className="app-form-field">
+                                    <span>Tarikh Bicara</span>
+                                    <input
+                                        type="date"
+                                        value={akPayload.hearing_date || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, hearing_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <div className="app-form-field">
+                                    <span>Mahkamah</span>
+                                    <SharedMahkamahSelect
+                                        apiUrl={apiUrl}
+                                        value={akPayload.mahkamah_id || ''}
+                                        onChange={(value) => setAkPayload((prev) => ({ ...prev, mahkamah_id: value }))}
+                                    />
+                                </div>
+
+                                <label className="app-form-field app-span-full">
+                                    <span>Keputusan Mahkamah</span>
+                                    <textarea
+                                        rows="4"
+                                        value={akPayload.court_decision || ''}
+                                        onChange={(event) => setAkPayload((prev) => ({ ...prev, court_decision: event.target.value }))}
                                     />
                                 </label>
 
@@ -3282,7 +4060,7 @@ const ComplaintDetail = () => {
                     )}
 
                     {((complaint.case_type === 'AJ' && !['ppa', 'laporan', 'siasatan', 'pendakwaan'].includes(activeKey)) ||
-                        (complaint.case_type === 'AK' && !['tindakan', 'siasatan'].includes(activeKey))) && (
+                        (complaint.case_type === 'AK' && !['tindakan', 'siasatan', 'pendakwaan'].includes(activeKey))) && (
                         <div className="app-tab-panel">
                         </div>
                     )}

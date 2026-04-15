@@ -84,16 +84,45 @@ const ComplaintPrintBorang5 = () => {
         return `${hh12}.${pad2(mm)} ${isPm ? 'PM' : 'AM'}`;
     };
 
+    const channel = String(complaint?.channel || '').trim().toLowerCase();
+    const caseType = String(complaint?.case_type || '').trim().toUpperCase();
+    const isPhysicalInformant = ['walkin', 'walk-in', 'kaunter'].includes(channel);
+    const receiverStaff =
+        complaint?.received_by?.staff ||
+        complaint?.receivedBy?.staff ||
+        complaint?.submittedBy?.staff ||
+        null;
     const issuerName =
         complaint?.submittedBy?.staff?.name ||
         complaint?.submittedBy?.name ||
+        complaint?.received_by?.name ||
+        complaint?.receivedBy?.name ||
         '-';
-    const reportText = String(complaint?.borang5_statement || complaint?.summary || '').trim().toUpperCase();
+    const reportText = String(complaint?.borang5_statement || complaint?.summary || '').trim();
     const reportDate = formatDateDMY(complaint?.complaint_date);
     const reportTime = complaint?.complaint_time ? formatTime12hDot(complaint.complaint_time) : '-';
-    const informantName = complaint?.informant_name || complaint?.complainant_name || '';
-    const informantIdNumber = complaint?.informant_identification_number || '';
-    const informantContactNumber = complaint?.informant_contact_number || '';
+    const publicInformantName = complaint?.informant_name || complaint?.complainant_name || '';
+    const publicInformantIdNumber = complaint?.informant_identification_number || complaint?.identification_number || '';
+    const publicInformantContactNumber = complaint?.informant_contact_number || complaint?.contact_number || '';
+    const officerInformantName =
+        receiverStaff?.name ||
+        complaint?.received_by?.name ||
+        complaint?.receivedBy?.name ||
+        issuerName;
+    const officerInformantIdNumber = receiverStaff?.staff_id || receiverStaff?.ic_number || '-';
+    const officerInformantOccupation = receiverStaff?.position || 'Pegawai Penguatkuasa Agama';
+    const officerInformantContactNumber = receiverStaff?.phone || '-';
+    const officerInformantAddress = receiverStaff?.office_address || receiverStaff?.address || '-';
+    const effectiveInformantName = isPhysicalInformant ? publicInformantName : officerInformantName;
+    const effectiveInformantIdNumber = isPhysicalInformant ? publicInformantIdNumber : officerInformantIdNumber;
+    const effectiveInformantContactNumber = isPhysicalInformant ? publicInformantContactNumber : officerInformantContactNumber;
+    const effectiveOfficerSignerName = caseType === 'AK'
+        ? officerInformantName
+        : (
+            complaint?.approver_staff?.name ||
+            complaint?.approverStaff?.name ||
+            issuerName
+        );
 
     return (
         <div className="print-page">
@@ -106,91 +135,100 @@ const ComplaintPrintBorang5 = () => {
                 </button>
             </div>
 
-            <div className="print-sheet print-sheet-laporan-tindakan">
-                <div className="print-header-laporan-tindakan">
-                    <div className="print-meta-strong print-meta-top-right">REK-BPN-01</div>
-                    <h1 className="print-title-underline print-title-laporan-tindakan">BORANG 5</h1>
-                    <div className="print-borang5-subtitle">ENAKMEN TATACARA JENAYAH SYARIAH (NEGERI SELANGOR) 2003</div>
-                    <div className="print-borang5-subtitle">SUBSEKSYEN 54(2) / 5(1)</div>
-                    <div className="print-borang5-subtitle">MAKLUMAT KEPADA PEGAWAI PENGUATKUASA AGAMA</div>
+            <div className="print-sheet print-sheet-borang5">
+                <div className="print-borang5-header">
+                    <div className="print-borang5-meta">REK-BPN-01</div>
+                    <div className="print-borang5-title">BORANG 5</div>
+                    <div className="print-borang5-title">ENAKMEN TATACARA JENAYAH SYARIAH (NEGERI SELANGOR) 2003</div>
+                    <div className="print-borang5-title">Subsyeksyen 54(2) / 57(1)</div>
+                    <div className="print-borang5-title print-borang5-title-spacer">&nbsp;</div>
+                    <div className="print-borang5-title">MAKLUMAT KEPADA PEGAWAI PENGUATKUASA AGAMA</div>
                 </div>
 
-                <div className="print-form-table">
-                    <div className="print-form-row">
-                        <div className="print-form-label">No. Daftar Aduan</div>
-                        <div className="print-form-value">{renderValue(complaint.reference_no)}</div>
-                    </div>
-                    <div className="print-form-row">
-                        <div className="print-form-label">Daerah</div>
-                        <div className="print-form-value">{renderValue(complaint.district_name)}</div>
-                    </div>
-                    <div className="print-form-row print-form-row-inline">
-                        <div className="print-form-label">Tarikh</div>
-                        <div className="print-form-value">{renderValue(reportDate)}</div>
-                        <div className="print-form-inline-label">Masa</div>
-                        <div className="print-form-inline-value">{renderValue(reportTime)}</div>
-                    </div>
-                </div>
+                <div className="print-borang5-section-spacer" />
 
-                <div className="print-form-table print-form-table-identity">
-                    <div className="print-form-row">
-                        <div className="print-form-label">Nama Pemberi Maklumat</div>
-                        <div className="print-form-value">{renderValue(informantName)}</div>
+                <div className="print-borang5-table">
+                    <div className="print-borang5-row">
+                        <div className="print-borang5-label">No. Daftar</div>
+                        <div className="print-borang5-value">{renderValue(complaint.reference_no)}</div>
                     </div>
-                    <div className="print-form-row">
-                        <div className="print-form-label">No. K/P Pemberi Maklumat</div>
-                        <div className="print-form-value">{renderValue(informantIdNumber)}</div>
-                    </div>
-                    <div className="print-form-row">
-                        <div className="print-form-label">No. Telefon Pemberi Maklumat</div>
-                        <div className="print-form-value">{renderValue(informantContactNumber)}</div>
+                    <div className="print-borang5-row">
+                        <div className="print-borang5-label">Tarikh</div>
+                        <div className="print-borang5-value print-borang5-inline-value">
+                            <span className="print-borang5-inline-date">{renderValue(reportDate)}</span>
+                            <span className="print-borang5-inline-time-label">Masa</span>
+                            <span>{renderValue(reportTime)}</span>
+                        </div>
                     </div>
                 </div>
 
-                <div className="print-form-table print-form-table-identity">
-                    <div className="print-form-row">
-                        <div className="print-form-label">Nama Pengadu</div>
-                        <div className="print-form-value">{renderValue(complaint.complainant_name)}</div>
+                {isPhysicalInformant && (
+                    <div className="print-borang5-table print-borang5-table-identity">
+                        <div className="print-borang5-row">
+                            <div className="print-borang5-label">Nama</div>
+                            <div className="print-borang5-value">{renderValue(publicInformantName)}</div>
+                        </div>
+                        <div className="print-borang5-row">
+                            <div className="print-borang5-label">No. K/P Pemberi Maklumat</div>
+                            <div className="print-borang5-value">{renderValue(publicInformantIdNumber)}</div>
+                        </div>
+                        <div className="print-borang5-row">
+                            <div className="print-borang5-label">No. Telefon Pemberi Maklumat</div>
+                            <div className="print-borang5-value">{renderValue(publicInformantContactNumber)}</div>
+                        </div>
                     </div>
-                    <div className="print-form-row">
-                        <div className="print-form-label">No. K/P Pengadu</div>
-                        <div className="print-form-value">{renderValue(complaint.identification_number)}</div>
+                )}
+
+                <div className="print-borang5-table print-borang5-table-identity">
+                    <div className="print-borang5-row">
+                        <div className="print-borang5-label">Nama</div>
+                        <div className="print-borang5-value">{renderValue(officerInformantName)}</div>
                     </div>
-                    <div className="print-form-row">
-                        <div className="print-form-label">Pekerjaan Pengadu</div>
-                        <div className="print-form-value">{renderValue(complaint.complainant_occupation)}</div>
+                    <div className="print-borang5-row">
+                        <div className="print-borang5-label">{isPhysicalInformant ? 'No. K/P Pengadu' : 'No. Pengenalan'}</div>
+                        <div className="print-borang5-value">{renderValue(officerInformantIdNumber)}</div>
                     </div>
-                    <div className="print-form-row">
-                        <div className="print-form-label">No. Telefon Pengadu</div>
-                        <div className="print-form-value">{renderValue(complaint.contact_number)}</div>
+                    <div className="print-borang5-row">
+                        <div className="print-borang5-label">{isPhysicalInformant ? 'Pekerjaan Pengadu' : 'Pekerjaan'}</div>
+                        <div className="print-borang5-value">{renderValue(officerInformantOccupation)}</div>
                     </div>
-                    <div className="print-form-row">
-                        <div className="print-form-label">Alamat Pengadu</div>
-                        <div className="print-form-value">{renderValue(complaint.address)}</div>
+                    <div className="print-borang5-row">
+                        <div className="print-borang5-label">{isPhysicalInformant ? 'No. Telefon Pengadu' : 'No. Telefon'}</div>
+                        <div className="print-borang5-value">{renderValue(officerInformantContactNumber)}</div>
+                    </div>
+                    <div className="print-borang5-row">
+                        <div className="print-borang5-label">{isPhysicalInformant ? 'Alamat Pengadu' : 'Alamat'}</div>
+                        <div className="print-borang5-value">{renderValue(officerInformantAddress)}</div>
                     </div>
                 </div>
 
-                <div className="print-block-title-laporan">SAYA DENGAN INI MEMBERIKAN MAKLUMAT BERIKUT :</div>
-                <div className="print-paragraph print-paragraph-justify print-paragraph-laporan">{renderValue(reportText || '-')}</div>
+                <div className="print-borang5-body">
+                    <div className="print-borang5-body-title">SAYA DENGAN INI MEMBERIKAN MAKLUMAT BERIKUT :</div>
+                    <div className="print-borang5-body-text">{renderValue(reportText || '-')}</div>
+                </div>
 
-                <div className="print-signature print-signature-laporan">
-                    <div className="print-sign-col print-sign-col-centered">
-                        <div className="print-sign-label">Tandatangan Pemberi Maklumat</div>
-                        <div className="print-sign-name print-sign-name-uppercase">{renderValue(informantName)}</div>
+                <div className="print-borang5-sign-row">
+                    <div className="print-borang5-sign-empty" />
+                    <div className="print-borang5-sign-col">
+                        <div className="print-borang5-sign-label">Tandatangan Pemberi Maklumat</div>
+                        <div className="print-borang5-sign-name">{renderValue(effectiveInformantName)}</div>
                     </div>
                 </div>
 
-                <div className="print-footer-note print-footer-note-left print-footer-note-laporan">
+                <div className="print-borang5-note">
                     Maklumat di atas diberikan secara bertulis / lisan dan telah ditandatangani oleh pegawai di bawah ini dan dibacakan kepada
                     Pemberi Maklumat.
                 </div>
 
-                <div className="print-signature print-signature-laporan print-signature-laporan-bottom">
-                    <div className="print-sign-col print-sign-col-centered">
-                        <div className="print-sign-label">Tandatangan Pegawai Penguatkuasa Agama</div>
-                        <div className="print-sign-name print-sign-name-uppercase">{renderValue(issuerName)}</div>
+                <div className="print-borang5-sign-row print-borang5-sign-row-bottom">
+                    <div className="print-borang5-sign-empty" />
+                    <div className="print-borang5-sign-col">
+                        <div className="print-borang5-sign-label">Tandatangan Pegawai Penguatkuasa Agama</div>
+                        <div className="print-borang5-sign-name">{renderValue(effectiveOfficerSignerName)}</div>
                     </div>
                 </div>
+
+                <div className="print-borang5-date-note">{`Bertarikh pada ${renderValue(reportDate)}`}</div>
             </div>
         </div>
     );

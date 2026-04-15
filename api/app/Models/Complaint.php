@@ -19,8 +19,14 @@ class Complaint extends Model
         'approver_assigned_at' => 'datetime:Y-m-d H:i',
         'approver_confirmed_at' => 'datetime:Y-m-d H:i',
         'ak_email_cc' => 'array',
+        'aj_charge_recommendations' => 'array',
+        'ak_charge_recommendations' => 'array',
+        'ak_prosecution_charges' => 'array',
         'ak_investigation_datetime' => 'datetime:Y-m-d H:i',
         'pic_assigned_at' => 'datetime:Y-m-d H:i',
+        'ak_event_date' => 'date:Y-m-d',
+        'ak_rujuk_date' => 'date:Y-m-d',
+        'ak_hearing_date' => 'date:Y-m-d',
     ];
 
 
@@ -67,6 +73,11 @@ class Complaint extends Model
     public function actionUpdates()
     {
         return $this->hasMany(ComplaintActionUpdate::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(ComplaintAttachment::class)->orderByDesc('id');
     }
 
     public function ajDirectiveStaff()

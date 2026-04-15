@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import SearchSelect from '../../../libs/SearchSelect';
 
 const ComplaintListFilter = ({
     isPublicRole,
@@ -8,6 +9,8 @@ const ComplaintListFilter = ({
     actionStatusOptions,
     ipStatusOptions,
     prosecutionStatusOptions,
+    offenseOptions,
+    mahkamahOptions,
     draftFilters,
     setDraftFilters,
     onSearch,
@@ -22,10 +25,29 @@ const ComplaintListFilter = ({
         return row?.name || id;
     };
 
+    const offenseLabel = (id) => {
+        const row = (offenseOptions || []).find((item) => String(item.value) === String(id));
+        return row?.label || id;
+    };
+
+    const mahkamahLabel = (id) => {
+        const row = (mahkamahOptions || []).find((item) => String(item.value) === String(id));
+        return row?.label || id;
+    };
+
     const inlineChips = [
         draftFilters.complaintNo ? { key: 'complaintNo', label: `No Aduan:${draftFilters.complaintNo}` } : null,
         draftFilters.complainant ? { key: 'complainant', label: `Pengadu:${draftFilters.complainant}` } : null,
         draftFilters.summaryText ? { key: 'summaryText', label: `Ringkasan:${draftFilters.summaryText}` } : null,
+        draftFilters.caseRegisterNo ? { key: 'caseRegisterNo', label: `No Daftar Kes:${draftFilters.caseRegisterNo}` } : null,
+        draftFilters.offenseText ? { key: 'offenseText', label: `Kesalahan:${offenseLabel(draftFilters.offenseText)}` } : null,
+        draftFilters.reportText ? { key: 'reportText', label: `Laporan:${draftFilters.reportText}` } : null,
+        draftFilters.oydText ? { key: 'oydText', label: `OYDS:${draftFilters.oydText}` } : null,
+        draftFilters.courtDate ? { key: 'courtDate', label: `Tarikh Sebutan:${draftFilters.courtDate}` } : null,
+        draftFilters.investigationNotes ? { key: 'investigationNotes', label: `Catatan Siasatan:${draftFilters.investigationNotes}` } : null,
+        draftFilters.courtText ? { key: 'courtText', label: `Mahkamah:${mahkamahLabel(draftFilters.courtText)}` } : null,
+        draftFilters.modifiedDate ? { key: 'modifiedDate', label: `Modified Time:${draftFilters.modifiedDate}` } : null,
+        draftFilters.modifiedUser ? { key: 'modifiedUser', label: `Modified User:${draftFilters.modifiedUser}` } : null,
         draftFilters.status ? { key: 'status', label: `Status:${draftFilters.status}` } : null,
         draftFilters.district ? { key: 'district', label: `Daerah:${districtLabel(draftFilters.district)}` } : null,
         draftFilters.classification ? { key: 'classification', label: `Klasifikasi:${draftFilters.classification}` } : null,
@@ -127,6 +149,43 @@ const ComplaintListFilter = ({
                                             onChange={(event) => setDraftFilters({ ...draftFilters, summaryText: event.target.value })}
                                         />
                                     </div>
+                                    <div className="app-filter-field">
+                                        <label>No. Daftar Kes</label>
+                                        <input
+                                            type="text"
+                                            placeholder="No. daftar kes..."
+                                            value={draftFilters.caseRegisterNo}
+                                            onChange={(event) => setDraftFilters({ ...draftFilters, caseRegisterNo: event.target.value })}
+                                        />
+                                    </div>
+                                    <div className="app-filter-field">
+                                        <SearchSelect
+                                            label="Kesalahan"
+                                            value={draftFilters.offenseText}
+                                            options={offenseOptions}
+                                            placeholder="-- Pilih Kesalahan Disyaki --"
+                                            searchPlaceholder="Cari kesalahan..."
+                                            onChange={(value) => setDraftFilters({ ...draftFilters, offenseText: value })}
+                                        />
+                                    </div>
+                                    <div className="app-filter-field">
+                                        <label>Laporan</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Kata kunci laporan..."
+                                            value={draftFilters.reportText}
+                                            onChange={(event) => setDraftFilters({ ...draftFilters, reportText: event.target.value })}
+                                        />
+                                    </div>
+                                    <div className="app-filter-field">
+                                        <label>Maklumat OYDS</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Nama / No K/P / file OYDS..."
+                                            value={draftFilters.oydText}
+                                            onChange={(event) => setDraftFilters({ ...draftFilters, oydText: event.target.value })}
+                                        />
+                                    </div>
                                     {!isPublicRole && (
                                         <div className="app-filter-field">
                                             <label>Status</label>
@@ -170,6 +229,50 @@ const ComplaintListFilter = ({
                                             type="date"
                                             value={draftFilters.toDate}
                                             onChange={(event) => setDraftFilters({ ...draftFilters, toDate: event.target.value })}
+                                        />
+                                    </div>
+                                    <div className="app-filter-field">
+                                        <label>Tarikh Sebutan (Bon Mahkamah)</label>
+                                        <input
+                                            type="date"
+                                            value={draftFilters.courtDate}
+                                            onChange={(event) => setDraftFilters({ ...draftFilters, courtDate: event.target.value })}
+                                        />
+                                    </div>
+                                    <div className="app-filter-field">
+                                        <label>Catatan Siasatan</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Kata kunci catatan siasatan..."
+                                            value={draftFilters.investigationNotes}
+                                            onChange={(event) => setDraftFilters({ ...draftFilters, investigationNotes: event.target.value })}
+                                        />
+                                    </div>
+                                    <div className="app-filter-field">
+                                        <SearchSelect
+                                            label="Mahkamah"
+                                            value={draftFilters.courtText}
+                                            options={mahkamahOptions}
+                                            placeholder="-- Pilih Mahkamah --"
+                                            searchPlaceholder="Cari mahkamah..."
+                                            onChange={(value) => setDraftFilters({ ...draftFilters, courtText: value })}
+                                        />
+                                    </div>
+                                    <div className="app-filter-field">
+                                        <label>Modified Time</label>
+                                        <input
+                                            type="date"
+                                            value={draftFilters.modifiedDate}
+                                            onChange={(event) => setDraftFilters({ ...draftFilters, modifiedDate: event.target.value })}
+                                        />
+                                    </div>
+                                    <div className="app-filter-field">
+                                        <label>Modified User</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Nama pengguna kemaskini..."
+                                            value={draftFilters.modifiedUser}
+                                            onChange={(event) => setDraftFilters({ ...draftFilters, modifiedUser: event.target.value })}
                                         />
                                     </div>
                                     {!isPublicRole && caseType !== 'AK' && (
@@ -217,6 +320,9 @@ const ComplaintListFilter = ({
                                         >
                                             <option value="">Semua</option>
                                             <option value="portal">Portal (Awam)</option>
+                                            <option value="web">Web</option>
+                                            <option value="whatsapp">WhatsApp AI</option>
+                                            <option value="whatsapp_web">WhatsApp Web AI</option>
                                             <option value="walkin">Walk-in / Kaunter</option>
                                             <option value="telefon">Telefon</option>
                                             <option value="email">Email</option>

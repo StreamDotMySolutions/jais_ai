@@ -2,6 +2,8 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import SharedInlineEditText from '../../components/SharedInlineEditText';
 
+const LOCKED_BASIC_EDIT_CHANNELS = ['portal', 'web', 'whatsapp', 'whatsapp_web'];
+
 const ComplaintListDrawer = ({
     selectedComplaint,
     setSelectedComplaint,
@@ -19,6 +21,9 @@ const ComplaintListDrawer = ({
     if (!selectedComplaint) {
         return null;
     }
+
+    const channelNormalized = (selectedComplaint.channel || '').toString().trim().toLowerCase();
+    const canInlineEditBasic = canInlineEdit && !LOCKED_BASIC_EDIT_CHANNELS.includes(channelNormalized);
 
     return (
         <div className="app-drawer app-drawer--push">
@@ -79,7 +84,7 @@ const ComplaintListDrawer = ({
                                 <SharedInlineEditText
                                     value={selectedComplaint.complainant_name || ''}
                                     placeholder="-"
-                                    canEdit={canInlineEdit}
+                                    canEdit={canInlineEditBasic}
                                     onConfirm={(val) => saveInlineField('complainant_name', val)}
                                 />
                             </span>
@@ -90,7 +95,7 @@ const ComplaintListDrawer = ({
                                 <SharedInlineEditText
                                     value={selectedComplaint.identification_number || ''}
                                     placeholder="-"
-                                    canEdit={canInlineEdit}
+                                    canEdit={canInlineEditBasic}
                                     onConfirm={(val) => saveInlineField('identification_number', val)}
                                 />
                             </span>
@@ -101,7 +106,7 @@ const ComplaintListDrawer = ({
                                 <SharedInlineEditText
                                     value={selectedComplaint.complainant_occupation || ''}
                                     placeholder="-"
-                                    canEdit={canInlineEdit}
+                                    canEdit={canInlineEditBasic}
                                     onConfirm={(val) => saveInlineField('complainant_occupation', val)}
                                 />
                             </span>
@@ -112,7 +117,7 @@ const ComplaintListDrawer = ({
                                 <SharedInlineEditText
                                     value={selectedComplaint.contact_number || ''}
                                     placeholder="-"
-                                    canEdit={canInlineEdit}
+                                    canEdit={canInlineEditBasic}
                                     onConfirm={(val) => saveInlineField('contact_number', val)}
                                 />
                             </span>
@@ -129,7 +134,7 @@ const ComplaintListDrawer = ({
                                 <SharedInlineEditText
                                     value={selectedComplaint.incident_date || ''}
                                     placeholder="-"
-                                    canEdit={canInlineEdit}
+                                    canEdit={canInlineEditBasic}
                                     inputType="date"
                                     onConfirm={(val) => saveInlineField('incident_date', val)}
                                 />
@@ -141,7 +146,7 @@ const ComplaintListDrawer = ({
                                 <SharedInlineEditText
                                     value={(selectedComplaint.incident_time || '').toString().slice(0, 5)}
                                     placeholder="-"
-                                    canEdit={canInlineEdit}
+                                    canEdit={canInlineEditBasic}
                                     inputType="time"
                                     onConfirm={(val) => saveInlineField('incident_time', val)}
                                 />
@@ -153,7 +158,7 @@ const ComplaintListDrawer = ({
                                 <SharedInlineEditText
                                     value={selectedComplaint.district_id ? String(selectedComplaint.district_id) : ''}
                                     placeholder="-"
-                                    canEdit={canInlineEdit}
+                                    canEdit={canInlineEditBasic}
                                     mode="select"
                                     options={districtOptions.map((district) => ({
                                         value: String(district.id),
@@ -169,7 +174,7 @@ const ComplaintListDrawer = ({
                                 <SharedInlineEditText
                                     value={selectedComplaint.address || ''}
                                     placeholder="-"
-                                    canEdit={canInlineEdit}
+                                    canEdit={canInlineEditBasic}
                                     mode="textarea"
                                     fullWidth
                                     onConfirm={(val) => saveInlineField('address', val)}
@@ -203,7 +208,7 @@ const ComplaintListDrawer = ({
                         <SharedInlineEditText
                             value={selectedComplaint.summary || ''}
                             placeholder="-"
-                            canEdit={canInlineEdit}
+                            canEdit={canInlineEditBasic}
                             mode="textarea"
                             textareaRows={8}
                             textareaAutoGrow
@@ -211,14 +216,14 @@ const ComplaintListDrawer = ({
                             onConfirm={(val) => saveInlineField('summary', val)}
                         />
                     </p>
-                    {canInlineEdit && (
+                    {canInlineEditBasic && (
                         <>
                             <h5 style={{ marginTop: '0.85rem' }}>Butiran Aduan (Borang 5)</h5>
                             <p>
                                 <SharedInlineEditText
                                     value={selectedComplaint.borang5_statement || ''}
                                     placeholder="-"
-                                    canEdit={canInlineEdit}
+                                    canEdit={canInlineEditBasic}
                                     mode="textarea"
                                     textareaRows={8}
                                     textareaAutoGrow

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Appointment;
 use App\Models\Complaint;
+use App\Models\ComplaintAttachment;
 use App\Models\ComplaintOyd;
 use App\Models\ComplaintOydMedia;
 use App\Models\ComplaintSeizureItem;
@@ -1377,6 +1378,7 @@ class ComplaintController extends Controller
             'submittedBy:id,name,email,office_type,district_id',
             'submittedBy.staff',
             'receivedBy:id,name,email',
+            'receivedBy.staff',
             'approverStaff:id,name,staff_id',
             'picUser:id,name',
             'appointment:id,complaint_id,start_at,end_at,status',
@@ -1385,11 +1387,18 @@ class ComplaintController extends Controller
             'oyds.media:id,complaint_oyd_id,category,file_name,mime,size,created_at',
             'seizureItems:id,complaint_id,item_no,description,storage',
             'seizureItems.media:id,complaint_seizure_item_id,category,file_name,mime,size,created_at',
+            'attachments:id,complaint_id,category,title,file_name,mime,size,created_at',
             'ajDirectiveStaff:id,name,staff_id,ic_number,phone,address,position,department',
             'ajHandoverStaff:id,name,staff_id,ic_number,phone,address,position,department',
             'ajArrestStaff:id,name,staff_id,ic_number,phone,address,position,department',
             'ajProsecutorStaff:id,name,staff_id,ic_number,phone,address,position,department',
         ]);
+        $complaint->attachments?->each(function ($attachment) use ($complaint) {
+            $attachment->download_url = route('complaints.attachments.download', [
+                'complaint' => $complaint->id,
+                'attachment' => $attachment->id,
+            ]);
+        });
         if ($complaint->classification_id) {
             $complaint->classification_code = DB::table('complaint_classifications')
                 ->where('id', $complaint->classification_id)
@@ -1594,6 +1603,20 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $allowedWhenBasicLocked = ['borang5_statement', 'offense_id'];
+        $requestKeys = collect($request->keys())
+            ->reject(fn ($key) => str_starts_with((string) $key, '_'))
+            ->values()
+            ->all();
+        $isAllowedLockedUpdate = ! empty($requestKeys)
+            && collect($requestKeys)->every(fn ($key) => in_array($key, $allowedWhenBasicLocked, true));
+
+        if ($this->isBasicOfficerEditLockedByChannel($complaint->channel) && ! $isAllowedLockedUpdate) {
+            return response()->json([
+                'message' => 'Aduan dari portal atau WhatsApp AI tidak boleh dikemaskini oleh pegawai pada bahagian ini.',
+            ], 422);
+        }
+
         $validated = $request->validate([
             'complainant_name' => 'nullable|string|max:255',
             'identification_number' => 'nullable|string|max:255',
@@ -1611,6 +1634,19 @@ class ComplaintController extends Controller
             'incident_date' => 'nullable|date',
             'incident_time' => 'nullable|date_format:H:i',
             'offense_id' => 'nullable|exists:ref_offenses,id',
+            'ak_subtype' => 'nullable|string|in:nikah,cerai,rujuk,poligami',
+            'ak_partner_name' => 'nullable|string|max:255',
+            'ak_cerai_count' => 'nullable|integer|min:1|max:99',
+            'ak_cerai_talaq_count' => 'nullable|integer|min:1|max:99',
+            'ak_poligami_marriage_count' => 'nullable|integer|min:1|max:99',
+            'ak_poligami_wife_count' => 'nullable|integer|min:1|max:99',
+            'ak_event_date' => 'nullable|date',
+            'ak_event_place' => 'nullable|string|max:255',
+            'ak_event_time' => 'nullable|date_format:H:i',
+            'ak_event_location' => 'nullable|string|max:1000',
+            'ak_rujuk_date' => 'nullable|date',
+            'attachments' => 'nullable|array|max:10',
+            'attachments.*' => 'file|max:51200|mimes:pdf,jpg,jpeg,png,doc,docx',
         ]);
 
         $payload = [];
@@ -1626,6 +1662,16 @@ class ComplaintController extends Controller
             'borang5_statement',
             'complaint_date',
             'incident_date',
+            'ak_subtype',
+            'ak_partner_name',
+            'ak_cerai_count',
+            'ak_cerai_talaq_count',
+            'ak_poligami_marriage_count',
+            'ak_poligami_wife_count',
+            'ak_event_date',
+            'ak_event_place',
+            'ak_event_location',
+            'ak_rujuk_date',
         ] as $key) {
             if (array_key_exists($key, $validated)) {
                 $payload[$key] = $validated[$key];
@@ -1648,6 +1694,12 @@ class ComplaintController extends Controller
         if (array_key_exists('incident_time', $validated)) {
             $payload['incident_time'] = $validated['incident_time'] !== null && $validated['incident_time'] !== ''
                 ? ($validated['incident_time'] . ':00')
+                : null;
+        }
+
+        if (array_key_exists('ak_event_time', $validated)) {
+            $payload['ak_event_time'] = $validated['ak_event_time'] !== null && $validated['ak_event_time'] !== ''
+                ? ($validated['ak_event_time'] . ':00')
                 : null;
         }
 
@@ -1692,16 +1744,30 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        // Terima Aduan flow: once clicked from "baru", move to tindakan aduan immediately.
+        // Intake lock flow: once clicked from "baru", lock to the pegawai first.
+        // Status remains "baru" until classification is saved in Tindakan Aduan.
         if ((string) $complaint->current_stage === 'baru') {
+            if ($complaint->received_by_user_id && (int) $complaint->received_by_user_id !== (int) $user->id) {
+                $receiverName = optional($complaint->receivedBy)->name ?: 'pegawai lain';
+                return response()->json([
+                    'message' => "Aduan sedang dikemaskini oleh {$receiverName}.",
+                ], 409);
+            }
+
+            if ((int) $complaint->received_by_user_id === (int) $user->id) {
+                return response()->json([
+                    'message' => 'Aduan ini sedang dikemaskini oleh anda. Sila teruskan kemaskini klasifikasi.',
+                    'data' => $complaint->load(['receivedBy:id,name,email', 'picUser:id,name']),
+                ]);
+            }
+
             $complaint->update([
                 'received_by_user_id' => $user->id,
                 'received_at' => now(),
-                'current_stage' => 'dalam_tindakan',
             ]);
 
             return response()->json([
-                'message' => 'Aduan diterima. Sila teruskan Tindakan Aduan.',
+                'message' => 'Aduan dikunci kepada anda. Sila teruskan kemaskini klasifikasi.',
                 'data' => $complaint->load(['receivedBy:id,name,email', 'picUser:id,name']),
             ]);
         }
@@ -1752,6 +1818,36 @@ class ComplaintController extends Controller
         ]);
     }
 
+    public function releaseIntake(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ((string) $complaint->current_stage !== 'baru') {
+            return response()->json([
+                'message' => 'Lock aduan tidak boleh dilepaskan kerana aduan sudah bergerak ke status lain.',
+            ], 422);
+        }
+
+        if ((int) $complaint->received_by_user_id !== (int) $user->id) {
+            return response()->json([
+                'message' => 'Aduan ini tidak sedang dikemaskini oleh anda.',
+            ], 403);
+        }
+
+        $complaint->update([
+            'received_by_user_id' => null,
+            'received_at' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Lock aduan telah dilepaskan.',
+            'data' => $complaint->load(['receivedBy:id,name,email']),
+        ]);
+    }
+
     public function updateAjPayload(Request $request, Complaint $complaint)
     {
         $user = $request->user();
@@ -1794,6 +1890,19 @@ class ComplaintController extends Controller
             'aj_ip_due_date' => $request->payload['ip_due_date'] ?? null,
             'aj_kpp_due_date' => $request->payload['kpp_due_date'] ?? null,
             'aj_jpss_due_date' => $request->payload['jpss_due_date'] ?? null,
+            'aj_charge_recommendations' => collect($request->payload['charge_recommendations'] ?? [])
+                ->map(function ($row) {
+                    return [
+                        'portfolio' => trim((string) ($row['portfolio'] ?? '')),
+                        'name' => trim((string) ($row['name'] ?? '')),
+                        'offense_id' => ($row['offense_id'] ?? null) ? (int) $row['offense_id'] : null,
+                    ];
+                })
+                ->filter(function ($row) {
+                    return $row['portfolio'] !== '' || $row['name'] !== '' || ! empty($row['offense_id']);
+                })
+                ->values()
+                ->all(),
             'aj_investigation_notes' => $request->payload['investigation_notes'] ?? null,
             'aj_prosecution_status' => $request->payload['prosecution_status'] ?? null,
             'aj_prosecutor_staff_id' => $request->payload['prosecutor_staff_id'] ?? null,
@@ -1804,6 +1913,9 @@ class ComplaintController extends Controller
         ];
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
+        if ((string) $complaint->current_stage === 'baru' && $ppaClassification) {
+            $payload['current_stage'] = 'dalam_tindakan';
+        }
 
         $complaint->update($payload);
 
@@ -2568,6 +2680,42 @@ class ComplaintController extends Controller
             'ak_ip_status' => $request->payload['ip_status'] ?? null,
             'ak_ip_due_date' => $request->payload['ip_due_date'] ?? null,
             'ak_prosecution_date' => $request->payload['prosecution_date'] ?? null,
+            'ak_prosecution_status' => $request->payload['prosecution_status'] ?? null,
+            'ak_prosecutor_staff_id' => $request->payload['prosecutor_staff_id'] ?? null,
+            'ak_hearing_date' => $request->payload['hearing_date'] ?? null,
+            'ak_mahkamah_id' => $request->payload['mahkamah_id'] ?? null,
+            'ak_court_decision' => $request->payload['court_decision'] ?? null,
+            'ak_prosecution_notes' => $request->payload['prosecution_notes'] ?? null,
+            'ak_charge_recommendations' => collect($request->payload['charge_recommendations'] ?? [])
+                ->map(function ($row) {
+                    return [
+                        'portfolio' => trim((string) ($row['portfolio'] ?? '')),
+                        'name' => trim((string) ($row['name'] ?? '')),
+                        'offense_id' => ($row['offense_id'] ?? null) ? (int) $row['offense_id'] : null,
+                    ];
+                })
+                ->filter(function ($row) {
+                    return $row['portfolio'] !== '' || $row['name'] !== '' || ! empty($row['offense_id']);
+                })
+                ->values()
+                ->all(),
+            'ak_prosecution_charges' => collect($request->payload['prosecution_charges'] ?? [])
+                ->map(function ($row) {
+                    return [
+                        'accused_name' => trim((string) ($row['accused_name'] ?? '')),
+                        'id_number' => trim((string) ($row['id_number'] ?? '')),
+                        'offense_id' => ($row['offense_id'] ?? null) ? (int) $row['offense_id'] : null,
+                        'case_no' => trim((string) ($row['case_no'] ?? '')),
+                    ];
+                })
+                ->filter(function ($row) {
+                    return $row['accused_name'] !== ''
+                        || $row['id_number'] !== ''
+                        || ! empty($row['offense_id'])
+                        || $row['case_no'] !== '';
+                })
+                ->values()
+                ->all(),
             'ak_notes' => $request->payload['notes'] ?? null,
             'ak_supervisor_staff_id' => $request->payload['supervisor_staff_id'] ?? null,
         ];
@@ -2575,6 +2723,10 @@ class ComplaintController extends Controller
         $payload['received_at'] = now();
         if (in_array((string) $complaint->current_stage, ['baru', 'tunggu_pengesahan'], true)) {
             $payload['current_stage'] = 'disahkan';
+            if ($user->staff?->id) {
+                $payload['approver_staff_id'] = $user->staff->id;
+            }
+            $payload['approver_confirmed_at'] = now();
         }
 
         $appointmentMessage = null;
@@ -2683,6 +2835,21 @@ class ComplaintController extends Controller
             'offense_id' => 'nullable|exists:ref_offenses,id',
             'incident_date' => 'nullable|date',
             'incident_time' => 'nullable|date_format:H:i',
+            'ak_subtype' => 'nullable|string|in:nikah,cerai,rujuk,poligami',
+            'ak_partner_name' => 'nullable|string|max:255',
+            'ak_cerai_count' => 'nullable|integer|min:1|max:99',
+            'ak_cerai_talaq_count' => 'nullable|integer|min:1|max:99',
+            'ak_poligami_marriage_count' => 'nullable|integer|min:1|max:99',
+            'ak_poligami_wife_count' => 'nullable|integer|min:1|max:99',
+            'ak_event_date' => 'nullable|date',
+            'ak_event_place' => 'nullable|string|max:255',
+            'ak_event_time' => 'nullable|date_format:H:i',
+            'ak_event_location' => 'nullable|string|max:1000',
+            'ak_rujuk_date' => 'nullable|date',
+            'attachments' => 'nullable|array|max:10',
+            'attachments.*' => 'file|max:51200|mimes:pdf,jpg,jpeg,png,doc,docx',
+            'attachment_titles' => 'nullable|array|max:10',
+            'attachment_titles.*' => 'required_with:attachments|string|max:255',
         ]);
 
         $channel = (string) ($request->channel ?? 'web');
@@ -2745,6 +2912,17 @@ class ComplaintController extends Controller
             'borang5_statement' => trim($borang5Statement) !== '' ? $borang5Statement : null,
             'aj_offense_id' => ($caseType === 'AJ' && $offenseId) ? (int) $offenseId : null,
             'ak_offense_id' => ($caseType === 'AK' && $offenseId) ? (int) $offenseId : null,
+            'ak_subtype' => $caseType === 'AK' ? $request->input('ak_subtype') : null,
+            'ak_partner_name' => $caseType === 'AK' ? $request->input('ak_partner_name') : null,
+            'ak_cerai_count' => ($caseType === 'AK' && $request->filled('ak_cerai_count')) ? (int) $request->input('ak_cerai_count') : null,
+            'ak_cerai_talaq_count' => ($caseType === 'AK' && $request->filled('ak_cerai_talaq_count')) ? (int) $request->input('ak_cerai_talaq_count') : null,
+            'ak_poligami_marriage_count' => ($caseType === 'AK' && $request->filled('ak_poligami_marriage_count')) ? (int) $request->input('ak_poligami_marriage_count') : null,
+            'ak_poligami_wife_count' => ($caseType === 'AK' && $request->filled('ak_poligami_wife_count')) ? (int) $request->input('ak_poligami_wife_count') : null,
+            'ak_event_date' => $caseType === 'AK' ? $request->input('ak_event_date') : null,
+            'ak_event_place' => $caseType === 'AK' ? $request->input('ak_event_place') : null,
+            'ak_event_time' => ($caseType === 'AK' && $request->filled('ak_event_time')) ? ($request->input('ak_event_time') . ':00') : null,
+            'ak_event_location' => $caseType === 'AK' ? $request->input('ak_event_location') : null,
+            'ak_rujuk_date' => $caseType === 'AK' ? $request->input('ak_rujuk_date') : null,
             'channel' => $channel,
             // New complaints start as "baru". AK skips approver flow later, but should still
             // be received through the normal complaint intake flow before becoming "disahkan".
@@ -2757,6 +2935,22 @@ class ComplaintController extends Controller
             'contents' => trim($summary) !== '' ? $summary : $borang5Statement,
         ]);
 
+        $attachmentTitles = $request->input('attachment_titles', []);
+        foreach ($request->file('attachments', []) as $index => $file) {
+            $path = $file->store("complaints/{$complaint->id}/attachments", 'local');
+            ComplaintAttachment::create([
+                'complaint_id' => $complaint->id,
+                'category' => 'document',
+                'title' => isset($attachmentTitles[$index]) ? trim((string) $attachmentTitles[$index]) : null,
+                'file_name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'disk' => 'local',
+                'mime' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by_user_id' => Auth::guard('sanctum')->id(),
+            ]);
+        }
+
         $this->mobilePushNotificationService->sendNewComplaintToHqNotification($complaint);
 
         return response()->json([
@@ -2767,6 +2961,29 @@ class ComplaintController extends Controller
                 'reference_no' => $complaint->reference_no,
             ],
         ]);
+    }
+
+    public function downloadAttachment(Request $request, Complaint $complaint, ComplaintAttachment $attachment)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        if ((int) $attachment->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Lampiran tidak sah.'], 404);
+        }
+
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $disk = $attachment->disk ?: 'local';
+        if (! Storage::disk($disk)->exists($attachment->path)) {
+            return response()->json(['message' => 'Lampiran tidak ditemui.'], 404);
+        }
+
+        return Storage::disk($disk)->download($attachment->path, $attachment->file_name);
     }
 
     private function generateReferenceNo(string $caseType, ?string $districtCode, string $dateCode): string
@@ -2856,6 +3073,113 @@ class ComplaintController extends Controller
         $summary = trim((string) $request->query('summary', ''));
         if ($summary !== '') {
             $query->where('summary', 'like', '%' . $summary . '%');
+        }
+
+        $caseRegisterNo = trim((string) $request->query('case_register_no', ''));
+        if ($caseRegisterNo !== '') {
+            $query->where('case_register_no', 'like', '%' . $caseRegisterNo . '%');
+        }
+
+        $offense = trim((string) $request->query('offense', ''));
+        if ($offense !== '') {
+            $needle = strtolower($offense);
+            $query->where(function ($subQuery) use ($needle) {
+                $subQuery
+                    ->whereExists(function ($exists) use ($needle) {
+                        $exists->select(DB::raw(1))
+                            ->from('ref_offenses')
+                            ->whereColumn('ref_offenses.id', 'complaints.aj_offense_id')
+                            ->where(function ($offenseQuery) use ($needle) {
+                                $offenseQuery
+                                    ->whereRaw('LOWER(ref_offenses.name) like ?', ['%' . $needle . '%'])
+                                    ->orWhereRaw('LOWER(COALESCE(ref_offenses.section, "")) like ?', ['%' . $needle . '%'])
+                                    ->orWhereRaw('LOWER(ref_offenses.code) like ?', ['%' . $needle . '%']);
+                            });
+                    })
+                    ->orWhereExists(function ($exists) use ($needle) {
+                        $exists->select(DB::raw(1))
+                            ->from('ref_offenses')
+                            ->whereColumn('ref_offenses.id', 'complaints.ak_offense_id')
+                            ->where(function ($offenseQuery) use ($needle) {
+                                $offenseQuery
+                                    ->whereRaw('LOWER(ref_offenses.name) like ?', ['%' . $needle . '%'])
+                                    ->orWhereRaw('LOWER(COALESCE(ref_offenses.section, "")) like ?', ['%' . $needle . '%'])
+                                    ->orWhereRaw('LOWER(ref_offenses.code) like ?', ['%' . $needle . '%']);
+                            });
+                    });
+            });
+        }
+
+        $offenseId = trim((string) $request->query('offense_id', ''));
+        if ($offenseId !== '') {
+            $query->where(function ($subQuery) use ($offenseId) {
+                $subQuery
+                    ->where('aj_offense_id', (int) $offenseId)
+                    ->orWhere('ak_offense_id', (int) $offenseId);
+            });
+        }
+
+        $report = trim((string) $request->query('report', ''));
+        if ($report !== '') {
+            $query->where('aj_report_notes', 'like', '%' . $report . '%');
+        }
+
+        $oyd = trim((string) $request->query('oyd', ''));
+        if ($oyd !== '') {
+            $needle = strtolower($oyd);
+            $query->whereHas('oyds', function ($subQuery) use ($needle) {
+                $subQuery->where(function ($oydQuery) use ($needle) {
+                    $oydQuery
+                        ->whereRaw('LOWER(COALESCE(name, "")) like ?', ['%' . $needle . '%'])
+                        ->orWhereRaw('LOWER(COALESCE(id_number, "")) like ?', ['%' . $needle . '%'])
+                        ->orWhereRaw('LOWER(COALESCE(investigator_name, "")) like ?', ['%' . $needle . '%'])
+                        ->orWhereRaw('LOWER(COALESCE(file_no, "")) like ?', ['%' . $needle . '%']);
+                });
+            });
+        }
+
+        $courtDate = trim((string) $request->query('court_date', ''));
+        if ($courtDate !== '') {
+            $query->whereDate('aj_court_date', '=', $courtDate);
+        }
+
+        $investigationNotes = trim((string) $request->query('investigation_notes', ''));
+        if ($investigationNotes !== '') {
+            $query->where('aj_investigation_notes', 'like', '%' . $investigationNotes . '%');
+        }
+
+        $mahkamah = trim((string) $request->query('mahkamah', ''));
+        if ($mahkamah !== '') {
+            $needle = strtolower($mahkamah);
+            $query->whereExists(function ($exists) use ($needle) {
+                $exists->select(DB::raw(1))
+                    ->from('ref_mahkamah')
+                    ->whereColumn('ref_mahkamah.id', 'complaints.aj_mahkamah_id')
+                    ->whereRaw('LOWER(ref_mahkamah.nama) like ?', ['%' . $needle . '%']);
+            });
+        }
+
+        $mahkamahId = trim((string) $request->query('mahkamah_id', ''));
+        if ($mahkamahId !== '') {
+            $query->where('aj_mahkamah_id', (int) $mahkamahId);
+        }
+
+        $modifiedDate = trim((string) $request->query('modified_date', ''));
+        if ($modifiedDate !== '') {
+            $query->whereDate('updated_at', '=', $modifiedDate);
+        }
+
+        $modifiedUser = trim((string) $request->query('modified_user', ''));
+        if ($modifiedUser !== '') {
+            $needle = strtolower($modifiedUser);
+            $query->whereExists(function ($exists) use ($needle) {
+                $exists->select(DB::raw(1))
+                    ->from('sys_audit_logs')
+                    ->join('users', 'users.id', '=', 'sys_audit_logs.user_id')
+                    ->where('sys_audit_logs.auditable_type', Complaint::class)
+                    ->whereColumn('sys_audit_logs.auditable_id', 'complaints.id')
+                    ->whereRaw('LOWER(users.name) like ?', ['%' . $needle . '%']);
+            });
         }
 
         $status = trim((string) $request->query('status', ''));
@@ -3058,6 +3382,12 @@ class ComplaintController extends Controller
         }
 
         return false;
+    }
+
+    private function isBasicOfficerEditLockedByChannel(?string $channel): bool
+    {
+        $normalized = strtolower(trim((string) $channel));
+        return in_array($normalized, ['portal', 'web', 'whatsapp', 'whatsapp_web'], true);
     }
 
     private function resolveUserDistrictId($user): ?int
