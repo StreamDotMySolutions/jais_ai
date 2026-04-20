@@ -16,17 +16,22 @@ export default function PublicHomePage() {
           <div className="container">
             <div className="row align-items-center g-4">
               <div className="col-md-6">
+                <div className="mb-2 text-uppercase fw-semibold small text-muted">
+                  Selamat Datang ke Portal Aduan Penguatkuasaan - Hotline JAIS
+                </div>
                 <h1 className="fw-bold mb-3 display-4">
-                Syariah Management Enforcement System 
+                Syariah Enforcement Management System 
                 <br />
                 (i-SYAEMS)
                 </h1>
                 <h3>
-                   Selangor Islamic Religious Department
+                   Bahagian Pengurusan Penguatkuasaan
+                   <br />
+                   Jabatan Agama Islam Selangor
                 </h3>
                 <p className="text-muted">
                   Saluran rasmi untuk orang awam membuat aduan berkaitan hal ehwal Islam
-                  secara selamat, teratur dan telus.
+                  secara selamat, teratur dan telus melalui Bahagian Pengurusan Penguatkuasaan JAIS.
                 </p>
                 <div className="d-flex gap-3 mt-4">
                   <Link to="/complaint" className="public-cta">

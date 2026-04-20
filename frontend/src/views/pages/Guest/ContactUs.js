@@ -1,82 +1,110 @@
 import React from "react";
+import { Link } from "react-router-dom";
+
+const contactItems = [
+  {
+    icon: "bi-geo-alt",
+    title: "Alamat",
+    lines: [
+      "Bilik Gerakan (Hotline 24 Jam)",
+      "Aras Bawah, Menara Utara, Bangunan Sultan Idris Shah",
+      "No. 2 Persiaran Masjid Bukit SUK Seksyen 5",
+      "40000 Shah Alam, Selangor Darul Ehsan",
+    ],
+  },
+  {
+    icon: "bi-telephone",
+    title: "Telefon",
+    lines: ["03 - 5514 3671", "03 - 5514 3777"],
+  },
+  {
+    icon: "bi-envelope",
+    title: "Emel",
+    lines: ["enforcement.bpn@jais.gov.my", "inkuiri.gerakan@gmail.com"],
+  },
+];
 
 const ContactUs = () => {
   return (
-    <div className="py-5">
+    <div className="py-5 contact-page">
       <div className="container">
-        <h2 className="fw-bold mb-4">Hubungi Kami</h2>
+        <div className="contact-hero">
+          <div>
+            <span className="contact-kicker">Hubungi Kami</span>
+            <h2 className="fw-bold mb-2">Bahagian Pengurusan Penguatkuasaan, JAIS</h2>
+            <p className="mb-0">
+              Saluran rasmi untuk pertanyaan, aduan dan maklumat lanjut berkaitan penguatkuasaan
+              syariah di negeri Selangor.
+            </p>
+          </div>
+          <div className="contact-hero-panel">
+            <span>Hotline 24 Jam</span>
+            <strong>1 800 88 2424</strong>
+          </div>
+        </div>
 
-        <div className="row g-4">
-          <div className="col-md-6">
-            <div className="card shadow-sm h-100">
-              <div className="card-body">
-                <h4 className="fw-bold mb-3">Jabatan Agama Islam Selangor (JAIS)</h4>
-                <p className="mb-1">
-                  <strong>Bahagian Penguatkuasaan</strong>
-                </p>
+        <div className="contact-banner">
+          <div>
+            <span className="contact-banner-label">Waktu Operasi</span>
+            <strong>24 jam, setiap hari</strong>
+          </div>
+          <div>
+            <span className="contact-banner-label">WhatsApp</span>
+            <strong>60 12-275 3454</strong>
+          </div>
+          <div>
+            <span className="contact-banner-label">Aduan Online</span>
+            <strong>i-SYAEMS</strong>
+          </div>
+        </div>
 
-                <hr />
-
-                <p className="mb-2">
-                  <i className="bi bi-geo-alt me-2"></i>
-                  Jabatan Agama Islam Selangor,<br />
-                  Tingkat 9 &amp; 10, Menara Utara,<br />
-                  Bangunan Sultan Idris Shah,<br />
-                  40000 Shah Alam,<br />
-                  Selangor Darul Ehsan.
-                </p>
-
-                <p className="mb-2">
-                  <i className="bi bi-telephone me-2"></i>
-                  03-5514 3300
-                </p>
-
-                <p className="mb-2">
-                  <i className="bi bi-printer me-2"></i>
-                  03-5514 3399
-                </p>
-
-                <p className="mb-2">
-                  <i className="bi bi-envelope me-2"></i>
-                  webmaster@jais.gov.my
-                </p>
-
-                <p className="mb-0">
-                  <i className="bi bi-globe me-2"></i>
-                  www.jais.gov.my
-                </p>
-              </div>
+        <div className="contact-layout">
+          <div className="contact-main">
+            <div className="contact-grid">
+              {contactItems.map((item) => (
+                <div key={item.title} className="contact-card">
+                  <div className="contact-card-icon">
+                    <i className={`bi ${item.icon}`}></i>
+                  </div>
+                  <div className="contact-card-body">
+                    <h4>{item.title}</h4>
+                    {item.lines.map((line) => (
+                      <p key={line} className="mb-1">{line}</p>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
-          <div className="col-md-6">
-            <div className="card shadow-sm h-100">
-              <div className="card-body">
-                <h5 className="fw-bold mb-3">Waktu Operasi</h5>
-                <table className="table table-borderless mb-4">
-                  <tbody>
-                    <tr>
-                      <td>Ahad - Khamis</td>
-                      <td>8:00 pagi - 5:00 petang</td>
-                    </tr>
-                    <tr>
-                      <td>Jumaat - Sabtu</td>
-                      <td>Cuti</td>
-                    </tr>
-                  </tbody>
-                </table>
+          <aside className="contact-side">
+            <div className="contact-side-card">
+              <h5>Waktu Operasi Kaunter</h5>
+              <table className="table table-borderless mb-4 contact-hours-table">
+                <tbody>
+                  <tr>
+                    <td>Ahad - Khamis</td>
+                    <td>8:00 pagi - 5:00 petang</td>
+                  </tr>
+                  <tr>
+                    <td>Jumaat - Sabtu</td>
+                    <td>Cuti</td>
+                  </tr>
+                </tbody>
+              </table>
 
-                <h5 className="fw-bold mb-3">Aduan Online</h5>
-                <p>
-                  Anda boleh membuat aduan berkaitan kesalahan syariah secara dalam talian
-                  melalui sistem i-SYAEMS tanpa perlu hadir ke pejabat.
+              <div className="contact-note">
+                <div className="contact-note-title">Aduan Online</div>
+                <p className="mb-3">
+                  Anda boleh membuat aduan berkaitan kesalahan syariah secara dalam talian melalui
+                  sistem i-SYAEMS tanpa perlu hadir ke pejabat.
                 </p>
-                <a href="/complaint" className="btn btn-primary">
+                <Link to="/complaint" className="public-cta w-100 d-inline-flex justify-content-center">
                   Buat Aduan Sekarang
-                </a>
+                </Link>
               </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </div>

@@ -9,7 +9,7 @@ const PublicHeader = () => {
             <div className="container public-header-inner">
                 <div className="public-brand-row">
                     <div className="public-brand">
-                        Selamat Datang ke Portal Rasmi Bahagian Penguatkuasaan JAIS
+                        Selamat Datang ke Portal Aduan Penguatkuasaan - Hotline JAIS
                     </div>
                     <button
                         type="button"
