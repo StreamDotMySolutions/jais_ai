@@ -25,6 +25,8 @@ async function pushStatus(state, extra = {}) {
       state,
       qr: extra.qr || null,
       reason: extra.reason || null,
+      phone: extra.phone || null,
+      name: extra.name || null,
       pid: process.pid,
       platform: PLATFORM,
       script: SCRIPT_NAME,
@@ -77,8 +79,10 @@ client.on('authenticated', () => {
 });
 
 client.on('ready', () => {
-  console.log('WhatsApp bot dah siap dan online (dev / Windows)');
-  pushStatus('connected');
+  const phone = client.info && client.info.wid ? client.info.wid.user : null;
+  const name = client.info ? client.info.pushname : null;
+  console.log('WhatsApp bot dah siap dan online (dev / Windows)', phone ? `(${phone})` : '');
+  pushStatus('connected', { phone, name });
 });
 
 client.on('auth_failure', m => {

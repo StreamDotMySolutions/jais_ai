@@ -23,6 +23,8 @@ class WhatsappWebStatusController extends Controller
             'state'    => 'required|string|max:40',
             'qr'       => 'nullable|string|max:4000',
             'reason'   => 'nullable|string|max:500',
+            'phone'    => 'nullable|string|max:40',
+            'name'     => 'nullable|string|max:200',
             'pid'      => 'nullable|integer',
             'platform' => 'nullable|string|max:40',
             'script'   => 'nullable|string|max:80',
@@ -41,10 +43,14 @@ class WhatsappWebStatusController extends Controller
                 }
             }
         } else {
+            // When transitioning to connected, store phone/name. For other states,
+            // null them out so stale pairing info doesn't linger.
             $current = array_merge($current, [
                 'state'             => $data['state'],
                 'qr'                => $data['state'] === 'waiting-for-scan' ? ($data['qr'] ?? null) : null,
                 'reason'            => $data['reason'] ?? null,
+                'phone'             => $data['state'] === 'connected' ? ($data['phone'] ?? null) : null,
+                'name'              => $data['state'] === 'connected' ? ($data['name'] ?? null) : null,
                 'pid'               => $data['pid'] ?? null,
                 'platform'          => $data['platform'] ?? null,
                 'script'            => $data['script'] ?? null,
@@ -67,6 +73,8 @@ class WhatsappWebStatusController extends Controller
                 'state'             => 'offline',
                 'qr'                => null,
                 'reason'            => null,
+                'phone'             => null,
+                'name'              => null,
                 'pid'               => null,
                 'platform'          => null,
                 'script'            => null,

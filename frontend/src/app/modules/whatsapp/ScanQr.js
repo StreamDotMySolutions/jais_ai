@@ -154,6 +154,12 @@ const ScanQr = () => {
                         <div className="text-center text-success">
                             <i className="bi bi-check-circle-fill" style={{ fontSize: '3rem' }} />
                             <h4 className="mt-3">WhatsApp Web sedang dalam talian</h4>
+                            {status?.phone && (
+                                <p className="text-muted mb-1">
+                                    Nombor dipautkan: <strong className="text-dark">+{status.phone}</strong>
+                                    {status.name ? ` (${status.name})` : ''}
+                                </p>
+                            )}
                             <p className="text-muted mb-0">Tidak perlu sebarang tindakan.</p>
                         </div>
                     ) : state === 'disconnected' || state === 'auth_failure' ? (
