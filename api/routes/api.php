@@ -308,6 +308,12 @@ Route::post('/whatsapp', [WhatsAppWebhookController::class, 'handleWebhook']);
 use App\Http\Controllers\WhatsApp\WhatsappWebController;
 Route::post('/whatsappweb', [WhatsappWebController::class, 'handle']);
 
+// Whatsapp Web internal status ingest (Node bridge -> Laravel).
+// Gated by shared secret header; should only be reached over loopback in prod.
+use App\Http\Controllers\Admin\WhatsappWebStatusController;
+Route::post('/whatsappweb/_internal/status', [WhatsappWebStatusController::class, 'ingest'])
+    ->middleware(['waweb.secret', 'throttle:120,1']);
+
 // GitHub Webhook
 use App\Http\Controllers\GitHub\WebhookController as GitHubWebhookController;
 Route::post('/github-webhook', [GitHubWebhookController::class, 'handleWebhook']);

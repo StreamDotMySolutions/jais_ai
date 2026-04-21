@@ -75,6 +75,8 @@ class Kernel extends HttpKernel
         'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
 
+        'waweb.secret' => \App\Http\Middleware\VerifyWhatsappWebSecret::class,
+
      
 
     ];

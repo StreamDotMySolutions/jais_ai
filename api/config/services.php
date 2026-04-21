@@ -45,6 +45,10 @@ return [
         'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
     ],
 
+    'whatsappweb' => [
+        'internal_secret' => env('WAWEB_INTERNAL_SECRET'),
+    ],
+
     'github' => [
         'webhook_secret' => env('GITHUB_WEBHOOK_SECRET'),
     ],

@@ -6,6 +6,29 @@ const axios = require('axios');
 const API_URL = process.env.API_URL || 'http://127.0.0.1:8000/api/whatsappweb';
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser';
 
+// Status-ingest endpoint on Laravel (loopback). Guarded by shared secret.
+const STATUS_URL = process.env.WAWEB_STATUS_URL || 'http://127.0.0.1:8000/api/whatsappweb/_internal/status';
+const STATUS_SECRET = process.env.WAWEB_INTERNAL_SECRET || '';
+const HEARTBEAT_MS = 10_000;
+
+async function pushStatus(state, extra = {}) {
+  if (!STATUS_SECRET) return;
+  try {
+    await axios.post(STATUS_URL, {
+      state,
+      qr: extra.qr || null,
+      reason: extra.reason || null,
+      pid: process.pid,
+      ts: Date.now(),
+    }, {
+      headers: { 'X-WAWEB-SECRET': STATUS_SECRET },
+      timeout: 3000,
+    });
+  } catch (_) {
+    // Silent: we never want status-push failures to crash the bot.
+  }
+}
+
 const client = new Client({
   authStrategy: new LocalAuth(),
   puppeteer: {
@@ -25,10 +48,24 @@ const client = new Client({
 
 client.on('qr', qr => {
   qrcode.generate(qr, { small: true });
+  pushStatus('waiting-for-scan', { qr });
+});
+
+client.on('authenticated', () => {
+  pushStatus('authenticated');
 });
 
 client.on('ready', () => {
   console.log('WhatsApp bot dah siap dan online');
+  pushStatus('connected');
+});
+
+client.on('auth_failure', msg => {
+  pushStatus('auth_failure', { reason: String(msg) });
+});
+
+client.on('disconnected', reason => {
+  pushStatus('disconnected', { reason: String(reason) });
 });
 
 client.on('message', async msg => {
@@ -76,4 +113,6 @@ client.on('message', async msg => {
 
 });
 
+pushStatus('booting');
+setInterval(() => pushStatus('__heartbeat__'), HEARTBEAT_MS);
 client.initialize();
