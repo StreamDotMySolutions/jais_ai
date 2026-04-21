@@ -17,8 +17,7 @@ class WebhookController extends Controller
 
     public function verify(Request $request)
     {
-        //$verifyToken = config('services.whatsapp.verify_token');
-        $verifyToken = 'abc123'; // from .env;
+        $verifyToken = config('services.whatsapp.verify_token');
 
         $mode = $request->query('hub_mode');
         $token = $request->query('hub_verify_token');
