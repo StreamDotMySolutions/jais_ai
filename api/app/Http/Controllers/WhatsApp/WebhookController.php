@@ -67,47 +67,29 @@ class WebhookController extends Controller
             'content' => $message,
         ]);
 
-        // Dispatch ke LLM (WhatsApp)
-        // dispatch(new WhatsAppSendToLlmJob(
-        //     message: $message,
-        //     phone: $from,
-        // ));
+        // Short-circuit: reply "hello" directly, skip LLM dispatch
+        $this->sendMessage($from, 'hello');
 
-        dispatch(new SendToLlmJob(
-            message: $message,
-            from: $from,
-            channel: 'whatsapp'
-        ));
-
-  
-
-        // LOGIC HELLO → WORLD
-        // if ($message === 'hello') {
-        //     $this->sendMessage($from, 'world');
-        // }
-
-        //return response()->json(['status' => 'ok']);
-
+        return response()->json(['status' => 'ok']);
     }
 
-    // public function sendMessage($to, $message)
-    // {
-     
-    //     $token = env('WHATSAPP_ACCESS_TOKEN');
-    //     $phone_id = env('WHATSAPP_PHONE_NUMBER_ID');
+    public function sendMessage($to, $message)
+    {
+        $token = env('WHATSAPP_ACCESS_TOKEN');
+        $phone_id = env('WHATSAPP_PHONE_NUMBER_ID');
 
-    //        $url = "https://graph.facebook.com/v15.0/{$phone_id}/messages";
+        $url = "https://graph.facebook.com/v15.0/{$phone_id}/messages";
 
-    //     $response = Http::withToken($token)->post($url, [
-    //         'messaging_product' => 'whatsapp',
-    //         'to' => $to,
-    //         'text' => [
-    //             'body' => $message
-    //         ]
-    //     ]);
+        $response = Http::withToken($token)->post($url, [
+            'messaging_product' => 'whatsapp',
+            'to' => $to,
+            'text' => [
+                'body' => $message
+            ]
+        ]);
 
-    //     \Log::info('WhatsApp Send Message Response:', ['response' => $response->json()]);
-    // }
+        \Log::info('WhatsApp Send Message Response:', ['response' => $response->json()]);
+    }
 
     // public function test()
     // {
