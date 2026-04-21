@@ -4,6 +4,7 @@ const os = require('os');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const axios = require('axios');
+const { startControlServer } = require('./lib/control');
 
 const API_URL = process.env.API_URL || 'http://127.0.0.1:8000/api/whatsappweb';
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser';
@@ -12,6 +13,7 @@ const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser';
 const STATUS_URL = process.env.WAWEB_STATUS_URL || 'http://127.0.0.1:8000/api/whatsappweb/_internal/status';
 const STATUS_SECRET = process.env.WAWEB_INTERNAL_SECRET || '';
 const HEARTBEAT_MS = 10_000;
+const CONTROL_PORT = parseInt(process.env.WAWEB_CONTROL_PORT || '3001', 10);
 
 const SCRIPT_NAME = path.basename(process.argv[1] || 'server-prod.js');
 const PLATFORM = os.platform();
@@ -122,4 +124,5 @@ client.on('message', async msg => {
 
 pushStatus('booting');
 setInterval(() => pushStatus('__heartbeat__'), HEARTBEAT_MS);
+startControlServer({ client, port: CONTROL_PORT, secret: STATUS_SECRET, pushStatus });
 client.initialize();

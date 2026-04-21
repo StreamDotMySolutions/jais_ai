@@ -22,6 +22,8 @@ const ScanQr = () => {
     const [status, setStatus] = useState(null);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(true);
+    const [logoutBusy, setLogoutBusy] = useState(false);
+    const [logoutMessage, setLogoutMessage] = useState('');
 
     const fetchStatus = async () => {
         if (!apiUrl) {
@@ -40,6 +42,27 @@ const ScanQr = () => {
             setError(msg);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const requestLogout = async () => {
+        if (!apiUrl) return;
+        const ok = window.confirm('Log keluar akaun WhatsApp yang sedang dipautkan? QR code baru akan dipaparkan untuk imbasan semula.');
+        if (!ok) return;
+        setLogoutBusy(true);
+        setLogoutMessage('');
+        try {
+            await axios.post(`${apiUrl}/admin/whatsappweb/logout`, {}, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            });
+            setLogoutMessage('Arahan logout telah dihantar. QR baru akan dipaparkan dalam beberapa saat.');
+            // Fresh status right away.
+            fetchStatus();
+        } catch (err) {
+            const msg = err?.response?.data?.error || err?.message || 'Logout gagal';
+            setLogoutMessage(`Ralat: ${msg}`);
+        } finally {
+            setLogoutBusy(false);
         }
     };
 
@@ -79,7 +102,26 @@ const ScanQr = () => {
                     Scan QR — WhatsApp Web
                 </h3>
                 <span className={`badge bg-${badge.variant}`}>{badge.label}</span>
+                <button
+                    type="button"
+                    className="btn btn-outline-danger btn-sm ms-auto"
+                    onClick={requestLogout}
+                    disabled={logoutBusy || state === 'offline'}
+                    title="Paksa logout peranti yang sedang dipautkan dan paparkan QR baru"
+                >
+                    {logoutBusy ? (
+                        <><span className="spinner-border spinner-border-sm me-2" />Logging out…</>
+                    ) : (
+                        <><i className="bi bi-box-arrow-right me-1" />Logout peranti</>
+                    )}
+                </button>
             </div>
+
+            {logoutMessage && (
+                <div className="alert alert-info py-2" role="alert">
+                    {logoutMessage}
+                </div>
+            )}
 
             <p className="text-muted">
                 Halaman ini memaparkan status bridge WhatsApp Web dan, jika perlu, QR code untuk memautkan semula peranti.

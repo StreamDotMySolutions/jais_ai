@@ -27,8 +27,9 @@ Route::group(['middleware' => ['auth:sanctum','role:admin']], function () {
 
 });
 
-// WhatsApp Web bridge status (read-only) — allow both admin and system roles
+// WhatsApp Web bridge status (read) + logout (write) — allow both admin and system roles
 Route::middleware(['auth:sanctum', 'role:admin|system'])->group(function () {
     Route::get('/whatsappweb/status', [WhatsappWebStatusController::class, 'show']);
+    Route::post('/whatsappweb/logout', [WhatsappWebStatusController::class, 'logout']);
 });
 

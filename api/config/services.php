@@ -47,6 +47,7 @@ return [
 
     'whatsappweb' => [
         'internal_secret' => env('WAWEB_INTERNAL_SECRET'),
+        'control_url'     => env('WAWEB_CONTROL_URL', 'http://127.0.0.1:3001/logout'),
     ],
 
     'github' => [

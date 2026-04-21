@@ -7,6 +7,8 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class WhatsappWebStatusController extends Controller
 {
@@ -82,5 +84,44 @@ class WhatsappWebStatusController extends Controller
         }
 
         return response()->json($payload)->header('Cache-Control', 'no-store');
+    }
+
+    /**
+     * Admin-triggered logout — instructs the Node bridge (over loopback)
+     * to client.logout() and re-initialize, which produces a fresh QR.
+     */
+    public function logout(): JsonResponse
+    {
+        $controlUrl = config('services.whatsappweb.control_url');
+        $secret     = config('services.whatsappweb.internal_secret');
+
+        if (!$controlUrl || !$secret) {
+            return response()->json([
+                'ok'    => false,
+                'error' => 'Control endpoint not configured',
+            ], 500);
+        }
+
+        try {
+            $resp = Http::timeout(5)
+                ->withHeaders(['X-WAWEB-SECRET' => $secret])
+                ->post($controlUrl);
+        } catch (\Throwable $e) {
+            Log::warning('whatsapp-web logout: control request failed', ['error' => $e->getMessage()]);
+            return response()->json([
+                'ok'    => false,
+                'error' => 'Bridge control endpoint unreachable',
+            ], 503);
+        }
+
+        if (!$resp->successful()) {
+            return response()->json([
+                'ok'     => false,
+                'error'  => 'Bridge rejected logout',
+                'status' => $resp->status(),
+            ], 502);
+        }
+
+        return response()->json(['ok' => true]);
     }
 }
