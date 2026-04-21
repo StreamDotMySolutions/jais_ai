@@ -105,6 +105,17 @@ class WhatsappWebController extends Controller
         // huruf kecil semua untuk ujian
         $incomingMessage = strtolower(trim($data['body'] ?? '' ));
 
+        // Intercept control commands before hitting the LLM
+        if ($incomingMessage === '/reset') {
+            ChatMessage::where('channel', 'whatsapp_web')
+                ->where('chat_id', $data['from'])
+                ->delete();
+
+            Log::info('WhatsApp Web /reset — chat history cleared', ['from' => $data['from']]);
+
+            return $this->reply('Perbualan dikosongkan. Sila mula semula.');
+        }
+
         // contoh logik balas mesej ringkas
         // if($incomingMessage == 'hello') {
         //     Log::info('Received greeting message from WhatsApp Web user: ' . $data['from']);
@@ -169,14 +180,14 @@ class WhatsappWebController extends Controller
         ); 
 
          // 4. Hantar ke OpenAI
-        $openaiKey = env('OPENAI_API_KEY') ?: config('services.openai.api_key');
+        $openaiKey = config('services.openai.api_key');
 
         if (!$openaiKey) {
             Log::error('OpenAI API key not configured');
             return;
         }
 
-        $llmResponse = Http::withHeaders([
+        $llmResponse = Http::timeout(15)->withHeaders([
             'Authorization' => 'Bearer ' . $openaiKey,
             'Content-Type'  => 'application/json',
         ])->post('https://api.openai.com/v1/chat/completions', [
