@@ -37,6 +37,7 @@ class MenuSeeder extends Seeder
             ['label' => 'Menu', 'path' => '/app/menus', 'icon' => 'bi-list-nested', 'sort_order' => 2],
             ['label' => 'Api Token', 'path' => '/app/api-token', 'icon' => 'bi-key', 'sort_order' => 3],
             ['label' => 'Api Logs', 'path' => '/app/api-logs', 'icon' => 'bi-activity', 'sort_order' => 4],
+            ['label' => 'Scan QR', 'path' => '/app/scan-qr', 'icon' => 'bi-qr-code-scan', 'sort_order' => 5],
         ];
 
         $roleMap = Role::query()->pluck('id', 'name');
@@ -81,6 +82,7 @@ class MenuSeeder extends Seeder
                 '/app/menus',
                 '/app/api-token',
                 '/app/api-logs',
+                '/app/scan-qr',
             ], true)) {
                 $parentMenu = DB::table('sys_menus')->where('path', '/app/system-settings')->first();
                 if ($parentMenu) {
@@ -198,6 +200,9 @@ class MenuSeeder extends Seeder
                 $allowedRoles = ['system', 'admin'];
             }
             if ($menu['path'] === '/app/system-settings') {
+                $allowedRoles = ['system', 'admin'];
+            }
+            if ($menu['path'] === '/app/scan-qr') {
                 $allowedRoles = ['system', 'admin'];
             }
 

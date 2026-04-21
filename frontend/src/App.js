@@ -53,6 +53,7 @@ import WaranReport from './app/modules/waran/WaranReport';
 import WaranPrint from './app/modules/waran/WaranPrint';
 import WaranOktSearchList from './app/modules/waran/WaranOktSearchList';
 import ToastProvider from './app/components/SharedToastProvider';
+import ScanQr from './app/modules/whatsapp/ScanQr';
 
 // Common
 import Profile from './views/pages/Global/Profile';
@@ -156,6 +157,7 @@ function App() {
             <Route path="/app/menus" element={<MenuList />} />
             <Route path="/app/api-token" element={<ApiToken />} />
             <Route path="/app/api-logs" element={<ApiLog />} />
+            <Route path="/app/scan-qr" element={<ScanQr />} />
             <Route path="/app/arahan-beredar" element={<ArahanBeredarList />} />
             <Route path="/app/arahan-beredar/new" element={<ArahanBeredar />} />
             <Route path="/app/arahan-beredar/:id" element={<ArahanBeredarDetail />} />

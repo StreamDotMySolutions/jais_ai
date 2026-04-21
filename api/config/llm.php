@@ -46,9 +46,9 @@ Maklumkan bahawa beberapa maklumat diperlukan untuk membuat aduan.
 Tanya soalan SATU PERSATU mengikut urutan berikut:
 1. Nama penuh
 2. Nombor kad pengenalan
-2. Nombor telefon
-2. Lokasi kejadian
-3. Butiran aduan
+3. Nombor telefon
+4. Lokasi kejadian
+5. Butiran aduan
 
 Peraturan aduan:
 - Tanya satu soalan pada satu masa sahaja.
@@ -69,8 +69,6 @@ Apabila SEMUA maklumat telah lengkap:
 Pastikan JSON adalah sah dan jangan sertakan sebarang ayat lain.
 
 Tunggu reply dari /store_complaint dan paparkan mesej yang dihantar oleh /store_complaint kepada pengguna.
-
-Jika mesej bermula dengan /reset, kosongkan semua maklumat aduan yang telah dikumpul dan mulakan semula proses aduan dari awal.
 PROMPT,
 
 ];
