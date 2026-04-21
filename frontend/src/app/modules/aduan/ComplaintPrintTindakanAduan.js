@@ -32,19 +32,68 @@ const ComplaintPrintTindakanAduan = () => {
     }, [apiUrl, id]);
 
     const renderValue = (value) => value || '-';
-    const complaintDate = complaint?.complaint_date || '-';
-    const complaintTime = complaint?.complaint_time || '-';
-    const receivedBy = complaint?.received_by?.name || complaint?.submitted_by?.staff?.name || complaint?.submitted_by?.name || '-';
-    const pelaksanaName = complaint?.aj_handover_staff?.name || complaint?.pic_user?.name || '-';
-    const approverDate = complaint?.approver_confirmed_at ? new Date(complaint.approver_confirmed_at) : null;
-    const approverDateText = approverDate ? approverDate.toLocaleDateString('ms-MY') : '-';
-    const approverTimeText = approverDate ? approverDate.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : '-';
+    const pad2 = (value) => String(value ?? '').padStart(2, '0');
+
+    const formatDateDMY = (value) => {
+        if (!value) {
+            return '-';
+        }
+
+        const str = String(value);
+        const datePart = str.includes('T')
+            ? str.split('T')[0]
+            : (str.includes(' ') ? str.split(' ')[0] : str);
+        const parts = datePart.split('-');
+        if (parts.length !== 3) {
+            return value;
+        }
+        return `${pad2(parts[2])}/${pad2(parts[1])}/${parts[0]}`;
+    };
+
+    const formatTimeMalay = (value) => {
+        if (!value) {
+            return '-';
+        }
+
+        const str = String(value);
+        const timePart = str.includes('T')
+            ? (str.split('T')[1] || '')
+            : (str.includes(' ') ? (str.split(' ')[1] || '') : str);
+        const raw = timePart.replace('Z', '').split('.')[0];
+        const [hhStr = '0', mmStr = '0'] = raw.split(':');
+        const hh = Number(hhStr) || 0;
+        const mm = Number(mmStr) || 0;
+        const hh12 = ((hh + 11) % 12) + 1;
+        const session = hh < 12 ? 'PAGI' : 'PETANG';
+
+        return `${hh12}.${pad2(mm)} ${session}`;
+    };
+
+    const complaintDate = formatDateDMY(complaint?.complaint_date);
+    const complaintTime = formatTimeMalay(complaint?.complaint_time);
+    const receivedBy =
+        complaint?.receivedBy?.name ||
+        complaint?.received_by?.name ||
+        complaint?.submittedBy?.staff?.name ||
+        complaint?.submitted_by?.staff?.name ||
+        complaint?.submittedBy?.name ||
+        complaint?.submitted_by?.name ||
+        '-';
+    const directiveBy = complaint?.ajDirectiveStaff?.name || complaint?.aj_directive_staff?.name || '-';
+    const pelaksanaName = complaint?.ajHandoverStaff?.name || complaint?.aj_handover_staff?.name || complaint?.picUser?.name || complaint?.pic_user?.name || '-';
     const directiveAt = complaint?.aj_directive_at ? new Date(complaint.aj_directive_at) : null;
-    const directiveDateText = directiveAt ? directiveAt.toLocaleDateString('ms-MY') : approverDateText;
-    const directiveTimeText = directiveAt ? directiveAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : approverTimeText;
+    const directiveDateText = directiveAt ? directiveAt.toLocaleDateString('ms-MY') : complaintDate;
+    const directiveTimeText = directiveAt ? directiveAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : complaintTime;
     const handoverAt = complaint?.handover_at ? new Date(complaint.handover_at) : null;
-    const handoverDateText = handoverAt ? handoverAt.toLocaleDateString('ms-MY') : (complaint?.approver_confirmed_at ? approverDateText : '-');
-    const handoverTimeText = handoverAt ? handoverAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : (complaint?.approver_confirmed_at ? approverTimeText : '-');
+    const handoverDateText = handoverAt ? handoverAt.toLocaleDateString('ms-MY') : complaintDate;
+    const handoverTimeText = handoverAt ? handoverAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : complaintTime;
+    const statusHistoryDate = complaint?.aj_action_datetime ? formatDateDMY(complaint.aj_action_datetime) : handoverDateText;
+    const statusHistoryTime = complaint?.aj_action_datetime ? formatTimeMalay(complaint.aj_action_datetime) : handoverTimeText;
+    const currentStatus = complaint?.aj_current_status || getComplaintStageLabel(complaint?.current_stage || 'baru');
+    const currentClassification = complaint?.aj_ppa_classification || '-';
+    const districtDisplay = complaint?.district_name || complaint?.district?.name || '-';
+    const caseRegisterNo = complaint?.case_register_no || '-';
+    const notesText = complaint?.handover_notes || complaint?.aj_directive_notes || complaint?.aj_report_notes || '-';
 
     if (isLoading) {
         return <div className="print-loading">Memuatkan borang...</div>;
@@ -81,56 +130,46 @@ const ComplaintPrintTindakanAduan = () => {
                 <div className="print-block-title">Butiran Aduan</div>
                 <div className="print-box-grid print-box-grid-3">
                     <div className="print-box">
-                        <span>Nombor Aduan</span>
+                        <span>Nombor Aduan :</span>
                         <strong>{renderValue(complaint.reference_no)}</strong>
                     </div>
                     <div className="print-box">
-                        <span>Tarikh Penerimaan Aduan</span>
+                        <span>Tarikh Penerimaan Aduan :</span>
                         <strong>{renderValue(complaintDate)}</strong>
                     </div>
                     <div className="print-box">
-                        <span>Masa Penerimaan Aduan</span>
+                        <span>Masa Penerimaan Aduan :</span>
                         <strong>{renderValue(complaintTime)}</strong>
                     </div>
                 </div>
                 <div className="print-box-grid print-box-grid-2">
                     <div className="print-box">
-                        <span>Nama Penerima Aduan</span>
+                        <span>Nama Penerima Aduan :</span>
                         <strong>{renderValue(receivedBy)}</strong>
                     </div>
                     <div className="print-box">
-                        <span>Pegawai Pengesah</span>
-                        <strong>{renderValue(complaint?.approver_staff?.name)}</strong>
-                    </div>
-                </div>
-                <div className="print-box-grid print-box-grid-2">
-                    <div className="print-box">
-                        <span>Klasifikasi</span>
-                        <strong>{renderValue(complaint.aj_ppa_classification || complaint.classification_code)}</strong>
-                    </div>
-                    <div className="print-box">
-                        <span>Jenis Kesalahan</span>
-                        <strong>{renderValue(complaint.aj_offense_type)}</strong>
+                        <span>Kumpulan / Pelaksana :</span>
+                        <strong>{renderValue(pelaksanaName)}</strong>
                     </div>
                 </div>
 
                 <div className="print-block-title">Makluman Aduan dan Arahan Penyelia</div>
                 <div className="print-box-grid print-box-grid-3">
                     <div className="print-box">
-                        <span>Pegawai Yang Mengeluarkan Arahan</span>
-                        <strong>{renderValue(complaint.aj_directive_staff?.name)}</strong>
+                        <span>Nama Penyelia Bertugas :</span>
+                        <strong>{renderValue(directiveBy)}</strong>
                     </div>
                     <div className="print-box">
-                        <span>Tarikh Maklum Aduan</span>
+                        <span>Tarikh Maklum Aduan :</span>
                         <strong>{renderValue(directiveDateText)}</strong>
                     </div>
                     <div className="print-box">
-                        <span>Masa Maklum Aduan</span>
+                        <span>Masa Maklum Aduan :</span>
                         <strong>{renderValue(directiveTimeText)}</strong>
                     </div>
                 </div>
                 <div className="print-notes">
-                    <span>Minit / Arahan Tindakan</span>
+                    <span>Minit / Arahan Tindakan :</span>
                     <div className="print-notes-box">
                         {renderValue(complaint.aj_directive_notes || complaint.aj_report_notes)}
                     </div>
@@ -139,15 +178,15 @@ const ComplaintPrintTindakanAduan = () => {
                 <div className="print-block-title">Serahan Aduan Kepada Anggota Pelaksana</div>
                 <div className="print-box-grid print-box-grid-3">
                     <div className="print-box">
-                        <span>Pegawai Yang Menerima Arahan</span>
-                        <strong>{renderValue(pelaksanaName)}</strong>
+                        <span>Pelaksana / Daerah Pelaksana :</span>
+                        <strong>{renderValue(districtDisplay)}</strong>
                     </div>
                     <div className="print-box">
-                        <span>Tarikh Serahan</span>
+                        <span>Tarikh Serahan :</span>
                         <strong>{renderValue(handoverDateText)}</strong>
                     </div>
                     <div className="print-box">
-                        <span>Masa Serahan</span>
+                        <span>Masa Serahan :</span>
                         <strong>{renderValue(handoverTimeText)}</strong>
                     </div>
                 </div>
@@ -160,18 +199,18 @@ const ComplaintPrintTindakanAduan = () => {
                         <span>Catatan</span>
                     </div>
                     <div className="print-table-row">
-                        <span>{renderValue(complaint.aj_ppa_classification || complaint.classification_code)}</span>
-                        <span>{renderValue(handoverDateText)}</span>
-                        <span>{renderValue(handoverTimeText)}</span>
-                        <span>{renderValue(complaint.handover_notes || complaint.aj_notes)}</span>
+                        <span>{renderValue(currentClassification)}</span>
+                        <span>{renderValue(statusHistoryDate)}</span>
+                        <span>{renderValue(statusHistoryTime)}</span>
+                        <span>{renderValue(notesText)}</span>
                     </div>
                 </div>
 
                 <div className="print-footer-note">
-                    Status Terkini / Tarikh Tindakan: {renderValue(getComplaintStageLabel(complaint.current_stage))}
+                    Status Terkini / Tarikh Tindakan : {renderValue(currentStatus)}
                 </div>
                 <div className="print-footer-note">
-                    No. Daftar Kes: {renderValue(complaint.case_register_no)}
+                    No. Daftar Kes : {renderValue(caseRegisterNo)}
                 </div>
             </div>
         </div>

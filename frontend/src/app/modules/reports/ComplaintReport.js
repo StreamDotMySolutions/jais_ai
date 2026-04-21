@@ -51,6 +51,22 @@ const REPORT_GROUPS = [
         ],
     },
     {
+        title: 'OP',
+        description: 'Laporan status semasa dan catatan operasi untuk aduan yang ditanda sebagai OP.',
+        cards: [
+            {
+                title: 'Status Semasa Aduan OP',
+                description: 'Ringkasan status semasa aduan OP mengikut daerah, tarikh, dan klasifikasi terkunci OP.',
+                to: '/app/complaints/report/op/status-semasa',
+            },
+            {
+                title: 'Catatan Status Semasa Aduan OP',
+                description: 'Senarai rekod aduan OP yang memaparkan status semasa dan catatan operasi terkini.',
+                to: '/app/complaints/report/op/catatan',
+            },
+        ],
+    },
+    {
         title: 'KES / Pendakwaan',
         description: 'Laporan berkaitan rekod KES, status pendakwaan, mahkamah, dan susulan prosiding.',
         cards: [
@@ -99,7 +115,7 @@ const ComplaintReport = () => (
             <div className="app-report-dashboard-stat">
                 <span className="app-report-dashboard-stat-label">Kumpulan</span>
                 <strong>{REPORT_GROUPS.length}</strong>
-                <small>Tangkapan, siasatan, tindakan, dan KES / pendakwaan.</small>
+                <small>Tangkapan, siasatan, tindakan, OP, dan KES / pendakwaan.</small>
             </div>
             <div className="app-report-dashboard-stat">
                 <span className="app-report-dashboard-stat-label">Skop Semasa</span>

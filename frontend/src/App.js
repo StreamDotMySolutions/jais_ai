@@ -41,6 +41,7 @@ import ComplaintArrestTotalsReport from './app/modules/reports/ComplaintArrestTo
 import ComplaintCaseProsecutionReport from './app/modules/reports/ComplaintCaseProsecutionReport';
 import ComplaintCourtsProsecutorsReport from './app/modules/reports/ComplaintCourtsProsecutorsReport';
 import ComplaintIpStatusReport from './app/modules/reports/ComplaintIpStatusReport';
+import ComplaintOpNotesReport from './app/modules/reports/ComplaintOpNotesReport';
 import ComplaintOydsReport from './app/modules/reports/ComplaintOydsReport';
 import ComplaintReport from './app/modules/reports/ComplaintReport';
 import ComplaintSeizureItemsReport from './app/modules/reports/ComplaintSeizureItemsReport';
@@ -212,6 +213,19 @@ function App() {
             <Route
               path="/app/complaints/report/action-status"
               element={<ComplaintActionStatusReport />}
+            />
+            <Route
+              path="/app/complaints/report/op/status-semasa"
+              element={<ComplaintActionStatusReport
+                title="Status Semasa Aduan OP"
+                description="Ringkasan status semasa aduan OP mengikut daerah dan tarikh."
+                defaultClassification="OP"
+                lockClassification
+              />}
+            />
+            <Route
+              path="/app/complaints/report/op/catatan"
+              element={<ComplaintOpNotesReport />}
             />
             <Route
               path="/app/appointments/report"

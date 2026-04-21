@@ -4,7 +4,13 @@ import axios from 'axios';
 
 const CLASSIFICATION_OPTIONS = ['FFA', 'KIV', 'NFA', 'OP'];
 
-const ComplaintActionStatusReport = () => {
+const ComplaintActionStatusReport = ({
+    title = 'Statistik Status Tindakan',
+    description = 'Ringkasan status semasa laporan tindakan AJ mengikut klasifikasi dan daerah.',
+    backLink = '/app/complaints/report',
+    defaultClassification = '',
+    lockClassification = false,
+}) => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
     const [isLoading, setIsLoading] = useState(true);
@@ -14,7 +20,7 @@ const ComplaintActionStatusReport = () => {
     const [summary, setSummary] = useState({ totals: {}, status_rows: [], classification_rows: [], district_rows: [] });
     const [filters, setFilters] = useState({
         district: '',
-        classification: '',
+        classification: defaultClassification,
         fromDate: '',
         toDate: '',
     });
@@ -29,12 +35,14 @@ const ComplaintActionStatusReport = () => {
             .catch(() => setDistrictOptions([]));
     }, [apiUrl]);
 
+    const effectiveClassification = lockClassification ? defaultClassification : filters.classification;
+
     const params = useMemo(() => ({
         ...(filters.district ? { district_id: filters.district } : {}),
-        ...(filters.classification ? { classification: filters.classification } : {}),
+        ...(effectiveClassification ? { classification: effectiveClassification } : {}),
         ...(filters.fromDate ? { from_date: filters.fromDate } : {}),
         ...(filters.toDate ? { to_date: filters.toDate } : {}),
-    }), [filters]);
+    }), [filters.district, filters.fromDate, filters.toDate, effectiveClassification]);
 
     const loadSummary = () => {
         if (!apiUrl) {
@@ -101,10 +109,10 @@ const ComplaintActionStatusReport = () => {
             <div className="app-section-header">
                 <div>
                     <div className="app-section-eyebrow">PENGURUSAN LAPORAN</div>
-                    <h2>Statistik Status Tindakan</h2>
-                    <p>Ringkasan status semasa laporan tindakan AJ mengikut klasifikasi dan daerah.</p>
+                    <h2>{title}</h2>
+                    <p>{description}</p>
                 </div>
-                <Link className="app-button app-button-ghost" to="/app/complaints/report">
+                <Link className="app-button app-button-ghost" to={backLink}>
                     Kembali Dashboard
                 </Link>
             </div>
@@ -123,12 +131,16 @@ const ComplaintActionStatusReport = () => {
                         </label>
                         <label className="app-form-field">
                             <span>Klasifikasi</span>
-                            <select value={filters.classification} onChange={(e) => setFilters((prev) => ({ ...prev, classification: e.target.value }))}>
-                                <option value="">Semua</option>
-                                {CLASSIFICATION_OPTIONS.map((option) => (
-                                    <option key={option} value={option}>{option}</option>
-                                ))}
-                            </select>
+                            {lockClassification ? (
+                                <input type="text" value={filters.classification || 'OP'} disabled />
+                            ) : (
+                                <select value={filters.classification} onChange={(e) => setFilters((prev) => ({ ...prev, classification: e.target.value }))}>
+                                    <option value="">Semua</option>
+                                    {CLASSIFICATION_OPTIONS.map((option) => (
+                                        <option key={option} value={option}>{option}</option>
+                                    ))}
+                                </select>
+                            )}
                         </label>
                         <label className="app-form-field">
                             <span>Dari Tarikh Aduan</span>
@@ -142,7 +154,12 @@ const ComplaintActionStatusReport = () => {
                             <button
                                 type="button"
                                 className="app-button app-button-ghost"
-                                onClick={() => setFilters({ district: '', classification: '', fromDate: '', toDate: '' })}
+                                onClick={() => setFilters({
+                                    district: '',
+                                    classification: lockClassification ? defaultClassification : '',
+                                    fromDate: '',
+                                    toDate: '',
+                                })}
                             >
                                 Reset
                             </button>

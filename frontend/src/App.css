@@ -7004,6 +7004,79 @@ body {
   border-right: none;
 }
 
+.print-tindakan {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #111111;
+}
+
+.print-tindakan .print-banner {
+  font-size: 1.45rem;
+  padding: 0.65rem 1rem;
+}
+
+.print-tindakan .print-subtitle-center {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #111111;
+}
+
+.print-tindakan .print-block-title {
+  margin-top: 1.75rem;
+  margin-bottom: 1rem;
+  font-size: 0.92rem;
+  padding: 0.42rem 1rem;
+}
+
+.print-tindakan .print-box {
+  padding: 0.6rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.print-tindakan .print-box span,
+.print-tindakan .print-notes span,
+.print-tindakan .print-table-head span {
+  font-size: 0.68rem;
+  color: #111111;
+}
+
+.print-tindakan .print-box strong {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.print-tindakan .print-notes-box {
+  min-height: 58px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.print-tindakan .print-table {
+  margin-top: 1rem;
+}
+
+.print-tindakan .print-table-head,
+.print-tindakan .print-table-row {
+  grid-template-columns: 0.55fr 0.75fr 0.55fr 2.3fr;
+}
+
+.print-tindakan .print-table-head span {
+  background: #f0f0f0;
+  padding: 0.25rem 0.45rem;
+  text-align: center;
+}
+
+.print-tindakan .print-table-row span {
+  padding: 0.35rem 0.45rem;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.print-tindakan .print-footer-note {
+  font-size: 0.76rem;
+  margin-top: 0.45rem;
+}
+
 .print-footer-note {
   text-align: center;
   margin-top: 0.6rem;
