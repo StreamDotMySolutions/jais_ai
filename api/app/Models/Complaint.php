@@ -27,6 +27,8 @@ class Complaint extends Model
         'ak_event_date' => 'date:Y-m-d',
         'ak_rujuk_date' => 'date:Y-m-d',
         'ak_hearing_date' => 'date:Y-m-d',
+        'consent_accepted' => 'boolean',
+        'consent_accepted_at' => 'datetime:Y-m-d H:i:s',
     ];
 
 

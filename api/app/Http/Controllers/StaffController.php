@@ -20,7 +20,7 @@ class StaffController extends Controller
         }
 
         $perPage = (int) $request->query('per_page', 10);
-        if ($perPage <= 0 || $perPage > 100) {
+        if ($perPage <= 0 || $perPage > 500) {
             $perPage = 10;
         }
         $keyword = trim((string) $request->query('keyword', ''));
@@ -77,7 +77,7 @@ class StaffController extends Controller
             }
         }
 
-        $staff = $query->get(['id', 'name', 'staff_id', 'office_type', 'district_id']);
+        $staff = $query->with(['district:id,name'])->get(['id', 'name', 'staff_id', 'office_type', 'district_id']);
 
         return response()->json([
             'message' => 'Staff options',
@@ -106,27 +106,37 @@ class StaffController extends Controller
             'department_code' => 'nullable|string|max:100',
             'office_type' => 'nullable|string|in:hq,daerah',
             'district_id' => 'nullable|exists:districts,id',
-            'email' => 'nullable|string|max:255|unique:users,email',
+            'email' => 'nullable|string|max:255',
             'password' => 'nullable|string|min:6',
             'role' => ['nullable', 'string', Rule::exists(config('permission.table_names.roles'), 'name')],
         ]);
 
-        if (! empty($validated['email']) && ! empty($validated['password']) && empty($validated['role'])) {
-            return response()->json(['message' => 'Role diperlukan untuk akaun pengguna.'], 422);
-        }
-
         $staff = DB::transaction(function () use ($validated) {
             $userId = null;
-            if (! empty($validated['email']) && ! empty($validated['password'])) {
-                $user = User::create([
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
-                    'password' => Hash::make($validated['password']),
-                ]);
-                if (! empty($validated['role'])) {
-                    $user->assignRole($validated['role']);
+            $normalizedEmail = isset($validated['email']) ? strtolower(trim((string) $validated['email'])) : '';
+            $existingUser = $normalizedEmail !== '' ? User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->first() : null;
+
+            if ($normalizedEmail !== '') {
+                if ($existingUser) {
+                    $userId = $existingUser->id;
+                    if (! empty($validated['role']) && $existingUser->roles->isEmpty()) {
+                        $existingUser->assignRole($validated['role']);
+                    }
+                } elseif (! empty($validated['password'])) {
+                    $user = User::create([
+                        'name' => $validated['name'],
+                        'email' => $validated['email'],
+                        'password' => Hash::make($validated['password']),
+                    ]);
+                    if (! empty($validated['role'])) {
+                        $user->assignRole($validated['role']);
+                    }
+                    $userId = $user->id;
+                } else {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'email' => 'E-mel ini belum berdaftar. Sila isi kata laluan untuk cipta akaun baru atau gunakan e-mel akaun yang sudah wujud.',
+                    ]);
                 }
-                $userId = $user->id;
             }
 
             return Staff::create([
@@ -179,24 +189,37 @@ class StaffController extends Controller
             'role' => ['nullable', 'string', Rule::exists(config('permission.table_names.roles'), 'name')],
         ]);
 
-        if (! empty($validated['email']) && ! empty($validated['password']) && empty($validated['role'])) {
-            return response()->json(['message' => 'Role diperlukan untuk akaun pengguna.'], 422);
-        }
-
         DB::transaction(function () use ($staff, $validated) {
-            if (! empty($validated['email'])) {
+            $normalizedEmail = isset($validated['email']) ? strtolower(trim((string) $validated['email'])) : '';
+            $existingUser = $normalizedEmail !== '' ? User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->first() : null;
+
+            if ($normalizedEmail !== '') {
                 if ($staff->user_id) {
-                    $staff->user()->update([
-                        'email' => $validated['email'],
-                        'name' => $validated['name'],
-                    ]);
-                    if (! empty($validated['password'])) {
-                        $staff->user()->update([
-                            'password' => Hash::make($validated['password']),
+                    $currentUser = $staff->user;
+
+                    if ($existingUser && $existingUser->id !== $currentUser->id) {
+                        $staff->user_id = $existingUser->id;
+                        if (! empty($validated['role']) && $existingUser->roles->isEmpty()) {
+                            $existingUser->assignRole($validated['role']);
+                        }
+                    } else {
+                        $currentUser->update([
+                            'email' => $validated['email'],
+                            'name' => $validated['name'],
                         ]);
+                        if (! empty($validated['password'])) {
+                            $currentUser->update([
+                                'password' => Hash::make($validated['password']),
+                            ]);
+                        }
+                        if (! empty($validated['role'])) {
+                            $currentUser->syncRoles([$validated['role']]);
+                        }
                     }
-                    if (! empty($validated['role'])) {
-                        $staff->user->syncRoles([$validated['role']]);
+                } elseif ($existingUser) {
+                    $staff->user_id = $existingUser->id;
+                    if (! empty($validated['role']) && $existingUser->roles->isEmpty()) {
+                        $existingUser->assignRole($validated['role']);
                     }
                 } elseif (! empty($validated['password'])) {
                     $user = User::create([
@@ -208,6 +231,10 @@ class StaffController extends Controller
                         $user->assignRole($validated['role']);
                     }
                     $staff->user_id = $user->id;
+                } else {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'email' => 'E-mel ini belum berdaftar. Sila isi kata laluan untuk cipta akaun baru atau gunakan e-mel akaun yang sudah wujud.',
+                    ]);
                 }
             }
 

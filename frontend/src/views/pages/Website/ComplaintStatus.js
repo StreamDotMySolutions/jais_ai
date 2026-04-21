@@ -4,25 +4,32 @@ import { getPublicComplaintStageLabel } from '../../../app/modules/aduan/complai
 
 const ComplaintStatus = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
-    const [referenceNo, setReferenceNo] = useState('');
+    const [searchBy, setSearchBy] = useState('reference_no');
+    const [searchValue, setSearchValue] = useState('');
     const [result, setResult] = useState(null);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const resultItems = Array.isArray(result) ? result : (result ? [result] : []);
 
     const handleSubmit = (event) => {
         event.preventDefault();
         setError('');
         setResult(null);
 
-        if (!referenceNo.trim()) {
-            setError('Sila masukkan nombor aduan.');
+        if (!searchValue.trim()) {
+            setError(searchBy === 'informant_ic'
+                ? 'Sila masukkan No. Kad Pengenalan Pemberi Maklumat.'
+                : 'Sila masukkan nombor aduan.');
             return;
         }
 
         setIsLoading(true);
 
         axios.get(`${apiUrl}/complaints/reference`, {
-            params: { reference_no: referenceNo.trim() },
+            params: {
+                search_by: searchBy,
+                value: searchValue.trim(),
+            },
         })
             .then((response) => {
                 setResult(response?.data?.data || null);
@@ -41,27 +48,60 @@ const ComplaintStatus = () => {
                 <div>
                     <span className="status-kicker">Semakan Awam</span>
                     <h1>Semak Status Aduan</h1>
-                    <p>Masukkan nombor aduan untuk semak status terkini.</p>
+                    <p>Semak status melalui nombor aduan atau No. Kad Pengenalan pemberi maklumat.</p>
                 </div>
             </div>
 
             <div className="status-card">
                 <form onSubmit={handleSubmit} className="status-form">
-                    <label className="status-label">Nombor Aduan</label>
+                    <label className="status-label">Kaedah Semakan</label>
+                    <div className="status-switch">
+                        <label className={`status-switch-option ${searchBy === 'reference_no' ? 'active' : ''}`}>
+                            <input
+                                type="radio"
+                                name="search_by"
+                                value="reference_no"
+                                checked={searchBy === 'reference_no'}
+                                onChange={() => {
+                                    setSearchBy('reference_no');
+                                    setResult(null);
+                                    setError('');
+                                }}
+                            />
+                            <span>No. Aduan</span>
+                        </label>
+                        <label className={`status-switch-option ${searchBy === 'informant_ic' ? 'active' : ''}`}>
+                            <input
+                                type="radio"
+                                name="search_by"
+                                value="informant_ic"
+                                checked={searchBy === 'informant_ic'}
+                                onChange={() => {
+                                    setSearchBy('informant_ic');
+                                    setResult(null);
+                                    setError('');
+                                }}
+                            />
+                            <span>No. Kad Pengenalan Pemberi Maklumat</span>
+                        </label>
+                    </div>
+                    <label className="status-label">{searchBy === 'informant_ic' ? 'No. Kad Pengenalan Pemberi Maklumat' : 'Nombor Aduan'}</label>
                     <div className="status-input">
                         <i className="bi bi-search"></i>
                         <input
                             type="text"
-                            placeholder="Contoh: JAIS-AJ-GOM-251227-0001"
-                            value={referenceNo}
-                            onChange={(event) => setReferenceNo(event.target.value)}
+                            placeholder={searchBy === 'informant_ic'
+                                ? 'Contoh: 900101010001'
+                                : 'Contoh: JAIS-AJ-GOM-251227-0001'}
+                            value={searchValue}
+                            onChange={(event) => setSearchValue(event.target.value)}
                         />
-                        {referenceNo && (
+                        {searchValue && (
                             <button
                                 type="button"
                                 className="status-clear"
                                 aria-label="Kosongkan carian"
-                                onClick={() => setReferenceNo('')}
+                                onClick={() => setSearchValue('')}
                             >
                                 <i className="bi bi-x-lg"></i>
                             </button>
@@ -74,28 +114,33 @@ const ComplaintStatus = () => {
 
                 {error && <div className="status-error">{error}</div>}
 
-                {result && (
+                {resultItems.length > 0 && (
                     <div className="status-result">
-                        <div className="status-row">
-                            <span>No Aduan</span>
-                            <strong>{result.reference_no}</strong>
-                        </div>
-                        <div className="status-row">
-                            <span>Status</span>
-                            <strong>{getPublicComplaintStageLabel(result.current_stage || '-', result)}</strong>
-                        </div>
-                        <div className="status-row">
-                            <span>Daerah</span>
-                            <strong>{result.district_name || '-'}</strong>
-                        </div>
-                        <div className="status-row">
-                            <span>Tarikh</span>
-                            <strong>{result.complaint_date || '-'}</strong>
-                        </div>
-                        <div className="status-summary">
-                            <span>Ringkasan</span>
-                            <p>{result.summary || '-'}</p>
-                        </div>
+                        {Array.isArray(result) && result.length > 1 && (
+                            <div className="status-result-count">
+                                Ditemui {result.length} rekod aduan berkaitan nombor kad pengenalan ini.
+                            </div>
+                        )}
+                        {resultItems.map((item) => (
+                            <div key={item.reference_no} className="status-result-item">
+                                <div className="status-row">
+                                    <span>No Aduan</span>
+                                    <strong>{item.reference_no}</strong>
+                                </div>
+                                <div className="status-row">
+                                    <span>Status</span>
+                                    <strong>{getPublicComplaintStageLabel(item.current_stage || '-', item)}</strong>
+                                </div>
+                                <div className="status-row">
+                                    <span>Daerah</span>
+                                    <strong>{item.district_name || '-'}</strong>
+                                </div>
+                                <div className="status-row">
+                                    <span>Tarikh</span>
+                                    <strong>{item.complaint_date || '-'}</strong>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>

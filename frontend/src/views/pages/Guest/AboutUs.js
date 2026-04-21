@@ -7,8 +7,8 @@ const sections = [
   { id: "fungsi-utama", label: "Fungsi Utama" },
   { id: "objektif-kualiti", label: "Objektif Kualiti" },
   { id: "fungsi-dalaman", label: "Fungsi Dalaman" },
-  { id: "aduan-online", label: "Aduan Online" },
-  { id: "semak-status", label: "Semak Status" },
+  // { id: "aduan-online", label: "Aduan Online" },
+  // { id: "semak-status", label: "Semak Status" },
 ];
 
 const AboutUs = () => {
@@ -235,7 +235,7 @@ const AboutUs = () => {
               </div>
             </details>
 
-            <details className="about-section" id="aduan-online">
+            {/* <details className="about-section" id="aduan-online">
               <summary>
                 <span>ADUAN ONLINE</span>
                 <i className="bi bi-chevron-down"></i>
@@ -284,7 +284,7 @@ const AboutUs = () => {
                   kadang2 pengadu ni tak terlepas pandang dan tak save pon no daftar aduan yang telah dibuat.
                 </p>
               </div>
-            </details>
+            </details> */}
 
           </div>
         </div>

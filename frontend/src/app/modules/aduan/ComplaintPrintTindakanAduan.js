@@ -124,7 +124,7 @@ const ComplaintPrintTindakanAduan = () => {
                     HOTLINE 24 JAM
                 </div>
                 <div className="print-subtitle-center">
-                    Bahagian Pengurusan Penguatkuasaan Jabatan Agama Islam Selangor
+                    BAHAGIAN PENGURUSAN PENGUATKUASAAN JABATAN AGAMA ISLAM SELANGOR
                 </div>
 
                 <div className="print-block-title">Butiran Aduan</div>

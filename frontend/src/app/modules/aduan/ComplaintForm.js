@@ -20,6 +20,8 @@ const COUNT_OPTIONS = [
     { id: '3', name: '3' },
 ];
 
+const CONSENT_TEXT_VERSION = 'v1';
+
 const escapePdfText = (value = '') => String(value)
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
@@ -330,6 +332,8 @@ function ComplaintForm({
             { key: 'ak_event_time', value: store.getValue('ak_event_time') },
             { key: 'ak_event_location', value: store.getValue('ak_event_location') },
             { key: 'ak_rujuk_date', value: store.getValue('ak_rujuk_date') },
+            { key: 'consent_accepted', value: !officerMode && agreementAccepted ? '1' : '0' },
+            { key: 'consent_text_version', value: !officerMode ? CONSENT_TEXT_VERSION : '' },
         ];
 
         appendFormData(formData, dataArray);
@@ -649,7 +653,11 @@ function ComplaintForm({
                 </div>
                 <div>
                     <h2>Terima Kasih!</h2>
-                    <p>Aduan anda telah berjaya dihantar.</p>
+                    <p>
+                        Maklumat aduan anda telah didaftarkan dan diterima masuk ke dalam sistem kami.
+                        Pihak kami akan menghubungi anda bagi mengesahkan maklumat aduan yang disalurkan.
+                        Terima kasih!
+                    </p>
                     {akFollowUpMessage && (
                         <p>{akFollowUpMessage}</p>
                     )}
@@ -1088,14 +1096,14 @@ function ComplaintForm({
                                 <input type="radio" checked readOnly />
                                 <span>
                                     {store.getValue('case_type') === 'AK'
-                                        ? 'Aduan Keluarga (Nikah/Cerai/Rujuk/Poligami)'
-                                        : 'Aduan Penguatkuasaan (Khalwat/Hotel/Rumah Urut/Lain-lain Kesalahan Syariah)'}
+                                        ? 'Aduan Keluarga (berhubung kesalahan poligami, nikah, cerai & rujuk)'
+                                        : 'Aduan Jenayah  (berhubung kesalahan Aqidah & Kesusilaan)'}
                                 </span>
                             </label>
                         ) : (
                             [
-                                { value: 'AJ', label: 'Aduan Penguatkuasaan (Khalwat/Hotel/Rumah Urut/Lain-lain Kesalahan Syariah)' },
-                                { value: 'AK', label: 'Aduan Keluarga (Nikah/Cerai/Rujuk/Poligami)' },
+                                { value: 'AJ', label: 'Aduan Jenayah  (berhubung kesalahan Aqidah & Kesusilaan)' },
+                                { value: 'AK', label: 'Aduan Keluarga (berhubung kesalahan poligami, nikah, cerai & rujuk)' },
                             ].map((option) => (
                                 <label
                                     key={option.value}
@@ -1188,7 +1196,10 @@ function ComplaintForm({
 
                 <div className="complaint-grid">
                     <div className="complaint-section">
-                        <h3>Butir-butir Pengadu <span className="complaint-required">*</span></h3>
+                        <h3>Butiran Pemberi Maklumat (Pengadu) <span className="complaint-required">*</span></h3>
+                        <p className="complaint-confidential-note">
+                            Butiran Pengadu adalah RAHSIA dan SULIT. Ia hanya bertujuan untuk rekod di Bahagian ini dan tidak akan didedahkan kepada sesiapa.
+                        </p>
                         <Row className='mb-4'>
                             <InputText 
                                 fieldName='complainant_name' 
@@ -1650,7 +1661,7 @@ function ComplaintForm({
                                     }
                                 }}
                                 disabled={isLoading}
-                                label="Saya mengesahkan bahawa maklumat yang diberikan adalah benar berdasarkan pengetahuan saya dan saya bersetuju untuk menghantar aduan ini kepada JAIS untuk tindakan lanjut."
+                                label="Dengan ini, saya bertanggungjawab atas aduan yang diberikan dan mengesahkan bahawa segala butiran maklumat yang diberikan adalah BENAR. Saya bersetuju untuk menghantar aduan ini kepada JAIS untuk tindakan lanjut."
                             />
                             {agreementError && (
                                 <div className="complaint-checkbox-error">{agreementError}</div>

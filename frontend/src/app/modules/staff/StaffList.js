@@ -183,16 +183,18 @@ const StaffList = () => {
     const startIndex = total === 0 ? 0 : (page - 1) * perPage + 1;
     const endIndex = Math.min(page * perPage, total);
     const sortColumns = [
+        { key: 'bil', label: 'BIL', sortable: false },
         { key: 'name', label: 'Nama', sortable: true },
         { key: 'staff_id', label: 'ID Kakitangan', sortable: true },
         { key: 'phone', label: 'Telefon', sortable: true },
         { key: 'grade', label: 'Gred', sortable: true },
-        { key: 'office_type', label: 'Pejabat', sortable: true },
+        { key: 'office_type', label: 'Penempatan Operasi', sortable: true },
         { key: 'district', label: 'Daerah', sortable: true },
         { key: 'account', label: 'Akaun', sortable: true },
         { key: '', label: '', sortable: false },
     ];
     const sortAccessors = useMemo(() => ({
+        bil: () => 0,
         name: (item) => item.name || '',
         staff_id: (item) => item.staff_id || '',
         phone: (item) => item.phone || '',
@@ -267,8 +269,9 @@ const StaffList = () => {
                         {staff.length === 0 ? (
                             <div className="app-empty">Tiada staff ditemui.</div>
                         ) : (
-                            sortedStaff.map((item) => (
+                            sortedStaff.map((item, index) => (
                                 <div className="app-table-row app-staff-row" key={item.id}>
+                                    <div className="app-bil-cell">{startIndex + index}</div>
                                     <div className="app-code">{item.name}</div>
                                     <div>{item.staff_id || '-'}</div>
                                     <div>{item.phone || '-'}</div>
@@ -365,9 +368,9 @@ const StaffList = () => {
                                 <input value={form.department_code} onChange={(e) => updateField('department_code', e.target.value)} />
                             </label>
                             <label className="app-form-field">
-                                <span>Jenis Pejabat</span>
+                                <span>Penempatan Operasi</span>
                                 <select value={form.office_type} onChange={(e) => updateField('office_type', e.target.value)}>
-                                    <option value="">Pilih Jenis</option>
+                                    <option value="">Pilih Penempatan</option>
                                     <option value="hq">HQ</option>
                                     <option value="daerah">Daerah</option>
                                 </select>
@@ -386,8 +389,8 @@ const StaffList = () => {
                                 </label>
                             )}
                             <div className="app-span-full app-form-section">
-                                <h5>Register Akaun</h5>
-                                <p>Sila isi maklumat di bawah untuk auto register akaun.</p>
+                                <h5>Akaun Login</h5>
+                                <p>Isi e-mel untuk paut akaun sedia ada. Jika belum ada akaun, isi kata laluan untuk cipta akaun baru.</p>
                             </div>
                             <label className="app-form-field">
                                 <span>E-mel Akaun (optional)</span>
@@ -398,9 +401,9 @@ const StaffList = () => {
                                 <input type="password" value={form.password} onChange={(e) => updateField('password', e.target.value)} />
                             </label>
                             <label className="app-form-field">
-                                <span>Role Akaun (optional)</span>
+                                <span>Role Akses (optional)</span>
                                 <select value={form.role} onChange={(e) => updateField('role', e.target.value)}>
-                                    <option value="">Pilih Role</option>
+                                    <option value="">Pilih Role Akses</option>
                                     {roles.map((role) => (
                                         <option key={role.id} value={role.name}>
                                             {role.name}

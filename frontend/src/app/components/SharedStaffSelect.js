@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import SearchSelect from '../../libs/SearchSelect';
 import useStaffOptions from '../hooks/useStaffOptions';
 
 const formatStaffLabel = (staff) => {
@@ -9,6 +10,20 @@ const formatStaffLabel = (staff) => {
         return `${staff.name} (${staff.staff_id})`;
     }
     return staff.name || '';
+};
+
+const formatSearchStaffLabel = (staff, showDistrictLabel = false) => {
+    const primary = formatStaffLabel(staff);
+    const districtName = staff?.district?.name || '';
+
+    if (!showDistrictLabel || !districtName) {
+        return primary;
+    }
+
+    return {
+        text: primary,
+        district: districtName,
+    };
 };
 
 /**
@@ -25,14 +40,31 @@ const SharedStaffSelect = ({
     placeholder = '-- Pilih Pegawai --',
     disabled = false,
     className = '',
+    searchable = false,
+    searchPlaceholder = 'Cari pegawai...',
+    showDistrictLabel = false,
 }) => {
     const { items, isLoading } = useStaffOptions({ apiUrl, token, officeType, sameDistrictOfStaffId });
 
     const normalizedValue = value ?? '';
     const options = useMemo(() => (items || []).map((item) => ({
         value: String(item.id),
-        label: formatStaffLabel(item),
-    })), [items]);
+        label: searchable && showDistrictLabel ? formatSearchStaffLabel(item, true) : formatStaffLabel(item),
+        searchLabel: formatStaffLabel(item),
+    })), [items, searchable, showDistrictLabel]);
+
+    if (searchable) {
+        return (
+            <SearchSelect
+                value={normalizedValue}
+                options={options}
+                placeholder={isLoading ? 'Memuatkan pegawai...' : placeholder}
+                searchPlaceholder={searchPlaceholder}
+                onChange={onChange}
+                disabled={disabled || isLoading}
+            />
+        );
+    }
 
     return (
         <select

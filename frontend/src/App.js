@@ -71,8 +71,16 @@ import ComplaintStatus from './views/pages/Website/ComplaintStatus';
 import './App.css';
 import HomePage from './views/pages/HomePage';
 
+function normalizeRole(value) {
+  const role = (value || '').toString().trim().toLowerCase();
+  if (!role || role === 'null' || role === 'undefined') {
+    return 'awam';
+  }
+  return role;
+}
+
 function DashboardByRole() {
-  const role = (localStorage.getItem('role') || 'awam').toLowerCase();
+  const role = normalizeRole(localStorage.getItem('role'));
   if (role === 'awam' || role === 'user') {
     return <PublicDashboard />;
   }
@@ -80,7 +88,7 @@ function DashboardByRole() {
 }
 
 function ComplaintListByRole() {
-  const role = (localStorage.getItem('role') || 'awam').toLowerCase();
+  const role = normalizeRole(localStorage.getItem('role'));
   if (role === 'awam' || role === 'user') {
     return <AppComplaintListPublic />;
   }

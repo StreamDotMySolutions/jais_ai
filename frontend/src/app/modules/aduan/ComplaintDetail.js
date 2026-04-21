@@ -1872,6 +1872,13 @@ const ComplaintDetail = () => {
                                 Aduan dari portal atau WhatsApp AI hanya boleh disemak. Kemaskini asas dikunci untuk pegawai.
                             </div>
                         )}
+                        {String(complaint?.channel || '').toLowerCase() === 'portal' && (
+                            <div className="app-detail-note app-detail-note--soft">
+                                <strong>Persetujuan Pengadu:</strong>{' '}
+                                {complaint?.consent_accepted ? 'Diterima' : 'Tidak direkodkan'}
+                                {complaint?.consent_accepted_at ? ` pada ${formatDateTime(complaint.consent_accepted_at)}` : ''}
+                            </div>
+                        )}
                     </div>
 
                     {!basicEditing && basicMessage && (
@@ -3276,6 +3283,9 @@ const ComplaintDetail = () => {
                                         apiUrl={apiUrl}
                                         value={ajActionReport.directive_staff_id || ''}
                                         onChange={(value) => updateActionReportField('directive_staff_id', value)}
+                                        searchable
+                                        searchPlaceholder="Cari pegawai yang mengeluarkan arahan..."
+                                        showDistrictLabel
                                     />
                                 </label>
 
@@ -3297,6 +3307,8 @@ const ComplaintDetail = () => {
                                         sameDistrictOfStaffId={ajActionReport.directive_staff_id || ''}
                                         placeholder={ajActionReport.directive_staff_id ? '-- Pilih Pegawai Daerah --' : '-- Pilih Pegawai Yang Mengeluarkan Arahan dahulu --'}
                                         disabled={!ajActionReport.directive_staff_id}
+                                        searchable
+                                        searchPlaceholder="Cari pegawai yang menerima arahan..."
                                     />
                                 </div>
 

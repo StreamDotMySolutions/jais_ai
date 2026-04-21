@@ -9,6 +9,27 @@ const SearchSelect = ({
     onChange,
     disabled = false,
 }) => {
+    const renderOptionLabel = (option) => {
+        if (option && typeof option.label === 'object' && option.label !== null) {
+            const { text, district } = option.label;
+            return (
+                <span className="app-search-select-option-text">
+                    <span>{text}</span>
+                    {district && <small>{district}</small>}
+                </span>
+            );
+        }
+
+        return option?.label;
+    };
+
+    const renderSelectedLabel = () => {
+        if (!selected) {
+            return placeholder;
+        }
+        return renderOptionLabel(selected);
+    };
+
     const [isOpen, setIsOpen] = useState(false);
     const [query, setQuery] = useState('');
     const wrapperRef = useRef(null);
@@ -22,7 +43,11 @@ const SearchSelect = ({
             return options;
         }
         const term = query.toLowerCase();
-        return options.filter((option) => (option.label || '').toLowerCase().includes(term));
+        return options.filter((option) => {
+            const searchableLabel = option.searchLabel
+                || (typeof option.label === 'string' ? option.label : '');
+            return String(searchableLabel).toLowerCase().includes(term);
+        });
     }, [options, query]);
 
     useEffect(() => {
@@ -59,7 +84,7 @@ const SearchSelect = ({
                     }}
                 >
                     <span className={selected ? '' : 'is-placeholder'}>
-                        {selected ? selected.label : placeholder}
+                        {renderSelectedLabel()}
                     </span>
                     <i className={`bi ${isOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
                 </button>
@@ -99,7 +124,7 @@ const SearchSelect = ({
                                     className={`app-search-select-option${String(option.value) === String(value) ? ' active' : ''}`}
                                     onClick={() => handleSelect(option.value)}
                                 >
-                                    {option.label}
+                                    {renderOptionLabel(option)}
                                 </button>
                             ))}
                             {filteredOptions.length === 0 && (

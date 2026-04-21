@@ -101,6 +101,8 @@ const ComplaintPrintBorang5 = () => {
     const reportText = String(complaint?.borang5_statement || complaint?.summary || '').trim();
     const reportDate = formatDateDMY(complaint?.complaint_date);
     const reportTime = complaint?.complaint_time ? formatTime12hDot(complaint.complaint_time) : '-';
+    const consentAccepted = Boolean(complaint?.consent_accepted);
+    const consentAcceptedAt = complaint?.consent_accepted_at ? formatDateDMY(complaint.consent_accepted_at) : '';
     const publicInformantName = complaint?.informant_name || complaint?.complainant_name || '';
     const publicInformantIdNumber = complaint?.informant_identification_number || complaint?.identification_number || '';
     const publicInformantContactNumber = complaint?.informant_contact_number || complaint?.contact_number || '';
@@ -229,6 +231,12 @@ const ComplaintPrintBorang5 = () => {
                 </div>
 
                 <div className="print-borang5-date-note">{`Bertarikh pada ${renderValue(reportDate)}`}</div>
+                {channel === 'portal' && (
+                    <div className="print-borang5-note" style={{ marginTop: '1.5rem' }}>
+                        <strong>Persetujuan Pengadu:</strong> {consentAccepted ? 'Diterima' : 'Tidak direkodkan'}
+                        {consentAcceptedAt ? ` pada ${consentAcceptedAt}` : ''}
+                    </div>
+                )}
             </div>
         </div>
     );

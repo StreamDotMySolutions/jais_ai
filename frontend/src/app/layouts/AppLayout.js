@@ -7,7 +7,14 @@ const AppLayout = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const apiUrl = process.env.REACT_APP_API_URL;
-    const role = localStorage.getItem('role') || 'awam';
+    const normalizeRole = (value) => {
+        const text = (value || '').toString().trim().toLowerCase();
+        if (!text || text === 'null' || text === 'undefined') {
+            return 'awam';
+        }
+        return text;
+    };
+    const role = normalizeRole(localStorage.getItem('role'));
     const userName = localStorage.getItem('user_name') || 'Pengguna';
     const [menus, setMenus] = useState([]);
     const [menuLoaded, setMenuLoaded] = useState(false);

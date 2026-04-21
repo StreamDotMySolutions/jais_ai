@@ -164,10 +164,11 @@ const UserList = () => {
     const startIndex = total === 0 ? 0 : (page - 1) * perPage + 1;
     const endIndex = Math.min(page * perPage, total);
     const sortColumns = [
+        { key: 'bil', label: 'BIL', sortable: false },
         { key: 'name', label: 'Nama', sortable: true },
         { key: 'email', label: 'Emel', sortable: true },
-        { key: 'role', label: 'Role', sortable: true },
-        { key: 'office_type', label: 'Pejabat', sortable: true },
+        { key: 'role', label: 'Role Akses', sortable: true },
+        { key: 'office_type', label: 'Penempatan Operasi', sortable: true },
         { key: 'status', label: 'Status', sortable: true },
         { key: '', label: '', sortable: false },
     ];
@@ -233,15 +234,17 @@ const UserList = () => {
                 {isLoading ? (
                     <div className="app-table app-table-skeleton">
                         <div className="app-table-header app-user-header">
+                            <span>BIL</span>
                             <span>Nama</span>
                             <span>Emel</span>
-                            <span>Role</span>
-                            <span>Pejabat</span>
+                            <span>Role Akses</span>
+                            <span>Penempatan Operasi</span>
                             <span>Status</span>
                             <span></span>
                         </div>
                         {Array.from({ length: 6 }, (_, index) => (
                             <div key={`user-skeleton-${index}`} className="app-table-row app-user-row">
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
                                 <span className="app-skeleton-line"></span>
                                 <span className="app-skeleton-line"></span>
                                 <span className="app-skeleton-line app-skeleton-line--sm"></span>
@@ -263,8 +266,9 @@ const UserList = () => {
                         {users.length === 0 ? (
                             <div className="app-empty">Tiada pengguna ditemui.</div>
                         ) : (
-                            sortedUsers.map((item) => (
+                            sortedUsers.map((item, index) => (
                                 <div className="app-table-row app-user-row" key={item.id}>
+                                    <div>{startIndex + index}</div>
                                     <div className="app-code">{item.name}</div>
                                     <div>{item.email}</div>
                                     <div>{item.roles?.[0]?.name || '-'}</div>
@@ -327,9 +331,9 @@ const UserList = () => {
                                 <input type="password" value={form.password} onChange={(e) => updateField('password', e.target.value)} />
                             </label>
                             <label className="app-form-field">
-                                <span>Role</span>
+                                <span>Role Akses</span>
                                 <select value={form.role} onChange={(e) => updateField('role', e.target.value)}>
-                                    <option value="">Pilih Role</option>
+                                    <option value="">Pilih Role Akses</option>
                                     {roles.map((role) => (
                                         <option key={role.id} value={role.name}>
                                             {role.name}
@@ -338,9 +342,9 @@ const UserList = () => {
                                 </select>
                             </label>
                             <label className="app-form-field">
-                                <span>Jenis Pejabat</span>
+                                <span>Penempatan Operasi</span>
                                 <select value={form.office_type} onChange={(e) => updateField('office_type', e.target.value)}>
-                                    <option value="">Pilih Jenis</option>
+                                    <option value="">Pilih Penempatan</option>
                                     <option value="hq">HQ</option>
                                     <option value="daerah">Daerah</option>
                                 </select>

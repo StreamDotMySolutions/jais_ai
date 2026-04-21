@@ -12,6 +12,13 @@ const ProtectedRoute = ({role}) => {
     const store = useStore(); // use global store
     const authStore = useAuthStore(); // use global store
     const url = process.env.REACT_APP_API_URL; // API server
+    const normalizeRole = (value) => {
+        const text = (value || '').toString().trim().toLowerCase();
+        if (!text || text === 'null' || text === 'undefined') {
+            return 'awam';
+        }
+        return text;
+    };
 
     //console.log(role)
 
@@ -26,7 +33,7 @@ const ProtectedRoute = ({role}) => {
             console.log(response.data);
             authStore.setValue('auth.email', response.data.user.email)
             authStore.setValue('auth.name', response.data.user.name)
-            authStore.setValue('auth.role', response.data.role)
+            authStore.setValue('auth.role', normalizeRole(response.data.role))
         })
         .catch(error => {
             console.warn(error)

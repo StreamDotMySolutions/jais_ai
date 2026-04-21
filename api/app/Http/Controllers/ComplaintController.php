@@ -2793,21 +2793,73 @@ class ComplaintController extends Controller
     public function lookup(Request $request)
     {
         $request->validate([
-            'reference_no' => 'required|string',
+            'search_by' => 'nullable|string|in:reference_no,informant_ic',
+            'value' => 'nullable|string',
         ]);
 
-        $complaint = Complaint::where('reference_no', $request->reference_no)->first();
+        $searchBy = strtolower(trim((string) $request->input('search_by', 'reference_no')));
+        $value = trim((string) $request->input('value', $request->input('reference_no', '')));
 
-        if (! $complaint) {
+        if ($value === '') {
+            return response()->json([
+                'message' => 'Sila masukkan maklumat carian.',
+            ], 422);
+        }
+
+        if ($searchBy === 'informant_ic') {
+            $normalizedValue = preg_replace('/\D+/', '', $value);
+            $complaints = Complaint::query()
+                ->where(function ($query) use ($normalizedValue) {
+                    $query->whereRaw("REPLACE(REPLACE(REPLACE(COALESCE(identification_number, ''), '-', ''), ' ', ''), '.', '') = ?", [$normalizedValue])
+                        ->orWhereRaw("REPLACE(REPLACE(REPLACE(COALESCE(informant_identification_number, ''), '-', ''), ' ', ''), '.', '') = ?", [$normalizedValue]);
+                })
+                ->orderByDesc('id')
+                ->get();
+        } else {
+            $complaint = Complaint::where('reference_no', $value)->first();
+        }
+
+        if ($searchBy === 'informant_ic') {
+            if ($complaints->isEmpty()) {
+                return response()->json([
+                    'message' => 'No aduan tidak ditemui.',
+                ], 404);
+            }
+        } elseif (! $complaint) {
             return response()->json([
                 'message' => 'No aduan tidak ditemui.',
             ], 404);
+        }
+
+        if ($searchBy === 'informant_ic') {
+            $payload = $complaints->map(function (Complaint $complaint) {
+                return [
+                    'reference_no' => $complaint->reference_no,
+                    'search_by' => 'informant_ic',
+                    'case_type' => $complaint->case_type,
+                    'complaint_date' => $complaint->complaint_date,
+                    'complaint_time' => $complaint->complaint_time,
+                    'district_name' => $complaint->district_name,
+                    'current_stage' => $complaint->current_stage,
+                    'received_at' => $complaint->received_at,
+                    'created_at' => $complaint->created_at,
+                    'updated_at' => $complaint->updated_at,
+                    'summary' => $complaint->summary,
+                ];
+            })->values();
+
+            return response()->json([
+                'message' => 'Complaint found',
+                'data' => $payload,
+                'count' => $payload->count(),
+            ]);
         }
 
         return response()->json([
             'message' => 'Complaint found',
             'data' => [
                 'reference_no' => $complaint->reference_no,
+                'search_by' => $searchBy,
                 'case_type' => $complaint->case_type,
                 'complaint_date' => $complaint->complaint_date,
                 'complaint_time' => $complaint->complaint_time,
@@ -2851,6 +2903,8 @@ class ComplaintController extends Controller
             'ak_event_time' => 'nullable|date_format:H:i',
             'ak_event_location' => 'nullable|string|max:1000',
             'ak_rujuk_date' => 'nullable|date',
+            'consent_accepted' => 'nullable|boolean',
+            'consent_text_version' => 'nullable|string|max:50',
             'attachments' => 'nullable|array|max:10',
             'attachments.*' => 'file|max:51200|mimes:pdf,jpg,jpeg,png,doc,docx',
             'attachment_titles' => 'nullable|array|max:10',
@@ -2880,6 +2934,13 @@ class ComplaintController extends Controller
             return response()->json([
                 'message' => 'Butiran Aduan (Borang 5) wajib diisi untuk aduan pegawai.',
                 'errors' => ['borang5_statement' => ['Butiran Aduan (Borang 5) wajib diisi.']],
+            ], 422);
+        }
+
+        if ($isPublicChannel && ! $request->boolean('consent_accepted')) {
+            return response()->json([
+                'message' => 'Sila sahkan persetujuan sebelum menghantar aduan.',
+                'errors' => ['consent_accepted' => ['Sila sahkan persetujuan sebelum menghantar aduan.']],
             ], 422);
         }
 
@@ -2929,6 +2990,11 @@ class ComplaintController extends Controller
             'ak_event_location' => $caseType === 'AK' ? $request->input('ak_event_location') : null,
             'ak_rujuk_date' => $caseType === 'AK' ? $request->input('ak_rujuk_date') : null,
             'channel' => $channel,
+            'consent_accepted' => $isPublicChannel ? $request->boolean('consent_accepted') : false,
+            'consent_accepted_at' => $isPublicChannel ? $now : null,
+            'consent_text_version' => $isPublicChannel ? (string) ($request->input('consent_text_version') ?: 'v1') : null,
+            'consent_ip_address' => $isPublicChannel ? $request->ip() : null,
+            'consent_user_agent' => $isPublicChannel ? $request->userAgent() : null,
             // New complaints start as "baru". AK skips approver flow later, but should still
             // be received through the normal complaint intake flow before becoming "disahkan".
             'current_stage' => 'baru',

@@ -79,19 +79,11 @@ const ContactUs = () => {
 
           <aside className="contact-side">
             <div className="contact-side-card">
-              <h5>Waktu Operasi Kaunter</h5>
-              <table className="table table-borderless mb-4 contact-hours-table">
-                <tbody>
-                  <tr>
-                    <td>Ahad - Khamis</td>
-                    <td>8:00 pagi - 5:00 petang</td>
-                  </tr>
-                  <tr>
-                    <td>Jumaat - Sabtu</td>
-                    <td>Cuti</td>
-                  </tr>
-                </tbody>
-              </table>
+              <div className="contact-hotline-highlight">
+                <span>Hotline 24 Jam</span>
+                <strong>1 800 88 2424</strong>
+                <p className="mb-0">Saluran utama untuk panggilan segera dan pertanyaan aduan.</p>
+              </div>
 
               <div className="contact-note">
                 <div className="contact-note-title">Aduan Online</div>
