@@ -13,7 +13,9 @@ const HEALTH_INTERVAL_MS = 30_000;
 const STATUS_HEARTBEAT_MS = 10_000;
 const CONTROL_PORT = parseInt(process.env.WAWEB_CONTROL_PORT || '3001', 10);
 
-const SCRIPT_NAME = path.basename(process.argv[1] || 'server-dev.js');
+const SCRIPT_NAME = path.basename(
+  process.env.pm_exec_path || (require.main && require.main.filename) || process.argv[1] || 'server-dev.js'
+);
 const PLATFORM = os.platform();
 
 async function pushStatus(state, extra = {}) {

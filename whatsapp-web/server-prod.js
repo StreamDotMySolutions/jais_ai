@@ -15,7 +15,11 @@ const STATUS_SECRET = process.env.WAWEB_INTERNAL_SECRET || '';
 const HEARTBEAT_MS = 10_000;
 const CONTROL_PORT = parseInt(process.env.WAWEB_CONTROL_PORT || '3001', 10);
 
-const SCRIPT_NAME = path.basename(process.argv[1] || 'server-prod.js');
+// process.argv[1] is PM2's wrapper (ProcessContainerFork.js) when running under PM2.
+// pm_exec_path points at the real entrypoint; require.main.filename is the fallback.
+const SCRIPT_NAME = path.basename(
+  process.env.pm_exec_path || (require.main && require.main.filename) || process.argv[1] || 'server-prod.js'
+);
 const PLATFORM = os.platform();
 
 async function pushStatus(state, extra = {}) {
