@@ -50,7 +50,8 @@ class LlmComplaintService
             if ($ref === null) {
                 return 'Maaf, terdapat ralat semasa menyimpan aduan. Sila cuba semula.';
             }
-            return "Aduan anda telah berjaya diterima. Ini nombor rujukan aduan : {$ref}";
+            $statusUrl = rtrim(config('app.url'), '/') . '/semak-status';
+            return "Aduan anda telah berjaya diterima. Ini nombor rujukan aduan : {$ref}\n\nSemak status aduan di: {$statusUrl}";
         }
 
         return $reply;
