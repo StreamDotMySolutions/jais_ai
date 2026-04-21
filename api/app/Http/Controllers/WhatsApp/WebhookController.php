@@ -78,7 +78,7 @@ class WebhookController extends Controller
         $token = env('WHATSAPP_ACCESS_TOKEN');
         $phone_id = env('WHATSAPP_PHONE_NUMBER_ID');
 
-        $url = "https://graph.facebook.com/v15.0/{$phone_id}/messages";
+        $url = "https://graph.facebook.com/v21.0/{$phone_id}/messages";
 
         $response = Http::withToken($token)->post($url, [
             'messaging_product' => 'whatsapp',
