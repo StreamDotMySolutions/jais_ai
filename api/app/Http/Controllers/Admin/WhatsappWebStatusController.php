@@ -18,11 +18,13 @@ class WhatsappWebStatusController extends Controller
     public function ingest(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'state'  => 'required|string|max:40',
-            'qr'     => 'nullable|string|max:4000',
-            'reason' => 'nullable|string|max:500',
-            'pid'    => 'nullable|integer',
-            'ts'     => 'nullable|integer',
+            'state'    => 'required|string|max:40',
+            'qr'       => 'nullable|string|max:4000',
+            'reason'   => 'nullable|string|max:500',
+            'pid'      => 'nullable|integer',
+            'platform' => 'nullable|string|max:40',
+            'script'   => 'nullable|string|max:80',
+            'ts'       => 'nullable|integer',
         ]);
 
         $current = Cache::get(self::CACHE_KEY, []);
@@ -30,12 +32,20 @@ class WhatsappWebStatusController extends Controller
 
         if ($data['state'] === self::HEARTBEAT) {
             $current['last_heartbeat_at'] = $now;
+            // Heartbeats may also refresh identity if the caller sends it.
+            foreach (['platform', 'script', 'pid'] as $k) {
+                if (isset($data[$k])) {
+                    $current[$k] = $data[$k];
+                }
+            }
         } else {
             $current = array_merge($current, [
                 'state'             => $data['state'],
                 'qr'                => $data['state'] === 'waiting-for-scan' ? ($data['qr'] ?? null) : null,
                 'reason'            => $data['reason'] ?? null,
                 'pid'               => $data['pid'] ?? null,
+                'platform'          => $data['platform'] ?? null,
+                'script'            => $data['script'] ?? null,
                 'updated_at'        => $now,
                 'last_heartbeat_at' => $now,
             ]);
@@ -56,6 +66,8 @@ class WhatsappWebStatusController extends Controller
                 'qr'                => null,
                 'reason'            => null,
                 'pid'               => null,
+                'platform'          => null,
+                'script'            => null,
                 'updated_at'        => null,
                 'last_heartbeat_at' => null,
             ])->header('Cache-Control', 'no-store');

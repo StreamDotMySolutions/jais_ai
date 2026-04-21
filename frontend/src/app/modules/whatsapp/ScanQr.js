@@ -52,6 +52,24 @@ const ScanQr = () => {
 
     const state = status?.state || 'offline';
     const badge = STATE_BADGE[state] || STATE_BADGE.offline;
+    const platform = status?.platform || null;
+    const script = status?.script || null;
+
+    const restartHint = () => {
+        if (platform === 'linux') {
+            return <code>pm2 restart whatsapp-web</code>;
+        }
+        if (platform === 'win32') {
+            return <code>node {script || 'server-dev.js'}</code>;
+        }
+        return (
+            <>
+                Linux: <code>pm2 restart whatsapp-web</code>
+                <br />
+                Windows: <code>node server-dev.js</code>
+            </>
+        );
+    };
 
     return (
         <div className="container-fluid py-4">
@@ -64,8 +82,8 @@ const ScanQr = () => {
             </div>
 
             <p className="text-muted">
-                Halaman ini memaparkan status bridge WhatsApp Web (<code>server-3.js</code>) dan, jika perlu, QR code
-                untuk memautkan semula peranti. Buka WhatsApp pada telefon → <strong>Linked Devices</strong> → <strong>Link a device</strong> dan imbas kod di bawah.
+                Halaman ini memaparkan status bridge WhatsApp Web dan, jika perlu, QR code untuk memautkan semula peranti.
+                Buka WhatsApp pada telefon → <strong>Linked Devices</strong> → <strong>Link a device</strong> dan imbas kod di bawah.
             </p>
 
             {error && (
@@ -104,9 +122,7 @@ const ScanQr = () => {
                                 <p className="text-muted"><code>{status.reason}</code></p>
                             )}
                             <p className="text-muted small mb-0">
-                                Bridge akan cuba semula secara automatik. Jika halaman kekal di status ini, mulakan semula proses bridge:
-                                <br />
-                                <code>pm2 restart whatsapp-web</code>
+                                Bridge akan cuba semula secara automatik. Jika halaman kekal di status ini, mulakan semula proses bridge: {restartHint()}
                             </p>
                         </div>
                     ) : state === 'offline' ? (
@@ -114,9 +130,7 @@ const ScanQr = () => {
                             <i className="bi bi-cloud-slash" style={{ fontSize: '3rem' }} />
                             <h5 className="mt-3">Bridge tidak melaporkan status</h5>
                             <p className="small mb-0">
-                                Proses <code>server-3.js</code> mungkin tidak berjalan. Pada server, jalankan:
-                                <br />
-                                <code>pm2 restart whatsapp-web</code>
+                                Proses bridge mungkin tidak berjalan. Jalankan: {restartHint()}
                             </p>
                         </div>
                     ) : (
@@ -128,6 +142,7 @@ const ScanQr = () => {
                 </div>
                 <div className="card-footer text-muted small">
                     <div>State: <code>{state}</code></div>
+                    {script ? <div>Script: <code>{script}</code>{platform ? ` (${platform})` : ''}</div> : null}
                     {status?.pid ? <div>PID: {status.pid}</div> : null}
                     {status?.last_heartbeat_at ? (
                         <div>Last heartbeat: {new Date(status.last_heartbeat_at).toLocaleString()}</div>

@@ -1,4 +1,6 @@
 require('dotenv').config();
+const path = require('path');
+const os = require('os');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const axios = require('axios');
@@ -9,6 +11,9 @@ const STATUS_SECRET = process.env.WAWEB_INTERNAL_SECRET || '';
 const HEALTH_INTERVAL_MS = 30_000;
 const STATUS_HEARTBEAT_MS = 10_000;
 
+const SCRIPT_NAME = path.basename(process.argv[1] || 'server-dev.js');
+const PLATFORM = os.platform();
+
 async function pushStatus(state, extra = {}) {
   if (!STATUS_SECRET) return;
   try {
@@ -17,6 +22,8 @@ async function pushStatus(state, extra = {}) {
       qr: extra.qr || null,
       reason: extra.reason || null,
       pid: process.pid,
+      platform: PLATFORM,
+      script: SCRIPT_NAME,
       ts: Date.now(),
     }, {
       headers: { 'X-WAWEB-SECRET': STATUS_SECRET },
