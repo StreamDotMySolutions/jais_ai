@@ -4197,6 +4197,10 @@ body {
   margin-top: 1.2rem;
 }
 
+.app-tab-panel .app-detail-number-actions {
+  margin-bottom: 0.75rem;
+}
+
 .app-tab-header {
   display: flex;
   align-items: center;
@@ -5843,6 +5847,11 @@ body {
 .app-textarea-300 {
   height: 200px;
   min-height: 200px;
+}
+
+.app-textarea-110 {
+  height: 110px;
+  min-height: 110px;
 }
 
 .app-textarea-250 {
@@ -7571,6 +7580,16 @@ body {
   line-height: 1.6;
 }
 
+.print-borang5-main-status {
+  margin-top: 2.8rem;
+  padding-left: 2.5rem;
+  font-size: 10px;
+  line-height: 1.6;
+  font-weight: 700;
+  color: #d32f2f;
+  text-transform: uppercase;
+}
+
 @media print {
   body {
     background: #ffffff;
@@ -8619,6 +8638,7 @@ body {
   flex-wrap: nowrap;
   justify-content: flex-start;
 }
+
 .app-aduan-detail .app-detail-status-label {
   font-size: 0.82rem;
 }
@@ -8834,6 +8854,13 @@ body {
 
 .app-aduan-detail .app-form-field span {
   font-size: 0.78rem;
+}
+
+.app-aduan-detail .app-form-field h5 {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #2b3a31;
 }
 
 .app-aduan-detail .app-form-field input,

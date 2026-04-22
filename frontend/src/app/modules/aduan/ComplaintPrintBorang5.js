@@ -101,11 +101,9 @@ const ComplaintPrintBorang5 = () => {
     const reportText = String(complaint?.borang5_statement || complaint?.summary || '').trim();
     const reportDate = formatDateDMY(complaint?.complaint_date);
     const reportTime = complaint?.complaint_time ? formatTime12hDot(complaint.complaint_time) : '-';
+    const mainStatus = (complaint?.aj_ppa_classification || '').toString().trim().toUpperCase();
     const consentAccepted = Boolean(complaint?.consent_accepted);
     const consentAcceptedAt = complaint?.consent_accepted_at ? formatDateDMY(complaint.consent_accepted_at) : '';
-    const publicInformantName = complaint?.informant_name || complaint?.complainant_name || '';
-    const publicInformantIdNumber = complaint?.informant_identification_number || complaint?.identification_number || '';
-    const publicInformantContactNumber = complaint?.informant_contact_number || complaint?.contact_number || '';
     const officerInformantName =
         receiverStaff?.name ||
         complaint?.received_by?.name ||
@@ -115,9 +113,16 @@ const ComplaintPrintBorang5 = () => {
     const officerInformantOccupation = receiverStaff?.position || 'Pegawai Penguatkuasa Agama';
     const officerInformantContactNumber = receiverStaff?.phone || '-';
     const officerInformantAddress = receiverStaff?.office_address || receiverStaff?.address || '-';
-    const effectiveInformantName = isPhysicalInformant ? publicInformantName : officerInformantName;
-    const effectiveInformantIdNumber = isPhysicalInformant ? publicInformantIdNumber : officerInformantIdNumber;
-    const effectiveInformantContactNumber = isPhysicalInformant ? publicInformantContactNumber : officerInformantContactNumber;
+    const complainantName = complaint?.complainant_name || '';
+    const complainantIdNumber = complaint?.identification_number || '';
+    const complainantOccupation = complaint?.complainant_occupation || '';
+    const complainantContactNumber = complaint?.contact_number || '';
+    const complainantAddress = complaint?.address || '';
+    const effectiveInformantName = isPhysicalInformant ? complainantName : officerInformantName;
+    const effectiveInformantIdNumber = isPhysicalInformant ? complainantIdNumber : officerInformantIdNumber;
+    const effectiveInformantOccupation = isPhysicalInformant ? complainantOccupation : officerInformantOccupation;
+    const effectiveInformantContactNumber = isPhysicalInformant ? complainantContactNumber : officerInformantContactNumber;
+    const effectiveInformantAddress = isPhysicalInformant ? complainantAddress : officerInformantAddress;
     const effectiveOfficerSignerName = caseType === 'AK'
         ? officerInformantName
         : (
@@ -164,43 +169,26 @@ const ComplaintPrintBorang5 = () => {
                     </div>
                 </div>
 
-                {isPhysicalInformant && (
-                    <div className="print-borang5-table print-borang5-table-identity">
-                        <div className="print-borang5-row">
-                            <div className="print-borang5-label">Nama</div>
-                            <div className="print-borang5-value">{renderValue(publicInformantName)}</div>
-                        </div>
-                        <div className="print-borang5-row">
-                            <div className="print-borang5-label">No. K/P Pemberi Maklumat</div>
-                            <div className="print-borang5-value">{renderValue(publicInformantIdNumber)}</div>
-                        </div>
-                        <div className="print-borang5-row">
-                            <div className="print-borang5-label">No. Telefon Pemberi Maklumat</div>
-                            <div className="print-borang5-value">{renderValue(publicInformantContactNumber)}</div>
-                        </div>
-                    </div>
-                )}
-
                 <div className="print-borang5-table print-borang5-table-identity">
                     <div className="print-borang5-row">
                         <div className="print-borang5-label">Nama</div>
-                        <div className="print-borang5-value">{renderValue(officerInformantName)}</div>
+                        <div className="print-borang5-value">{renderValue(effectiveInformantName)}</div>
                     </div>
                     <div className="print-borang5-row">
-                        <div className="print-borang5-label">{isPhysicalInformant ? 'No. K/P Pengadu' : 'No. Pengenalan'}</div>
-                        <div className="print-borang5-value">{renderValue(officerInformantIdNumber)}</div>
+                        <div className="print-borang5-label">No. K/P Pengadu</div>
+                        <div className="print-borang5-value">{renderValue(effectiveInformantIdNumber)}</div>
                     </div>
                     <div className="print-borang5-row">
-                        <div className="print-borang5-label">{isPhysicalInformant ? 'Pekerjaan Pengadu' : 'Pekerjaan'}</div>
-                        <div className="print-borang5-value">{renderValue(officerInformantOccupation)}</div>
+                        <div className="print-borang5-label">Pekerjaan Pengadu</div>
+                        <div className="print-borang5-value">{renderValue(effectiveInformantOccupation)}</div>
                     </div>
                     <div className="print-borang5-row">
-                        <div className="print-borang5-label">{isPhysicalInformant ? 'No. Telefon Pengadu' : 'No. Telefon'}</div>
-                        <div className="print-borang5-value">{renderValue(officerInformantContactNumber)}</div>
+                        <div className="print-borang5-label">No. Telefon Pengadu</div>
+                        <div className="print-borang5-value">{renderValue(effectiveInformantContactNumber)}</div>
                     </div>
                     <div className="print-borang5-row">
-                        <div className="print-borang5-label">{isPhysicalInformant ? 'Alamat Pengadu' : 'Alamat'}</div>
-                        <div className="print-borang5-value">{renderValue(officerInformantAddress)}</div>
+                        <div className="print-borang5-label">Alamat Pengadu</div>
+                        <div className="print-borang5-value">{renderValue(effectiveInformantAddress)}</div>
                     </div>
                 </div>
 
@@ -231,6 +219,9 @@ const ComplaintPrintBorang5 = () => {
                 </div>
 
                 <div className="print-borang5-date-note">{`Bertarikh pada ${renderValue(reportDate)}`}</div>
+                {mainStatus && (
+                    <div className="print-borang5-main-status">{`STATUS UTAMA ADUAN : ${mainStatus}`}</div>
+                )}
                 {channel === 'portal' && (
                     <div className="print-borang5-note" style={{ marginTop: '1.5rem' }}>
                         <strong>Persetujuan Pengadu:</strong> {consentAccepted ? 'Diterima' : 'Tidak direkodkan'}

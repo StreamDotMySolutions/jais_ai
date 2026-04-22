@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Services\LlmComplaintService;
+use App\Models\ChatMessage;
+use App\Services\ComplaintReferenceService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -43,6 +45,83 @@ class SendToLlmJob implements ShouldQueue
             'telegram' => $this->sendToTelegram($reply),
             'whatsapp' => $this->sendToWhatsApp($reply),
             default    => Log::error('Unknown channel', ['channel' => $this->channel]),
+        };
+    }
+
+
+    // Detect if the message is a /store_complaint command
+    private function isStoreComplaintCommand(string $message): bool
+    {
+        return str_starts_with(trim($message), '/store_complaint');
+    }
+
+    // Handle the /store_complaint command
+    private function handleStoreComplaint(string $message): void
+    {
+       Log::info('Store complaint command detected, skip reply', [
+                'reply' => $message,
+            ]);
+
+        // 1. Remove the command part
+        $jsonString = trim(substr($message, strlen('/store_complaint')));
+
+        // 2. Decode JSON into array
+        $data = json_decode($jsonString, true);
+
+        // 3. Safety check (LLM can hallucinate)
+        if (! is_array($data)) {
+            // log error or silently ignore
+            return;
+        }
+
+        \Log::info('Storing complaint from WhatsApp', [
+            'data' => $data,
+        ]);
+
+        $now = now();
+        $referenceNo = app(ComplaintReferenceService::class)->generateReferenceNo(
+            'AJ',
+            $data['district'] ?? null,
+            $now
+        );
+
+        // 4. Store in Complaint DB
+        \App\Models\Complaint::create([
+            'reference_no' => $referenceNo,
+            'case_type' => 'AJ',
+            'complaint_year' => (int) $now->format('Y'),
+            'complaint_date' => $now->toDateString(),
+            'complaint_time' => $now->format('H:i:s'),
+            'complainant_name' => $data['name'] ?? 'Tidak dinyatakan',
+            'identification_number' => $data['identification_number'] ?? 'Tidak dinyatakan',
+            'contact_number' => $this->from,
+            'address' => $data['location'] ?? 'Tidak dinyatakan',
+            'district_name' => $data['district'] ?? null,
+            'summary' => $data['contents'] ?? 'Tidak dinyatakan',
+            'channel' => $this->channel,
+            'current_stage' => 'baru',
+            'submitted_at' => $now,
+        ]);
+
+
+        // clear ChatMessage for this chat_id and channel
+        ChatMessage::where('channel', $this->channel)
+            ->where('chat_id', $this->from)
+            ->delete();
+        
+
+        // send reply to user
+        $this->sendReply('Aduan anda telah diterima. Terima kasih.');
+    }
+
+    private function sendReply(string $text): void
+    {
+        match ($this->channel) {
+            'telegram' => $this->sendToTelegram($text),
+            'whatsapp' => $this->sendToWhatsApp($text),
+            default => Log::error('Unknown channel for sending reply', [
+                'channel' => $this->channel,
+            ]),
         };
     }
 

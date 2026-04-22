@@ -19,9 +19,9 @@ import { getComplaintStageLabel, getPublicComplaintStageLabel } from './complain
 import useOffenseOptions from '../../hooks/useOffenseOptions';
 
 const AJ_STEPS = [
-    { key: 'ppa', label: 'Tindakan Aduan' },
-    { key: 'laporan_tindakan', label: 'Laporan Tindakan' },
-    { key: 'laporan_pemeriksaan', label: 'Laporan Pemeriksaan' },
+    { key: 'ppa', label: 'Maklumat Aduan' },
+    { key: 'laporan_tindakan', label: 'Jana Tindakan' },
+    { key: 'laporan_pemeriksaan', label: 'Laporan Tindakan' },
     { key: 'siasatan', label: 'Butiran Siasatan' },
     { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
 ];
@@ -32,7 +32,7 @@ const COUNT_SELECT_OPTIONS = [
     { value: '3', label: '3' },
 ];
 const AK_STEPS = [
-    { key: 'tindakan', label: 'Tindakan Aduan' },
+    { key: 'tindakan', label: 'Maklumat Aduan' },
     { key: 'siasatan', label: 'Butiran Siasatan' },
     { key: 'pendakwaan', label: 'Butiran Pendakwaan' },
 ];
@@ -245,6 +245,22 @@ const ComplaintDetail = () => {
     const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase();
     const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp_web'].includes(complaintChannelNormalized);
     const isBasicEditLockedBySource = LOCKED_BASIC_EDIT_CHANNELS.includes(complaintChannelNormalized);
+    const isWalkInInformant = ['walkin', 'walk-in', 'kaunter'].includes(complaintChannelNormalized);
+    const receiverName = complaint?.received_by?.name || complaint?.receivedBy?.name || '';
+    const receiverStaff = complaint?.received_by?.staff || complaint?.receivedBy?.staff || null;
+    const effectiveInformantName = (complaint?.informant_name || '').trim()
+        || (isWalkInInformant ? (complaint?.complainant_name || '') : receiverName)
+        || '';
+    const effectiveInformantIdNumber = (complaint?.informant_identification_number || '').trim()
+        || (isWalkInInformant
+            ? (complaint?.identification_number || '')
+            : (receiverStaff?.staff_id || receiverStaff?.ic_number || ''))
+        || '';
+    const effectiveInformantContactNumber = (complaint?.informant_contact_number || '').trim()
+        || (isWalkInInformant
+            ? (complaint?.contact_number || '')
+            : (receiverStaff?.phone || ''))
+        || '';
     const canEditBasicComplaint = isPegawaiRole && !isBasicEditLockedBySource;
     const autoClassificationGuardRef = useRef({});
     const suppressUnloadReleaseRef = useRef(false);
@@ -1464,6 +1480,44 @@ const ComplaintDetail = () => {
         if (!apiUrl) {
             return;
         }
+        if ((complaint?.case_type || 'AJ') === 'AJ') {
+            const missingFields = [];
+            const classification = (ajPayload.classification || '').toString().trim();
+            const offenseId = (ajPayload.offense_id || '').toString().trim();
+            const borang5Statement = (basicDraft.borang5_statement || '').toString().trim();
+
+            if (!classification) {
+                missingFields.push('Klasifikasi');
+            }
+            if (!offenseId) {
+                missingFields.push('Kesalahan Disyaki');
+            }
+            if (!borang5Statement) {
+                missingFields.push('Butiran Aduan (Borang 5)');
+            }
+
+            if (missingFields.length > 0) {
+                const msg = `Sila isi medan wajib dahulu: ${missingFields.join(', ')}. Kemudian klik Simpan sebelum Hantar Pengesahan.`;
+                setAssigneeMessage(msg);
+                toast.error(msg);
+                return;
+            }
+
+            const savedClassification = (complaint?.aj_ppa_classification || '').toString().trim();
+            const savedOffenseId = complaint?.aj_offense_id ? String(complaint.aj_offense_id) : '';
+            const savedBorang5 = (complaint?.borang5_statement || '').toString().trim();
+            const hasUnsavedAjChanges =
+                classification !== savedClassification
+                || offenseId !== savedOffenseId
+                || borang5Statement !== savedBorang5;
+
+            if (hasUnsavedAjChanges) {
+                const msg = 'Sila klik Simpan dahulu untuk rekodkan Klasifikasi, Kesalahan Disyaki dan Butiran Aduan (Borang 5), kemudian baru Hantar Pengesahan.';
+                setAssigneeMessage(msg);
+                toast.error(msg);
+                return;
+            }
+        }
         const token = localStorage.getItem('token');
         setAssigneeMessage('');
         axios.post(`${apiUrl}/complaints/${id}/assignees`, {
@@ -1774,46 +1828,6 @@ const ComplaintDetail = () => {
                                         : getComplaintStageLabel(complaint.current_stage || 'baru')}
                                 </span>
                             </div>
-                        </div>
-                        <div className="app-detail-number-actions">
-                            <button
-                                className="app-button app-button-ghost"
-                                type="button"
-                                onClick={() => window.open(
-                                    `/app/complaints/${id}/print/borang-5`,
-                                    'borang5',
-                                    'width=980,height=720,scrollbars=yes,resizable=yes'
-                                )}
-                            >
-                                <i className="bi bi-printer"></i>
-                                Borang 5
-                            </button>
-                            <i className="bi bi-arrow-right-short app-detail-button-sep" aria-hidden="true"></i>
-                            <button
-                                className="app-button app-button-ghost"
-                                type="button"
-                                onClick={() => window.open(
-                                    `/app/complaints/${id}/print/tindakan-aduan`,
-                                    'tindakanAduan',
-                                    'width=980,height=720,scrollbars=yes,resizable=yes'
-                                )}
-                            >
-                                <i className="bi bi-printer"></i>
-                                Tindakan Aduan
-                            </button>
-                            <i className="bi bi-arrow-right-short app-detail-button-sep" aria-hidden="true"></i>
-                            <button
-                                className="app-button app-button-ghost"
-                                type="button"
-                                onClick={() => window.open(
-                                    `/app/complaints/${id}/print/laporan-tindakan`,
-                                    'laporanTindakan',
-                                    'width=980,height=720,scrollbars=yes,resizable=yes'
-                                )}
-                            >
-                                <i className="bi bi-printer"></i>
-                                Laporan Tindakan
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -2401,7 +2415,7 @@ const ComplaintDetail = () => {
                                             <span className="app-kv-label">Nama Pemberi Maklumat</span>
                                             <span className="app-kv-value">
                                                 <SharedInlineEditText
-                                                    value={complaint.informant_name}
+                                                    value={effectiveInformantName}
                                                     placeholder="-"
                                                     canEdit={canEditBasicComplaint}
                                                     maxLength={255}
@@ -2413,7 +2427,7 @@ const ComplaintDetail = () => {
                                             <span className="app-kv-label">No K/P Pemberi Maklumat</span>
                                             <span className="app-kv-value">
                                                 <SharedInlineEditText
-                                                    value={complaint.informant_identification_number}
+                                                    value={effectiveInformantIdNumber}
                                                     placeholder="-"
                                                     canEdit={canEditBasicComplaint}
                                                     maxLength={255}
@@ -2425,7 +2439,7 @@ const ComplaintDetail = () => {
                                             <span className="app-kv-label">No Telefon Pemberi Maklumat</span>
                                             <span className="app-kv-value">
                                                 <SharedInlineEditText
-                                                    value={complaint.informant_contact_number}
+                                                    value={effectiveInformantContactNumber}
                                                     placeholder="-"
                                                     canEdit={canEditBasicComplaint}
                                                     maxLength={255}
@@ -2582,6 +2596,20 @@ const ComplaintDetail = () => {
 
                     {complaint.case_type === 'AJ' && activeKey === 'ppa' && (
                         <div className="app-tab-panel">
+                            <div className="app-detail-number-actions">
+                                <button
+                                    className="app-button app-button-ghost"
+                                    type="button"
+                                    onClick={() => window.open(
+                                        `/app/complaints/${id}/print/borang-5`,
+                                        'borang5',
+                                        'width=980,height=720,scrollbars=yes,resizable=yes'
+                                    )}
+                                >
+                                    <i className="bi bi-printer"></i>
+                                    Borang 5
+                                </button>
+                            </div>
                             {payloadMessage && (
                                 <SharedInlineAlert
                                     type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
@@ -2708,7 +2736,7 @@ const ComplaintDetail = () => {
                                 <label className="app-form-field app-span-full">
                                     <span>Catatan Pegawai</span>
                                     <textarea
-                                        className="app-textarea-300"
+                                        className="app-textarea-110"
                                         rows="3"
                                         value={ajPayload.notes || ''}
                                         onChange={(event) => setAjPayload((prev) => ({ ...prev, notes: event.target.value }))}
@@ -2786,6 +2814,32 @@ const ComplaintDetail = () => {
 
                     {complaint.case_type === 'AK' && activeKey === 'tindakan' && (
                         <div className="app-tab-panel">
+                            <div className="app-detail-number-actions">
+                                <button
+                                    className="app-button app-button-ghost"
+                                    type="button"
+                                    onClick={() => window.open(
+                                        `/app/complaints/${id}/print/borang-5`,
+                                        'borang5',
+                                        'width=980,height=720,scrollbars=yes,resizable=yes'
+                                    )}
+                                >
+                                    <i className="bi bi-printer"></i>
+                                    Borang 5
+                                </button>
+                                <button
+                                    className="app-button app-button-ghost"
+                                    type="button"
+                                    onClick={() => window.open(
+                                        `/app/complaints/${id}/print/laporan-tindakan`,
+                                        'laporanTindakan',
+                                        'width=980,height=720,scrollbars=yes,resizable=yes'
+                                    )}
+                                >
+                                    <i className="bi bi-printer"></i>
+                                    Laporan Tindakan
+                                </button>
+                            </div>
                             {payloadMessage && (
                                 <SharedInlineAlert
                                     type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
@@ -3267,6 +3321,20 @@ const ComplaintDetail = () => {
 
                     {complaint.case_type === 'AJ' && activeKey === 'laporan_tindakan' && (
                         <div className="app-tab-panel">
+                            <div className="app-detail-number-actions">
+                                <button
+                                    className="app-button app-button-ghost"
+                                    type="button"
+                                    onClick={() => window.open(
+                                        `/app/complaints/${id}/print/tindakan-aduan`,
+                                        'tindakanAduan',
+                                        'width=980,height=720,scrollbars=yes,resizable=yes'
+                                    )}
+                                >
+                                    <i className="bi bi-printer"></i>
+                                    Jana Tindakan
+                                </button>
+                            </div>
                             {actionReportMessage && (
                                 <SharedInlineAlert
                                     type={actionReportMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
@@ -3487,6 +3555,20 @@ const ComplaintDetail = () => {
 
                     {complaint.case_type === 'AJ' && activeKey === 'laporan_pemeriksaan' && (
                         <div className="app-tab-panel">
+                            <div className="app-detail-number-actions">
+                                <button
+                                    className="app-button app-button-ghost"
+                                    type="button"
+                                    onClick={() => window.open(
+                                        `/app/complaints/${id}/print/laporan-tindakan`,
+                                        'laporanTindakan',
+                                        'width=980,height=720,scrollbars=yes,resizable=yes'
+                                    )}
+                                >
+                                    <i className="bi bi-printer"></i>
+                                    Laporan Tindakan
+                                </button>
+                            </div>
                             <div className="app-report-stack">
                                 <div className="app-report-section">
                                     <button

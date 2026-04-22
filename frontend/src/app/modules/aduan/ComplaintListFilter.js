@@ -126,7 +126,7 @@ const ComplaintListFilter = ({
                                         <label>No Aduan</label>
                                         <input
                                             type="text"
-                                            placeholder="Contoh: JAIS-AJ-..."
+                                            placeholder="Contoh: AJ-Petaling / 2026 / 04 / 0001"
                                             value={draftFilters.complaintNo}
                                             onChange={(event) => setDraftFilters({ ...draftFilters, complaintNo: event.target.value })}
                                         />

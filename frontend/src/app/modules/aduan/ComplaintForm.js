@@ -1232,16 +1232,6 @@ function ComplaintForm({
                         <Row className='mb-4'>
                             <InputText 
                                 type='text'
-                                fieldName='complainant_occupation' 
-                                placeholder='Pekerjaan Pengadu'
-                                icon='bi-briefcase'
-                                isLoading={isLoading}
-                            />
-                        </Row>
-
-                        <Row className='mb-4'>
-                            <InputText 
-                                type='text'
                                 fieldName='contact_number' 
                                 placeholder='No HP *'
                                 icon='bi-phone'
@@ -1251,6 +1241,16 @@ function ComplaintForm({
                                 onToggleMask={() => setMaskedFields((prev) => ({ ...prev, contact_number: !prev.contact_number }))}
                                 maskOnLabel="HIDE"
                                 maskOffLabel="SHOW"
+                            />
+                        </Row>
+
+                        <Row className='mb-4'>
+                            <InputText 
+                                type='text'
+                                fieldName='complainant_occupation' 
+                                placeholder='Pekerjaan Pengadu'
+                                icon='bi-briefcase'
+                                isLoading={isLoading}
                             />
                         </Row>
                     </div>

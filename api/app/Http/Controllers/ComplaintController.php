@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use App\Services\ComplaintReferenceService;
 use App\Services\MobilePushNotificationService;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -28,7 +29,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 class ComplaintController extends Controller
 {
     public function __construct(
-        private MobilePushNotificationService $mobilePushNotificationService
+        private MobilePushNotificationService $mobilePushNotificationService,
+        private ComplaintReferenceService $complaintReferenceService
     ) {
     }
 
@@ -2949,12 +2951,14 @@ class ComplaintController extends Controller
         $district = $request->district_id ? District::find($request->district_id) : null;
 
         // Store the complaint
-        $caseType = $request->case_type ?? 'AJ';
-        $referenceNo = $this->generateReferenceNo(
-            $caseType,
-            $district?->code,
-            $now->format('ymd')
-        );
+        $caseType = strtoupper((string) ($request->case_type ?? 'AJ'));
+        $user = $request->user();
+        if ($user && $user->hasRole('pegawai_daerah') && $caseType === 'AJ') {
+            return response()->json([
+                'message' => 'Pegawai Daerah hanya dibenarkan mendaftar Aduan Keluarga (AK).',
+            ], 403);
+        }
+        $referenceNo = $this->complaintReferenceService->generateReferenceNo($caseType, $district?->name, $now);
 
         $complaint = Complaint::create([
             'reference_no' => $referenceNo,
@@ -3062,24 +3066,6 @@ class ComplaintController extends Controller
             : $safeBase;
 
         return Storage::disk($disk)->download($attachment->path, $downloadName);
-    }
-
-    private function generateReferenceNo(string $caseType, ?string $districtCode, string $dateCode): string
-    {
-        $type = strtoupper($caseType);
-        $district = $districtCode ? strtoupper($districtCode) : 'NA';
-        $prefix = "JAIS-{$type}-{$district}-{$dateCode}-";
-
-        $latest = Complaint::where('reference_no', 'like', $prefix . '%')
-            ->orderByDesc('reference_no')
-            ->first();
-
-        $next = 1;
-        if ($latest && preg_match('/-(\d{4})$/', $latest->reference_no, $matches)) {
-            $next = (int) $matches[1] + 1;
-        }
-
-        return $prefix . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
     private function assignPpaToDistrict(Complaint $complaint, int $assignedByUserId): void

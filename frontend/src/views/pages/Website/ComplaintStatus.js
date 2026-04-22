@@ -92,7 +92,7 @@ const ComplaintStatus = () => {
                             type="text"
                             placeholder={searchBy === 'informant_ic'
                                 ? 'Contoh: 900101010001'
-                                : 'Contoh: JAIS-AJ-GOM-251227-0001'}
+                                : 'Contoh: AJ-Petaling / 2026 / 04 / 0001'}
                             value={searchValue}
                             onChange={(event) => setSearchValue(event.target.value)}
                         />

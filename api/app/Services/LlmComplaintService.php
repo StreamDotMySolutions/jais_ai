@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ChatMessage;
 use App\Models\Complaint;
+use App\Services\ComplaintReferenceService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -14,6 +15,11 @@ class LlmComplaintService
     private const MODEL = 'gpt-4.1-mini';
     private const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
     private const TIMEOUT = 15;
+
+    public function __construct(
+        private ComplaintReferenceService $complaintReferenceService
+    ) {
+    }
 
     /**
      * Process an inbound user message for a given channel + chat and return
@@ -114,7 +120,12 @@ class LlmComplaintService
             return null;
         }
 
-        $referenceNo = $this->generateReferenceNo();
+        $now = now();
+        $referenceNo = $this->complaintReferenceService->generateReferenceNo(
+            'AJ',
+            $data['district'] ?? null,
+            $now
+        );
 
         $contactNumber = $data['contact_number'] ?? null;
         if (!is_string($contactNumber) || trim($contactNumber) === '') {
@@ -123,9 +134,10 @@ class LlmComplaintService
 
         Complaint::create([
             'reference_no'         => $referenceNo,
-            'complaint_year'       => (int) now()->format('Y'),
-            'complaint_date'       => now()->toDateString(),
-            'complaint_time'       => now()->format('H:i:s'),
+            'case_type'            => 'AJ',
+            'complaint_year'       => (int) $now->format('Y'),
+            'complaint_date'       => $now->toDateString(),
+            'complaint_time'       => $now->format('H:i:s'),
             'complainant_name'     => $data['name'] ?? 'Tidak dinyatakan',
             'identification_number' => $data['identification_number'] ?? 'Tidak dinyatakan',
             'contact_number'       => $contactNumber,
@@ -134,7 +146,7 @@ class LlmComplaintService
             'summary'              => $data['contents'] ?? 'Tidak dinyatakan',
             'channel'              => $channel,
             'current_stage'        => 'baru',
-            'submitted_at'         => now(),
+            'submitted_at'         => $now,
         ]);
 
         ChatMessage::where('channel', $channel)
@@ -143,7 +155,13 @@ class LlmComplaintService
 
         return $referenceNo;
     }
-
+    public function resetHistory(string $chatId): void
+    {
+        ChatMessage::where('channel', $channel)
+            ->where('chat_id', $chatId)
+            ->delete();
+    }
+    
     private function generateReferenceNo(): string
     {
         $year = now()->format('Y');
@@ -156,10 +174,4 @@ class LlmComplaintService
         return $referenceNo;
     }
 
-    public function resetHistory(string $channel, string $chatId): void
-    {
-        ChatMessage::where('channel', $channel)
-            ->where('chat_id', $chatId)
-            ->delete();
-    }
 }

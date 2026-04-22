@@ -476,7 +476,17 @@ const ComplaintList = ({
     const [selectedComplaint, setSelectedComplaint] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
     const canInlineEdit = !isPublicRole;
-    const canCreateComplaint = isPublicRole || ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
+    const normalizedCaseType = (caseType || '').toUpperCase();
+    const canCreateAjComplaintByRole = ['pegawai_hq', 'pegawai', 'admin', 'system'].includes(role);
+    const canCreateAkComplaintByRole = ['pegawai_daerah', 'pegawai_hq', 'pegawai', 'admin', 'system'].includes(role);
+    const canCreateComplaint = isPublicRole || (
+        normalizedCaseType === 'AJ'
+            ? canCreateAjComplaintByRole
+            : normalizedCaseType === 'AK'
+                ? canCreateAkComplaintByRole
+                : (canCreateAjComplaintByRole || canCreateAkComplaintByRole)
+    );
+    const createFixedCaseType = normalizedCaseType || (role === 'pegawai_daerah' ? 'AK' : '');
 
     const showCaseTabs = !isPublicRole && !caseType && !fetchEndpoint && !isCase;
 
@@ -990,7 +1000,7 @@ const ComplaintList = ({
                             />
                         ) : (
                             <ComplainFormPegawai
-                                fixedCaseType={caseType}
+                                fixedCaseType={createFixedCaseType}
                                 onSuccess={(created) => {
                                     setIsFormOpen(false);
                                     fetchComplaints();

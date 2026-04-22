@@ -53,6 +53,16 @@ const getExpandedSections = (item) => {
     const endDateTime = [item.end_date, (item.end_time || '').toString().slice(0, 5)]
         .filter(Boolean)
         .join(' ');
+    const channel = String(item.channel || '').trim().toLowerCase();
+    const isWalkInInformant = ['walkin', 'walk-in', 'kaunter'].includes(channel);
+    const fallbackInformantName = isWalkInInformant
+        ? (item.complainant_name || '')
+        : (item.received_by?.name || item.receivedBy?.name || item.complainant_name || '');
+    const fallbackInformantId = item.identification_number || '';
+    const fallbackInformantPhone = item.contact_number || '';
+    const effectiveInformantName = item.informant_name || fallbackInformantName;
+    const effectiveInformantId = item.informant_identification_number || fallbackInformantId;
+    const effectiveInformantPhone = item.informant_contact_number || fallbackInformantPhone;
 
     return [
         {
@@ -80,9 +90,9 @@ const getExpandedSections = (item) => {
             title: 'Pemberi Maklumat / Pengadu',
             columns: [
                 [
-                    ['Nama Pemberi Maklumat', item.informant_name],
-                    ['No. K/P pemberi maklumat', item.informant_identification_number],
-                    ['No. Telefon Pemberi Maklumat', item.informant_contact_number],
+                    ['Nama Pemberi Maklumat', effectiveInformantName],
+                    ['No. K/P pemberi maklumat', effectiveInformantId],
+                    ['No. Telefon Pemberi Maklumat', effectiveInformantPhone],
                 ],
                 [
                     ['Nama Pengadu', item.complainant_name],
