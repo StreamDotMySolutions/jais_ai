@@ -48,9 +48,9 @@ class WebhookController extends Controller
             return response()->json(['status' => 'ignored']);
         }
 
-        if ($message === '/reset') {
+        if (in_array($message, ['/reset', 'reset', '/batal', 'batal'], true)) {
             app(LlmComplaintService::class)->resetHistory('whatsapp', $from);
-            \Log::info('WhatsApp /reset — chat history cleared', ['from' => $from]);
+            \Log::info('WhatsApp reset — chat history cleared', ['from' => $from, 'trigger' => $message]);
             $this->sendMessage($from, 'Perbualan dikosongkan. Sila mula semula.');
             return response()->json(['status' => 'ok']);
         }

@@ -38,9 +38,9 @@ class WhatsappWebController extends Controller
         $body = $data['body'] ?? '';
         $incomingMessage = strtolower(trim($body));
 
-        if ($incomingMessage === '/reset') {
+        if (in_array($incomingMessage, ['/reset', 'reset', '/batal', 'batal'], true)) {
             $this->llm->resetHistory('whatsapp_web', $from);
-            Log::info('WhatsApp Web /reset — chat history cleared', ['from' => $from]);
+            Log::info('WhatsApp Web reset — chat history cleared', ['from' => $from, 'trigger' => $incomingMessage]);
             return $this->reply('Perbualan dikosongkan. Sila mula semula.');
         }
 
