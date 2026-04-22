@@ -28,7 +28,7 @@ class LlmComplaintService
      * Side effects: persists ChatMessage rows, may create a Complaint row when
      * the LLM emits a /store_complaint command.
      */
-    public function handleIncoming(string $channel, string $chatId, string $userMessage): ?string
+    public function handleIncoming(string $channel, string $chatId, string $userMessage, ?array $hints = null): ?string
     {
         ChatMessage::create([
             'channel' => $channel,
@@ -37,7 +37,7 @@ class LlmComplaintService
             'content' => $userMessage,
         ]);
 
-        $reply = $this->askOpenAi($channel, $chatId);
+        $reply = $this->askOpenAi($channel, $chatId, $hints);
 
         if (!$reply) {
             return null;
@@ -51,7 +51,7 @@ class LlmComplaintService
         ]);
 
         if ($this->isStoreComplaintCommand($reply)) {
-            $ref = $this->storeComplaint($channel, $chatId, $reply);
+            $ref = $this->storeComplaint($channel, $chatId, $reply, $hints);
             if ($ref === null) {
                 return 'Maaf, terdapat ralat semasa menyimpan aduan. Sila cuba semula.';
             }
@@ -62,7 +62,7 @@ class LlmComplaintService
         return $reply;
     }
 
-    private function askOpenAi(string $channel, string $chatId): ?string
+    private function askOpenAi(string $channel, string $chatId, ?array $hints = null): ?string
     {
         $apiKey = config('services.openai.api_key');
         if (!$apiKey) {
@@ -80,8 +80,26 @@ class LlmComplaintService
             ->values()
             ->toArray();
 
+        $systemMessages = [['role' => 'system', 'content' => config('llm.complaint_system_prompt')]];
+        if ($hints) {
+            $lines = [];
+            if (!empty($hints['name'])) {
+                $lines[] = "- Nama pengguna (dari profil WhatsApp): {$hints['name']}";
+            }
+            if (!empty($hints['phone'])) {
+                $lines[] = "- Nombor telefon (dari WhatsApp): {$hints['phone']}";
+            }
+            if ($lines) {
+                $systemMessages[] = [
+                    'role' => 'system',
+                    'content' => "MAKLUMAT PENGGUNA YANG TELAH DIKENAL:\n" . implode("\n", $lines) .
+                        "\n\nARAHAN: Gunakan maklumat ini sebagai nilai lalai. Sahkan dengan pengguna terlebih dahulu sebelum menyimpan aduan. Jika pengguna membetulkan maklumat ini, gunakan versi yang dibetulkan.",
+                ];
+            }
+        }
+
         $messages = array_merge(
-            [['role' => 'system', 'content' => config('llm.complaint_system_prompt')]],
+            $systemMessages,
             $history
         );
 
@@ -108,7 +126,7 @@ class LlmComplaintService
         return Str::startsWith(trim($message), '/store_complaint');
     }
 
-    private function storeComplaint(string $channel, string $chatId, string $message): ?string
+    private function storeComplaint(string $channel, string $chatId, string $message, ?array $hints = null): ?string
     {
         Log::info('Store complaint command detected', ['channel' => $channel, 'chat_id' => $chatId]);
 
@@ -127,9 +145,14 @@ class LlmComplaintService
             $now
         );
 
+        $complainantName = $data['name'] ?? null;
+        if (!is_string($complainantName) || trim($complainantName) === '') {
+            $complainantName = $hints['name'] ?? 'Tidak dinyatakan';
+        }
+
         $contactNumber = $data['contact_number'] ?? null;
         if (!is_string($contactNumber) || trim($contactNumber) === '') {
-            $contactNumber = $chatId;
+            $contactNumber = $hints['phone'] ?? $chatId;
         }
 
         Complaint::create([
@@ -138,7 +161,7 @@ class LlmComplaintService
             'complaint_year'       => (int) $now->format('Y'),
             'complaint_date'       => $now->toDateString(),
             'complaint_time'       => $now->format('H:i:s'),
-            'complainant_name'     => $data['name'] ?? 'Tidak dinyatakan',
+            'complainant_name'     => $complainantName,
             'identification_number' => $data['identification_number'] ?? 'Tidak dinyatakan',
             'contact_number'       => $contactNumber,
             'address'              => $data['location'] ?? 'Tidak dinyatakan',
@@ -155,23 +178,10 @@ class LlmComplaintService
 
         return $referenceNo;
     }
-    public function resetHistory(string $chatId): void
+    public function resetHistory(string $channel, string $chatId): void
     {
         ChatMessage::where('channel', $channel)
             ->where('chat_id', $chatId)
             ->delete();
     }
-    
-    private function generateReferenceNo(): string
-    {
-        $year = now()->format('Y');
-        $prefix = "JAIS-{$year}-";
-
-        do {
-            $referenceNo = $prefix . Str::upper(Str::random(6));
-        } while (Complaint::where('reference_no', $referenceNo)->exists());
-
-        return $referenceNo;
-    }
-
 }

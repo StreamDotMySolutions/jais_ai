@@ -20,12 +20,14 @@ class SendToLlmJob implements ShouldQueue
     public string $message;
     public string $from;
     public string $channel;
+    public ?array $hints;
 
-    public function __construct(string $message, string $from, string $channel)
+    public function __construct(string $message, string $from, string $channel, ?array $hints = null)
     {
         $this->message = $message;
         $this->from    = $from;
         $this->channel = $channel;
+        $this->hints   = $hints;
     }
 
     public function handle(LlmComplaintService $llm): void
@@ -33,17 +35,18 @@ class SendToLlmJob implements ShouldQueue
         Log::info($this->channel . ' SendToLlmJob started', [
             'from'    => $this->from,
             'message' => $this->message,
+            'hints'   => $this->hints,
         ]);
 
-        $reply = $llm->handleIncoming($this->channel, $this->from, $this->message);
+        $reply = $llm->handleIncoming($this->channel, $this->from, $this->message, $this->hints);
 
         if (!$reply) {
             return;
         }
 
         match ($this->channel) {
-            'telegram' => $this->sendToTelegram($reply),
-            'whatsapp' => $this->sendToWhatsApp($reply),
+            'telegram'      => $this->sendToTelegram($reply),
+            'whatsapp-meta' => $this->sendToWhatsApp($reply),
             default    => Log::error('Unknown channel', ['channel' => $this->channel]),
         };
     }

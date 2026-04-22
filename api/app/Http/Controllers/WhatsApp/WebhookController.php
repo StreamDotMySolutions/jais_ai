@@ -49,16 +49,24 @@ class WebhookController extends Controller
         }
 
         if (in_array($message, ['/reset', 'reset', '/batal', 'batal'], true)) {
-            app(LlmComplaintService::class)->resetHistory('whatsapp', $from);
+            app(LlmComplaintService::class)->resetHistory('whatsapp-meta', $from);
             \Log::info('WhatsApp reset — chat history cleared', ['from' => $from, 'trigger' => $message]);
             $this->sendMessage($from, 'Perbualan dikosongkan. Sila mula semula.');
             return response()->json(['status' => 'ok']);
         }
 
+        $hints = [];
+        $profileName = data_get($payload, 'entry.0.changes.0.value.contacts.0.profile.name');
+        if (is_string($profileName) && trim($profileName) !== '') {
+            $hints['name'] = trim($profileName);
+        }
+        $hints['phone'] = preg_replace('/^60/', '0', $from);
+
         dispatch(new SendToLlmJob(
             message: $message,
             from: $from,
-            channel: 'whatsapp'
+            channel: 'whatsapp-meta',
+            hints: $hints
         ));
 
         return response()->json(['status' => 'ok']);

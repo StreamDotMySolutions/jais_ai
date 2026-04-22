@@ -3451,7 +3451,7 @@ class ComplaintController extends Controller
     private function isBasicOfficerEditLockedByChannel(?string $channel): bool
     {
         $normalized = strtolower(trim((string) $channel));
-        return in_array($normalized, ['portal', 'web', 'whatsapp', 'whatsapp_web'], true);
+        return in_array($normalized, ['portal', 'web', 'whatsapp-meta', 'whatsapp-web'], true);
     }
 
     private function resolveUserDistrictId($user): ?int
