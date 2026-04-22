@@ -3150,6 +3150,21 @@ body {
   color: #ffffff;
 }
 
+.app-button:disabled,
+.app-button[disabled] {
+  background: #e8ece9;
+  color: #8f9b95;
+  border: 1px solid #d8e1db;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.app-button:disabled:hover,
+.app-button[disabled]:hover {
+  background: #e8ece9;
+  color: #8f9b95;
+}
+
 .app-button-danger {
   background: #b02a2a;
   color: #ffffff;
@@ -4008,6 +4023,11 @@ body {
 .app-list-tabs {
   display: flex;
   gap: 0.25rem;
+}
+
+.app-list-tabs-add-btn {
+  margin-left: auto;
+  margin-bottom: 0.35rem;
 }
 
 .app-list-tab {
@@ -5202,7 +5222,7 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
-  justify-content: flex-end;
+  justify-content: flex-start;
   margin-top: 1rem;
   padding: 0.8rem 1rem;
   background: #f5f8f6;
@@ -7444,8 +7464,8 @@ body {
 
 .print-sheet-borang5 {
   max-width: 820px;
-  min-height: 1120px;
-  border: 2px solid #c8cdd3;
+  min-height: auto;
+  border: 0;
   border-radius: 0;
   padding: 2.1rem 2.7rem 2.8rem;
   font-family: Verdana, Arial, Helvetica, sans-serif;
@@ -7565,6 +7585,13 @@ body {
   line-height: 1.5;
 }
 
+.print-borang5-sign-note {
+  margin-top: 0.2rem;
+  font-size: 9px;
+  font-style: italic;
+  color: #4b5563;
+}
+
 .print-borang5-note {
   margin-top: 2rem;
   padding-left: 2.5rem;
@@ -7616,8 +7643,8 @@ body {
   }
 
   .print-sheet-borang5 {
-    min-height: 1120px;
-    border: 2px solid #c8cdd3;
+    min-height: auto;
+    border: 0;
     padding: 2rem 2.45rem 2.4rem;
   }
 }
@@ -8803,15 +8830,16 @@ body {
 }
 
 .app-aduan-detail .app-card-header {
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.6rem;
 }
 
 .app-aduan-detail .app-basic-kv {
-  gap: 0.72rem 1rem;
+  margin-top: 1.2rem;
+  gap: 1rem 1.25rem;
 }
 
 .app-aduan-detail .app-card-subheader h5 {
-  margin: 0 0 0.34rem;
+  margin: 0 0 0.5rem;
   font-size: 0.94rem;
 }
 

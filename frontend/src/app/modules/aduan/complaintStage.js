@@ -7,8 +7,12 @@ export const getComplaintStageLabel = (stage) => {
             return 'Baru';
         case 'tunggu_pengesahan':
             return 'Menunggu Pengesahan';
+        case 'menunggu_tindakan_pi':
+            return 'Disahkan';
         case 'disahkan':
             return 'Disahkan';
+        case 'dihantar_ke_daerah':
+            return 'Dihantar ke Daerah';
         case 'dalam_tindakan':
             return 'Tindakan Aduan';
         case 'kiv':
@@ -36,7 +40,7 @@ export const getPublicComplaintStageLabel = (stage, complaint = {}) => {
         return 'Selesai';
     }
 
-    if (['disahkan', 'kiv'].includes(s)) {
+    if (['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah', 'kiv'].includes(s)) {
         return 'Aduan Dalam Tindakan';
     }
 

@@ -150,6 +150,8 @@ const getExpandedSections = (item) => {
 
 const ComplaintListInternalView = ({
     showCaseTabs,
+    canCreateComplaint,
+    onOpenForm,
     statusTab,
     setStatusTab,
     setPendingApproval,
@@ -242,6 +244,12 @@ const ComplaintListInternalView = ({
                         Disahkan
                     </button>
                 </div>
+                {canCreateComplaint && (
+                    <button className="app-button app-list-tabs-add-btn" type="button" onClick={onOpenForm}>
+                        <i className="bi bi-plus-lg"></i>
+                        Tambah Aduan
+                    </button>
+                )}
             </div>
         )}
         {isLoading && (

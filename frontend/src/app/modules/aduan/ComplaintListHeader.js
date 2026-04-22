@@ -5,6 +5,7 @@ const ComplaintListHeader = ({
     description,
     caseType,
     canCreateComplaint,
+    showCreateButton = true,
     onOpenForm,
     showFilters,
     onToggleFilters,
@@ -24,7 +25,7 @@ const ComplaintListHeader = ({
             <p>{description}</p>
         </div>
         <div className="app-complaints-actions">
-            {canCreateComplaint && (
+            {showCreateButton && canCreateComplaint && (
                 <button className="app-button" type="button" onClick={onOpenForm}>
                     <i className="bi bi-plus-lg"></i>
                     Tambah Aduan

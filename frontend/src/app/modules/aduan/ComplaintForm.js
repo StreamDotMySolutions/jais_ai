@@ -65,6 +65,8 @@ function ComplaintForm({
     channelSource = 'portal',
     officerMode = false,
     fixedCaseType = '',
+    onValidationError = null,
+    onOfficerMissingChannel = null,
 }) {
     const store = useStore();
     const url = process.env.REACT_APP_API_URL;
@@ -91,6 +93,12 @@ function ComplaintForm({
         identification_number: false,
         contact_number: false,
     });
+    const notifyValidationError = (message) => {
+        if (!message || typeof onValidationError !== 'function') {
+            return;
+        }
+        onValidationError(message);
+    };
 
     useEffect(() => {
         store.emptyData();
@@ -211,8 +219,18 @@ function ComplaintForm({
         setOfficerOffenseError('');
         setAgreementError('');
 
+        if (officerMode && !String(channelSource || '').trim()) {
+            if (typeof onOfficerMissingChannel === 'function') {
+                onOfficerMissingChannel('Sila pilih Kaedah Aduan sebelum menyimpan.');
+            } else {
+                setErrorMessage('Sila pilih Kaedah Aduan sebelum menyimpan.');
+            }
+            return;
+        }
+
         if (!officerMode && !agreementAccepted) {
             setAgreementError('Sila sahkan persetujuan sebelum menghantar aduan.');
+            notifyValidationError('Sila sahkan persetujuan sebelum menghantar aduan.');
             return;
         }
 
@@ -220,6 +238,7 @@ function ComplaintForm({
             const hasEmptyAttachmentTitle = familyAttachments.some((item) => !(item.title || '').trim());
             if (hasEmptyAttachmentTitle) {
                 setErrorMessage('Sila isi Nama Dokumen bagi setiap lampiran.');
+                notifyValidationError('Sila isi Nama Dokumen bagi setiap lampiran.');
                 return;
             }
         }
@@ -239,6 +258,7 @@ function ComplaintForm({
         if (Object.keys(localErrors).length > 0) {
             store.setValue('errors', localErrors);
             setErrorMessage('Sila lengkapkan Butir-butir Pengadu dan Butiran Kejadian.');
+            notifyValidationError('Sila lengkapkan Butir-butir Pengadu dan Butiran Kejadian.');
             return;
         }
 
@@ -246,6 +266,7 @@ function ComplaintForm({
             if (!akSubtype) {
                 setFamilySubtypeError('Sila pilih subkategori aduan keluarga.');
                 setErrorMessage('Sila pilih subkategori aduan keluarga.');
+                notifyValidationError('Sila pilih subkategori aduan keluarga.');
                 return;
             }
 
@@ -269,6 +290,7 @@ function ComplaintForm({
                 if (Object.keys(familyErrors).length > 0) {
                     store.setValue('errors', familyErrors);
                     setErrorMessage(`Sila lengkapkan maklumat tambahan ${eventLabel}.`);
+                    notifyValidationError(`Sila lengkapkan maklumat tambahan ${eventLabel}.`);
                     return;
                 }
             }
@@ -278,28 +300,31 @@ function ComplaintForm({
             if (hasTemplates && !summaryTemplate) {
                 setTemplateError('Sila pilih kategori template aduan.');
                 setErrorMessage('Sila pilih kategori template aduan sebelum menghantar.');
+                notifyValidationError('Sila pilih kategori template aduan sebelum menghantar.');
                 return;
             }
             if (!summary) {
                 setErrorMessage('Sila isi Ringkasan Aduan.');
+                notifyValidationError('Sila isi Ringkasan Aduan.');
                 return;
             }
         } else {
             if (selectedCaseType === 'AK') {
                 if (!officerAkTemplateKey) {
-                    setOfficerOffenseError('Template keluarga wajib dipilih.');
-                    setErrorMessage('Sila pilih template keluarga sebelum menghantar.');
+                    setOfficerOffenseError('Sila pilih template keluarga sebelum menghantar.');
+                    notifyValidationError('Sila pilih template keluarga sebelum menghantar.');
                     return;
                 }
             } else {
                 if (!officerOffenseId) {
-                    setOfficerOffenseError('Kesalahan Disyaki wajib dipilih.');
-                    setErrorMessage('Sila pilih Kesalahan Disyaki sebelum menghantar.');
+                    setOfficerOffenseError('Sila pilih Kesalahan Disyaki sebelum menghantar.');
+                    notifyValidationError('Sila pilih Kesalahan Disyaki sebelum menghantar.');
                     return;
                 }
             }
             if (!borang5Statement) {
                 setErrorMessage('Sila isi Butiran Aduan (Borang 5) sebelum menghantar.');
+                notifyValidationError('Sila isi Butiran Aduan (Borang 5) sebelum menghantar.');
                 return;
             }
         }

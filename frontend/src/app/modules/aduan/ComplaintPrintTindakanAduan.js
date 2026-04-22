@@ -2,13 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { getComplaintStageLabel } from './complaintStage';
+import { useToast } from '../../components/SharedToastProvider';
 
 const ComplaintPrintTindakanAduan = () => {
     const { id } = useParams();
     const apiUrl = process.env.REACT_APP_API_URL;
+    const toast = useToast();
     const [complaint, setComplaint] = useState(null);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [isEmailSending, setIsEmailSending] = useState(false);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [emailForm, setEmailForm] = useState({ email: '', subject: '', body: '' });
 
     useEffect(() => {
         if (!apiUrl) {
@@ -87,13 +92,98 @@ const ComplaintPrintTindakanAduan = () => {
     const handoverAt = complaint?.handover_at ? new Date(complaint.handover_at) : null;
     const handoverDateText = handoverAt ? handoverAt.toLocaleDateString('ms-MY') : complaintDate;
     const handoverTimeText = handoverAt ? handoverAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : complaintTime;
-    const statusHistoryDate = complaint?.aj_action_datetime ? formatDateDMY(complaint.aj_action_datetime) : handoverDateText;
-    const statusHistoryTime = complaint?.aj_action_datetime ? formatTimeMalay(complaint.aj_action_datetime) : handoverTimeText;
+    const actionHistoryEntries = Array.isArray(complaint?.actionUpdates)
+        ? complaint.actionUpdates
+        : (Array.isArray(complaint?.action_updates) ? complaint.action_updates : []);
+    const actionHistoryRows = actionHistoryEntries
+        .slice()
+        .sort((a, b) => (Number(a?.sort_order || 0) - Number(b?.sort_order || 0)))
+        .filter((row) => (
+            String(row?.classification || '').trim()
+            || String(row?.action_date || '').trim()
+            || String(row?.action_time || '').trim()
+            || String(row?.note || '').trim()
+        ))
+        .map((row) => ({
+            classification: row?.classification || '-',
+            date: row?.action_date ? formatDateDMY(row.action_date) : '-',
+            time: row?.action_time ? formatTimeMalay(row.action_time) : '-',
+            note: row?.note || '-',
+        }));
     const currentStatus = complaint?.aj_current_status || getComplaintStageLabel(complaint?.current_stage || 'baru');
-    const currentClassification = complaint?.aj_ppa_classification || '-';
     const districtDisplay = complaint?.district_name || complaint?.district?.name || '-';
     const caseRegisterNo = complaint?.case_register_no || '-';
-    const notesText = complaint?.handover_notes || complaint?.aj_directive_notes || complaint?.aj_report_notes || '-';
+    const subjectCaseNo = caseRegisterNo !== '-' ? `KES- ${districtDisplay} / ${caseRegisterNo} / ${complaint?.complaint_year || '-'}` : (complaint?.reference_no || `Aduan #${id}`);
+    const defaultSubject = `TINDAKAN (${(complaint?.aj_arrest_status || complaint?.arrest_status) === 'ada' ? 'Ada Tangkapan' : 'Tiada Tangkapan'}) : ${subjectCaseNo}`;
+    const defaultBody = [
+        'Assalamualaikum',
+        '',
+        `Laporan Tindakan bagi daerah ${districtDisplay} telah diperolehi.`,
+        '',
+        'Sila muat turun salinan Tindakan Aduan di lampiran sebagai simpanan rekod di Fail KES.',
+        '',
+        'Terima kasih.',
+    ].join('\n');
+
+    const openEmailModal = () => {
+        setEmailForm({
+            email: '',
+            subject: defaultSubject,
+            body: defaultBody,
+        });
+        setIsEmailModalOpen(true);
+    };
+
+    const closeEmailModal = () => {
+        if (isEmailSending) return;
+        setIsEmailModalOpen(false);
+    };
+
+    const handleEmailFieldChange = (field) => (event) => {
+        const value = event?.target?.value ?? '';
+        setEmailForm((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleSendEmail = async () => {
+        if (!apiUrl || isEmailSending) return;
+        const email = String(emailForm.email || '').trim();
+        const subject = String(emailForm.subject || '').trim();
+        const body = String(emailForm.body || '').trim();
+
+        if (!email) {
+            toast.error('Alamat emel wajib diisi.');
+            return;
+        }
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+            toast.error('Format alamat emel tidak sah.');
+            return;
+        }
+        if (!subject) {
+            toast.error('Subjek emel wajib diisi.');
+            return;
+        }
+        if (!body) {
+            toast.error('Kandungan emel wajib diisi.');
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        setIsEmailSending(true);
+        try {
+            const response = await axios.post(
+                `${apiUrl}/complaints/${id}/print/tindakan-aduan/email`,
+                { email, subject, body },
+                { headers: token ? { Authorization: `Bearer ${token}` } : undefined }
+            );
+            toast.success(response?.data?.message || 'Tindakan Aduan berjaya dihantar melalui emel.');
+            setIsEmailModalOpen(false);
+        } catch (err) {
+            toast.error(err?.response?.data?.message || err?.message || 'Gagal menghantar emel Tindakan Aduan.');
+        } finally {
+            setIsEmailSending(false);
+        }
+    };
 
     if (isLoading) {
         return <div className="print-loading">Memuatkan borang...</div>;
@@ -113,6 +203,9 @@ const ComplaintPrintTindakanAduan = () => {
                 <Link className="app-button app-button-ghost" to={`/app/complaints/${id}`}>
                     Kembali
                 </Link>
+                <button className="app-button app-button-ghost" type="button" onClick={openEmailModal} disabled={isEmailSending}>
+                    Email
+                </button>
                 <button className="app-button" type="button" onClick={() => window.print()}>
                     Cetak Tindakan Aduan
                 </button>
@@ -198,12 +291,21 @@ const ComplaintPrintTindakanAduan = () => {
                         <span>Masa</span>
                         <span>Catatan</span>
                     </div>
-                    <div className="print-table-row">
-                        <span>{renderValue(currentClassification)}</span>
-                        <span>{renderValue(statusHistoryDate)}</span>
-                        <span>{renderValue(statusHistoryTime)}</span>
-                        <span>{renderValue(notesText)}</span>
-                    </div>
+                    {actionHistoryRows.length > 0 ? actionHistoryRows.map((row, index) => (
+                        <div className="print-table-row" key={`history-${index}`}>
+                            <span>{renderValue(row.classification)}</span>
+                            <span>{renderValue(row.date)}</span>
+                            <span>{renderValue(row.time)}</span>
+                            <span>{renderValue(row.note)}</span>
+                        </div>
+                    )) : (
+                        <div className="print-table-row">
+                            <span>-</span>
+                            <span>-</span>
+                            <span>-</span>
+                            <span>-</span>
+                        </div>
+                    )}
                 </div>
 
                 <div className="print-footer-note">
@@ -213,6 +315,65 @@ const ComplaintPrintTindakanAduan = () => {
                     No. Daftar Kes : {renderValue(caseRegisterNo)}
                 </div>
             </div>
+
+            {isEmailModalOpen && (
+                <div className="app-modal">
+                    <div className="app-modal-backdrop" onClick={closeEmailModal}></div>
+                    <div className="app-modal-content">
+                        <div className="app-modal-header">
+                            <h4>Hantar Emel Tindakan Aduan</h4>
+                            <p>Lampiran PDF Tindakan Aduan akan dihantar bersama emel ini.</p>
+                            <button className="app-modal-close" onClick={closeEmailModal} disabled={isEmailSending}>
+                                &times;
+                            </button>
+                        </div>
+                        <div style={{ display: 'grid', gap: '0.9rem' }}>
+                            <div className="app-form-field">
+                                <label htmlFor="email-to">To</label>
+                                <input
+                                    id="email-to"
+                                    type="email"
+                                    className="form-control"
+                                    placeholder="contoh@domain.com"
+                                    value={emailForm.email}
+                                    onChange={handleEmailFieldChange('email')}
+                                    disabled={isEmailSending}
+                                />
+                            </div>
+                            <div className="app-form-field">
+                                <label htmlFor="email-subject">Subject</label>
+                                <input
+                                    id="email-subject"
+                                    type="text"
+                                    className="form-control"
+                                    value={emailForm.subject}
+                                    onChange={handleEmailFieldChange('subject')}
+                                    disabled={isEmailSending}
+                                />
+                            </div>
+                            <div className="app-form-field">
+                                <label htmlFor="email-body">Body</label>
+                                <textarea
+                                    id="email-body"
+                                    className="form-control"
+                                    rows={10}
+                                    value={emailForm.body}
+                                    onChange={handleEmailFieldChange('body')}
+                                    disabled={isEmailSending}
+                                />
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', marginTop: '1rem' }}>
+                            <button type="button" className="app-button" onClick={handleSendEmail} disabled={isEmailSending}>
+                                {isEmailSending ? 'Menghantar Emel...' : 'Hantar Emel'}
+                            </button>
+                            <button type="button" className="app-button app-button-ghost" onClick={closeEmailModal} disabled={isEmailSending}>
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

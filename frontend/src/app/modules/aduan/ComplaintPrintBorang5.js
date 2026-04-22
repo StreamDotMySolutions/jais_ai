@@ -1,13 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useToast } from '../../components/SharedToastProvider';
 
 const ComplaintPrintBorang5 = () => {
     const { id } = useParams();
     const apiUrl = process.env.REACT_APP_API_URL;
+    const toast = useToast();
     const [complaint, setComplaint] = useState(null);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const [isEmailSending, setIsEmailSending] = useState(false);
+    const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+    const [emailForm, setEmailForm] = useState({
+        email: '',
+        subject: '',
+        body: '',
+    });
 
     useEffect(() => {
         if (!apiUrl) {
@@ -123,13 +132,105 @@ const ComplaintPrintBorang5 = () => {
     const effectiveInformantOccupation = isPhysicalInformant ? complainantOccupation : officerInformantOccupation;
     const effectiveInformantContactNumber = isPhysicalInformant ? complainantContactNumber : officerInformantContactNumber;
     const effectiveInformantAddress = isPhysicalInformant ? complainantAddress : officerInformantAddress;
+    const approverSignerName = String(
+        complaint?.approver_staff?.name ||
+        complaint?.approverStaff?.name ||
+        ''
+    ).trim();
     const effectiveOfficerSignerName = caseType === 'AK'
         ? officerInformantName
-        : (
-            complaint?.approver_staff?.name ||
-            complaint?.approverStaff?.name ||
-            issuerName
-        );
+        : approverSignerName;
+    const officerSignerPendingNote = caseType === 'AJ' && !approverSignerName
+        ? '(Aduan belum disahkan oleh Pegawai Pengesah)'
+        : '';
+    const hasOfficerSignerName = String(effectiveOfficerSignerName || '').trim() !== '';
+    const signerRequiredTitle = hasOfficerSignerName ? undefined : 'Borang 5 hanya boleh dijana selepas aduan disahkan oleh Pegawai Pengesah.';
+    const districtName = complaint?.district_name || complaint?.district?.name || '-';
+
+    const openEmailModal = () => {
+        const defaultSubject = `TINDAKAN (${mainStatus || 'Aduan'}) : ${complaint?.reference_no || `Aduan #${id}`}`;
+        const defaultBody = [
+            'Assalamualaikum',
+            '',
+            `Aduan berstatus ${mainStatus || '-'} untuk tindakan daerah ${districtName}.`,
+            'Sila pastikan aduan diambil tindakan mengikut tempoh yang ditetapkan.',
+            '',
+            'Muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail Aduan.',
+            '',
+            'Terima kasih.',
+        ].join('\n');
+        setEmailForm({
+            email: '',
+            subject: defaultSubject,
+            body: defaultBody,
+        });
+        setIsEmailModalOpen(true);
+    };
+
+    const closeEmailModal = () => {
+        if (isEmailSending) {
+            return;
+        }
+        setIsEmailModalOpen(false);
+    };
+
+    const handleEmailFieldChange = (field) => (event) => {
+        const value = event?.target?.value ?? '';
+        setEmailForm((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const handleSendEmail = async () => {
+        if (!apiUrl) {
+            toast.error('API URL tidak diset.');
+            return;
+        }
+        if (isEmailSending) {
+            return;
+        }
+        const email = String(emailForm.email || '').trim();
+        if (!email) {
+            toast.error('Alamat emel wajib diisi.');
+            return;
+        }
+
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailPattern.test(email)) {
+            toast.error('Format alamat emel tidak sah.');
+            return;
+        }
+        const subject = String(emailForm.subject || '').trim();
+        if (!subject) {
+            toast.error('Subjek emel wajib diisi.');
+            return;
+        }
+        const body = String(emailForm.body || '').trim();
+        if (!body) {
+            toast.error('Kandungan emel wajib diisi.');
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        setIsEmailSending(true);
+        try {
+            const response = await axios.post(
+                `${apiUrl}/complaints/${id}/print/borang-5/email`,
+                {
+                    email,
+                    subject,
+                    body,
+                },
+                {
+                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                }
+            );
+            toast.success(response?.data?.message || 'Borang 5 berjaya dihantar melalui emel.');
+            setIsEmailModalOpen(false);
+        } catch (err) {
+            toast.error(err?.response?.data?.message || err?.message || 'Gagal menghantar emel Borang 5.');
+        } finally {
+            setIsEmailSending(false);
+        }
+    };
 
     return (
         <div className="print-page">
@@ -137,7 +238,22 @@ const ComplaintPrintBorang5 = () => {
                 <Link className="app-button app-button-ghost" to={`/app/complaints/${id}`}>
                     Kembali
                 </Link>
-                <button className="app-button" type="button" onClick={() => window.print()}>
+                <button
+                    className="app-button app-button-ghost"
+                    type="button"
+                    onClick={openEmailModal}
+                    disabled={isEmailSending || !hasOfficerSignerName}
+                    title={signerRequiredTitle}
+                >
+                    Email
+                </button>
+                <button
+                    className="app-button"
+                    type="button"
+                    onClick={() => window.print()}
+                    disabled={!hasOfficerSignerName}
+                    title={signerRequiredTitle}
+                >
                     Cetak Borang 5
                 </button>
             </div>
@@ -215,6 +331,9 @@ const ComplaintPrintBorang5 = () => {
                     <div className="print-borang5-sign-col">
                         <div className="print-borang5-sign-label">Tandatangan Pegawai Penguatkuasa Agama</div>
                         <div className="print-borang5-sign-name">{renderValue(effectiveOfficerSignerName)}</div>
+                        {officerSignerPendingNote && (
+                            <div className="print-borang5-sign-note">{officerSignerPendingNote}</div>
+                        )}
                     </div>
                 </div>
 
@@ -229,6 +348,65 @@ const ComplaintPrintBorang5 = () => {
                     </div>
                 )}
             </div>
+
+            {isEmailModalOpen && (
+                <div className="app-modal">
+                    <div className="app-modal-backdrop" onClick={closeEmailModal}></div>
+                    <div className="app-modal-content">
+                        <div className="app-modal-header">
+                            <h4>Hantar Emel Borang 5</h4>
+                            <p>Lampiran PDF Borang 5 akan dihantar bersama emel ini.</p>
+                            <button className="app-modal-close" onClick={closeEmailModal} disabled={isEmailSending}>
+                                &times;
+                            </button>
+                        </div>
+                        <div style={{ display: 'grid', gap: '0.9rem' }}>
+                            <div className="app-form-field">
+                                <label htmlFor="email-to">To</label>
+                                <input
+                                    id="email-to"
+                                    type="email"
+                                    className="form-control"
+                                    placeholder="contoh@domain.com"
+                                    value={emailForm.email}
+                                    onChange={handleEmailFieldChange('email')}
+                                    disabled={isEmailSending}
+                                />
+                            </div>
+                            <div className="app-form-field">
+                                <label htmlFor="email-subject">Subject</label>
+                                <input
+                                    id="email-subject"
+                                    type="text"
+                                    className="form-control"
+                                    value={emailForm.subject}
+                                    onChange={handleEmailFieldChange('subject')}
+                                    disabled={isEmailSending}
+                                />
+                            </div>
+                            <div className="app-form-field">
+                                <label htmlFor="email-body">Body</label>
+                                <textarea
+                                    id="email-body"
+                                    className="form-control"
+                                    rows={10}
+                                    value={emailForm.body}
+                                    onChange={handleEmailFieldChange('body')}
+                                    disabled={isEmailSending}
+                                />
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem', marginTop: '1rem' }}>
+                            <button type="button" className="app-button" onClick={handleSendEmail} disabled={isEmailSending}>
+                                {isEmailSending ? 'Menghantar Emel...' : 'Hantar Emel'}
+                            </button>
+                            <button type="button" className="app-button app-button-ghost" onClick={closeEmailModal} disabled={isEmailSending}>
+                                Batal
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -875,6 +875,7 @@ const ComplaintList = ({
                 description={description}
                 caseType={caseType}
                 canCreateComplaint={canCreateComplaint}
+                showCreateButton={!showCaseTabs}
                 onOpenForm={() => setIsFormOpen(true)}
                 showFilters={showFilters}
                 onToggleFilters={() => setShowFilters((prev) => !prev)}
@@ -924,6 +925,8 @@ const ComplaintList = ({
                         ) : (
                             <ComplaintListInternalView
                                 showCaseTabs={showCaseTabs}
+                                canCreateComplaint={canCreateComplaint}
+                                onOpenForm={() => setIsFormOpen(true)}
                                 statusTab={statusTab}
                                 setStatusTab={setStatusTab}
                                 setPendingApproval={setPendingApproval}

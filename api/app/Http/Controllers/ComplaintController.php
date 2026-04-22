@@ -16,10 +16,12 @@ use App\Models\District;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Services\ComplaintReferenceService;
 use App\Services\MobilePushNotificationService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -1445,6 +1447,295 @@ class ComplaintController extends Controller
         ]);
     }
 
+    public function emailBorang5(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'body' => ['nullable', 'string', 'max:8000'],
+        ]);
+
+        $complaint->load([
+            'submittedBy:id,name,email',
+            'submittedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'receivedBy:id,name,email',
+            'receivedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'approverStaff:id,name,staff_id',
+        ]);
+
+        $channel = strtolower(trim((string) ($complaint->channel ?? '')));
+        $isPhysicalInformant = in_array($channel, ['walkin', 'walk-in', 'kaunter'], true);
+
+        $receiverStaff = $complaint->receivedBy?->staff ?: $complaint->submittedBy?->staff;
+        $issuerName = $complaint->submittedBy?->staff?->name
+            ?: $complaint->submittedBy?->name
+            ?: $complaint->receivedBy?->name
+            ?: '-';
+
+        $officerInformantName = $receiverStaff?->name ?: $complaint->receivedBy?->name ?: $issuerName;
+        $officerInformantIdNumber = $receiverStaff?->staff_id ?: $receiverStaff?->ic_number ?: '-';
+        $officerInformantOccupation = $receiverStaff?->position ?: 'Pegawai Penguatkuasa Agama';
+        $officerInformantContactNumber = $receiverStaff?->phone ?: '-';
+        $officerInformantAddress = $receiverStaff?->office_address ?: $receiverStaff?->address ?: '-';
+
+        $effectiveInformantName = $isPhysicalInformant
+            ? ($complaint->complainant_name ?: '-')
+            : $officerInformantName;
+        $effectiveInformantIdNumber = $isPhysicalInformant
+            ? ($complaint->identification_number ?: '-')
+            : $officerInformantIdNumber;
+        $effectiveInformantOccupation = $isPhysicalInformant
+            ? ($complaint->complainant_occupation ?: '-')
+            : $officerInformantOccupation;
+        $effectiveInformantContactNumber = $isPhysicalInformant
+            ? ($complaint->contact_number ?: '-')
+            : $officerInformantContactNumber;
+        $effectiveInformantAddress = $isPhysicalInformant
+            ? ($complaint->address ?: '-')
+            : $officerInformantAddress;
+
+        $approverSignerName = trim((string) ($complaint->approverStaff?->name ?: ''));
+        $effectiveOfficerSignerName = strtoupper((string) (
+            $complaint->case_type === 'AK'
+                ? $officerInformantName
+                : $approverSignerName
+        ));
+        $officerSignerPendingNote = (strtoupper((string) ($complaint->case_type ?: 'AJ')) === 'AJ' && $approverSignerName === '')
+            ? '(Aduan belum disahkan oleh Pegawai Pengesah)'
+            : '';
+
+        $formatDateDmy = static function ($value): string {
+            if (! $value) {
+                return '-';
+            }
+            try {
+                return Carbon::parse($value)->format('d-m-Y');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+
+        $formatTime12hDot = static function ($value): string {
+            if (! $value) {
+                return '-';
+            }
+            try {
+                return Carbon::parse($value)->format('g.i A');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+
+        $reportDate = $formatDateDmy($complaint->complaint_date);
+        $reportTime = $formatTime12hDot($complaint->complaint_time);
+        $mainStatus = strtoupper(trim((string) ($complaint->aj_ppa_classification ?? '')));
+        $reportText = trim((string) ($complaint->borang5_statement ?: $complaint->summary ?: '-'));
+
+        $subjectReference = (string) ($complaint->reference_no ?: ('Aduan #' . $complaint->id));
+        $subject = trim((string) ($validated['subject'] ?? '')) ?: "Borang 5 Aduan {$subjectReference}";
+        $customBody = trim((string) ($validated['body'] ?? ''));
+        $defaultBody = "Assalamualaikum\n\n"
+            . "Aduan berstatus " . ($mainStatus !== '' ? $mainStatus : '-') . " untuk tindakan daerah "
+            . (string) ($complaint->district_name ?: '-') . ".\n"
+            . "Sila pastikan aduan diambil tindakan mengikut tempoh yang ditetapkan.\n\n"
+            . "Muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail Aduan.\n\n"
+            . "Terima kasih.";
+        $bodyPlainText = $customBody !== '' ? $customBody : $defaultBody;
+        $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
+            . nl2br(e($bodyPlainText))
+            . '</div>';
+        $pdfBinary = Pdf::loadView('pdf.complaints.borang5', [
+            'referenceNo' => $subjectReference,
+            'reportDate' => $reportDate,
+            'reportTime' => $reportTime,
+            'informantName' => (string) $effectiveInformantName,
+            'informantIdNumber' => (string) $effectiveInformantIdNumber,
+            'informantOccupation' => (string) $effectiveInformantOccupation,
+            'informantContactNumber' => (string) $effectiveInformantContactNumber,
+            'informantAddress' => (string) $effectiveInformantAddress,
+            'reportText' => (string) $reportText,
+            'officerSignerName' => (string) $effectiveOfficerSignerName,
+            'officerSignerPendingNote' => (string) $officerSignerPendingNote,
+            'mainStatus' => (string) $mainStatus,
+        ])
+            ->setPaper('a4', 'portrait')
+            ->output();
+        $safeReference = preg_replace('/[^A-Za-z0-9\-_]+/', '_', $subjectReference) ?: ('aduan_' . $complaint->id);
+        $pdfFileName = 'borang5_' . $safeReference . '.pdf';
+
+        try {
+            Mail::send([], [], function ($message) use ($validated, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($validated['email'])
+                    ->subject($subject)
+                    ->html($html)
+                    ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
+            });
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Gagal menghantar emel Borang 5.',
+                'error' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Borang 5 berjaya dihantar melalui emel.',
+            'data' => [
+                'email' => $validated['email'],
+                'subject' => $subject,
+                'attachment' => $pdfFileName,
+            ],
+        ]);
+    }
+
+    public function emailTindakanAduan(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'email' => ['required', 'email', 'max:255'],
+            'subject' => ['nullable', 'string', 'max:255'],
+            'body' => ['nullable', 'string', 'max:8000'],
+        ]);
+
+        $complaint->load([
+            'submittedBy:id,name',
+            'submittedBy.staff:id,name',
+            'receivedBy:id,name',
+            'ajDirectiveStaff:id,name',
+            'ajHandoverStaff:id,name',
+            'picUser:id,name',
+            'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note',
+        ]);
+
+        $formatDateDmySlash = static function ($value): string {
+            if (! $value) return '-';
+            try {
+                return Carbon::parse($value)->format('d/m/Y');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+        $formatTimeMalay = static function ($value): string {
+            if (! $value) return '-';
+            try {
+                $dt = Carbon::parse($value);
+                $session = ((int) $dt->format('H') < 12) ? 'PAGI' : 'PETANG';
+                return $dt->format('g.i') . ' ' . $session;
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+
+        $complaintDate = $formatDateDmySlash($complaint->complaint_date);
+        $complaintTime = $formatTimeMalay($complaint->complaint_time);
+        $receivedBy = $complaint->receivedBy?->name
+            ?: $complaint->submittedBy?->staff?->name
+            ?: $complaint->submittedBy?->name
+            ?: '-';
+        $directiveBy = $complaint->ajDirectiveStaff?->name ?: '-';
+        $pelaksanaName = $complaint->ajHandoverStaff?->name ?: $complaint->picUser?->name ?: '-';
+
+        $directiveDateText = $complaint->aj_directive_at ? $formatDateDmySlash($complaint->aj_directive_at) : $complaintDate;
+        $directiveTimeText = $complaint->aj_directive_at ? $formatTimeMalay($complaint->aj_directive_at) : $complaintTime;
+        $handoverDateText = $complaint->handover_at ? $formatDateDmySlash($complaint->handover_at) : $complaintDate;
+        $handoverTimeText = $complaint->handover_at ? $formatTimeMalay($complaint->handover_at) : $complaintTime;
+        $historyRows = collect($complaint->actionUpdates ?? [])
+            ->sortBy(fn ($row) => (int) ($row->sort_order ?? 0))
+            ->filter(function ($row) {
+                return trim((string) ($row->classification ?? '')) !== ''
+                    || trim((string) ($row->action_date ?? '')) !== ''
+                    || trim((string) ($row->action_time ?? '')) !== ''
+                    || trim((string) ($row->note ?? '')) !== '';
+            })
+            ->map(function ($row) use ($formatDateDmySlash, $formatTimeMalay) {
+                return [
+                    'classification' => trim((string) ($row->classification ?? '')) !== '' ? (string) $row->classification : '-',
+                    'date' => $row->action_date ? $formatDateDmySlash($row->action_date) : '-',
+                    'time' => $row->action_time ? $formatTimeMalay($row->action_time) : '-',
+                    'note' => trim((string) ($row->note ?? '')) !== '' ? (string) $row->note : '-',
+                ];
+            })
+            ->values()
+            ->all();
+
+        $currentStatus = $complaint->aj_current_status ?: ($complaint->current_stage ?: '-');
+        $districtDisplay = $complaint->district_name ?: '-';
+        $caseRegisterNo = $complaint->case_register_no ?: '-';
+
+        $defaultSubject = 'TINDAKAN (' . (($complaint->arrest_status === 'ada' || $complaint->aj_arrest_status === 'ada') ? 'Ada Tangkapan' : 'Tiada Tangkapan') . ') : '
+            . ($complaint->case_register_no ?: $complaint->reference_no ?: ('Aduan #' . $complaint->id));
+        $subject = trim((string) ($validated['subject'] ?? '')) ?: $defaultSubject;
+
+        $defaultBody = "Assalamualaikum\n\n"
+            . "Laporan Tindakan bagi daerah " . ($complaint->district_name ?: '-') . " telah diperolehi.\n\n"
+            . "Sila muat turun salinan Tindakan Aduan di lampiran sebagai simpanan rekod di Fail KES.\n\n"
+            . "Terima kasih.";
+        $bodyPlainText = trim((string) ($validated['body'] ?? '')) ?: $defaultBody;
+        $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
+            . nl2br(e($bodyPlainText))
+            . '</div>';
+
+        $pdfBinary = Pdf::loadView('pdf.complaints.tindakan-aduan', [
+            'referenceNo' => (string) ($complaint->reference_no ?: '-'),
+            'complaintDate' => $complaintDate,
+            'complaintTime' => $complaintTime,
+            'receivedBy' => $receivedBy,
+            'pelaksanaName' => $pelaksanaName,
+            'directiveBy' => $directiveBy,
+            'directiveDateText' => $directiveDateText,
+            'directiveTimeText' => $directiveTimeText,
+            'districtDisplay' => $districtDisplay,
+            'handoverDateText' => $handoverDateText,
+            'handoverTimeText' => $handoverTimeText,
+            'historyRows' => $historyRows,
+            'currentStatus' => $currentStatus,
+            'caseRegisterNo' => $caseRegisterNo,
+            'directiveNotes' => (string) ($complaint->aj_directive_notes ?: $complaint->aj_report_notes ?: '-'),
+        ])->setPaper('a4', 'portrait')->output();
+
+        $safeReference = preg_replace('/[^A-Za-z0-9\-_]+/', '_', (string) ($complaint->reference_no ?: ('aduan_' . $complaint->id))) ?: ('aduan_' . $complaint->id);
+        $pdfFileName = 'tindakan_aduan_' . $safeReference . '.pdf';
+
+        try {
+            Mail::send([], [], function ($message) use ($validated, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($validated['email'])
+                    ->subject($subject)
+                    ->html($html)
+                    ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
+            });
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Gagal menghantar emel Tindakan Aduan.',
+                'error' => $e->getMessage(),
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Tindakan Aduan berjaya dihantar melalui emel.',
+            'data' => [
+                'email' => $validated['email'],
+                'subject' => $subject,
+                'attachment' => $pdfFileName,
+            ],
+        ]);
+    }
+
     public function approve(Request $request, Complaint $complaint)
     {
         $user = $request->user();
@@ -1486,18 +1777,77 @@ class ComplaintController extends Controller
         // Status Terkini represents the current outcome/state of the case, not whether it is a case.
         $isCase = true;
 
-        $complaint->update([
-            'approver_confirmed_at' => now(),
-            'current_stage' => 'disahkan',
-            'is_case' => $isCase,
+        $complaint->update(array_merge(
+            [
+                'approver_confirmed_at' => now(),
+                'is_case' => $isCase,
+            ],
+            $this->stagePayload('disahkan')
+        ));
+
+        return response()->json([
+            'message' => 'Aduan telah disahkan oleh Pegawai Pengesah. Sila lengkapkan maklumat Jana Tindakan sebelum hantar ke daerah.',
+            'approvals_count' => $approvalsCount,
+            'current_stage' => $complaint->current_stage,
+            'data' => $complaint->load(['receivedBy:id,name', 'approverStaff:id,name,staff_id']),
         ]);
+    }
+
+    public function dispatchToDistrict(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (strtoupper((string) ($complaint->case_type ?: 'AJ')) !== 'AJ') {
+            return response()->json(['message' => 'Fungsi ini hanya terpakai untuk Aduan Jenayah (AJ).'], 422);
+        }
+        if (! $complaint->approver_confirmed_at) {
+            return response()->json(['message' => 'Aduan belum disahkan oleh Pegawai Pengesah.'], 422);
+        }
+        if ((string) $complaint->current_stage === 'dihantar_ke_daerah') {
+            return response()->json(['message' => 'Aduan telah dihantar ke daerah.'], 422);
+        }
+        if (! in_array((string) $complaint->current_stage, ['disahkan', 'menunggu_tindakan_pi'], true)) {
+            return response()->json(['message' => 'Aduan perlu berstatus Disahkan sebelum dihantar ke daerah.'], 422);
+        }
+
+        $missingFields = [];
+        if (! $complaint->aj_directive_staff_id) {
+            $missingFields[] = 'Pegawai Yang Mengeluarkan Arahan';
+        }
+        if (! $complaint->aj_directive_at) {
+            $missingFields[] = 'Tarikh / Masa Maklum Aduan';
+        }
+        if (! $complaint->aj_handover_staff_id) {
+            $missingFields[] = 'Pegawai Yang Menerima Arahan';
+        }
+        if (! trim((string) $complaint->aj_current_status)) {
+            $missingFields[] = 'Status Terkini';
+        }
+        if (! trim((string) $complaint->aj_directive_notes)) {
+            $missingFields[] = 'Arahan Tindakan';
+        }
+
+        if (! empty($missingFields)) {
+            return response()->json([
+                'message' => 'Lengkapkan medan wajib Jana Tindakan dahulu: ' . implode(', ', $missingFields) . '.',
+                'errors' => [
+                    'jana_tindakan' => $missingFields,
+                ],
+            ], 422);
+        }
+
+        $complaint->update($this->stagePayload('dihantar_ke_daerah'));
 
         $this->assignPpaToDistrict($complaint, $user->id);
         $this->mobilePushNotificationService->sendApprovedComplaintToDistrictNotification($complaint);
 
         return response()->json([
-            'message' => 'Approved',
-            'approvals_count' => $approvalsCount,
+            'message' => 'Aduan berjaya dihantar ke daerah untuk tindakan lanjut.',
             'current_stage' => $complaint->current_stage,
             'data' => $complaint->load(['receivedBy:id,name', 'approverStaff:id,name,staff_id']),
         ]);
@@ -1511,12 +1861,10 @@ class ComplaintController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|string|in:baru,tunggu_pengesahan,dalam_tindakan,kiv,selesai,disahkan',
+            'status' => 'required|string|in:baru,tunggu_pengesahan,menunggu_tindakan_pi,dalam_tindakan,kiv,selesai,disahkan,dihantar_ke_daerah',
         ]);
 
-        $complaint->update([
-            'current_stage' => $request->status,
-        ]);
+        $complaint->update($this->stagePayload((string) $request->status));
 
         return response()->json([
             'message' => 'Status updated',
@@ -1563,7 +1911,7 @@ class ComplaintController extends Controller
                 'received_at' => now(),
             ];
             if (in_array((string) $complaint->current_stage, ['baru', 'tunggu_pengesahan'], true)) {
-                $payload['current_stage'] = 'disahkan';
+                $payload = array_merge($payload, $this->stagePayload('disahkan'));
             }
             if (! empty($payload)) {
                 $complaint->update($payload);
@@ -1584,7 +1932,7 @@ class ComplaintController extends Controller
         if ((int) $request->approver_staff_id !== (int) $complaint->approver_staff_id || ! $complaint->approver_assigned_at) {
             $payload['approver_assigned_at'] = now();
         }
-        $payload['current_stage'] = 'tunggu_pengesahan';
+        $payload = array_merge($payload, $this->stagePayload('tunggu_pengesahan'));
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
 
@@ -1593,7 +1941,7 @@ class ComplaintController extends Controller
         }
 
         return response()->json([
-            'message' => 'Assignees updated',
+            'message' => 'Maklumat aduan telah dihantar kepada pengesah. Status: Menunggu Pengesahan.',
             'data' => $complaint->load(['receivedBy:id,name', 'approverStaff:id,name,staff_id']),
         ]);
     }
@@ -1921,7 +2269,7 @@ class ComplaintController extends Controller
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
         if ((string) $complaint->current_stage === 'baru' && $ppaClassification) {
-            $payload['current_stage'] = 'dalam_tindakan';
+            $payload = array_merge($payload, $this->stagePayload('dalam_tindakan'));
         }
 
         $complaint->update($payload);
@@ -1981,9 +2329,9 @@ class ComplaintController extends Controller
         if (
             $hasReportNotes
             && $user->hasRole('pegawai_daerah')
-            && (string) $complaint->current_stage === 'disahkan'
+            && (string) $complaint->current_stage === 'dihantar_ke_daerah'
         ) {
-            $complaint->update(['current_stage' => 'selesai']);
+            $complaint->update($this->stagePayload('selesai'));
         }
 
         DB::transaction(function () use ($complaint, $report) {
@@ -2729,7 +3077,7 @@ class ComplaintController extends Controller
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
         if (in_array((string) $complaint->current_stage, ['baru', 'tunggu_pengesahan'], true)) {
-            $payload['current_stage'] = 'disahkan';
+            $payload = array_merge($payload, $this->stagePayload('disahkan'));
             if ($user->staff?->id) {
                 $payload['approver_staff_id'] = $user->staff->id;
             }
@@ -3002,6 +3350,7 @@ class ComplaintController extends Controller
             // New complaints start as "baru". AK skips approver flow later, but should still
             // be received through the normal complaint intake flow before becoming "disahkan".
             'current_stage' => 'baru',
+            'status_id' => $this->resolveStatusIdForStage('baru'),
             'approver_confirmed_at' => null,
             'submitted_at' => $now,
             'submitted_by_user_id' => Auth::guard('sanctum')->id(),
@@ -3066,6 +3415,50 @@ class ComplaintController extends Controller
             : $safeBase;
 
         return Storage::disk($disk)->download($attachment->path, $downloadName);
+    }
+
+    private function stagePayload(string $stage): array
+    {
+        $payload = ['current_stage' => $stage];
+        $statusId = $this->resolveStatusIdForStage($stage);
+        if ($statusId) {
+            $payload['status_id'] = $statusId;
+        }
+
+        return $payload;
+    }
+
+    private function resolveStatusIdForStage(string $stage): ?int
+    {
+        $stageCode = strtolower(trim($stage));
+        if ($stageCode === '') {
+            return null;
+        }
+
+        $statusId = DB::table('complaint_statuses')
+            ->where('code', $stageCode)
+            ->value('id');
+        if ($statusId) {
+            return (int) $statusId;
+        }
+
+        $fallbackCodes = match ($stageCode) {
+            'menunggu_tindakan_pi' => ['disahkan', 'dalam_tindakan'],
+            'dihantar_ke_daerah' => ['disahkan', 'dalam_tindakan'],
+            'disahkan' => ['dalam_tindakan'],
+            default => [],
+        };
+
+        foreach ($fallbackCodes as $code) {
+            $fallbackId = DB::table('complaint_statuses')
+                ->where('code', $code)
+                ->value('id');
+            if ($fallbackId) {
+                return (int) $fallbackId;
+            }
+        }
+
+        return null;
     }
 
     private function assignPpaToDistrict(Complaint $complaint, int $assignedByUserId): void
@@ -3248,7 +3641,12 @@ class ComplaintController extends Controller
 
         $status = trim((string) $request->query('status', ''));
         if ($status !== '') {
-            $query->whereRaw('LOWER(current_stage) = ?', [strtolower($status)]);
+            $statusLower = strtolower($status);
+            if ($statusLower === 'disahkan') {
+                $query->whereIn('current_stage', ['disahkan', 'menunggu_tindakan_pi', 'dihantar_ke_daerah']);
+            } else {
+                $query->whereRaw('LOWER(current_stage) = ?', [$statusLower]);
+            }
         }
 
         $pendingApproval = $request->query('pending_approval');

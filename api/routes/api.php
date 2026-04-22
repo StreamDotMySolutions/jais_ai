@@ -165,6 +165,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('arahanBeredar');
     Route::post('/complaints/{complaint}/approve', [App\Http\Controllers\ComplaintController::class, 'approve'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/dispatch-to-district', [App\Http\Controllers\ComplaintController::class, 'dispatchToDistrict'])
+        ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/pickup', [App\Http\Controllers\ComplaintController::class, 'pickup'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/release-intake', [App\Http\Controllers\ComplaintController::class, 'releaseIntake'])
@@ -197,6 +199,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/basic', [App\Http\Controllers\ComplaintController::class, 'updateBasic'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj', [App\Http\Controllers\ComplaintController::class, 'updateAjPayload'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/print/borang-5/email', [App\Http\Controllers\ComplaintController::class, 'emailBorang5'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/print/tindakan-aduan/email', [App\Http\Controllers\ComplaintController::class, 'emailTindakanAduan'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj-action-report', [App\Http\Controllers\ComplaintController::class, 'updateAjActionReport'])
         ->whereNumber('complaint');

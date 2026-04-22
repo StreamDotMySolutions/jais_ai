@@ -242,6 +242,8 @@ const ComplaintDetail = () => {
     const localStaffId = localStorage.getItem('staff_id') || '';
     const isPublicRole = ['awam', 'user'].includes(role);
     const isPegawaiRole = ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
+    const isPegawaiDaerahRole = role === 'pegawai_daerah';
+    const detailTopBoxTitle = 'Aduan';
     const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase();
     const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp_web'].includes(complaintChannelNormalized);
     const isBasicEditLockedBySource = LOCKED_BASIC_EDIT_CHANNELS.includes(complaintChannelNormalized);
@@ -447,7 +449,9 @@ const ComplaintDetail = () => {
     }, [complaint]);
 
     const saveBasicField = async (fieldName, value) => {
-        if (!apiUrl || !id) return;
+        const currentStage = (complaint?.current_stage || '').toString();
+        const isAduanEditingLocked = ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+        if (!apiUrl || !id || isAduanEditingLocked) return;
         const token = localStorage.getItem('token');
         const payload = { [fieldName]: value };
         const response = await axios.post(`${apiUrl}/complaints/${id}/basic`, payload, {
@@ -536,7 +540,9 @@ const ComplaintDetail = () => {
     }, [ajPayload.classification, id, isPegawaiRole, kivRemainingMs, toast]);
 
     const saveBasic = () => {
-        if (!apiUrl || !id || basicSaving) {
+        const currentStage = (complaint?.current_stage || '').toString();
+        const isAduanEditingLocked = ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+        if (!apiUrl || !id || basicSaving || isAduanEditingLocked) {
             return;
         }
         const token = localStorage.getItem('token');
@@ -1254,7 +1260,7 @@ const ComplaintDetail = () => {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
             .then((response) => {
-                const msg = response?.data?.message || 'Aduan telah disahkan.';
+                const msg = response?.data?.message || 'Aduan telah disahkan oleh Pegawai Pengesah.';
                 setActionMessage(msg);
                 toast.success(msg);
                 setApprovalMeta((prev) => ({
@@ -1276,6 +1282,37 @@ const ComplaintDetail = () => {
             .catch((err) => {
                 const msg = err?.response?.data?.message || 'Gagal mengesahkan aduan.';
                 setActionMessage(msg);
+                toast.error(msg);
+            });
+    };
+
+    const submitDispatchToDistrict = () => {
+        if (!apiUrl || !id) {
+            return;
+        }
+        const token = localStorage.getItem('token');
+        setActionReportMessage('');
+        axios.post(`${apiUrl}/complaints/${id}/dispatch-to-district`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                const msg = response?.data?.message || 'Aduan berjaya dihantar ke daerah untuk tindakan lanjut.';
+                setActionReportMessage(msg);
+                toast.success(msg);
+                const updated = response?.data?.data;
+                setComplaint((prev) => {
+                    if (!prev) {
+                        return prev;
+                    }
+                    if (updated) {
+                        return { ...prev, ...updated };
+                    }
+                    return { ...prev, current_stage: response?.data?.current_stage };
+                });
+            })
+            .catch((err) => {
+                const msg = err?.response?.data?.message || 'Gagal menghantar aduan ke daerah.';
+                setActionReportMessage(msg);
                 toast.error(msg);
             });
     };
@@ -1595,7 +1632,9 @@ const ComplaintDetail = () => {
         navigate(`/app/complaints/${prevId}`);
     };
 
+    const normalizeDateTimeLocalValue = (value) => String(value || '').trim().replace(' ', 'T').slice(0, 16);
     const currentCaseType = complaint?.case_type || 'AJ';
+    const currentStage = (complaint?.current_stage || '').toString();
     const akSubtype = (complaint?.ak_subtype || '').toLowerCase();
     const isAkFamilyDetail = currentCaseType === 'AK' && ['nikah', 'cerai', 'rujuk', 'poligami'].includes(akSubtype);
     const akEventNoun = ['nikah', 'poligami'].includes(akSubtype) ? 'Nikah' : 'Cerai';
@@ -1604,8 +1643,13 @@ const ComplaintDetail = () => {
         : akSubtype === 'poligami'
             ? 'Poligami'
             : akEventNoun;
-    const isCaseTypeLocked = Boolean(complaint?.approver_confirmed_at) || complaint?.current_stage === 'disahkan';
-    const isAwaitingApproval = complaint?.current_stage === 'tunggu_pengesahan' && !complaint?.approver_confirmed_at;
+    const isCaseTypeLocked = Boolean(complaint?.approver_confirmed_at) || ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+    const isAwaitingApproval = currentStage === 'tunggu_pengesahan' && !complaint?.approver_confirmed_at;
+    const isAduanBoxLocked = ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+    const isSaveDisabled = isAwaitingApproval;
+    const saveDisabledTitle = isSaveDisabled ? 'Tidak boleh simpan semasa menunggu tindakan pengesah.' : undefined;
+    const aduanBoxDisabledTitle = isAduanBoxLocked ? 'Tidak boleh dikemaskini apabila status aduan Menunggu tindakan pengesah, Disahkan atau Dihantar ke Daerah.' : undefined;
+    const canEditAduanBox = canEditBasicComplaint && !isAduanBoxLocked;
     const approverName = (complaint?.approverStaff?.name || '').trim().toLowerCase();
     const canApprove = Boolean(
         !complaint?.approver_confirmed_at
@@ -1622,6 +1666,91 @@ const ComplaintDetail = () => {
     const isApproved = currentCaseType === 'AK'
         ? true
         : Boolean(complaint?.approver_confirmed_at);
+    const normalizeHistoryEntries = (entries) => (
+        (Array.isArray(entries) ? entries : [])
+            .map((row) => ({
+                classification: String(row?.classification || '').trim().toUpperCase(),
+                action_date: String(row?.action_date || '').trim(),
+                action_time: String(row?.action_time || '').trim(),
+                note: String(row?.note || '').trim(),
+            }))
+            .filter((row) => row.classification || row.action_date || row.action_time || row.note)
+    );
+    const draftHistoryEntriesNormalized = normalizeHistoryEntries(ajActionReport?.history_entries || []);
+    const savedHistoryEntriesNormalized = normalizeHistoryEntries(complaint?.action_updates || []);
+    const hasUnsavedJanaTindakanChanges = (
+        String(ajActionReport?.directive_staff_id || '') !== String(complaint?.aj_directive_staff_id || '')
+        || normalizeDateTimeLocalValue(ajActionReport?.directive_at) !== normalizeDateTimeLocalValue(complaint?.aj_directive_at)
+        || String(ajActionReport?.handover_staff_id || '') !== String(complaint?.aj_handover_staff_id || '')
+        || normalizeDateTimeLocalValue(ajActionReport?.handover_at) !== normalizeDateTimeLocalValue(complaint?.handover_at)
+        || String(ajActionReport?.directive_notes || '').trim() !== String(complaint?.aj_directive_notes || '').trim()
+        || String(ajActionReport?.handover_notes || '').trim() !== String(complaint?.handover_notes || '').trim()
+        || String(ajActionReport?.current_status || '').trim() !== String(complaint?.aj_current_status || '').trim()
+        || String(ajActionReport?.case_register_no || '').trim() !== String(complaint?.case_register_no || '').trim()
+        || String(ajActionReport?.op_category || '').trim() !== String(complaint?.aj_op_category || '').trim()
+        || String(ajActionReport?.op_case_status || '').trim() !== String(complaint?.aj_op_case_status || '').trim()
+        || String(ajActionReport?.op_notes || '').trim() !== String(complaint?.aj_op_notes || '').trim()
+        || String(ajActionReport?.file_no || '').trim() !== String(complaint?.aj_file_no || '').trim()
+        || JSON.stringify(draftHistoryEntriesNormalized) !== JSON.stringify(savedHistoryEntriesNormalized)
+    );
+    const janaTindakanMissingFields = [];
+    if (!String(ajActionReport?.handover_staff_id || '').trim()) {
+        janaTindakanMissingFields.push('Kumpulan / Pelaksana');
+    }
+    if (!String(ajActionReport?.directive_staff_id || '').trim()) {
+        janaTindakanMissingFields.push('Nama Penyelia Bertugas');
+    }
+    if (!String(ajActionReport?.directive_notes || '').trim()) {
+        janaTindakanMissingFields.push('Minit / Arahan Tindakan');
+    }
+    const janaTindakanRequiredMessage = janaTindakanMissingFields.length > 0
+        ? `Lengkapkan medan wajib dahulu sebelum Jana Tindakan: ${janaTindakanMissingFields.join(', ')}.`
+        : '';
+    const janaTindakanUnsavedMessage = (janaTindakanMissingFields.length === 0 && hasUnsavedJanaTindakanChanges)
+        ? 'Sila klik Simpan dahulu untuk rekodkan maklumat Jana Tindakan sebelum Jana Tindakan.'
+        : '';
+    const janaTindakanBlockedMessage = janaTindakanRequiredMessage || janaTindakanUnsavedMessage;
+    const isJanaTindakanDisabled = Boolean(janaTindakanBlockedMessage);
+    const janaTindakanDisabledTitle = janaTindakanBlockedMessage || undefined;
+    const isAwaitingPiDispatch = currentCaseType === 'AJ' && ['menunggu_tindakan_pi', 'disahkan'].includes(currentStage);
+    const isAlreadyDispatchedToDistrict = currentCaseType === 'AJ'
+        && currentStage === 'dihantar_ke_daerah'
+        && Boolean(complaint?.approver_confirmed_at);
+    const dispatchMissingFields = [];
+    if (!String(ajActionReport?.directive_staff_id || '').trim()) {
+        dispatchMissingFields.push('Pegawai Yang Mengeluarkan Arahan');
+    }
+    if (!String(ajActionReport?.directive_at || '').trim()) {
+        dispatchMissingFields.push('Tarikh / Masa Maklum Aduan');
+    }
+    if (!String(ajActionReport?.handover_staff_id || '').trim()) {
+        dispatchMissingFields.push('Pegawai Yang Menerima Arahan');
+    }
+    if (!String(ajActionReport?.current_status || '').trim()) {
+        dispatchMissingFields.push('Status Terkini');
+    }
+    if (!String(ajActionReport?.directive_notes || '').trim()) {
+        dispatchMissingFields.push('Arahan Tindakan');
+    }
+    const hasUnsavedDispatchChanges = isAwaitingPiDispatch
+        && dispatchMissingFields.length === 0
+        && hasUnsavedJanaTindakanChanges;
+    const dispatchMissingMessage = dispatchMissingFields.length > 0
+        ? `Lengkapkan medan wajib dahulu sebelum Hantar ke Daerah: ${dispatchMissingFields.join(', ')}.`
+        : '';
+    const dispatchUnsavedMessage = hasUnsavedDispatchChanges
+        ? 'Sila klik Simpan dahulu untuk rekodkan maklumat Jana Tindakan sebelum Hantar ke Daerah.'
+        : '';
+    const dispatchBlockedMessage = dispatchMissingMessage || dispatchUnsavedMessage;
+    const canDispatchToDistrict = isAwaitingPiDispatch && !dispatchBlockedMessage;
+    const dispatchButtonDisabled = isPegawaiDaerahRole || isAlreadyDispatchedToDistrict || !canDispatchToDistrict;
+    const dispatchButtonTitle = isPegawaiDaerahRole
+        ? 'Pegawai Daerah tidak dibenarkan menghantar aduan ke daerah.'
+        : isAlreadyDispatchedToDistrict
+        ? 'Aduan telah dihantar ke daerah.'
+        : (isAwaitingPiDispatch ? (dispatchBlockedMessage || undefined) : 'Aduan hanya boleh dihantar ke daerah selepas disahkan.');
+    const isBorang5Enabled = ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+    const borang5DisabledTitle = isBorang5Enabled ? undefined : 'Borang 5 hanya boleh dijana apabila status aduan Disahkan.';
     const lockedStepKeys = useMemo(() => {
         if (currentCaseType === 'AK') {
             return [];
@@ -1858,7 +1987,7 @@ const ComplaintDetail = () => {
             <div className="app-detail-grid">
                 <div className="app-card app-span-full">
                     <div className="app-card-header has-submeta">
-                        <h4>Maklumat Aduan</h4>
+                        <h4>{detailTopBoxTitle}</h4>
                         <div className="app-detail-submeta app-detail-submeta--inline" aria-label="Maklumat penghantaran aduan">
                             <div className="app-detail-submeta-item">
                                 <span className="app-detail-submeta-label">Tahun</span>
@@ -1916,7 +2045,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.complainant_name}
                                             placeholder="-"
-                                            canEdit={canEditBasicComplaint}
+                                            canEdit={canEditAduanBox}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('complainant_name', next)}
                                         />
@@ -1928,7 +2057,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.identification_number}
                                             placeholder="-"
-                                            canEdit={canEditBasicComplaint}
+                                            canEdit={canEditAduanBox}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('identification_number', next)}
                                         />
@@ -1940,7 +2069,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.complainant_occupation}
                                             placeholder="-"
-                                            canEdit={canEditBasicComplaint}
+                                            canEdit={canEditAduanBox}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('complainant_occupation', next)}
                                         />
@@ -1952,7 +2081,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.contact_number}
                                             placeholder="-"
-                                            canEdit={canEditBasicComplaint}
+                                            canEdit={canEditAduanBox}
                                             maxLength={255}
                                             onConfirm={(next) => saveBasicField('contact_number', next)}
                                         />
@@ -1971,7 +2100,7 @@ const ComplaintDetail = () => {
                                             <SharedInlineEditText
                                                 value={complaint.ak_subtype || ''}
                                                 placeholder="-"
-                                                canEdit={canEditBasicComplaint}
+                                                canEdit={canEditAduanBox}
                                                 mode="select"
                                                 options={[
                                                     { value: 'nikah', label: 'Nikah' },
@@ -1999,7 +2128,7 @@ const ComplaintDetail = () => {
                                             <SharedInlineEditText
                                                 value={complaint.ak_partner_name}
                                                 placeholder="-"
-                                                canEdit={canEditBasicComplaint}
+                                                canEdit={canEditAduanBox}
                                                 maxLength={255}
                                                 onConfirm={(next) => saveBasicField('ak_partner_name', next)}
                                             />
@@ -2012,7 +2141,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={isAkFamilyDetail ? complaint.ak_event_date : complaint.incident_date}
                                             placeholder="-"
-                                            canEdit={canEditBasicComplaint}
+                                            canEdit={canEditAduanBox}
                                             inputType="date"
                                             onConfirm={(next) => saveBasicField(isAkFamilyDetail ? 'ak_event_date' : 'incident_date', next)}
                                         />
@@ -2026,7 +2155,7 @@ const ComplaintDetail = () => {
                                                 ? (complaint.ak_event_time ? String(complaint.ak_event_time).slice(0, 5) : '')
                                                 : (complaint.incident_time ? String(complaint.incident_time).slice(0, 5) : '')}
                                             placeholder="-"
-                                            canEdit={canEditBasicComplaint}
+                                            canEdit={canEditAduanBox}
                                             inputType="time"
                                             onConfirm={(next) => saveBasicField(isAkFamilyDetail ? 'ak_event_time' : 'incident_time', next)}
                                         />
@@ -2039,7 +2168,7 @@ const ComplaintDetail = () => {
                                             <SharedInlineEditText
                                                 value={complaint.ak_event_place}
                                                 placeholder="-"
-                                                canEdit={canEditBasicComplaint}
+                                                canEdit={canEditAduanBox}
                                                 maxLength={255}
                                                 onConfirm={(next) => saveBasicField('ak_event_place', next)}
                                             />
@@ -2053,7 +2182,7 @@ const ComplaintDetail = () => {
                                             <SharedInlineEditText
                                                 value={complaint.ak_rujuk_date}
                                                 placeholder="-"
-                                                canEdit={canEditBasicComplaint}
+                                                canEdit={canEditAduanBox}
                                                 inputType="date"
                                                 onConfirm={(next) => saveBasicField('ak_rujuk_date', next)}
                                             />
@@ -2067,7 +2196,7 @@ const ComplaintDetail = () => {
                                             <SharedInlineEditText
                                                 value={complaint.ak_cerai_count ? String(complaint.ak_cerai_count) : ''}
                                                 placeholder="-"
-                                                canEdit={canEditBasicComplaint}
+                                                canEdit={canEditAduanBox}
                                                 mode="select"
                                                 options={COUNT_SELECT_OPTIONS}
                                                 onConfirm={(next) => saveBasicField('ak_cerai_count', next || null)}
@@ -2082,7 +2211,7 @@ const ComplaintDetail = () => {
                                             <SharedInlineEditText
                                                 value={complaint.ak_cerai_talaq_count ? String(complaint.ak_cerai_talaq_count) : ''}
                                                 placeholder="-"
-                                                canEdit={canEditBasicComplaint}
+                                                canEdit={canEditAduanBox}
                                                 mode="select"
                                                 options={COUNT_SELECT_OPTIONS}
                                                 onConfirm={(next) => saveBasicField('ak_cerai_talaq_count', next || null)}
@@ -2097,7 +2226,7 @@ const ComplaintDetail = () => {
                                             <SharedInlineEditText
                                                 value={complaint.ak_poligami_marriage_count ? String(complaint.ak_poligami_marriage_count) : ''}
                                                 placeholder="-"
-                                                canEdit={canEditBasicComplaint}
+                                                canEdit={canEditAduanBox}
                                                 inputType="number"
                                                 onConfirm={(next) => saveBasicField('ak_poligami_marriage_count', next || null)}
                                             />
@@ -2111,7 +2240,7 @@ const ComplaintDetail = () => {
                                             <SharedInlineEditText
                                                 value={complaint.ak_poligami_wife_count ? String(complaint.ak_poligami_wife_count) : ''}
                                                 placeholder="-"
-                                                canEdit={canEditBasicComplaint}
+                                                canEdit={canEditAduanBox}
                                                 inputType="number"
                                                 onConfirm={(next) => saveBasicField('ak_poligami_wife_count', next || null)}
                                             />
@@ -2124,7 +2253,7 @@ const ComplaintDetail = () => {
                                         <SharedInlineEditText
                                             value={complaint.district_id ? String(complaint.district_id) : ''}
                                             placeholder="-"
-                                            canEdit={canEditBasicComplaint}
+                                            canEdit={canEditAduanBox}
                                             mode="select"
                                             options={districtOptions.map((d) => ({ value: String(d.id), label: d.name }))}
                                             formatDisplay={() => complaint.district_name || '-'}
@@ -2140,7 +2269,7 @@ const ComplaintDetail = () => {
                                             <SharedInlineEditText
                                                 value={isAkFamilyDetail ? complaint.ak_event_location : complaint.address}
                                                 placeholder="-"
-                                                canEdit={canEditBasicComplaint}
+                                                canEdit={canEditAduanBox}
                                                 mode="textarea"
                                                 fullWidth
                                                 maxLength={1000}
@@ -2417,7 +2546,7 @@ const ComplaintDetail = () => {
                                                 <SharedInlineEditText
                                                     value={effectiveInformantName}
                                                     placeholder="-"
-                                                    canEdit={canEditBasicComplaint}
+                                                    canEdit={canEditAduanBox}
                                                     maxLength={255}
                                                     onConfirm={(next) => saveBasicField('informant_name', next)}
                                                 />
@@ -2429,7 +2558,7 @@ const ComplaintDetail = () => {
                                                 <SharedInlineEditText
                                                     value={effectiveInformantIdNumber}
                                                     placeholder="-"
-                                                    canEdit={canEditBasicComplaint}
+                                                    canEdit={canEditAduanBox}
                                                     maxLength={255}
                                                     onConfirm={(next) => saveBasicField('informant_identification_number', next)}
                                                 />
@@ -2441,7 +2570,7 @@ const ComplaintDetail = () => {
                                                 <SharedInlineEditText
                                                     value={effectiveInformantContactNumber}
                                                     placeholder="-"
-                                                    canEdit={canEditBasicComplaint}
+                                                    canEdit={canEditAduanBox}
                                                     maxLength={255}
                                                     onConfirm={(next) => saveBasicField('informant_contact_number', next)}
                                                 />
@@ -2490,16 +2619,18 @@ const ComplaintDetail = () => {
                     {canEditBasicComplaint && (
                         <div className="app-card-footer-actions">
                             {!basicEditing && (
-                                <button
-                                    type="button"
-                                    className="app-button app-button-ghost"
-                                    onClick={() => {
-                                        setBasicMessage('');
-                                        setBasicEditing(true);
-                                    }}
-                                >
-                                    Kemaskini
-                                </button>
+                                    <button
+                                        type="button"
+                                        className="app-button app-button-ghost"
+                                        onClick={() => {
+                                            setBasicMessage('');
+                                            setBasicEditing(true);
+                                        }}
+                                        disabled={isAduanBoxLocked}
+                                        title={aduanBoxDisabledTitle}
+                                    >
+                                        Kemaskini
+                                    </button>
                             )}
                             {basicEditing && (
                                 <>
@@ -2518,7 +2649,8 @@ const ComplaintDetail = () => {
                                         type="button"
                                         className="app-button"
                                         onClick={saveBasic}
-                                        disabled={basicSaving}
+                                        disabled={basicSaving || isAduanBoxLocked}
+                                        title={aduanBoxDisabledTitle}
                                     >
                                         {basicSaving ? 'Menyimpan...' : 'Simpan'}
                                     </button>
@@ -2596,20 +2728,6 @@ const ComplaintDetail = () => {
 
                     {complaint.case_type === 'AJ' && activeKey === 'ppa' && (
                         <div className="app-tab-panel">
-                            <div className="app-detail-number-actions">
-                                <button
-                                    className="app-button app-button-ghost"
-                                    type="button"
-                                    onClick={() => window.open(
-                                        `/app/complaints/${id}/print/borang-5`,
-                                        'borang5',
-                                        'width=980,height=720,scrollbars=yes,resizable=yes'
-                                    )}
-                                >
-                                    <i className="bi bi-printer"></i>
-                                    Borang 5
-                                </button>
-                            </div>
                             {payloadMessage && (
                                 <SharedInlineAlert
                                     type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
@@ -2742,11 +2860,6 @@ const ComplaintDetail = () => {
                                         onChange={(event) => setAjPayload((prev) => ({ ...prev, notes: event.target.value }))}
                                     />
                                 </label>
-                                <div className="app-form-actions app-span-full app-align-right">
-                                    <button className="app-button" type="button" onClick={submitAjPayload}>
-                                        Simpan
-                                    </button>
-                                </div>
 
                                 <div className="app-approver-card app-span-full">
                                     <div className="app-approver-grid">
@@ -2799,6 +2912,25 @@ const ComplaintDetail = () => {
                                         )}
                                     </div>
                                 </div>
+                                <div className="app-report-sticky app-span-full">
+                                    <button className="app-button" type="button" onClick={submitAjPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
+                                        Simpan
+                                    </button>
+                                    <button
+                                        className="app-button app-button-ghost"
+                                        type="button"
+                                        disabled={!isBorang5Enabled}
+                                        title={borang5DisabledTitle}
+                                        onClick={() => window.open(
+                                            `/app/complaints/${id}/print/borang-5`,
+                                            'borang5',
+                                            'width=980,height=720,scrollbars=yes,resizable=yes'
+                                        )}
+                                    >
+                                        <i className="bi bi-printer"></i>
+                                        Borang 5
+                                    </button>
+                                </div>
                             </div>
                             {assigneeMessage && (
                                 <SharedInlineAlert
@@ -2818,6 +2950,8 @@ const ComplaintDetail = () => {
                                 <button
                                     className="app-button app-button-ghost"
                                     type="button"
+                                    disabled={!isBorang5Enabled}
+                                    title={borang5DisabledTitle}
                                     onClick={() => window.open(
                                         `/app/complaints/${id}/print/borang-5`,
                                         'borang5',
@@ -2877,7 +3011,7 @@ const ComplaintDetail = () => {
                                 </label>
 
                                 <div className="app-form-actions app-span-full app-align-right">
-                                    <button className="app-button" type="button" onClick={submitAkPayload}>
+                                    <button className="app-button" type="button" onClick={submitAkPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         {isAkFirstIntakeSave ? 'Terima & Sahkan Aduan' : 'Simpan'}
                                     </button>
                                 </div>
@@ -3124,7 +3258,7 @@ const ComplaintDetail = () => {
                                 </label>
 
                                 <div className="app-form-actions app-span-full app-align-right">
-                                    <button className="app-button" type="button" onClick={submitAkPayload}>
+                                    <button className="app-button" type="button" onClick={submitAkPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
                                     </button>
                                 </div>
@@ -3311,7 +3445,7 @@ const ComplaintDetail = () => {
                                 </label>
 
                                 <div className="app-form-actions app-span-full app-align-right">
-                                    <button className="app-button" type="button" onClick={submitAkPayload}>
+                                    <button className="app-button" type="button" onClick={submitAkPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
                                     </button>
                                 </div>
@@ -3321,20 +3455,27 @@ const ComplaintDetail = () => {
 
                     {complaint.case_type === 'AJ' && activeKey === 'laporan_tindakan' && (
                         <div className="app-tab-panel">
-                            <div className="app-detail-number-actions">
-                                <button
-                                    className="app-button app-button-ghost"
-                                    type="button"
-                                    onClick={() => window.open(
-                                        `/app/complaints/${id}/print/tindakan-aduan`,
-                                        'tindakanAduan',
-                                        'width=980,height=720,scrollbars=yes,resizable=yes'
-                                    )}
-                                >
-                                    <i className="bi bi-printer"></i>
-                                    Jana Tindakan
-                                </button>
-                            </div>
+                            {isJanaTindakanDisabled && !isAwaitingPiDispatch && (
+                                <SharedInlineAlert
+                                    type="error"
+                                    message={janaTindakanBlockedMessage}
+                                    className=" app-detail-note"
+                                />
+                            )}
+                            {isAwaitingPiDispatch && !!dispatchBlockedMessage && (
+                                <SharedInlineAlert
+                                    type="error"
+                                    message={dispatchBlockedMessage}
+                                    className=" app-detail-note"
+                                />
+                            )}
+                            {isAlreadyDispatchedToDistrict && (
+                                <SharedInlineAlert
+                                    type="success"
+                                    message="Aduan telah dihantar ke daerah untuk tindakan lanjut."
+                                    className=" app-detail-note"
+                                />
+                            )}
                             {actionReportMessage && (
                                 <SharedInlineAlert
                                     type={actionReportMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
@@ -3544,9 +3685,32 @@ const ComplaintDetail = () => {
                                     />
                                 </label>
 
-                                <div className="app-form-actions app-span-full app-align-right">
-                                    <button className="app-button" type="button" onClick={submitAjActionReport}>
+                                <div className="app-report-sticky app-span-full">
+                                    <button className="app-button" type="button" onClick={submitAjActionReport} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
+                                    </button>
+                                    <button
+                                        className="app-button app-button-ghost"
+                                        type="button"
+                                        disabled={dispatchButtonDisabled}
+                                        title={dispatchButtonTitle}
+                                        onClick={submitDispatchToDistrict}
+                                    >
+                                        Hantar ke Daerah
+                                    </button>
+                                    <button
+                                        className="app-button app-button-ghost"
+                                        type="button"
+                                        disabled={isJanaTindakanDisabled}
+                                        title={janaTindakanDisabledTitle}
+                                        onClick={() => window.open(
+                                            `/app/complaints/${id}/print/tindakan-aduan`,
+                                            'tindakanAduan',
+                                            'width=980,height=720,scrollbars=yes,resizable=yes'
+                                        )}
+                                    >
+                                        <i className="bi bi-printer"></i>
+                                        Jana Tindakan
                                     </button>
                                 </div>
                             </div>
@@ -3972,7 +4136,7 @@ const ComplaintDetail = () => {
                                             className=" app-report-sticky-message"
                                         />
                                     )}
-                                    <button className="app-button" type="button" onClick={submitAjReport}>
+                                    <button className="app-button" type="button" onClick={submitAjReport} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan Laporan
                                     </button>
                                 </div>
@@ -4046,7 +4210,7 @@ const ComplaintDetail = () => {
                                 </label>
 
                                 <div className="app-form-actions app-span-full app-align-right">
-                                    <button className="app-button" type="button" onClick={submitAjPayload}>
+                                    <button className="app-button" type="button" onClick={submitAjPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
                                     </button>
                                 </div>
@@ -4116,7 +4280,7 @@ const ComplaintDetail = () => {
                                 </label>
 
                                 <div className="app-form-actions app-span-full app-align-right">
-                                    <button className="app-button" type="button" onClick={submitAjPayload}>
+                                    <button className="app-button" type="button" onClick={submitAjPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
                                     </button>
                                 </div>
