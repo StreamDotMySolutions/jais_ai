@@ -10,43 +10,42 @@ use Illuminate\Support\Str;
 
 class LlmComplaintService
 {
-    private const CHANNEL = 'whatsapp_web';
     private const HISTORY_LIMIT = 10;
     private const MODEL = 'gpt-4.1-mini';
     private const ENDPOINT = 'https://api.openai.com/v1/chat/completions';
     private const TIMEOUT = 15;
 
     /**
-     * Process an inbound user message for a given chat and return the text
-     * that should be sent back to the user, or null if no reply should be sent.
+     * Process an inbound user message for a given channel + chat and return
+     * the text to send back, or null if no reply should be sent.
      *
      * Side effects: persists ChatMessage rows, may create a Complaint row when
      * the LLM emits a /store_complaint command.
      */
-    public function handleIncoming(string $chatId, string $userMessage): ?string
+    public function handleIncoming(string $channel, string $chatId, string $userMessage): ?string
     {
         ChatMessage::create([
-            'channel' => self::CHANNEL,
+            'channel' => $channel,
             'chat_id' => $chatId,
             'role'    => 'user',
             'content' => $userMessage,
         ]);
 
-        $reply = $this->askOpenAi($chatId);
+        $reply = $this->askOpenAi($channel, $chatId);
 
         if (!$reply) {
             return null;
         }
 
         ChatMessage::create([
-            'channel' => self::CHANNEL,
+            'channel' => $channel,
             'chat_id' => $chatId,
             'role'    => 'assistant',
             'content' => $reply,
         ]);
 
         if ($this->isStoreComplaintCommand($reply)) {
-            $ref = $this->storeComplaint($reply, $chatId);
+            $ref = $this->storeComplaint($channel, $chatId, $reply);
             if ($ref === null) {
                 return 'Maaf, terdapat ralat semasa menyimpan aduan. Sila cuba semula.';
             }
@@ -57,7 +56,7 @@ class LlmComplaintService
         return $reply;
     }
 
-    private function askOpenAi(string $chatId): ?string
+    private function askOpenAi(string $channel, string $chatId): ?string
     {
         $apiKey = config('services.openai.api_key');
         if (!$apiKey) {
@@ -65,7 +64,7 @@ class LlmComplaintService
             return null;
         }
 
-        $history = ChatMessage::where('channel', self::CHANNEL)
+        $history = ChatMessage::where('channel', $channel)
             ->where('chat_id', $chatId)
             ->latest()
             ->take(self::HISTORY_LIMIT)
@@ -103,9 +102,9 @@ class LlmComplaintService
         return Str::startsWith(trim($message), '/store_complaint');
     }
 
-    private function storeComplaint(string $message, string $chatId): ?string
+    private function storeComplaint(string $channel, string $chatId, string $message): ?string
     {
-        Log::info('Store complaint command detected', ['chat_id' => $chatId]);
+        Log::info('Store complaint command detected', ['channel' => $channel, 'chat_id' => $chatId]);
 
         $jsonString = trim(substr($message, strlen('/store_complaint')));
         $data = json_decode($jsonString, true);
@@ -117,6 +116,11 @@ class LlmComplaintService
 
         $referenceNo = $this->generateReferenceNo();
 
+        $contactNumber = $data['contact_number'] ?? null;
+        if (!is_string($contactNumber) || trim($contactNumber) === '') {
+            $contactNumber = $chatId;
+        }
+
         Complaint::create([
             'reference_no'         => $referenceNo,
             'complaint_year'       => (int) now()->format('Y'),
@@ -124,16 +128,16 @@ class LlmComplaintService
             'complaint_time'       => now()->format('H:i:s'),
             'complainant_name'     => $data['name'] ?? 'Tidak dinyatakan',
             'identification_number' => $data['identification_number'] ?? 'Tidak dinyatakan',
-            'contact_number'       => $data['contact_number'] ?? 'Tidak dinyatakan',
+            'contact_number'       => $contactNumber,
             'address'              => $data['location'] ?? 'Tidak dinyatakan',
             'district_name'        => $data['district'] ?? null,
             'summary'              => $data['contents'] ?? 'Tidak dinyatakan',
-            'channel'              => self::CHANNEL,
+            'channel'              => $channel,
             'current_stage'        => 'baru',
             'submitted_at'         => now(),
         ]);
 
-        ChatMessage::where('channel', self::CHANNEL)
+        ChatMessage::where('channel', $channel)
             ->where('chat_id', $chatId)
             ->delete();
 
@@ -152,9 +156,9 @@ class LlmComplaintService
         return $referenceNo;
     }
 
-    public function resetHistory(string $chatId): void
+    public function resetHistory(string $channel, string $chatId): void
     {
-        ChatMessage::where('channel', self::CHANNEL)
+        ChatMessage::where('channel', $channel)
             ->where('chat_id', $chatId)
             ->delete();
     }
