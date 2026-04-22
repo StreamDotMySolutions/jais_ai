@@ -7,9 +7,10 @@ use Illuminate\Http\Request;
 use App\Models\ComplaintModel;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
-use App\Jobs\WhatsAppSendToLlmJob;   
+use App\Jobs\WhatsAppSendToLlmJob;
 use App\Jobs\SendToLlmJob;
 use App\Models\ChatMessage;
+use App\Services\LlmComplaintService;
 
 
 class WebhookController extends Controller
@@ -47,30 +48,12 @@ class WebhookController extends Controller
             return response()->json(['status' => 'ignored']);
         }
 
-        // detect command WhatsApp
-        if (str_starts_with($message, '/')) {
-            \Log::info('WhatsApp command detected, skip LLM', [
-                'message' => $message
-            ]);     
-            // optional: handle command di sini
-            // $this->handleCommand($message);  
-
-            return response()->json(['status' => 'command detected']);
+        if ($message === '/reset') {
+            app(LlmComplaintService::class)->resetHistory('whatsapp', $from);
+            \Log::info('WhatsApp /reset — chat history cleared', ['from' => $from]);
+            $this->sendMessage($from, 'Perbualan dikosongkan. Sila mula semula.');
+            return response()->json(['status' => 'ok']);
         }
-        
-        // Save chat message to database for AI memory (future use)
-        ChatMessage::create([
-            'channel' => 'whatsapp',
-            'chat_id' => $from,
-            'role'    => 'user',
-            'content' => $message,
-        ]);
-
-        // Dispatch ke LLM (WhatsApp)
-        // dispatch(new WhatsAppSendToLlmJob(
-        //     message: $message,
-        //     phone: $from,
-        // ));
 
         dispatch(new SendToLlmJob(
             message: $message,
@@ -78,15 +61,23 @@ class WebhookController extends Controller
             channel: 'whatsapp'
         ));
 
-  
+        return response()->json(['status' => 'ok']);
+    }
 
-        // LOGIC HELLO → WORLD
-        // if ($message === 'hello') {
-        //     $this->sendMessage($from, 'world');
-        // }
-
-        //return response()->json(['status' => 'ok']);
-
+    private function sendMessage(string $to, string $body): void
+    {
+        Http::withToken(config('services.whatsapp.token'))
+            ->post(
+                'https://graph.facebook.com/v19.0/' .
+                config('services.whatsapp.phone_number_id') .
+                '/messages',
+                [
+                    'messaging_product' => 'whatsapp',
+                    'to'   => $to,
+                    'type' => 'text',
+                    'text' => ['body' => $body],
+                ]
+            );
     }
 
     // public function sendMessage($to, $message)
