@@ -24,6 +24,7 @@ import AppComplaintDetail from './app/modules/aduan/ComplaintDetail';
 import ComplaintPrintBorang5 from './app/modules/aduan/ComplaintPrintBorang5';
 import ComplaintPrintLaporanTindakan from './app/modules/aduan/ComplaintPrintLaporanTindakan';
 import ComplaintPrintTindakanAduan from './app/modules/aduan/ComplaintPrintTindakanAduan';
+import ComplaintPrintAkSiasatanSlip from './app/modules/aduan/ComplaintPrintAkSiasatanSlip';
 import AppointmentCalendar from './app/modules/appointments/AppointmentCalendar';
 import StaffList from './app/modules/staff/StaffList';
 import RoleList from './app/modules/roles/RoleList';
@@ -130,6 +131,7 @@ function App() {
           <Route path="/app/complaints/:id/print/borang-5" element={<ComplaintPrintBorang5 />} />
           <Route path="/app/complaints/:id/print/tindakan-aduan" element={<ComplaintPrintTindakanAduan />} />
           <Route path="/app/complaints/:id/print/laporan-tindakan" element={<ComplaintPrintLaporanTindakan />} />
+          <Route path="/app/complaints/:id/print/ak-siasatan-slip" element={<ComplaintPrintAkSiasatanSlip />} />
           <Route path="/app/appointments/popup" element={<AppointmentCalendar isPopup />} />
           <Route element={<AppLayout />}>
             <Route path="/app/dashboard" element={<DashboardByRole />} />

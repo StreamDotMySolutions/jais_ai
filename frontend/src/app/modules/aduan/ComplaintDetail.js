@@ -602,7 +602,9 @@ const ComplaintDetail = () => {
         // Borang 5 uses "Tarikh/Masa Aduan" (complaint_date/time) for PADA/JAM like current public flow.
         const dateDot = formatBorang5TemplateDate(basicDraft.complaint_date);
         const timeDot = formatBorang5TemplateTime(basicDraft.complaint_time);
-        const address = (basicDraft.address || '').trim();
+        const address = (((complaint?.case_type || 'AJ') === 'AK')
+            ? (basicDraft.ak_event_location || basicDraft.address || '')
+            : (basicDraft.address || '')).trim();
 
         if (dateDot) {
             // Placeholder: "PADA __________"
@@ -645,7 +647,9 @@ const ComplaintDetail = () => {
 
         const dateDot = formatBorang5TemplateDate(dateIso || basicDraft.complaint_date);
         const timeDot = formatBorang5TemplateTime(timeHhmm || basicDraft.complaint_time);
-        const address = (basicDraft.address || '').trim();
+        const address = (((complaint?.case_type || 'AJ') === 'AK')
+            ? (basicDraft.ak_event_location || basicDraft.address || '')
+            : (basicDraft.address || '')).trim();
 
         if (dateDot) {
             text = text.replace(/PADA\s+__________/i, `PADA ${dateDot}`);
@@ -2218,6 +2222,24 @@ const ComplaintDetail = () => {
                                         />
                                     </span>
                                 </div>
+                                {currentCaseType === 'AK' && (
+                                    <div className="app-kv app-kv--stack">
+                                        <span className="app-kv-label">Alamat Terkini</span>
+                                        <div className="app-kv-stack">
+                                            <span className="app-kv-value">
+                                                <SharedInlineEditText
+                                                    value={complaint.ak_event_location || complaint.address}
+                                                    placeholder="-"
+                                                    canEdit={canEditAduanBox}
+                                                    mode="textarea"
+                                                    fullWidth
+                                                    maxLength={1000}
+                                                    onConfirm={(next) => saveBasicField('ak_event_location', next)}
+                                                />
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="app-basic-kv-col">
@@ -2250,6 +2272,24 @@ const ComplaintDetail = () => {
                                                 onConfirm={(next) => saveBasicField('ak_subtype', next || null)}
                                             />
                                         </span>
+                                    </div>
+                                )}
+                                {currentCaseType === 'AJ' && (
+                                    <div className="app-kv app-kv--stack">
+                                        <span className="app-kv-label">Alamat Kejadian</span>
+                                        <div className="app-kv-stack">
+                                            <span className="app-kv-value">
+                                                <SharedInlineEditText
+                                                    value={complaint.address}
+                                                    placeholder="-"
+                                                    canEdit={canEditAduanBox}
+                                                    mode="textarea"
+                                                    fullWidth
+                                                    maxLength={1000}
+                                                    onConfirm={(next) => saveBasicField('address', next)}
+                                                />
+                                            </span>
+                                        </div>
                                     </div>
                                 )}
                                 {isAkFamilyDetail && (
@@ -2392,24 +2432,6 @@ const ComplaintDetail = () => {
                                         />
                                     </span>
                                 </div>
-                                {!isAkFamilyDetail && (
-                                    <div className="app-kv app-kv--stack">
-                                        <span className="app-kv-label">{isAkFamilyDetail ? `Lokasi ${akEventNoun}` : (currentCaseType === 'AJ' ? 'Alamat Kejadian' : 'Alamat')}</span>
-                                        <div className="app-kv-stack">
-                                            <span className="app-kv-value">
-                                            <SharedInlineEditText
-                                                value={isAkFamilyDetail ? complaint.ak_event_location : complaint.address}
-                                                placeholder="-"
-                                                canEdit={canEditAduanBox}
-                                                mode="textarea"
-                                                fullWidth
-                                                maxLength={1000}
-                                                    onConfirm={(next) => saveBasicField(isAkFamilyDetail ? 'ak_event_location' : 'address', next)}
-                                                />
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
                             </div>
                         </div>
                     )}
@@ -2453,6 +2475,16 @@ const ComplaintDetail = () => {
                                             onChange={(event) => setBasicDraft((prev) => ({ ...prev, contact_number: event.target.value }))}
                                         />
                                     </label>
+                                    {currentCaseType === 'AK' && (
+                                        <label className="app-form-field app-span-full">
+                                            <span>Alamat Terkini</span>
+                                            <textarea
+                                                rows="4"
+                                                value={basicDraft.ak_event_location}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_event_location: event.target.value }))}
+                                            />
+                                        </label>
+                                    )}
                                 </div>
                             </div>
 
@@ -2474,6 +2506,16 @@ const ComplaintDetail = () => {
                                                 <option value="rujuk">Rujuk</option>
                                                 <option value="poligami">Poligami</option>
                                             </select>
+                                        </label>
+                                    )}
+                                    {currentCaseType === 'AJ' && (
+                                        <label className="app-form-field app-span-full">
+                                            <span>Alamat Kejadian *</span>
+                                            <textarea
+                                                rows="4"
+                                                value={basicDraft.address}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, address: event.target.value }))}
+                                            />
                                         </label>
                                     )}
                                     {isAkFamilyDetail && (
@@ -2584,16 +2626,6 @@ const ComplaintDetail = () => {
                                             ))}
                                         </select>
                                     </label>
-                                {!isAkFamilyDetail && (
-                                        <label className="app-form-field app-span-full">
-                                            <span>{isAkFamilyDetail ? `Lokasi ${akEventNoun}` : (currentCaseType === 'AJ' ? 'Alamat Kejadian *' : 'Alamat')}</span>
-                                            <textarea
-                                                rows="4"
-                                                value={isAkFamilyDetail ? basicDraft.ak_event_location : basicDraft.address}
-                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, [isAkFamilyDetail ? 'ak_event_location' : 'address']: event.target.value }))}
-                                            />
-                                        </label>
-                                    )}
                                 </div>
                             </div>
                         </div>
@@ -3392,6 +3424,18 @@ const ComplaintDetail = () => {
                                 <div className="app-form-actions app-span-full app-align-right">
                                     <button className="app-button" type="button" onClick={submitAkPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
+                                    </button>
+                                    <button
+                                        className="app-button app-button-ghost"
+                                        type="button"
+                                        onClick={() => window.open(
+                                            `/app/complaints/${id}/print/ak-siasatan-slip`,
+                                            'akSiasatanSlip',
+                                            'width=980,height=720,scrollbars=yes,resizable=yes'
+                                        )}
+                                    >
+                                        <i className="bi bi-printer"></i>
+                                        Cetak Slip Kehadiran
                                     </button>
                                 </div>
                             </div>

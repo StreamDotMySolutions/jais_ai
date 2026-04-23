@@ -209,7 +209,9 @@ function ComplaintForm({
         const akRujukDate = (store.getValue('ak_rujuk_date') || '').trim();
         const useFamilyEventSection = selectedCaseType === 'AK' && ['nikah', 'cerai', 'rujuk', 'poligami'].includes(akSubtype);
         const usePlaceAsAddress = useFamilyEventSection;
-        const effectiveAddress = useFamilyEventSection ? (usePlaceAsAddress ? akEventPlace : akEventLocation) : address;
+        const effectiveAddress = selectedCaseType === 'AK'
+            ? akEventLocation
+            : (useFamilyEventSection ? (usePlaceAsAddress ? akEventPlace : akEventLocation) : address);
         const effectiveIncidentDate = useFamilyEventSection ? akEventDate : incidentDate;
 
         store.setValue('errors', null);
@@ -248,7 +250,9 @@ function ComplaintForm({
         if (!phone) localErrors.contact_number = 'Wajib diisi';
         if (!districtId) localErrors.district_id = 'Wajib diisi';
         if (!effectiveAddress) {
-            localErrors[useFamilyEventSection ? (usePlaceAsAddress ? 'ak_event_place' : 'ak_event_location') : 'address'] = 'Wajib diisi';
+            localErrors[selectedCaseType === 'AK'
+                ? 'ak_event_location'
+                : (useFamilyEventSection ? (usePlaceAsAddress ? 'ak_event_place' : 'ak_event_location') : 'address')] = 'Wajib diisi';
         }
         if (!effectiveIncidentDate) {
             localErrors[useFamilyEventSection ? 'ak_event_date' : 'incident_date'] = 'Wajib diisi';
@@ -337,7 +341,7 @@ function ComplaintForm({
             { key: 'identification_number', value: store.getValue('identification_number') },
             { key: 'contact_number', value: store.getValue('contact_number') },
             { key: 'complainant_occupation', value: store.getValue('complainant_occupation') },
-            { key: 'address', value: useFamilyEventSection ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location')) : store.getValue('address') },
+            { key: 'address', value: selectedCaseType === 'AK' ? store.getValue('ak_event_location') : (useFamilyEventSection ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location')) : store.getValue('address')) },
             { key: 'district_id', value: store.getValue('district_id') },
             { key: 'summary', value: store.getValue('summary') },
             { key: 'borang5_statement', value: store.getValue('borang5_statement') },
@@ -421,8 +425,9 @@ function ComplaintForm({
     const usePlaceAsAddress = useFamilyEventSection;
     const incidentTitle = 'Butiran Kejadian';
     const districtPlaceholder = caseType === 'AJ' ? 'Pilih Daerah Kejadian *' : 'Pilih Daerah *';
-    const addressPlaceholder = caseType === 'AJ' ? 'Alamat/Lokasi Kejadian *' : 'Alamat *';
-    const addressValue = addressDraft || store.getValue('address') || '';
+    const addressFieldName = caseType === 'AK' ? 'ak_event_location' : 'address';
+    const addressPlaceholder = caseType === 'AJ' ? 'Alamat/Lokasi Kejadian *' : 'Alamat Terkini *';
+    const addressValue = addressDraft || store.getValue(addressFieldName) || '';
     const templatesByCaseType = {
         AJ: [
             { key: 'aj_aduan_biasa', label: 'Aduan biasa' },
@@ -483,7 +488,9 @@ function ComplaintForm({
         // Borang 5 statement uses Tarikh/Masa Aduan (auto now) like public flow.
         const dateDot = formatBorang5TemplateDate(store.getValue('complaint_date'));
         const timeDot = formatBorang5TemplateTime(store.getValue('complaint_time'));
-        const address = (store.getValue('address') || '').toString().trim();
+        const address = ((caseType === 'AK')
+            ? (store.getValue('ak_event_location') || store.getValue('address') || '')
+            : (store.getValue('address') || '')).toString().trim();
 
         if (dateDot) {
             text = text.replace(/PADA\\s+__________/i, `PADA ${dateDot}`);
@@ -759,9 +766,11 @@ function ComplaintForm({
     function buildSummaryTemplate(key) {
         const date = (useFamilyEventSection ? store.getValue('ak_event_date') : store.getValue('incident_date')) || '[TARIKH]';
         const time = (useFamilyEventSection ? store.getValue('ak_event_time') : store.getValue('incident_time')) || '[MASA]';
-        const lokasi = ((useFamilyEventSection
-            ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location'))
-            : store.getValue('address')) || '').trim() || '[Nama premis/hotel, alamat penuh, bilik (jika ada)]';
+        const lokasi = ((caseType === 'AK'
+            ? (store.getValue('ak_event_location') || store.getValue('address'))
+            : (useFamilyEventSection
+                ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location'))
+                : store.getValue('address'))) || '').trim() || '[Nama premis/hotel, alamat penuh, bilik (jika ada)]';
         const daerah = districtName || '[Daerah]';
 
         if (key === 'aj_hotel') {
@@ -1278,6 +1287,25 @@ function ComplaintForm({
                                 isLoading={isLoading}
                             />
                         </Row>
+
+                        {caseType === 'AK' && (
+                            <Row className='mb-4'>
+                                <InputTextarea
+                                    type='text'
+                                    fieldName='ak_event_location'
+                                    placeholder='Alamat Terkini *'
+                                    icon='bi-geo-alt'
+                                    rows='4'
+                                    isLoading={isLoading}
+                                    onValueChange={(val) => {
+                                        setAddressDraft(val);
+                                        // Keep legacy address in sync for list/detail compatibility.
+                                        store.setValue('address', val);
+                                        tryAutoSuggestTemplate(val);
+                                    }}
+                                />
+                            </Row>
+                        )}
                     </div>
 
                     {!useFamilyEventSection ? (
@@ -1313,20 +1341,22 @@ function ComplaintForm({
                                 />
                             </Row>
 
-                            <Row className='mb-4'>
-                                <InputTextarea 
-                                    type='text'
-                                    fieldName='address' 
-                                    placeholder={addressPlaceholder}
-                                    icon='bi-geo-alt'
-                                    rows='4'
-                                    isLoading={isLoading}
-                                    onValueChange={(val) => {
-                                        setAddressDraft(val);
-                                        tryAutoSuggestTemplate(val);
-                                }}
-                            />
-                        </Row>
+                            {caseType !== 'AK' && (
+                                <Row className='mb-4'>
+                                    <InputTextarea 
+                                        type='text'
+                                        fieldName={addressFieldName}
+                                        placeholder={addressPlaceholder}
+                                        icon='bi-geo-alt'
+                                        rows='4'
+                                        isLoading={isLoading}
+                                        onValueChange={(val) => {
+                                            setAddressDraft(val);
+                                            tryAutoSuggestTemplate(val);
+                                    }}
+                                />
+                            </Row>
+                            )}
                         </div>
                     ) : (
                         <div className="complaint-section">

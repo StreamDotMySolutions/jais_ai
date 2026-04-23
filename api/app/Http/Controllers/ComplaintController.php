@@ -1545,7 +1545,7 @@ class ComplaintController extends Controller
         $mainStatus = strtoupper(trim((string) ($complaint->aj_ppa_classification ?? '')));
         $reportText = $this->buildBorang5Narrative(
             (string) ($complaint->borang5_statement ?: $complaint->summary ?: ''),
-            (string) ($complaint->address ?: '')
+            $this->resolveBorang5IncidentAddress($complaint)
         );
 
         $subjectReference = (string) ($complaint->reference_no ?: ('Aduan #' . $complaint->id));
@@ -3750,6 +3750,19 @@ class ComplaintController extends Controller
         return "LOKASI : {$address}\n{$text}";
     }
 
+    private function resolveBorang5IncidentAddress(Complaint $complaint): string
+    {
+        $caseType = strtoupper(trim((string) ($complaint->case_type ?: 'AJ')));
+        if ($caseType === 'AK') {
+            $akLatestAddress = trim((string) ($complaint->ak_event_location ?: ''));
+            if ($akLatestAddress !== '') {
+                return $akLatestAddress;
+            }
+        }
+
+        return trim((string) ($complaint->address ?: ''));
+    }
+
     private function autoSendBorang5EmailAfterMandatorySave(Complaint $complaint): ?array
     {
         if (strtoupper((string) ($complaint->case_type ?: 'AJ')) !== 'AJ') {
@@ -3856,7 +3869,7 @@ class ComplaintController extends Controller
         $mainStatus = strtoupper(trim((string) ($complaint->aj_ppa_classification ?? '')));
         $reportText = $this->buildBorang5Narrative(
             (string) ($complaint->borang5_statement ?: $complaint->summary ?: ''),
-            (string) ($complaint->address ?: '')
+            $this->resolveBorang5IncidentAddress($complaint)
         );
         $subjectReference = (string) ($complaint->reference_no ?: ('Aduan #' . $complaint->id));
         $subject = "Borang 5 Aduan {$subjectReference}";

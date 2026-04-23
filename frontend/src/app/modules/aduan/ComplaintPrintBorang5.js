@@ -127,6 +127,7 @@ const ComplaintPrintBorang5 = () => {
     const complainantOccupation = complaint?.complainant_occupation || '';
     const complainantContactNumber = complaint?.contact_number || '';
     const complainantAddress = complaint?.address || '';
+    const akLatestAddress = (complaint?.ak_event_location || complaint?.address || '').toString().trim();
     const effectiveInformantName = isPhysicalInformant ? complainantName : officerInformantName;
     const effectiveInformantIdNumber = isPhysicalInformant ? complainantIdNumber : officerInformantIdNumber;
     const effectiveInformantOccupation = isPhysicalInformant ? complainantOccupation : officerInformantOccupation;
@@ -146,7 +147,9 @@ const ComplaintPrintBorang5 = () => {
     const hasOfficerSignerName = String(effectiveOfficerSignerName || '').trim() !== '';
     const signerRequiredTitle = hasOfficerSignerName ? undefined : 'Borang 5 hanya boleh dijana selepas aduan disahkan oleh Pegawai Pengesah.';
     const districtName = complaint?.district_name || complaint?.district?.name || '-';
-    const incidentAddress = String(complaint?.address || '').trim();
+    const incidentAddress = caseType === 'AK'
+        ? akLatestAddress
+        : String(complaint?.address || '').trim();
     const reportText = (() => {
         if (!reportTextRaw) {
             return '';
