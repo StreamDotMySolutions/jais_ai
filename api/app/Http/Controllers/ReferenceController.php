@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class ReferenceController extends Controller
@@ -139,5 +140,42 @@ class ReferenceController extends Controller
             'message' => 'Senarai mahkamah',
             'data' => $items,
         ]);
+    }
+
+    public function storeMahkamah(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'nama' => ['required', 'string', 'max:255', 'unique:ref_mahkamah,nama'],
+            'daerah_id' => ['nullable', 'exists:districts,id'],
+            'emel' => ['nullable', 'email', 'max:255'],
+        ]);
+
+        $nama = trim(preg_replace('/\s+/', ' ', (string) ($validated['nama'] ?? '')));
+        if ($nama === '') {
+            return response()->json(['message' => 'Nama mahkamah wajib diisi.'], 422);
+        }
+
+        $id = DB::table('ref_mahkamah')->insertGetId([
+            'nama' => $nama,
+            'daerah_id' => $validated['daerah_id'] ?? null,
+            'emel' => $validated['emel'] ?? null,
+            'is_active' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $item = DB::table('ref_mahkamah')
+            ->where('id', $id)
+            ->first(['id', 'nama', 'daerah_id', 'emel']);
+
+        return response()->json([
+            'message' => 'Mahkamah berjaya ditambah.',
+            'data' => $item,
+        ], 201);
     }
 }

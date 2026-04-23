@@ -38,6 +38,12 @@ const emptyForm = {
     laporan_2: '',
     catatan_pelaksana: '',
 };
+const ADD_MAHKAMAH_OPTION = '__add_mahkamah__';
+const emptyMahkamahDraft = {
+    nama: '',
+    daerah_id: '',
+    emel: '',
+};
 
 const WaranFormStepper = ({ mode = 'create' }) => {
     const toast = useToast();
@@ -59,6 +65,10 @@ const WaranFormStepper = ({ mode = 'create' }) => {
     const [hasilOptions, setHasilOptions] = useState([]);
     const [attachments, setAttachments] = useState([]);
     const [validationErrors, setValidationErrors] = useState({});
+    const [isMahkamahModalOpen, setIsMahkamahModalOpen] = useState(false);
+    const [mahkamahDraft, setMahkamahDraft] = useState({ ...emptyMahkamahDraft });
+    const [mahkamahDraftErrors, setMahkamahDraftErrors] = useState({});
+    const [savingMahkamah, setSavingMahkamah] = useState(false);
     const [openSections, setOpenSections] = useState({
         waran: true,
         mahkamah: true,
@@ -141,6 +151,44 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             ...prev,
             [field]: value,
         }));
+    };
+
+    const openMahkamahModal = () => {
+        setMahkamahDraft({ ...emptyMahkamahDraft, daerah_id: String(formData.daerah_id || '') });
+        setMahkamahDraftErrors({});
+        setIsMahkamahModalOpen(true);
+    };
+
+    const closeMahkamahModal = () => {
+        if (savingMahkamah) {
+            return;
+        }
+        setIsMahkamahModalOpen(false);
+    };
+
+    const updateMahkamahDraftField = (field) => (event) => {
+        const nextValue = event?.target?.value ?? '';
+        setMahkamahDraftErrors((prev) => {
+            if (!prev || !prev[field]) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+        setMahkamahDraft((prev) => ({
+            ...prev,
+            [field]: nextValue,
+        }));
+    };
+
+    const onMahkamahSelectChange = (event) => {
+        const value = String(event?.target?.value || '');
+        if (value === ADD_MAHKAMAH_OPTION) {
+            openMahkamahModal();
+            return;
+        }
+        updateField('mahkamah_id')(event);
     };
 
     const updateJenisKesMal = (event) => {
@@ -236,6 +284,99 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             })
             .catch(() => setMahkamahOptions([]));
     }, [apiUrl, token]);
+
+    const saveNewMahkamah = () => {
+        if (!apiUrl || savingMahkamah) {
+            return;
+        }
+
+        const localErrors = {};
+        const nama = String(mahkamahDraft.nama || '').trim();
+        const emel = String(mahkamahDraft.emel || '').trim();
+        if (!nama) {
+            localErrors.nama = 'Nama mahkamah wajib diisi.';
+        }
+        if (emel) {
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailPattern.test(emel)) {
+                localErrors.emel = 'Format emel tidak sah.';
+            }
+        }
+        if (Object.keys(localErrors).length > 0) {
+            setMahkamahDraftErrors(localErrors);
+            return;
+        }
+
+        setSavingMahkamah(true);
+        setMahkamahDraftErrors({});
+
+        axios.post(
+            `${apiUrl}/references/mahkamah`,
+            {
+                nama,
+                daerah_id: mahkamahDraft.daerah_id ? Number(mahkamahDraft.daerah_id) : null,
+                emel: emel || null,
+            },
+            {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            }
+        )
+            .then((response) => {
+                const created = response?.data?.data;
+                const createdId = created?.id ? String(created.id) : '';
+                const createdName = String(created?.nama || '').trim();
+                const createdEmail = String(created?.emel || '').trim();
+
+                setMahkamahOptions((prev) => {
+                    const next = Array.isArray(prev) ? [...prev] : [];
+                    if (createdId && !next.some((item) => String(item.id) === createdId)) {
+                        next.push(created);
+                    }
+                    return next.sort((a, b) => String(a?.nama || '').localeCompare(String(b?.nama || ''), 'ms', { sensitivity: 'base' }));
+                });
+
+                if (createdId) {
+                    setFormData((prev) => ({
+                        ...prev,
+                        mahkamah_id: createdId,
+                        emel_mahkamah: prev.emel_mahkamah || createdEmail || '',
+                        daerah_id: prev.daerah_id || String(created?.daerah_id || ''),
+                    }));
+                    setValidationErrors((prev) => {
+                        if (!prev) {
+                            return prev;
+                        }
+                        const next = { ...prev };
+                        delete next.mahkamah_id;
+                        return next;
+                    });
+                }
+
+                setIsMahkamahModalOpen(false);
+                setMahkamahDraft({ ...emptyMahkamahDraft });
+                toast.success(response?.data?.message || `Mahkamah "${createdName || nama}" berjaya ditambah.`);
+            })
+            .catch((err) => {
+                const apiErrors = err?.response?.data?.errors || {};
+                const nextErrors = {};
+                if (Array.isArray(apiErrors?.nama) && apiErrors.nama.length) {
+                    nextErrors.nama = apiErrors.nama[0];
+                }
+                if (Array.isArray(apiErrors?.emel) && apiErrors.emel.length) {
+                    nextErrors.emel = apiErrors.emel[0];
+                }
+                if (Array.isArray(apiErrors?.daerah_id) && apiErrors.daerah_id.length) {
+                    nextErrors.daerah_id = apiErrors.daerah_id[0];
+                }
+                if (Object.keys(nextErrors).length > 0) {
+                    setMahkamahDraftErrors(nextErrors);
+                }
+                toast.error(err?.response?.data?.message || 'Gagal tambah mahkamah.');
+            })
+            .finally(() => {
+                setSavingMahkamah(false);
+            });
+    };
 
     useEffect(() => {
         if (!isEdit || !apiUrl || !id) {
@@ -538,11 +679,12 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 )}
                                 <div className="app-form-field">
                                     <label>Mahkamah *</label>
-                                    <select className={validationErrors.mahkamah_id ? 'app-input-error' : ''} value={formData.mahkamah_id} onChange={updateField('mahkamah_id')}>
+                                    <select className={validationErrors.mahkamah_id ? 'app-input-error' : ''} value={formData.mahkamah_id} onChange={onMahkamahSelectChange}>
                                         <option value="">Pilih mahkamah</option>
                                         {mahkamahOptions.map((item) => (
                                             <option key={item.id} value={item.id}>{item.nama}</option>
                                         ))}
+                                        <option value={ADD_MAHKAMAH_OPTION}>+ Tambah Mahkamah</option>
                                     </select>
                                     {validationErrors.mahkamah_id && (
                                         <small className="app-inline-note app-inline-note-error">{validationErrors.mahkamah_id}</small>
@@ -682,6 +824,8 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                         value={formData.tindakan_oleh_staff_id}
                                         onChange={updateFieldValue('tindakan_oleh_staff_id')}
                                         placeholder="Pilih pegawai"
+                                        searchable
+                                        searchPlaceholder="Cari pegawai..."
                                         disabled={saving}
                                         className={validationErrors.tindakan_oleh_staff_id ? 'app-input-error' : ''}
                                     />
@@ -808,6 +952,72 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     </div>
                 )}
             </div>
+            {isMahkamahModalOpen && (
+                <div className="app-modal">
+                    <div className="app-modal-backdrop" onClick={closeMahkamahModal}></div>
+                    <div className="app-modal-content">
+                        <div className="app-modal-header">
+                            <h4>Tambah Mahkamah</h4>
+                            <p>Mahkamah baru akan terus dipilih selepas simpan.</p>
+                            <button className="app-modal-close" onClick={closeMahkamahModal} disabled={savingMahkamah}>
+                                &times;
+                            </button>
+                        </div>
+                        <div className="app-modal-body">
+                            <div className="app-form-field">
+                                <label>Nama Mahkamah *</label>
+                                <input
+                                    type="text"
+                                    value={mahkamahDraft.nama}
+                                    onChange={updateMahkamahDraftField('nama')}
+                                    className={mahkamahDraftErrors.nama ? 'app-input-error' : ''}
+                                    placeholder="Contoh: Mahkamah Rendah Syariah Shah Alam"
+                                />
+                                {mahkamahDraftErrors.nama && (
+                                    <small className="app-inline-note app-inline-note-error">{mahkamahDraftErrors.nama}</small>
+                                )}
+                            </div>
+                            <div className="app-form-field">
+                                <label>Daerah</label>
+                                <select
+                                    value={mahkamahDraft.daerah_id}
+                                    onChange={updateMahkamahDraftField('daerah_id')}
+                                    className={mahkamahDraftErrors.daerah_id ? 'app-input-error' : ''}
+                                >
+                                    <option value="">Pilih daerah</option>
+                                    {districtOptions.map((district) => (
+                                        <option key={district.id} value={district.id}>{district.name}</option>
+                                    ))}
+                                </select>
+                                {mahkamahDraftErrors.daerah_id && (
+                                    <small className="app-inline-note app-inline-note-error">{mahkamahDraftErrors.daerah_id}</small>
+                                )}
+                            </div>
+                            <div className="app-form-field">
+                                <label>Emel Mahkamah</label>
+                                <input
+                                    type="email"
+                                    value={mahkamahDraft.emel}
+                                    onChange={updateMahkamahDraftField('emel')}
+                                    className={mahkamahDraftErrors.emel ? 'app-input-error' : ''}
+                                    placeholder="mahkamah@domain.gov.my"
+                                />
+                                {mahkamahDraftErrors.emel && (
+                                    <small className="app-inline-note app-inline-note-error">{mahkamahDraftErrors.emel}</small>
+                                )}
+                            </div>
+                        </div>
+                        <div className="app-modal-footer">
+                            <button type="button" className="app-button app-button-ghost" onClick={closeMahkamahModal} disabled={savingMahkamah}>
+                                Batal
+                            </button>
+                            <button type="button" className="app-button" onClick={saveNewMahkamah} disabled={savingMahkamah}>
+                                {savingMahkamah ? 'Menyimpan...' : 'Simpan Mahkamah'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

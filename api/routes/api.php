@@ -141,6 +141,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/i-waran/semakan-okt', [IwaranWarrantController::class, 'semakanOkt']);
     Route::post('/i-waran', [IwaranWarrantController::class, 'store']);
     Route::get('/i-waran/report/summary', [IwaranWarrantController::class, 'reportSummary']);
+    Route::get('/i-waran/calendar/status', [IwaranWarrantController::class, 'calendarStatus']);
     Route::get('/i-waran/export/csv', [IwaranWarrantController::class, 'exportCsv']);
     Route::get('/i-waran/export/xlsx', [IwaranWarrantController::class, 'exportXlsx']);
     Route::get('/i-waran/report/export/csv', [IwaranWarrantController::class, 'exportReportCsv']);
@@ -283,6 +284,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{user}', [UserController::class, 'update'])->whereNumber('user');
+    Route::post('/references/mahkamah', [ReferenceController::class, 'storeMahkamah']);
 });
 
 // Districts (public reference list)

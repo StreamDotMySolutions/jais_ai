@@ -2374,6 +2374,10 @@ body {
   padding: 0.45rem 0.55rem;
 }
 
+.app-side-user-wrap {
+  position: relative;
+}
+
 .app-side-user-icon {
   font-size: 1.2rem;
   color: #e6ebff;
@@ -2413,6 +2417,45 @@ body {
 
 .app-side-logout:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.app-side-user-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  width: 220px;
+  background: #ffffff;
+  border: 1px solid #dbe5f6;
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(15, 43, 31, 0.18);
+  padding: 0.4rem;
+  z-index: 40;
+}
+
+.app-side-user-menu-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: #26354d;
+  border-radius: 8px;
+  padding: 0.5rem 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.84rem;
+  text-align: left;
+}
+
+.app-side-user-menu-item:hover {
+  background: #eef3ff;
+}
+
+.app-side-user-menu-item.is-danger {
+  color: #b42318;
+}
+
+.app-side-user-menu-item.is-danger:hover {
+  background: #fff1f1;
 }
 
 .app-status {
@@ -2487,6 +2530,14 @@ body {
   width: 100%;
   justify-content: center;
   padding: 0.35rem;
+}
+
+.app-shell.is-collapsed .app-side-user-wrap {
+  width: 100%;
+}
+
+.app-shell.is-collapsed .app-side-user-menu {
+  right: -146px;
 }
 
 .app-shell.is-collapsed .app-status,
@@ -3250,6 +3301,18 @@ body {
   display: grid;
   place-items: center;
   color: #445b4f;
+}
+
+.app-modal-body {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.app-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 1rem;
 }
 
 .app-form-error {
@@ -6713,6 +6776,195 @@ body {
 .app-waran .app-step.active .app-step-number {
   background: #0b1c5c;
   color: #ffffff;
+}
+
+.app-waran-calendar {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.app-waran-calendar-switch {
+  display: inline-flex;
+  gap: 0.45rem;
+}
+
+.app-waran-calendar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.app-waran-calendar-head h4 {
+  margin: 0;
+  text-transform: capitalize;
+}
+
+.app-waran-calendar-head span {
+  color: #6b7a83;
+  font-size: 0.9rem;
+}
+
+.app-waran-calendar-day-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.app-waran-calendar-day-filter label {
+  font-size: 0.86rem;
+  color: #41515b;
+  font-weight: 600;
+}
+
+.app-waran-calendar-day-filter input {
+  border: 1px solid #d4dfda;
+  border-radius: 10px;
+  padding: 0.38rem 0.55rem;
+  background: #f8fbf9;
+}
+
+.app-waran-calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.app-waran-calendar-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: #30414a;
+}
+
+.app-waran-calendar-legend-item i {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.app-waran-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border: 1px solid #d7e1dd;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.app-waran-calendar-weekday {
+  padding: 0.55rem 0.7rem;
+  background: #f2f7f4;
+  border-bottom: 1px solid #d7e1dd;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #30414a;
+}
+
+.app-waran-calendar-cell {
+  min-height: 126px;
+  border-bottom: 1px solid #edf2ef;
+  border-right: 1px solid #edf2ef;
+  padding: 0.45rem 0.5rem;
+  display: grid;
+  gap: 0.4rem;
+  align-content: start;
+}
+
+.app-waran-calendar-cell:nth-child(7n) {
+  border-right: 0;
+}
+
+.app-waran-calendar-cell.is-muted {
+  background: #fafcfb;
+  color: #96a3aa;
+}
+
+.app-waran-calendar-date {
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.app-waran-calendar-events {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.app-waran-calendar-event {
+  text-align: left;
+  border: 1px solid #deeaeb;
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 0.22rem 0.4rem;
+  background: #ffffff;
+  font-size: 0.73rem;
+  color: #24323a;
+  cursor: pointer;
+}
+
+.app-waran-calendar-event:hover {
+  background: #f7fbf9;
+}
+
+.app-waran-calendar-more {
+  font-size: 0.72rem;
+  color: #60717b;
+}
+
+.app-waran-calendar-loading {
+  height: 24px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #edf2ef 0%, #f5f8f6 50%, #edf2ef 100%);
+  background-size: 200% 100%;
+  animation: app-waran-loading 1.2s linear infinite;
+}
+
+.app-waran-calendar-day-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.app-waran-calendar-day-item {
+  border: 1px solid #dce7e2;
+  border-radius: 12px;
+  padding: 0.65rem 0.8rem;
+  display: grid;
+  gap: 0.28rem;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-waran-calendar-day-item:hover {
+  background: #f7fbf9;
+}
+
+.app-waran-calendar-day-item strong {
+  color: #26343c;
+}
+
+.app-waran-calendar-day-item small {
+  color: #61727b;
+}
+
+.app-waran-calendar-day-status {
+  display: inline-block;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  width: fit-content;
+}
+
+@keyframes app-waran-loading {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .app-step-body {

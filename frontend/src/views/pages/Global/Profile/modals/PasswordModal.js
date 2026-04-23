@@ -1,4 +1,4 @@
-import {  useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Modal} from 'react-bootstrap'
 import { appendFormData } from '../../../../../libs/FormInput'
 import HtmlFormComponent from '../components/HtmlFormComponent'
@@ -6,7 +6,7 @@ import axios from '../../../../../libs/axios'
 import useStore from '../../../../../store';
 import PasswordFormComponent from '../components/PasswordFormComponent'
 
-export default function EditModal({id}) {
+export default function EditModal({ id, autoOpen = false, onAutoOpened }) {
     const store = useStore()
     const url = process.env.REACT_APP_API_URL; 
     const errors = store.getValue('errors')
@@ -18,6 +18,7 @@ export default function EditModal({id}) {
     const handleShowClick = () =>{
       //store.emptyData() // empty store data
       store.setValue('errors', null)
+      store.setValue('current_password', null)
       store.setValue('password', null)
       store.setValue('password_confirmation',null)
       setShow(true)
@@ -27,6 +28,16 @@ export default function EditModal({id}) {
       handleClose()
     }
 
+    useEffect(() => {
+      if (!autoOpen) {
+        return;
+      }
+      handleShowClick();
+      if (typeof onAutoOpened === 'function') {
+        onAutoOpened();
+      }
+    }, [autoOpen]);
+
 
     /**
      * When user click submit button
@@ -35,6 +46,7 @@ export default function EditModal({id}) {
         store.setValue('errors', null)
         const formData = new FormData();
         const dataArray = [
+            { key: 'current_password', value: store.getValue('current_password') },
             { key: 'password', value: store.getValue('password') },
             { key: 'password_confirmation', value: store.getValue('password_confirmation') },
             { key: '_method', value: 'put' },

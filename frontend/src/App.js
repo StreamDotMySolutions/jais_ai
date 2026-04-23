@@ -52,6 +52,7 @@ import WaranDetail from './app/modules/waran/WaranDetail';
 import WaranReport from './app/modules/waran/WaranReport';
 import WaranPrint from './app/modules/waran/WaranPrint';
 import WaranOktSearchList from './app/modules/waran/WaranOktSearchList';
+import WaranCalendarStatus from './app/modules/waran/WaranCalendarStatus';
 import ToastProvider from './app/components/SharedToastProvider';
 import ScanQr from './app/modules/whatsapp/ScanQr';
 
@@ -171,6 +172,7 @@ function App() {
             <Route path="/app/arahan-beredar/:id" element={<ArahanBeredarDetail />} />
             <Route path="/app/arahan-beredar/:id/edit" element={<ArahanBeredar mode="edit" />} />
             <Route path="/app/i-waran" element={<WaranList />} />
+            <Route path="/app/i-waran/calendar/status" element={<WaranCalendarStatus />} />
             <Route path="/app/i-waran/semakan-okt" element={<WaranOktSearchList />} />
             <Route path="/app/i-waran/new" element={<WaranFormStepper />} />
             <Route path="/app/i-waran/:id" element={<WaranDetail />} />

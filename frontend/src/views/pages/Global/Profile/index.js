@@ -2,14 +2,41 @@ import React , { useState,useEffect } from 'react';
 import useStore from '../../../../store';
 import axios from '../../../../libs/axios';
 import { Badge, Table } from 'react-bootstrap';
+import { useLocation, useNavigate } from 'react-router-dom';
 import EditModal from './modals/EditModal';
 import PasswordModal from './modals/PasswordModal';
 
 const Profile = () => {
     const store = useStore();
+    const location = useLocation();
+    const navigate = useNavigate();
     const url = process.env.REACT_APP_API_URL + '/account'; // API server
     const [isLoading, setIsLoading] = useState(false);
     const account = store.getValue('account');
+    const [shouldAutoOpenPassword, setShouldAutoOpenPassword] = useState(false);
+
+    useEffect(() => {
+        const params = new URLSearchParams(location.search || '');
+        const changePassword = params.get('changePassword');
+        setShouldAutoOpenPassword(changePassword === '1' || changePassword === 'true');
+    }, [location.search]);
+
+    const handlePasswordAutoOpened = () => {
+        const params = new URLSearchParams(location.search || '');
+        if (!params.has('changePassword')) {
+            return;
+        }
+        params.delete('changePassword');
+        const nextSearch = params.toString();
+        navigate(
+            {
+                pathname: location.pathname,
+                search: nextSearch ? `?${nextSearch}` : '',
+            },
+            { replace: true }
+        );
+        setShouldAutoOpenPassword(false);
+    };
 
     // preset
     useEffect(() => {
@@ -85,7 +112,7 @@ const Profile = () => {
                         <td className='text-center'>
                             <EditModal />
                             {' '}
-                            <PasswordModal />
+                            <PasswordModal autoOpen={shouldAutoOpenPassword} onAutoOpened={handlePasswordAutoOpened} />
                         </td>
                     </tr>
                     :

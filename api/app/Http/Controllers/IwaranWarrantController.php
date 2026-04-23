@@ -6,6 +6,7 @@ use App\Models\IwaranWaranAttachment;
 use App\Models\IwaranWarrant;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -233,6 +234,147 @@ class IwaranWarrantController extends Controller
                 'by_status' => $byStatus,
                 'by_jenis_waran' => $byJenisWaran,
                 'by_district' => $byDistrict,
+                'by_date' => $byDate,
+            ],
+        ]);
+    }
+
+    public function calendarStatus(Request $request): JsonResponse
+    {
+        $monthInput = trim((string) $request->query('month', now()->format('Y-m')));
+        if (!preg_match('/^\d{4}\-(0[1-9]|1[0-2])$/', $monthInput)) {
+            return response()->json([
+                'message' => 'Format bulan tidak sah. Guna YYYY-MM.',
+            ], 422);
+        }
+
+        $monthStart = Carbon::createFromFormat('Y-m', $monthInput)->startOfMonth();
+        $monthEnd = (clone $monthStart)->endOfMonth();
+
+        $dateField = (string) $request->query('date_field', 'all');
+        $allowedDateFields = [
+            'all' => 'Semua',
+            'tarikh_bicara' => 'Tarikh Bicara',
+            'tarikh_masa_terima' => 'Tarikh / Masa Terima',
+        ];
+        if (!array_key_exists($dateField, $allowedDateFields)) {
+            return response()->json([
+                'message' => 'Parameter date_field tidak sah.',
+            ], 422);
+        }
+
+        $query = IwaranWarrant::query()
+            ->with(['daerah:id,name']);
+
+        if ($dateField === 'all') {
+            $query->where(function ($builder) use ($monthStart, $monthEnd) {
+                $builder->whereBetween(DB::raw('DATE(tarikh_bicara)'), [$monthStart->toDateString(), $monthEnd->toDateString()])
+                    ->orWhereBetween(DB::raw('DATE(tarikh_masa_terima)'), [$monthStart->toDateString(), $monthEnd->toDateString()]);
+            });
+        } else {
+            $query->whereNotNull($dateField)
+                ->whereBetween(DB::raw("DATE({$dateField})"), [$monthStart->toDateString(), $monthEnd->toDateString()]);
+        }
+
+        if ($request->filled('district_id')) {
+            $query->where('daerah_id', $request->integer('district_id'));
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status')->toString());
+        }
+
+        $statusLabels = [
+            'draf' => 'Draf',
+            'berjaya' => 'Berjaya',
+            'tidak_berjaya' => 'Tidak Berjaya',
+            'dalam_proses' => 'Dalam Proses',
+            'kembalian' => 'Kembalian',
+        ];
+
+        $orderByColumn = $dateField === 'all' ? 'tarikh_bicara' : $dateField;
+
+        $rows = $query
+            ->orderBy($orderByColumn)
+            ->orderByDesc('id')
+            ->get([
+                'id',
+                'no_kes',
+                'daerah_id',
+                'tarikh_bicara',
+                'tarikh_masa_terima',
+                'status',
+            ]);
+
+        $events = $rows->map(function (IwaranWarrant $row) use ($statusLabels, $dateField, $allowedDateFields, $monthStart, $monthEnd) {
+            $resolvedDateField = $dateField;
+            $resolvedDate = null;
+
+            $bicaraDate = $row->tarikh_bicara ? Carbon::parse((string) $row->tarikh_bicara) : null;
+            $terimaDate = $row->tarikh_masa_terima ? Carbon::parse((string) $row->tarikh_masa_terima) : null;
+
+            if ($dateField === 'all') {
+                if ($bicaraDate && $bicaraDate->between($monthStart, $monthEnd, true)) {
+                    $resolvedDateField = 'tarikh_bicara';
+                    $resolvedDate = $bicaraDate;
+                } elseif ($terimaDate && $terimaDate->between($monthStart, $monthEnd, true)) {
+                    $resolvedDateField = 'tarikh_masa_terima';
+                    $resolvedDate = $terimaDate;
+                } elseif ($bicaraDate) {
+                    $resolvedDateField = 'tarikh_bicara';
+                    $resolvedDate = $bicaraDate;
+                } elseif ($terimaDate) {
+                    $resolvedDateField = 'tarikh_masa_terima';
+                    $resolvedDate = $terimaDate;
+                }
+            } else {
+                $resolvedDate = $dateField === 'tarikh_bicara' ? $bicaraDate : $terimaDate;
+            }
+
+            $date = $resolvedDate ? $resolvedDate->format('Y-m-d') : null;
+
+            return [
+                'id' => $row->id,
+                'date' => $date,
+                'date_field' => $resolvedDateField,
+                'date_field_label' => $allowedDateFields[$resolvedDateField] ?? $resolvedDateField,
+                'status' => $row->status ?: 'draf',
+                'status_label' => $statusLabels[$row->status] ?? ucfirst(str_replace('_', ' ', (string) $row->status)),
+                'no_kes' => $row->no_kes ?: '-',
+                'district_name' => optional($row->daerah)->name ?: '-',
+            ];
+        })->filter(fn ($item) => !empty($item['date']))->values();
+
+        $byDate = $events
+            ->groupBy('date')
+            ->map(fn ($items) => $items->values())
+            ->sortKeys()
+            ->all();
+
+        $byStatus = $events
+            ->groupBy('status')
+            ->map(fn ($items, $status) => [
+                'status' => $status,
+                'label' => $statusLabels[$status] ?? ucfirst(str_replace('_', ' ', (string) $status)),
+                'total' => $items->count(),
+            ])
+            ->values()
+            ->sortByDesc('total')
+            ->values();
+
+        return response()->json([
+            'message' => 'Kalendar i-WARAN',
+            'data' => [
+                'month' => $monthStart->format('Y-m'),
+                'from_date' => $monthStart->toDateString(),
+                'to_date' => $monthEnd->toDateString(),
+                'date_field' => $dateField,
+                'date_field_label' => $allowedDateFields[$dateField] ?? $dateField,
+                'available_date_fields' => collect($allowedDateFields)->map(
+                    fn ($label, $value) => ['value' => $value, 'label' => $label]
+                )->values(),
+                'total' => $events->count(),
+                'by_status' => $byStatus,
                 'by_date' => $byDate,
             ],
         ]);

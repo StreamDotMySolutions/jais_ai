@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 const AppSidebar = ({
     menus = [],
@@ -11,6 +11,7 @@ const AppSidebar = ({
     onLogout,
 }) => {
     const location = useLocation();
+    const navigate = useNavigate();
     const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
     const { roots, childrenMap } = useMemo(() => {
         const map = new Map();
@@ -29,6 +30,8 @@ const AppSidebar = ({
         return { roots: rootItems, childrenMap: map };
     }, [menus]);
     const [openGroups, setOpenGroups] = useState({});
+    const [userMenuOpen, setUserMenuOpen] = useState(false);
+    const userMenuRef = useRef(null);
 
     useEffect(() => {
         const nextOpen = {};
@@ -44,6 +47,30 @@ const AppSidebar = ({
         });
         setOpenGroups(nextOpen);
     }, [roots, childrenMap, location.pathname]);
+
+    useEffect(() => {
+        setUserMenuOpen(false);
+    }, [location.pathname]);
+
+    useEffect(() => {
+        if (!userMenuOpen) {
+            return undefined;
+        }
+
+        const handlePointerDown = (event) => {
+            if (!userMenuRef.current) {
+                return;
+            }
+            if (!userMenuRef.current.contains(event.target)) {
+                setUserMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handlePointerDown);
+        return () => {
+            document.removeEventListener('mousedown', handlePointerDown);
+        };
+    }, [userMenuOpen]);
 
     const toggleGroup = (menuId) => {
         setOpenGroups((prev) => ({ ...prev, [menuId]: !prev[menuId] }));
@@ -79,6 +106,21 @@ const AppSidebar = ({
                 )}
             </>
         );
+    };
+
+    const handleOpenProfile = () => {
+        setUserMenuOpen(false);
+        navigate('/app/profile');
+    };
+
+    const handleOpenChangePassword = () => {
+        setUserMenuOpen(false);
+        navigate('/app/profile?changePassword=1');
+    };
+
+    const handleLogoutClick = () => {
+        setUserMenuOpen(false);
+        onLogout?.();
     };
 
     return (
@@ -160,6 +202,7 @@ const AppSidebar = ({
             </nav>
 
             <div className="app-side-footer">
+                <div className="app-side-user-wrap" ref={userMenuRef}>
                 <div className="app-side-user">
                     <span className="app-side-user-icon">
                         <i className="bi bi-person-circle"></i>
@@ -171,12 +214,30 @@ const AppSidebar = ({
                     <button
                         type="button"
                         className="app-side-logout"
-                        onClick={onLogout}
-                        title="Log Keluar"
-                        aria-label="Log Keluar"
+                        onClick={() => setUserMenuOpen((prev) => !prev)}
+                        title="Menu Akaun"
+                        aria-label="Menu Akaun"
+                        aria-expanded={userMenuOpen}
                     >
-                        <i className="bi bi-box-arrow-right"></i>
+                        <i className="bi bi-three-dots-vertical"></i>
                     </button>
+                </div>
+                {userMenuOpen && (
+                    <div className="app-side-user-menu" role="menu" aria-label="Menu Akaun">
+                        <button type="button" className="app-side-user-menu-item" onClick={handleOpenProfile}>
+                            <i className="bi bi-person"></i>
+                            <span>Profil Saya</span>
+                        </button>
+                        <button type="button" className="app-side-user-menu-item" onClick={handleOpenChangePassword}>
+                            <i className="bi bi-key"></i>
+                            <span>Tukar Kata Laluan</span>
+                        </button>
+                        <button type="button" className="app-side-user-menu-item is-danger" onClick={handleLogoutClick}>
+                            <i className="bi bi-box-arrow-right"></i>
+                            <span>Log Keluar</span>
+                        </button>
+                    </div>
+                )}
                 </div>
                 <div className="app-status">
                     <span className="app-dot"></span>

@@ -44,6 +44,45 @@ const AppLayout = () => {
         });
     };
 
+    const ensureWaranCalendarMenu = (menuItems) => {
+        if (!Array.isArray(menuItems) || menuItems.length === 0) {
+            return [];
+        }
+
+        const hasCalendarMenu = menuItems.some((menu) => (menu?.path || '') === '/app/i-waran/calendar/status');
+        if (hasCalendarMenu) {
+            return menuItems;
+        }
+
+        const semakanMenu = menuItems.find((menu) => (menu?.path || '') === '/app/i-waran/semakan-okt');
+        const waranRootMenu = menuItems.find((menu) => (menu?.path || '') === '/app/i-waran');
+        if (!semakanMenu && !waranRootMenu) {
+            return menuItems;
+        }
+
+        const parentId = semakanMenu?.parent_id || waranRootMenu?.id || null;
+        const sortOrder = Number(semakanMenu?.sort_order || waranRootMenu?.sort_order || 0) + 1;
+
+        const injectedMenu = {
+            id: 'virtual-iwaran-calendar-status',
+            parent_id: parentId,
+            label: 'Kalendar',
+            path: '/app/i-waran/calendar/status',
+            icon: 'bi-calendar3',
+            sort_order: sortOrder,
+            is_active: 1,
+        };
+
+        const insertAfterPath = semakanMenu ? '/app/i-waran/semakan-okt' : '/app/i-waran';
+        const insertIndex = menuItems.findIndex((menu) => (menu?.path || '') === insertAfterPath);
+        if (insertIndex < 0) {
+            return [...menuItems, injectedMenu];
+        }
+        const nextMenus = [...menuItems];
+        nextMenus.splice(insertIndex + 1, 0, injectedMenu);
+        return nextMenus;
+    };
+
     const loadMenus = () => {
         if (!apiUrl) {
             setMenuLoaded(true);
@@ -61,7 +100,8 @@ const AppLayout = () => {
             .then(([menusResponse, pendingResponse]) => {
                 const menuItems = filterRetiredMenus(menusResponse?.data?.data || []);
                 const pendingCount = Number(pendingResponse?.data?.meta?.total || 0);
-                setMenus(attachPendingApprovalCount(menuItems, pendingCount));
+                const withPendingBadge = attachPendingApprovalCount(menuItems, pendingCount);
+                setMenus(ensureWaranCalendarMenu(withPendingBadge));
             })
             .catch(() => {
                 setMenus([]);
@@ -86,7 +126,7 @@ const AppLayout = () => {
             return;
         }
         const currentPath = location.pathname;
-        const bypassPaths = ['/app/appointments'];
+        const bypassPaths = ['/app/appointments', '/app/profile'];
         if (bypassPaths.some((path) => currentPath === path || currentPath.startsWith(`${path}/`))) {
             return;
         }
@@ -105,6 +145,7 @@ const AppLayout = () => {
     const handleLogout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('role');
+        localStorage.removeItem('user_name');
         navigate('/sign-in', { replace: true });
     };
 
