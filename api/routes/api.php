@@ -268,6 +268,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/staff/options', [StaffController::class, 'options']);
     Route::post('/staff', [StaffController::class, 'store']);
     Route::put('/staff/{staff}', [StaffController::class, 'update'])->whereNumber('staff');
+    Route::post('/staff/{staff}/register-account', [StaffController::class, 'registerAccount'])->whereNumber('staff');
     Route::get('/roles', [RoleController::class, 'index']);
     Route::post('/roles', [RoleController::class, 'store']);
     Route::put('/roles/{role}', [RoleController::class, 'update'])->whereNumber('role');

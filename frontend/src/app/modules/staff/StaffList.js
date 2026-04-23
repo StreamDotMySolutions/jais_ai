@@ -3,6 +3,7 @@ import axios from 'axios';
 import PaginationBar from '../../components/PaginationBar';
 import SortableHeader from '../../components/SortableHeader';
 import { sortRows } from '../../utils/sort';
+import { useToast } from '../../components/SharedToastProvider';
 
 const emptyForm = {
     name: '',
@@ -40,8 +41,10 @@ const StaffList = () => {
     const [lastPage, setLastPage] = useState(1);
     const [sortKey, setSortKey] = useState('');
     const [sortDir, setSortDir] = useState('asc');
+    const [registeringStaffId, setRegisteringStaffId] = useState(null);
 
     const token = localStorage.getItem('token');
+    const toast = useToast();
 
     const loadStaff = () => {
         if (!apiUrl) {
@@ -128,7 +131,7 @@ const StaffList = () => {
             department_code: item.department_code || '',
             office_type: item.office_type || '',
             district_id: item.district_id || '',
-            email: item.user?.email || '',
+            email: item.email || item.user?.email || '',
             password: '',
             role: item.user?.roles?.[0]?.name || '',
         });
@@ -180,6 +183,26 @@ const StaffList = () => {
             });
     };
 
+    const registerAccount = (item) => {
+        if (!apiUrl || !item?.id || item?.user?.email) {
+            return;
+        }
+
+        setRegisteringStaffId(item.id);
+        axios.post(`${apiUrl}/staff/${item.id}/register-account`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                toast.success(response?.data?.message || 'Akaun berjaya didaftarkan.');
+                loadStaff();
+            })
+            .catch((err) => {
+                const msg = err?.response?.data?.message || err?.response?.data?.errors?.email?.[0] || 'Gagal daftar akaun.';
+                toast.error(msg);
+            })
+            .finally(() => setRegisteringStaffId(null));
+    };
+
     const startIndex = total === 0 ? 0 : (page - 1) * perPage + 1;
     const endIndex = Math.min(page * perPage, total);
     const sortColumns = [
@@ -201,7 +224,7 @@ const StaffList = () => {
         grade: (item) => item.grade || '',
         office_type: (item) => item.office_type === 'hq' ? 'HQ' : item.office_type === 'daerah' ? 'Daerah' : '',
         district: (item) => item.district?.name || '',
-        account: (item) => item.user?.email || '',
+        account: (item) => item.user?.email || item.email || '',
     }), []);
     const sortedStaff = useMemo(
         () => sortRows(staff, sortKey, sortDir, sortAccessors),
@@ -278,7 +301,23 @@ const StaffList = () => {
                                     <div>{item.grade || '-'}</div>
                                     <div>{item.office_type === 'hq' ? 'HQ' : item.office_type === 'daerah' ? 'Daerah' : '-'}</div>
                                     <div>{item.district?.name || '-'}</div>
-                                    <div>{item.user?.email || 'Belum daftar'}</div>
+                                    <div className="app-staff-account-cell">
+                                        {item.user?.email ? (
+                                            <span>{item.user.email}</span>
+                                        ) : (
+                                            <>
+                                                <span className="app-staff-account-empty">Belum daftar</span>
+                                                <button
+                                                    type="button"
+                                                    className="app-link app-staff-register-link"
+                                                    disabled={registeringStaffId === item.id}
+                                                    onClick={() => registerAccount(item)}
+                                                >
+                                                    {registeringStaffId === item.id ? 'Mendaftar...' : 'Daftar Akaun'}
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
                                     <button
                                         type="button"
                                         className="app-link"

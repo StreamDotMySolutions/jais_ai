@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 use Illuminate\Validation\Rule;
 
 class StaffController extends Controller
@@ -106,7 +105,7 @@ class StaffController extends Controller
             'department_code' => 'nullable|string|max:100',
             'office_type' => 'nullable|string|in:hq,daerah',
             'district_id' => 'nullable|exists:districts,id',
-            'email' => 'nullable|string|max:255',
+            'email' => 'nullable|string|email|max:255',
             'password' => 'nullable|string|min:6',
             'role' => ['nullable', 'string', Rule::exists(config('permission.table_names.roles'), 'name')],
         ]);
@@ -132,16 +131,13 @@ class StaffController extends Controller
                         $user->assignRole($validated['role']);
                     }
                     $userId = $user->id;
-                } else {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'email' => 'E-mel ini belum berdaftar. Sila isi kata laluan untuk cipta akaun baru atau gunakan e-mel akaun yang sudah wujud.',
-                    ]);
                 }
             }
 
             return Staff::create([
                 'user_id' => $userId,
                 'name' => $validated['name'],
+                'email' => $validated['email'] ?? null,
                 'ic_number' => $validated['ic_number'] ?? null,
                 'staff_id' => $validated['staff_id'] ?? null,
                 'phone' => $validated['phone'] ?? null,
@@ -184,7 +180,7 @@ class StaffController extends Controller
             'department_code' => 'nullable|string|max:100',
             'office_type' => 'nullable|string|in:hq,daerah',
             'district_id' => 'nullable|exists:districts,id',
-            'email' => 'nullable|string|max:255|unique:users,email,' . ($staff->user_id ?? 'NULL'),
+            'email' => 'nullable|string|email|max:255|unique:users,email,' . ($staff->user_id ?? 'NULL'),
             'password' => 'nullable|string|min:6',
             'role' => ['nullable', 'string', Rule::exists(config('permission.table_names.roles'), 'name')],
         ]);
@@ -231,15 +227,12 @@ class StaffController extends Controller
                         $user->assignRole($validated['role']);
                     }
                     $staff->user_id = $user->id;
-                } else {
-                    throw \Illuminate\Validation\ValidationException::withMessages([
-                        'email' => 'E-mel ini belum berdaftar. Sila isi kata laluan untuk cipta akaun baru atau gunakan e-mel akaun yang sudah wujud.',
-                    ]);
                 }
             }
 
             $staff->update([
                 'name' => $validated['name'],
+                'email' => $validated['email'] ?? null,
                 'ic_number' => $validated['ic_number'] ?? null,
                 'staff_id' => $validated['staff_id'] ?? null,
                 'phone' => $validated['phone'] ?? null,
@@ -258,6 +251,68 @@ class StaffController extends Controller
         return response()->json([
             'message' => 'Staff updated',
             'data' => $staff->load(['user:id,name,email', 'district:id,name']),
+        ]);
+    }
+
+    public function registerAccount(Request $request, Staff $staff)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if ($staff->user_id) {
+            return response()->json([
+                'message' => 'Akaun untuk kakitangan ini sudah didaftarkan.',
+            ], 422);
+        }
+
+        $email = strtolower(trim((string) ($staff->email ?? '')));
+        if ($email === '') {
+            return response()->json([
+                'message' => 'E-mel staff tiada. Sila kemaskini e-mel staff dahulu.',
+            ], 422);
+        }
+
+        $staffWithUser = DB::transaction(function () use ($staff, $email) {
+            $existingUser = User::whereRaw('LOWER(email) = ?', [$email])->first();
+
+            if ($existingUser) {
+                $linkedStaff = Staff::where('user_id', $existingUser->id)->first();
+                if ($linkedStaff && $linkedStaff->id !== $staff->id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'email' => 'E-mel ini sudah digunakan oleh kakitangan lain.',
+                    ]);
+                }
+
+                $existingUser->update([
+                    'name' => $staff->name ?: $existingUser->name,
+                    'email' => $email,
+                    'status' => 1,
+                ]);
+
+                $staff->update([
+                    'user_id' => $existingUser->id,
+                ]);
+            } else {
+                $createdUser = User::create([
+                    'name' => $staff->name ?: 'Staff',
+                    'email' => $email,
+                    'password' => Hash::make('password'),
+                    'status' => 1,
+                ]);
+
+                $staff->update([
+                    'user_id' => $createdUser->id,
+                ]);
+            }
+
+            return $staff->fresh(['user:id,name,email', 'user.roles', 'district:id,name']);
+        });
+
+        return response()->json([
+            'message' => 'Akaun berjaya didaftarkan. Kata laluan lalai ialah "password".',
+            'data' => $staffWithUser,
         ]);
     }
 }

@@ -1779,6 +1779,9 @@ const ComplaintDetail = () => {
     const aduanBoxDisabledTitle = isAduanBoxLocked ? 'Tidak boleh dikemaskini apabila status aduan Menunggu tindakan pengesah, Disahkan atau Dihantar ke Daerah.' : undefined;
     const canEditAduanBox = canEditBasicComplaint && !isAduanBoxLocked;
     const approverName = (complaint?.approverStaff?.name || '').trim().toLowerCase();
+    const approverDisplayName = currentCaseType === 'AK'
+        ? (complaint?.approverStaff?.name || complaint?.received_by?.name || complaint?.receivedBy?.name || '-')
+        : (complaint?.approverStaff?.name || '-');
     const canApprove = Boolean(
         !complaint?.approver_confirmed_at
         && (
@@ -3198,7 +3201,7 @@ const ComplaintDetail = () => {
                                             <div className="app-approver-row">
                                                 <span>Pegawai Pengesah</span>
                                                 <span>:</span>
-                                                <strong>{complaint.approverStaff?.name || '-'}</strong>
+                                                <strong>{approverDisplayName}</strong>
                                             </div>
                                             <div className="app-approver-row">
                                                 <span>Tarikh Sahkan</span>

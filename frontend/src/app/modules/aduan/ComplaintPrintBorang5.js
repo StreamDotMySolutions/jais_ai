@@ -138,8 +138,14 @@ const ComplaintPrintBorang5 = () => {
         complaint?.approverStaff?.name ||
         ''
     ).trim();
+    const akOfficerSignerName = String(
+        complaint?.received_by?.name ||
+        complaint?.receivedBy?.name ||
+        receiverStaff?.name ||
+        ''
+    ).trim();
     const effectiveOfficerSignerName = caseType === 'AK'
-        ? officerInformantName
+        ? akOfficerSignerName
         : approverSignerName;
     const officerSignerPendingNote = caseType === 'AJ' && !approverSignerName
         ? '(Aduan belum disahkan oleh Pegawai Pengesah)'
@@ -303,6 +309,9 @@ const ComplaintPrintBorang5 = () => {
                 </div>
 
                 <div className="print-borang5-table print-borang5-table-identity">
+                    {caseType === 'AK' && (
+                        <div className="print-borang5-identity-title">BUTIR-BUTIR PEMBERI MAKLUMAT</div>
+                    )}
                     <div className="print-borang5-row">
                         <div className="print-borang5-label">Nama</div>
                         <div className="print-borang5-value">{renderValue(effectiveInformantName)}</div>

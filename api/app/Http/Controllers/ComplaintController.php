@@ -1509,9 +1509,14 @@ class ComplaintController extends Controller
             : $officerInformantAddress;
 
         $approverSignerName = trim((string) ($complaint->approverStaff?->name ?: ''));
+        $akOfficerSignerName = trim((string) (
+            $complaint->receivedBy?->name
+            ?: $receiverStaff?->name
+            ?: ''
+        ));
         $effectiveOfficerSignerName = strtoupper((string) (
             $complaint->case_type === 'AK'
-                ? $officerInformantName
+                ? $akOfficerSignerName
                 : $approverSignerName
         ));
         $officerSignerPendingNote = (strtoupper((string) ($complaint->case_type ?: 'AJ')) === 'AJ' && $approverSignerName === '')
@@ -3345,6 +3350,9 @@ class ComplaintController extends Controller
             'ak_notes' => $request->payload['notes'] ?? null,
             'ak_supervisor_staff_id' => $request->payload['supervisor_staff_id'] ?? null,
         ];
+        if (! $complaint->approver_staff_id && $user->staff?->id) {
+            $payload['approver_staff_id'] = $user->staff->id;
+        }
         $payload['received_by_user_id'] = $user->id;
         $payload['received_at'] = now();
         if (in_array((string) $complaint->current_stage, ['baru', 'tunggu_pengesahan'], true)) {
