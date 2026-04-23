@@ -115,11 +115,11 @@ const ComplaintPrintAkSiasatanSlip = () => {
 
                 <div className="print-ak-slip-center print-ak-slip-note">
                     Subseksyen 58(1) Enakmen Tatacara Jenayah Syariah (Negeri Selangor) tahun 2003.
-                    Kuasa untuk mengkehendaki kehadiran saksi bagi menjalankan siasatan
+                    {' '}Kuasa untuk mengkehendaki kehadiran saksi bagi menjalankan siasatan
                 </div>
                 <div className="print-ak-slip-center print-ak-slip-note">
                     Subseksyen 58(2) Enakmen Tatacara Jenayah Syariah (Negeri Selangor) tahun 2003.
-                    Jika mana-mana orang enggan hadir, waran memastikan kehadiran boleh dikeluarkan.
+                    {' '}Jika mana-mana orang enggan hadir, waran memastikan kehadiran boleh dikeluarkan.
                 </div>
 
                 <div className="print-ak-slip-band">SLIP KEHADIRAN MEMBERI KETERANGAN</div>
@@ -159,8 +159,8 @@ const ComplaintPrintAkSiasatanSlip = () => {
                 <div className="print-ak-slip-sign-row">
                     <div className="print-ak-slip-sign-left">
                         <div className="print-ak-slip-sign-line" />
-                        <div>({signName})</div>
-                        <div>No. K/P : {signId}</div>
+                        <div className="print-ak-slip-sign-italic">({signName})</div>
+                        <div className="print-ak-slip-sign-italic">No. K/P : {signId}</div>
                     </div>
                     <div className="print-ak-slip-sign-right">
                         <div>Tarikh / Masa : <strong>{nowStamp}</strong></div>
@@ -173,4 +173,3 @@ const ComplaintPrintAkSiasatanSlip = () => {
 };
 
 export default ComplaintPrintAkSiasatanSlip;
-
