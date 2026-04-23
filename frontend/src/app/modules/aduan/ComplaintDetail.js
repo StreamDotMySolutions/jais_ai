@@ -2927,8 +2927,8 @@ const ComplaintDetail = () => {
                                 </div>
 
                                 <label className="app-form-field app-span-full">
-                                    <span>Saya dengan ini mengesahkan maklumat berikut *</span>
                                     <small className="app-hint">Template akan diisi automatik selepas memilih Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
+                                    <span>Saya dengan ini mengesahkan maklumat berikut <span className="complaint-required">*</span></span>
                                     <textarea
                                         className="app-textarea-250"
                                         rows="10"
