@@ -603,7 +603,7 @@ const ComplaintDetail = () => {
         const dateDot = formatBorang5TemplateDate(basicDraft.complaint_date);
         const timeDot = formatBorang5TemplateTime(basicDraft.complaint_time);
         const address = (((complaint?.case_type || 'AJ') === 'AK')
-            ? (basicDraft.ak_event_location || basicDraft.address || '')
+            ? (basicDraft.ak_event_location || '')
             : (basicDraft.address || '')).trim();
 
         if (dateDot) {
@@ -648,7 +648,7 @@ const ComplaintDetail = () => {
         const dateDot = formatBorang5TemplateDate(dateIso || basicDraft.complaint_date);
         const timeDot = formatBorang5TemplateTime(timeHhmm || basicDraft.complaint_time);
         const address = (((complaint?.case_type || 'AJ') === 'AK')
-            ? (basicDraft.ak_event_location || basicDraft.address || '')
+            ? (basicDraft.ak_event_location || '')
             : (basicDraft.address || '')).trim();
 
         if (dateDot) {
@@ -2228,7 +2228,7 @@ const ComplaintDetail = () => {
                                         <div className="app-kv-stack">
                                             <span className="app-kv-value">
                                                 <SharedInlineEditText
-                                                    value={complaint.ak_event_location || complaint.address}
+                                                    value={complaint.ak_event_location}
                                                     placeholder="-"
                                                     canEdit={canEditAduanBox}
                                                     mode="textarea"

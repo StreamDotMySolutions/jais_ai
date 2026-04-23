@@ -3754,10 +3754,7 @@ class ComplaintController extends Controller
     {
         $caseType = strtoupper(trim((string) ($complaint->case_type ?: 'AJ')));
         if ($caseType === 'AK') {
-            $akLatestAddress = trim((string) ($complaint->ak_event_location ?: ''));
-            if ($akLatestAddress !== '') {
-                return $akLatestAddress;
-            }
+            return trim((string) ($complaint->ak_event_location ?: ''));
         }
 
         return trim((string) ($complaint->address ?: ''));

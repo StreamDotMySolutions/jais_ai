@@ -127,7 +127,7 @@ const ComplaintPrintBorang5 = () => {
     const complainantOccupation = complaint?.complainant_occupation || '';
     const complainantContactNumber = complaint?.contact_number || '';
     const complainantAddress = complaint?.address || '';
-    const akLatestAddress = (complaint?.ak_event_location || complaint?.address || '').toString().trim();
+    const akLatestAddress = (complaint?.ak_event_location || '').toString().trim();
     const effectiveInformantName = isPhysicalInformant ? complainantName : officerInformantName;
     const effectiveInformantIdNumber = isPhysicalInformant ? complainantIdNumber : officerInformantIdNumber;
     const effectiveInformantOccupation = isPhysicalInformant ? complainantOccupation : officerInformantOccupation;

@@ -341,7 +341,7 @@ function ComplaintForm({
             { key: 'identification_number', value: store.getValue('identification_number') },
             { key: 'contact_number', value: store.getValue('contact_number') },
             { key: 'complainant_occupation', value: store.getValue('complainant_occupation') },
-            { key: 'address', value: selectedCaseType === 'AK' ? store.getValue('ak_event_location') : (useFamilyEventSection ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location')) : store.getValue('address')) },
+            { key: 'address', value: selectedCaseType === 'AK' ? '-' : (useFamilyEventSection ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location')) : store.getValue('address')) },
             { key: 'district_id', value: store.getValue('district_id') },
             { key: 'summary', value: store.getValue('summary') },
             { key: 'borang5_statement', value: store.getValue('borang5_statement') },
@@ -489,7 +489,7 @@ function ComplaintForm({
         const dateDot = formatBorang5TemplateDate(store.getValue('complaint_date'));
         const timeDot = formatBorang5TemplateTime(store.getValue('complaint_time'));
         const address = ((caseType === 'AK')
-            ? (store.getValue('ak_event_location') || store.getValue('address') || '')
+            ? (store.getValue('ak_event_location') || '')
             : (store.getValue('address') || '')).toString().trim();
 
         if (dateDot) {
@@ -767,7 +767,7 @@ function ComplaintForm({
         const date = (useFamilyEventSection ? store.getValue('ak_event_date') : store.getValue('incident_date')) || '[TARIKH]';
         const time = (useFamilyEventSection ? store.getValue('ak_event_time') : store.getValue('incident_time')) || '[MASA]';
         const lokasi = ((caseType === 'AK'
-            ? (store.getValue('ak_event_location') || store.getValue('address'))
+            ? (store.getValue('ak_event_location') || '')
             : (useFamilyEventSection
                 ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location'))
                 : store.getValue('address'))) || '').trim() || '[Nama premis/hotel, alamat penuh, bilik (jika ada)]';
@@ -1299,8 +1299,6 @@ function ComplaintForm({
                                     isLoading={isLoading}
                                     onValueChange={(val) => {
                                         setAddressDraft(val);
-                                        // Keep legacy address in sync for list/detail compatibility.
-                                        store.setValue('address', val);
                                         tryAutoSuggestTemplate(val);
                                     }}
                                 />
