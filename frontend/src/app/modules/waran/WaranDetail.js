@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import ConfirmModal from '../../components/SharedConfirmModal';
@@ -45,6 +45,30 @@ const WaranDetail = () => {
     const [error, setError] = useState('');
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    const renderKvGrid = (columns = []) => (
+        <div className="app-waran-kv-grid">
+            {columns.map((rows, index) => (
+                <div className="app-waran-kv-col" key={`col-${index}`}>
+                    {rows.map((row) => (
+                        <div
+                            className={`app-kv${row.stack ? ' app-kv--stack' : ''}`}
+                            key={row.label}
+                        >
+                            <span className="app-kv-label">{row.label}</span>
+                            {row.stack ? (
+                                <div className="app-kv-stack">
+                                    <span className="app-kv-value">{row.value ?? '-'}</span>
+                                </div>
+                            ) : (
+                                <span className="app-kv-value">{row.value ?? '-'}</span>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            ))}
+        </div>
+    );
 
     useEffect(() => {
         if (!apiUrl || !id) {
@@ -194,92 +218,45 @@ const WaranDetail = () => {
                 <div className="app-card-header">
                     <h4>Maklumat Waran</h4>
                 </div>
-                <div className="app-form-grid">
-                    <div className="app-form-field">
-                        <span>Jenis Waran</span>
-                        <div className="app-detail-value">{toTitle(record.jenis_waran)}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>No. Ruj Fail</span>
-                        <div className="app-detail-value">{record.no_ruj_fail || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Tarikh/Masa Terima</span>
-                        <div className="app-detail-value">{formatDateTime(record.tarikh_masa_terima)}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Tahun</span>
-                        <div className="app-detail-value">{record.tahun || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>No. Kes</span>
-                        <div className="app-detail-value">{record.no_kes || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Status</span>
-                        <div className="app-detail-value">{toTitle(record.status || 'draf')}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Daerah</span>
-                        <div className="app-detail-value">{record.daerah?.name || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Mahkamah</span>
-                        <div className="app-detail-value">{record.mahkamah?.nama || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Tarikh Bicara</span>
-                        <div className="app-detail-value">{formatDateTime(record.tarikh_bicara)}</div>
-                    </div>
-                </div>
+                {renderKvGrid([
+                    [
+                        { label: 'Jenis Waran', value: toTitle(record.jenis_waran) },
+                        { label: 'Tahun', value: record.tahun || '-' },
+                        { label: 'Daerah', value: record.daerah?.name || '-' },
+                    ],
+                    [
+                        { label: 'No. Ruj Fail', value: record.no_ruj_fail || '-' },
+                        { label: 'No. Kes', value: record.no_kes || '-' },
+                        { label: 'Mahkamah', value: record.mahkamah?.nama || '-', stack: true },
+                    ],
+                    [
+                        { label: 'Tarikh/Masa Terima', value: formatDateTime(record.tarikh_masa_terima) },
+                        { label: 'Status', value: toTitle(record.status || 'draf') },
+                        { label: 'Tarikh Bicara', value: formatDateTime(record.tarikh_bicara) },
+                    ],
+                ])}
             </div>
 
             <div className="app-card">
                 <div className="app-card-header">
                     <h4>Maklumat Tambahan</h4>
                 </div>
-                <div className="app-form-grid">
-                    <div className="app-form-field">
-                        <span>Jenis Kes (Mal)</span>
-                        <div className="app-detail-value">{record.jenis_kes_mal?.nama || '-'}</div>
-                    </div>
-                    {record.jenis_kes_mal_lain && (
-                        <div className="app-form-field">
-                            <span>Lain-lain Kes (Mal)</span>
-                            <div className="app-detail-value">{record.jenis_kes_mal_lain}</div>
-                        </div>
-                    )}
-                    <div className="app-form-field">
-                        <span>Jenis Kes (Jenayah)</span>
-                        <div className="app-detail-value">{record.jenis_kes_jenayah?.nama || '-'}</div>
-                    </div>
-                    {record.jenis_kes_jenayah_lain && (
-                        <div className="app-form-field">
-                            <span>Lain-lain Kes (Jenayah)</span>
-                            <div className="app-detail-value">{record.jenis_kes_jenayah_lain}</div>
-                        </div>
-                    )}
-                    <div className="app-form-field">
-                        <span>Email</span>
-                        <div className="app-detail-value">{record.emel || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Email Mahkamah</span>
-                        <div className="app-detail-value">{record.emel_mahkamah || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Pendaftar</span>
-                        <div className="app-detail-value">{record.pendaftar?.name || '-'}</div>
-                    </div>
-                </div>
-                {record.catatan_pendaftar && (
-                    <div className="app-inline-section">
-                        <div className="app-form-field">
-                            <span>Catatan Pendaftar</span>
-                            <div className="app-detail-value">{record.catatan_pendaftar}</div>
-                        </div>
-                    </div>
-                )}
+                {renderKvGrid([
+                    [
+                        { label: 'Jenis Kes (Mal)', value: record.jenis_kes_mal?.nama || '-' },
+                        { label: 'Email Mahkamah', value: record.emel_mahkamah || '-', stack: true },
+                        { label: 'Catatan Pendaftar', value: record.catatan_pendaftar || '-', stack: true },
+                    ],
+                    [
+                        { label: 'Jenis Kes (Jenayah)', value: record.jenis_kes_jenayah?.nama || '-' },
+                        { label: 'Pendaftar', value: record.pendaftar?.name || '-', stack: true },
+                        { label: 'Lain-lain Kes (Jenayah)', value: record.jenis_kes_jenayah_lain || '-' },
+                    ],
+                    [
+                        { label: 'Email', value: record.emel || '-', stack: true },
+                        { label: 'Lain-lain Kes (Mal)', value: record.jenis_kes_mal_lain || '-' },
+                    ],
+                ])}
             </div>
 
             <div className="app-card">
@@ -300,78 +277,39 @@ const WaranDetail = () => {
                 <div className="app-card-header">
                     <h4>Maklumat OKT</h4>
                 </div>
-                <div className="app-form-grid">
-                    <div className="app-form-field">
-                        <span>Nama</span>
-                        <div className="app-detail-value">{record.nama_okt || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>No. K/P</span>
-                        <div className="app-detail-value">{record.no_kp_okt || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>No. Telefon</span>
-                        <div className="app-detail-value">{record.telefon_okt || '-'}</div>
-                    </div>
-                    <div className="app-form-field" style={{ gridColumn: '1 / -1' }}>
-                        <span>Alamat</span>
-                        <div className="app-detail-value">{record.alamat_okt || '-'}</div>
-                    </div>
-                </div>
+                {renderKvGrid([
+                    [
+                        { label: 'Nama', value: record.nama_okt || '-' },
+                        { label: 'No. Telefon', value: record.telefon_okt || '-' },
+                    ],
+                    [
+                        { label: 'No. K/P', value: record.no_kp_okt || '-' },
+                        { label: 'Alamat', value: record.alamat_okt || '-', stack: true },
+                    ],
+                ])}
             </div>
 
             <div className="app-card">
                 <div className="app-card-header">
                     <h4>Maklumat Pelaksanaan</h4>
                 </div>
-                <div className="app-form-grid">
-                    <div className="app-form-field">
-                        <span>Pelaksana</span>
-                        <div className="app-detail-value">{record.pelaksana?.name || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Alamat Pejabat</span>
-                        <div className="app-detail-value">{record.alamat_pejabat || '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Jumlah Perlaksanaan</span>
-                        <div className="app-detail-value">{record.jumlah_perlaksanaan ?? '-'}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Tarikh/Masa Perlaksanaan 1</span>
-                        <div className="app-detail-value">{formatDateTime(record.tarikh_masa_perlaksanaan_1)}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Tarikh/Masa Perlaksanaan 2</span>
-                        <div className="app-detail-value">{formatDateTime(record.tarikh_masa_perlaksanaan_2)}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Tarikh/Masa Perlaksanaan 3</span>
-                        <div className="app-detail-value">{formatDateTime(record.tarikh_masa_perlaksanaan_3)}</div>
-                    </div>
-                    <div className="app-form-field">
-                        <span>Hasil Perlaksanaan</span>
-                        <div className="app-detail-value">{record.hasil_perlaksanaan?.nama || '-'}</div>
-                    </div>
-                </div>
-
-                {record.laporan && (
-                    <div className="app-inline-section">
-                        <div className="app-form-field">
-                            <span>Laporan</span>
-                            <div className="app-detail-value" style={{ whiteSpace: 'pre-wrap' }}>{record.laporan}</div>
-                        </div>
-                    </div>
-                )}
-
-                {record.catatan_pelaksana && (
-                    <div className="app-inline-section">
-                        <div className="app-form-field">
-                            <span>Catatan Pelaksana</span>
-                            <div className="app-detail-value">{record.catatan_pelaksana}</div>
-                        </div>
-                    </div>
-                )}
+                {renderKvGrid([
+                    [
+                        { label: 'Pelaksana', value: record.pelaksana?.name || '-' },
+                        { label: 'Tarikh/Masa Perlaksanaan 1', value: formatDateTime(record.tarikh_masa_perlaksanaan_1) },
+                        { label: 'Hasil Perlaksanaan', value: record.hasil_perlaksanaan?.nama || '-' },
+                    ],
+                    [
+                        { label: 'Alamat Pejabat', value: record.alamat_pejabat || '-', stack: true },
+                        { label: 'Tarikh/Masa Perlaksanaan 2', value: formatDateTime(record.tarikh_masa_perlaksanaan_2) },
+                        { label: 'Laporan', value: record.laporan || '-', stack: true },
+                    ],
+                    [
+                        { label: 'Jumlah Perlaksanaan', value: record.jumlah_perlaksanaan ?? '-' },
+                        { label: 'Tarikh/Masa Perlaksanaan 3', value: formatDateTime(record.tarikh_masa_perlaksanaan_3) },
+                        { label: 'Catatan Pelaksana', value: record.catatan_pelaksana || '-', stack: true },
+                    ],
+                ])}
             </div>
         </div>
     );

@@ -51,6 +51,17 @@ const formatDayLabel = (date) => new Intl.DateTimeFormat('ms-MY', {
     year: 'numeric',
 }).format(date);
 
+const formatDateDisplay = (value) => {
+    if (!value) return '-';
+    const parsed = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat('ms-MY', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+    }).format(parsed);
+};
+
 const WaranCalendarStatus = () => {
     const navigate = useNavigate();
     const apiUrl = process.env.REACT_APP_API_URL;
@@ -86,9 +97,7 @@ const WaranCalendarStatus = () => {
     }, [dateFieldOptions, filters.dateField]);
 
     useEffect(() => {
-        if (!apiUrl) {
-            return;
-        }
+        if (!apiUrl) return;
         axios.get(`${apiUrl}/districts`)
             .then((response) => setDistrictOptions(response?.data?.data || []))
             .catch(() => setDistrictOptions([]));
@@ -238,6 +247,21 @@ const WaranCalendarStatus = () => {
                     <span>{headerCount} rekod · {dateFieldLabel}</span>
                 </div>
 
+                <div className="app-waran-calendar-kv">
+                    <div className="app-waran-calendar-kv-item">
+                        <span>Parameter Tarikh</span>
+                        <strong>{dateFieldLabel}</strong>
+                    </div>
+                    <div className="app-waran-calendar-kv-item">
+                        <span>Paparan</span>
+                        <strong>{viewMode === 'day' ? 'Hari' : 'Bulan'}</strong>
+                    </div>
+                    <div className="app-waran-calendar-kv-item">
+                        <span>Jumlah Rekod</span>
+                        <strong>{headerCount}</strong>
+                    </div>
+                </div>
+
                 {viewMode === 'day' && (
                     <div className="app-waran-calendar-day-filter">
                         <label>Pilih Tarikh</label>
@@ -277,7 +301,7 @@ const WaranCalendarStatus = () => {
                             const dateKey = toDateKey(cellDate);
                             const isCurrentMonth = cellDate.getMonth() === monthAnchor.getMonth();
                             const events = eventsByDate[dateKey] || [];
-                            const visibleEvents = events.slice(0, 4);
+                            const visibleEvents = events.slice(0, 3);
                             const moreCount = events.length - visibleEvents.length;
                             return (
                                 <div key={dateKey} className={`app-waran-calendar-cell${isCurrentMonth ? '' : ' is-muted'}`}>
@@ -295,7 +319,14 @@ const WaranCalendarStatus = () => {
                                                     title={`${meta.label} · ${event.no_kes}`}
                                                     onClick={() => navigate(`/app/i-waran/${event.id}`)}
                                                 >
-                                                    {meta.label}
+                                                    <span className="app-waran-calendar-event-kv">
+                                                        <small>Status</small>
+                                                        <strong>{meta.label}</strong>
+                                                    </span>
+                                                    <span className="app-waran-calendar-event-kv">
+                                                        <small>No. Kes</small>
+                                                        <em>{event.no_kes}</em>
+                                                    </span>
                                                 </button>
                                             );
                                         })}
@@ -322,11 +353,16 @@ const WaranCalendarStatus = () => {
                                     className="app-waran-calendar-day-item"
                                     onClick={() => navigate(`/app/i-waran/${event.id}`)}
                                 >
-                                    <span className="app-waran-calendar-day-status" style={{ background: meta.color }}>
-                                        {meta.label}
-                                    </span>
-                                    <strong>{event.no_kes}</strong>
-                                    <small>{event.district_name || '-'}</small>
+                                    <div className="app-waran-calendar-day-grid">
+                                        <span>Status</span>
+                                        <strong>{meta.label}</strong>
+                                        <span>No. Kes</span>
+                                        <strong>{event.no_kes}</strong>
+                                        <span>Daerah</span>
+                                        <strong>{event.district_name || '-'}</strong>
+                                        <span>Tarikh</span>
+                                        <strong>{formatDateDisplay(event.date)}</strong>
+                                    </div>
                                 </button>
                             );
                         })}
