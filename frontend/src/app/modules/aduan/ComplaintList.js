@@ -924,6 +924,7 @@ const ComplaintList = ({
                             />
                         ) : (
                             <ComplaintListInternalView
+                                userRole={role}
                                 showCaseTabs={showCaseTabs}
                                 canCreateComplaint={canCreateComplaint}
                                 onOpenForm={() => setIsFormOpen(true)}
@@ -969,6 +970,7 @@ const ComplaintList = ({
                 <ComplaintListDrawer
                     selectedComplaint={selectedComplaint}
                     setSelectedComplaint={setSelectedComplaint}
+                    userRole={role}
                     isPublicRole={isPublicRole}
                     getPublicComplaintStageLabel={getPublicComplaintStageLabel}
                     getComplaintStageLabel={getComplaintStageLabel}

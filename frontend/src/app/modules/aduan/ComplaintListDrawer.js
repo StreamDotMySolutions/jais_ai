@@ -7,6 +7,7 @@ const LOCKED_BASIC_EDIT_CHANNELS = ['portal', 'web', 'whatsapp', 'whatsapp_web']
 const ComplaintListDrawer = ({
     selectedComplaint,
     setSelectedComplaint,
+    userRole,
     isPublicRole,
     getPublicComplaintStageLabel,
     getComplaintStageLabel,
@@ -35,7 +36,7 @@ const ComplaintListDrawer = ({
                         <span className="app-status-pill">
                             {isPublicRole
                                 ? getPublicComplaintStageLabel(selectedComplaint.current_stage || 'baru', selectedComplaint)
-                                : getComplaintStageLabel(selectedComplaint.current_stage || 'baru')}
+                                : getComplaintStageLabel(selectedComplaint.current_stage || 'baru', userRole)}
                         </span>
                     </div>
                     <button

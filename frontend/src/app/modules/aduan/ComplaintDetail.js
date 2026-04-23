@@ -117,7 +117,6 @@ const ComplaintDetail = () => {
         male_count: '',
         female_count: '',
         other_count: '',
-        report_no: '',
         action_datetime: '',
         offense_id: '',
         arrest_by: '',
@@ -138,6 +137,10 @@ const ComplaintDetail = () => {
         seizure_items: [
             { id: null, item_no: '', description: '', storage: '', media: [] },
         ],
+        police_report_status: '',
+        police_reports: [
+            { id: null, report_no: '', description: '', station: '', media: [] },
+        ],
     };
     const ajActionReportDefault = {
         directive_staff_id: '',
@@ -147,6 +150,7 @@ const ComplaintDetail = () => {
         handover_at: '',
         handover_notes: '',
         current_status: '',
+        current_status_other: '',
         case_register_no: '',
         op_category: '',
         op_case_status: '',
@@ -233,9 +237,11 @@ const ComplaintDetail = () => {
         arrest: true,
         oyds: true,
         seizure: true,
+        police_report: true,
     });
     const [oydUploadDrafts, setOydUploadDrafts] = useState({});
     const [seizureUploadDrafts, setSeizureUploadDrafts] = useState({});
+    const [policeReportUploadDrafts, setPoliceReportUploadDrafts] = useState({});
     const [timeTick, setTimeTick] = useState(Date.now());
     const role = localStorage.getItem('role') || 'awam';
     const localUserName = (localStorage.getItem('user_name') || '').trim().toLowerCase();
@@ -823,7 +829,6 @@ const ComplaintDetail = () => {
             male_count: complaint.aj_male_count ?? '',
             female_count: complaint.aj_female_count ?? '',
             other_count: complaint.aj_other_count ?? '',
-            report_no: complaint.aj_report_no || '',
             action_datetime: complaint.aj_action_datetime || '',
             offense_id: complaint.aj_report_offense_id
                 ? String(complaint.aj_report_offense_id)
@@ -859,6 +864,16 @@ const ComplaintDetail = () => {
                     media: row.media || [],
                 }))
                 : ajReportDefault.seizure_items,
+            police_report_status: complaint.aj_police_report_status || '',
+            police_reports: (complaint.police_reports || []).length
+                ? complaint.police_reports.map((row) => ({
+                    id: row.id,
+                    report_no: row.report_no || '',
+                    description: row.description || '',
+                    station: row.station || '',
+                    media: row.media || [],
+                }))
+                : ajReportDefault.police_reports,
         });
         const existingHistoryEntries = (complaint.action_updates || []).length
             ? complaint.action_updates.map((row) => ({
@@ -887,6 +902,7 @@ const ComplaintDetail = () => {
             handover_at: complaint.handover_at || '',
             handover_notes: complaint.handover_notes || '',
             current_status: complaint.aj_current_status || '',
+            current_status_other: complaint.aj_current_status_other || '',
             case_register_no: complaint.case_register_no || '',
             op_category: complaint.aj_op_category || '',
             op_case_status: complaint.aj_op_case_status || '',
@@ -1237,6 +1253,91 @@ const ComplaintDetail = () => {
         }));
     };
 
+    const updatePoliceReportItem = (index, field, value) => {
+        setAjReport((prev) => {
+            const next = [...prev.police_reports];
+            next[index] = { ...next[index], [field]: value };
+            return { ...prev, police_reports: next };
+        });
+    };
+
+    const isPoliceReportRowEmpty = (row) => {
+        const values = [
+            row?.report_no,
+            row?.description,
+            row?.station,
+        ];
+        return !values.some((value) => String(value || '').trim() !== '');
+    };
+
+    const ensurePoliceReportRecord = async (index, options = {}) => {
+        const { allowEmpty = false } = options;
+        const row = ajReport.police_reports?.[index];
+        if (!row || !apiUrl || !id) return null;
+        if (row.id) return row.id;
+        if (!allowEmpty && isPoliceReportRowEmpty(row)) return null;
+
+        try {
+            const payload = {
+                report_no: row.report_no || '',
+                description: row.description || '',
+                station: row.station || '',
+            };
+            const response = await axios.post(
+                `${apiUrl}/complaints/${id}/police-reports`,
+                payload,
+                { headers: { Authorization: `Bearer ${token}` } },
+            );
+            const created = response?.data?.data;
+            if (created?.id) {
+                setAjReport((prev) => {
+                    const next = [...(prev.police_reports || [])];
+                    if (!next[index]) return prev;
+                    next[index] = {
+                        ...next[index],
+                        ...created,
+                        media: created.media || next[index].media || [],
+                    };
+                    return { ...prev, police_reports: next };
+                });
+                return created.id;
+            }
+            return null;
+        } catch (error) {
+            toast.error(error?.response?.data?.message || 'Gagal cipta Report Polis.');
+            return null;
+        }
+    };
+
+    const addPoliceReportItem = () => {
+        setAjReport((prev) => ({
+            ...prev,
+            police_reports: [...prev.police_reports, { id: null, report_no: '', description: '', station: '', media: [] }],
+        }));
+    };
+
+    const removePoliceReportItem = (index) => {
+        setAjReport((prev) => {
+            const next = prev.police_reports.filter((_, i) => i !== index);
+            return { ...prev, police_reports: next.length ? next : [{ id: null, report_no: '', description: '', station: '', media: [] }] };
+        });
+    };
+
+    const getPoliceReportDraftKey = (row, index) => (row?.id ? `id-${row.id}` : `idx-${index}`);
+
+    const getPoliceReportDraft = (row, index) => {
+        const key = getPoliceReportDraftKey(row, index);
+        return policeReportUploadDrafts[key] || { category: 'bukti', files: [] };
+    };
+
+    const updatePoliceReportDraft = (row, index, patch) => {
+        const key = getPoliceReportDraftKey(row, index);
+        setPoliceReportUploadDrafts((prev) => ({
+            ...prev,
+            [key]: { ...(prev[key] || { category: 'bukti', files: [] }), ...patch },
+        }));
+    };
+
     const openAppointmentCalendar = () => {
         const baseDate = akPayload.investigation_datetime
             ? new Date(akPayload.investigation_datetime)
@@ -1390,7 +1491,12 @@ const ComplaintDetail = () => {
                             if (latest) {
                                 setComplaint((prev) => prev ? { ...prev, ...latest } : prev);
                             }
-                            toast.success('Maklumat telah dikemaskini.');
+                            const autoEmailSent = Boolean(basicResponse?.data?.meta?.borang5_auto_email?.sent);
+                            const successMsg = autoEmailSent
+                                ? 'Maklumat telah dikemaskini dan emel Borang 5 berjaya dihantar.'
+                                : 'Maklumat telah dikemaskini.';
+                            setPayloadMessage(successMsg);
+                            toast.success(successMsg);
                         })
                         .catch(() => {
                             toast.error('Gagal kemaskini maklumat.');
@@ -1464,8 +1570,12 @@ const ComplaintDetail = () => {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
             .then((response) => {
-                setReportMessage('Laporan pemeriksaan dikemaskini.');
-                toast.success('Laporan pemeriksaan dikemaskini.');
+                const autoEmailSent = Boolean(response?.data?.meta?.laporan_tindakan_auto_email?.sent);
+                const msg = autoEmailSent
+                    ? 'Laporan pemeriksaan dikemaskini dan emel Laporan Tindakan berjaya dihantar.'
+                    : (response?.data?.message || 'Laporan pemeriksaan dikemaskini.');
+                setReportMessage(msg);
+                toast.success(msg);
                 const updated = response?.data?.data;
                 if (updated) {
                     setComplaint((prev) => prev ? { ...prev, ...updated } : prev);
@@ -1487,6 +1597,9 @@ const ComplaintDetail = () => {
         axios.post(`${apiUrl}/complaints/${id}/aj-action-report`, {
             report: {
                 ...ajActionReport,
+                current_status_other: ajActionReport.current_status === 'Other'
+                    ? (ajActionReport.current_status_other || '')
+                    : '',
                 history_entries: (ajActionReport.history_entries || []).map((row) => ({
                     classification: row.classification || '',
                     action_date: row.action_date || null,
@@ -1522,6 +1635,7 @@ const ComplaintDetail = () => {
             const classification = (ajPayload.classification || '').toString().trim();
             const offenseId = (ajPayload.offense_id || '').toString().trim();
             const borang5Statement = (basicDraft.borang5_statement || '').toString().trim();
+            const incidentAddress = (basicDraft.address || '').toString().trim();
 
             if (!classification) {
                 missingFields.push('Klasifikasi');
@@ -1531,6 +1645,9 @@ const ComplaintDetail = () => {
             }
             if (!borang5Statement) {
                 missingFields.push('Butiran Aduan (Borang 5)');
+            }
+            if (!incidentAddress) {
+                missingFields.push('Alamat Kejadian');
             }
 
             if (missingFields.length > 0) {
@@ -1543,13 +1660,15 @@ const ComplaintDetail = () => {
             const savedClassification = (complaint?.aj_ppa_classification || '').toString().trim();
             const savedOffenseId = complaint?.aj_offense_id ? String(complaint.aj_offense_id) : '';
             const savedBorang5 = (complaint?.borang5_statement || '').toString().trim();
+            const savedIncidentAddress = (complaint?.address || '').toString().trim();
             const hasUnsavedAjChanges =
                 classification !== savedClassification
                 || offenseId !== savedOffenseId
-                || borang5Statement !== savedBorang5;
+                || borang5Statement !== savedBorang5
+                || incidentAddress !== savedIncidentAddress;
 
             if (hasUnsavedAjChanges) {
-                const msg = 'Sila klik Simpan dahulu untuk rekodkan Klasifikasi, Kesalahan Disyaki dan Butiran Aduan (Borang 5), kemudian baru Hantar Pengesahan.';
+                const msg = 'Sila klik Simpan dahulu untuk rekodkan Klasifikasi, Kesalahan Disyaki, Alamat Kejadian dan Butiran Aduan (Borang 5), kemudian baru Hantar Pengesahan.';
                 setAssigneeMessage(msg);
                 toast.error(msg);
                 return;
@@ -1648,6 +1767,11 @@ const ComplaintDetail = () => {
     const isAduanBoxLocked = ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
     const isSaveDisabled = isAwaitingApproval;
     const saveDisabledTitle = isSaveDisabled ? 'Tidak boleh simpan semasa menunggu tindakan pengesah.' : undefined;
+    const hasSavedAjReportNotes = String(complaint?.aj_report_notes || '').trim() !== '';
+    const isLaporanTindakanPrintDisabled = isSaveDisabled || !hasSavedAjReportNotes;
+    const laporanTindakanPrintDisabledTitle = isSaveDisabled
+        ? saveDisabledTitle
+        : (!hasSavedAjReportNotes ? 'Sila isi dan simpan medan Laporan dahulu sebelum cetak Laporan Tindakan.' : undefined);
     const aduanBoxDisabledTitle = isAduanBoxLocked ? 'Tidak boleh dikemaskini apabila status aduan Menunggu tindakan pengesah, Disahkan atau Dihantar ke Daerah.' : undefined;
     const canEditAduanBox = canEditBasicComplaint && !isAduanBoxLocked;
     const approverName = (complaint?.approverStaff?.name || '').trim().toLowerCase();
@@ -1686,6 +1810,7 @@ const ComplaintDetail = () => {
         || String(ajActionReport?.directive_notes || '').trim() !== String(complaint?.aj_directive_notes || '').trim()
         || String(ajActionReport?.handover_notes || '').trim() !== String(complaint?.handover_notes || '').trim()
         || String(ajActionReport?.current_status || '').trim() !== String(complaint?.aj_current_status || '').trim()
+        || String(ajActionReport?.current_status_other || '').trim() !== String(complaint?.aj_current_status_other || '').trim()
         || String(ajActionReport?.case_register_no || '').trim() !== String(complaint?.case_register_no || '').trim()
         || String(ajActionReport?.op_category || '').trim() !== String(complaint?.aj_op_category || '').trim()
         || String(ajActionReport?.op_case_status || '').trim() !== String(complaint?.aj_op_case_status || '').trim()
@@ -1729,6 +1854,12 @@ const ComplaintDetail = () => {
     if (!String(ajActionReport?.current_status || '').trim()) {
         dispatchMissingFields.push('Status Terkini');
     }
+    if (
+        String(ajActionReport?.current_status || '').trim() === 'Other'
+        && !String(ajActionReport?.current_status_other || '').trim()
+    ) {
+        dispatchMissingFields.push('Status Terkini (Other)');
+    }
     if (!String(ajActionReport?.directive_notes || '').trim()) {
         dispatchMissingFields.push('Arahan Tindakan');
     }
@@ -1749,7 +1880,7 @@ const ComplaintDetail = () => {
         : isAlreadyDispatchedToDistrict
         ? 'Aduan telah dihantar ke daerah.'
         : (isAwaitingPiDispatch ? (dispatchBlockedMessage || undefined) : 'Aduan hanya boleh dihantar ke daerah selepas disahkan.');
-    const isBorang5Enabled = ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+    const isBorang5Enabled = ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah', 'laporan_tindakan', 'selesai'].includes(currentStage);
     const borang5DisabledTitle = isBorang5Enabled ? undefined : 'Borang 5 hanya boleh dijana apabila status aduan Disahkan.';
     const lockedStepKeys = useMemo(() => {
         if (currentCaseType === 'AK') {
@@ -1954,7 +2085,7 @@ const ComplaintDetail = () => {
                                 <span className="app-status-pill">
                                     {isPublicRole
                                         ? getPublicComplaintStageLabel(complaint.current_stage || 'baru', complaint)
-                                        : getComplaintStageLabel(complaint.current_stage || 'baru')}
+                                        : getComplaintStageLabel(complaint.current_stage || 'baru', role)}
                                 </span>
                             </div>
                         </div>
@@ -2263,7 +2394,7 @@ const ComplaintDetail = () => {
                                 </div>
                                 {!isAkFamilyDetail && (
                                     <div className="app-kv app-kv--stack">
-                                        <span className="app-kv-label">{isAkFamilyDetail ? `Lokasi ${akEventNoun}` : 'Alamat'}</span>
+                                        <span className="app-kv-label">{isAkFamilyDetail ? `Lokasi ${akEventNoun}` : (currentCaseType === 'AJ' ? 'Alamat Kejadian' : 'Alamat')}</span>
                                         <div className="app-kv-stack">
                                             <span className="app-kv-value">
                                             <SharedInlineEditText
@@ -2455,7 +2586,7 @@ const ComplaintDetail = () => {
                                     </label>
                                 {!isAkFamilyDetail && (
                                         <label className="app-form-field app-span-full">
-                                            <span>{isAkFamilyDetail ? `Lokasi ${akEventNoun}` : 'Alamat'}</span>
+                                            <span>{isAkFamilyDetail ? `Lokasi ${akEventNoun}` : (currentCaseType === 'AJ' ? 'Alamat Kejadian *' : 'Alamat')}</span>
                                             <textarea
                                                 rows="4"
                                                 value={isAkFamilyDetail ? basicDraft.ak_event_location : basicDraft.address}
@@ -2796,15 +2927,16 @@ const ComplaintDetail = () => {
                                 </div>
 
                                 <label className="app-form-field app-span-full">
-                                    <span>Butiran Aduan (Borang 5)</span>
+                                    <span>Saya dengan ini mengesahkan maklumat berikut *</span>
                                     <small className="app-hint">Template akan diisi automatik selepas memilih Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
                                     <textarea
                                         className="app-textarea-250"
                                         rows="10"
                                         value={basicDraft.borang5_statement}
                                         onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
-                                        placeholder="Butiran Aduan (Borang 5)"
+                                        placeholder="Saya dengan ini mengesahkan maklumat berikut"
                                     />
+                                    <small className="app-hint">Borang 5 akan memaparkan baris <strong>LOKASI :</strong> berdasarkan <strong>Alamat Kejadian</strong>.</small>
                                 </label>
 
                                 <div className="app-form-field">
@@ -3540,13 +3672,30 @@ const ComplaintDetail = () => {
                                                     name="aj_current_status"
                                                     value={option}
                                                     checked={ajActionReport.current_status === option}
-                                                    onChange={() => updateActionReportField('current_status', option)}
+                                                    onChange={() => {
+                                                        updateActionReportField('current_status', option);
+                                                        if (option !== 'Other') {
+                                                            updateActionReportField('current_status_other', '');
+                                                        }
+                                                    }}
                                                 />
                                                 <span>{option}</span>
                                             </label>
                                         ))}
                                     </div>
                                 </label>
+
+                                {ajActionReport.current_status === 'Other' && (
+                                    <label className="app-form-field app-span-full">
+                                        <span>Maklumat Status Terkini (Other)</span>
+                                        <input
+                                            type="text"
+                                            value={ajActionReport.current_status_other || ''}
+                                            onChange={(event) => updateActionReportField('current_status_other', event.target.value)}
+                                            placeholder="Sila nyatakan status terkini"
+                                        />
+                                    </label>
+                                )}
 
                                 <label className="app-form-field app-span-full">
                                     <span>Arahan Tindakan</span>
@@ -3719,20 +3868,6 @@ const ComplaintDetail = () => {
 
                     {complaint.case_type === 'AJ' && activeKey === 'laporan_pemeriksaan' && (
                         <div className="app-tab-panel">
-                            <div className="app-detail-number-actions">
-                                <button
-                                    className="app-button app-button-ghost"
-                                    type="button"
-                                    onClick={() => window.open(
-                                        `/app/complaints/${id}/print/laporan-tindakan`,
-                                        'laporanTindakan',
-                                        'width=980,height=720,scrollbars=yes,resizable=yes'
-                                    )}
-                                >
-                                    <i className="bi bi-printer"></i>
-                                    Laporan Tindakan
-                                </button>
-                            </div>
                             <div className="app-report-stack">
                                 <div className="app-report-section">
                                     <button
@@ -3800,14 +3935,6 @@ const ComplaintDetail = () => {
                                                     />
                                                 </label>
 
-                                                <label className="app-form-field">
-                                                    <span>No. Report / Balai Polis</span>
-                                                    <input
-                                                        type="text"
-                                                        value={ajReport.report_no}
-                                                        onChange={(event) => updateReportField('report_no', event.target.value)}
-                                                    />
-                                                </label>
                                                 <label className="app-form-field">
                                                     <span>Tarikh Sebutan (Bon Mahkamah)</span>
                                                     <input
@@ -3983,7 +4110,7 @@ const ComplaintDetail = () => {
                                             </div>
                                         </div>
 
-                                        <label className="app-form-field app-span-full">
+                                        <div className="app-form-field app-span-full">
                                             <div className="app-field-inline-head">
                                                 <span>LAPORAN</span>
                                                 <button
@@ -4001,7 +4128,7 @@ const ComplaintDetail = () => {
                                                 value={ajReport.report_notes}
                                                 onChange={(event) => updateReportField('report_notes', event.target.value)}
                                             />
-                                        </label>
+                                        </div>
                                     </div>
                                     )}
                                 </div>
@@ -4126,6 +4253,127 @@ const ComplaintDetail = () => {
                                         </>
                                     )}
                                 </div>
+                                <div className="app-report-section">
+                                    <button
+                                        className="app-report-toggle"
+                                        type="button"
+                                        onClick={() => toggleReportSection('police_report')}
+                                        aria-expanded={reportSections.police_report}
+                                    >
+                                        <h5>BUTIRAN REPORT POLIS</h5>
+                                        <i className={`bi ${reportSections.police_report ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                    {reportSections.police_report && (
+                                        <>
+                                            <div className="app-form-field">
+                                                <span>Report Polis</span>
+                                                <div className="app-radio-cards app-radio-cards-2">
+                                                    <label className={ajReport.police_report_status === 'ada' ? 'active' : ''}>
+                                                        <input
+                                                            type="radio"
+                                                            name="aj_police_report_status"
+                                                            value="ada"
+                                                            checked={ajReport.police_report_status === 'ada'}
+                                                            onChange={() => updateReportField('police_report_status', 'ada')}
+                                                        />
+                                                        <span>Ada Report</span>
+                                                    </label>
+                                                    <label className={ajReport.police_report_status === 'tiada' ? 'active' : ''}>
+                                                        <input
+                                                            type="radio"
+                                                            name="aj_police_report_status"
+                                                            value="tiada"
+                                                            checked={ajReport.police_report_status === 'tiada'}
+                                                            onChange={() => updateReportField('police_report_status', 'tiada')}
+                                                        />
+                                                        <span>Tiada Report</span>
+                                                    </label>
+                                                </div>
+                                            </div>
+
+                                            {ajReport.police_report_status === 'ada' && (
+                                                <div className="app-inline-section">
+                                                    <div className="app-inline-header">
+                                                        <h5>Maklumat Report</h5>
+                                                        <button type="button" className="app-button app-button-ghost" onClick={addPoliceReportItem}>
+                                                            + Tambah Report
+                                                        </button>
+                                                    </div>
+                                                    <div className="app-oyds-table-wrap app-seizure-table-wrap">
+                                                        <div className="app-seizure-table-head">
+                                                            <div>No. Report</div>
+                                                            <div>Maklumat Report</div>
+                                                            <div>Balai Polis</div>
+                                                            <div>Lampiran</div>
+                                                            <div></div>
+                                                        </div>
+                                                        {ajReport.police_reports.map((row, index) => (
+                                                            <div className="app-seizure-table-row" key={`report-polis-${index}`}>
+                                                                <div className="app-seizure-table-cell">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={row.report_no}
+                                                                        onChange={(event) => updatePoliceReportItem(index, 'report_no', event.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="app-seizure-table-cell">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={row.description}
+                                                                        onChange={(event) => updatePoliceReportItem(index, 'description', event.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="app-seizure-table-cell">
+                                                                    <input
+                                                                        type="text"
+                                                                        value={row.station}
+                                                                        onChange={(event) => updatePoliceReportItem(index, 'station', event.target.value)}
+                                                                    />
+                                                                </div>
+                                                                <div className="app-seizure-table-cell app-seizure-table-cell-attachment">
+                                                                    <SeizureAttachmentSection
+                                                                        compact
+                                                                        mode="police_report"
+                                                                        apiUrl={apiUrl}
+                                                                        token={token}
+                                                                        complaintId={id}
+                                                                        recordId={row.id}
+                                                                        onBeforeUpload={() => ensurePoliceReportRecord(index, { allowEmpty: true })}
+                                                                        attachments={row.media || []}
+                                                                        category={getPoliceReportDraft(row, index).category || 'bukti'}
+                                                                        onCategoryChange={(value) => updatePoliceReportDraft(row, index, { category: value })}
+                                                                        onAttachmentsChange={(updater) => {
+                                                                            setAjReport((prev) => {
+                                                                                const next = [...prev.police_reports];
+                                                                                const current = next[index]?.media || [];
+                                                                                next[index] = {
+                                                                                    ...next[index],
+                                                                                    media: typeof updater === 'function' ? updater(current) : updater,
+                                                                                };
+                                                                                return { ...prev, police_reports: next };
+                                                                            });
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                                <div className="app-seizure-table-cell app-seizure-table-cell-action">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="app-icon-button"
+                                                                        onClick={() => removePoliceReportItem(index)}
+                                                                        aria-label="Buang Report"
+                                                                        title="Buang Report"
+                                                                    >
+                                                                        <i className="bi bi-trash"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
                                 <div className="app-report-sticky">
                                     {reportMessage && (
                                         <SharedInlineAlert
@@ -4138,6 +4386,20 @@ const ComplaintDetail = () => {
                                     )}
                                     <button className="app-button" type="button" onClick={submitAjReport} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan Laporan
+                                    </button>
+                                    <button
+                                        className="app-button app-button-ghost"
+                                        type="button"
+                                        disabled={isLaporanTindakanPrintDisabled}
+                                        title={laporanTindakanPrintDisabledTitle}
+                                        onClick={() => window.open(
+                                            `/app/complaints/${id}/print/laporan-tindakan`,
+                                            'laporanTindakan',
+                                            'width=980,height=720,scrollbars=yes,resizable=yes'
+                                        )}
+                                    >
+                                        <i className="bi bi-printer"></i>
+                                        Laporan Tindakan
                                     </button>
                                 </div>
                             </div>

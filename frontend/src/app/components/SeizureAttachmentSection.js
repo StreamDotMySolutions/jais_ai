@@ -7,6 +7,7 @@ import { useToast } from './SharedToastProvider';
 
 const SeizureAttachmentSection = ({
     compact = false,
+    mode = 'seizure',
     apiUrl,
     token,
     complaintId,
@@ -17,6 +18,26 @@ const SeizureAttachmentSection = ({
     category = 'bukti',
     onCategoryChange,
 }) => {
+    const modeKey = mode === 'police_report' ? 'police_report' : 'seizure';
+    const labels = modeKey === 'police_report'
+        ? {
+            entity: 'Report Polis',
+            lower: 'report polis',
+            uploadSuccess: 'Lampiran Report Polis berjaya dimuat naik.',
+            uploadFail: 'Gagal memuat naik lampiran Report Polis.',
+            uploadProcessFail: 'Gagal memproses muat naik lampiran Report Polis.',
+            deleteSuccess: 'Lampiran Report Polis dipadam.',
+            saveFirst: 'Simpan maklumat report polis dahulu sebelum muat naik.',
+        }
+        : {
+            entity: 'Barang Kes',
+            lower: 'barang kes',
+            uploadSuccess: 'Lampiran Barang Kes berjaya dimuat naik.',
+            uploadFail: 'Gagal memuat naik lampiran Barang Kes.',
+            uploadProcessFail: 'Gagal memproses muat naik lampiran Barang Kes.',
+            deleteSuccess: 'Lampiran Barang Kes dipadam.',
+            saveFirst: 'Sila isi maklumat barang kes dahulu sebelum muat naik.',
+        };
     const toast = useToast();
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [uploading, setUploading] = useState(false);
@@ -57,9 +78,15 @@ const SeizureAttachmentSection = ({
         });
     };
 
-    const uploadUrl = (targetRecordId) => `${apiUrl}/complaints/${complaintId}/seizure-items/${targetRecordId}/media`;
-    const deleteUrl = (attachmentId) => `${apiUrl}/complaints/${complaintId}/seizure-item-media/${attachmentId}`;
-    const downloadUrl = (attachment) => `${apiUrl}/complaints/${complaintId}/seizure-item-media/${attachment?.id}/download`;
+    const uploadUrl = (targetRecordId) => modeKey === 'police_report'
+        ? `${apiUrl}/complaints/${complaintId}/police-reports/${targetRecordId}/media`
+        : `${apiUrl}/complaints/${complaintId}/seizure-items/${targetRecordId}/media`;
+    const deleteUrl = (attachmentId) => modeKey === 'police_report'
+        ? `${apiUrl}/complaints/${complaintId}/police-report-media/${attachmentId}`
+        : `${apiUrl}/complaints/${complaintId}/seizure-item-media/${attachmentId}`;
+    const downloadUrl = (attachment) => modeKey === 'police_report'
+        ? `${apiUrl}/complaints/${complaintId}/police-report-media/${attachment?.id}/download`
+        : `${apiUrl}/complaints/${complaintId}/seizure-item-media/${attachment?.id}/download`;
 
     const openPreview = (file) => {
         if (!apiUrl || !file?.id) return;
@@ -91,7 +118,7 @@ const SeizureAttachmentSection = ({
                 targetRecordId = await onBeforeUpload();
             }
             if (!targetRecordId) {
-                setUploadError('Sila isi maklumat barang kes dahulu sebelum muat naik.');
+                setUploadError(labels.saveFirst);
                 return;
             }
             if (!selectedFiles.length || uploading) return;
@@ -119,7 +146,7 @@ const SeizureAttachmentSection = ({
                 .then((response) => {
                     const media = response?.data?.media || [];
                     updateAttachments(media);
-                    const msg = response?.data?.message || 'Lampiran Barang Kes berjaya dimuat naik.';
+                    const msg = response?.data?.message || labels.uploadSuccess;
                     setUploadMessage(msg);
                     toast.success(msg);
                     setSelectedFiles([]);
@@ -127,7 +154,7 @@ const SeizureAttachmentSection = ({
                     setUploadPopoverOpen(false);
                 })
                 .catch((err) => {
-                    const msg = err?.response?.data?.message || 'Gagal memuat naik lampiran Barang Kes.';
+                    const msg = err?.response?.data?.message || labels.uploadFail;
                     setUploadError(msg);
                     toast.error(msg);
                 })
@@ -138,8 +165,8 @@ const SeizureAttachmentSection = ({
         };
 
         run().catch(() => {
-            setUploadError('Gagal memproses muat naik lampiran Barang Kes.');
-            toast.error('Gagal memproses muat naik lampiran Barang Kes.');
+            setUploadError(labels.uploadProcessFail);
+            toast.error(labels.uploadProcessFail);
         });
     };
 
@@ -147,7 +174,7 @@ const SeizureAttachmentSection = ({
         axios.delete(deleteUrl(attachmentId), { headers })
             .then((response) => {
                 updateAttachments((prev) => prev.filter((item) => item.id !== attachmentId));
-                toast.success(response?.data?.message || 'Lampiran dipadam.');
+                toast.success(response?.data?.message || labels.deleteSuccess);
             })
             .catch(() => {
                 toast.error('Gagal padam lampiran.');
@@ -362,7 +389,7 @@ const SeizureAttachmentSection = ({
                     )}
 
                     {!recordId && !onBeforeUpload && (
-                        <div className="app-detail-note">Simpan laporan dahulu sebelum muat naik lampiran Barang Kes.</div>
+                        <div className="app-detail-note">Simpan laporan dahulu sebelum muat naik lampiran {labels.entity}.</div>
                     )}
                     {uploadError && (
                         <InlineAlert type="error" message={uploadError} dismissible onClose={() => setUploadError('')} />

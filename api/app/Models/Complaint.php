@@ -67,6 +67,11 @@ class Complaint extends Model
         return $this->hasMany(ComplaintSeizureItem::class);
     }
 
+    public function policeReports()
+    {
+        return $this->hasMany(ComplaintPoliceReport::class)->orderBy('id');
+    }
+
     public function appointment()
     {
         return $this->hasOne(Appointment::class);

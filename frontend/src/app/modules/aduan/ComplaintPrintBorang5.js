@@ -107,7 +107,7 @@ const ComplaintPrintBorang5 = () => {
         complaint?.received_by?.name ||
         complaint?.receivedBy?.name ||
         '-';
-    const reportText = String(complaint?.borang5_statement || complaint?.summary || '').trim();
+    const reportTextRaw = String(complaint?.borang5_statement || complaint?.summary || '').trim();
     const reportDate = formatDateDMY(complaint?.complaint_date);
     const reportTime = complaint?.complaint_time ? formatTime12hDot(complaint.complaint_time) : '-';
     const mainStatus = (complaint?.aj_ppa_classification || '').toString().trim().toUpperCase();
@@ -146,6 +146,20 @@ const ComplaintPrintBorang5 = () => {
     const hasOfficerSignerName = String(effectiveOfficerSignerName || '').trim() !== '';
     const signerRequiredTitle = hasOfficerSignerName ? undefined : 'Borang 5 hanya boleh dijana selepas aduan disahkan oleh Pegawai Pengesah.';
     const districtName = complaint?.district_name || complaint?.district?.name || '-';
+    const incidentAddress = String(complaint?.address || '').trim();
+    const reportText = (() => {
+        if (!reportTextRaw) {
+            return '';
+        }
+        if (!incidentAddress) {
+            return reportTextRaw;
+        }
+        const hasLokasiPrefix = /^\s*(LOKASI|LOKASI KEJADIAN|ALAMAT KEJADIAN|ALAMAT LOKASI KEJADIAN)\s*:/i.test(reportTextRaw);
+        if (hasLokasiPrefix) {
+            return reportTextRaw;
+        }
+        return `LOKASI : ${incidentAddress}\n${reportTextRaw}`;
+    })();
 
     const openEmailModal = () => {
         const defaultSubject = `TINDAKAN (${mainStatus || 'Aduan'}) : ${complaint?.reference_no || `Aduan #${id}`}`;

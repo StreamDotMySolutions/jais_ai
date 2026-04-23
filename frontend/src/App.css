@@ -7373,13 +7373,13 @@ body {
 
 .print-form-row {
   display: grid;
-  grid-template-columns: 145px minmax(0, 1fr);
+  grid-template-columns: 175px minmax(0, 1fr);
   column-gap: 1rem;
   align-items: baseline;
 }
 
 .print-form-row-inline {
-  grid-template-columns: 145px 180px 58px 1fr;
+  grid-template-columns: 175px 180px 58px 1fr;
   max-width: 560px;
 }
 

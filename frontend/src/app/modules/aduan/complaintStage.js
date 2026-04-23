@@ -1,5 +1,6 @@
-export const getComplaintStageLabel = (stage) => {
+export const getComplaintStageLabel = (stage, viewerRole = '') => {
     const s = (stage || '').toString().trim();
+    const role = (viewerRole || '').toString().trim().toLowerCase();
     if (!s) return '';
 
     switch (s) {
@@ -12,11 +13,16 @@ export const getComplaintStageLabel = (stage) => {
         case 'disahkan':
             return 'Disahkan';
         case 'dihantar_ke_daerah':
+            if (role === 'pegawai_daerah') {
+                return 'KES BARU';
+            }
             return 'Dihantar ke Daerah';
         case 'dalam_tindakan':
             return 'Tindakan Aduan';
         case 'kiv':
             return 'KIV';
+        case 'laporan_tindakan':
+            return 'Laporan Tindakan Selesai';
         case 'selesai':
             return 'Laporan Tindakan Selesai';
         default:
@@ -36,7 +42,7 @@ export const getPublicComplaintStageLabel = (stage, complaint = {}) => {
     );
     const hasBeenUpdated = Boolean(updatedAt && createdAt && updatedAt !== createdAt);
 
-    if (s === 'selesai') {
+    if (['selesai', 'laporan_tindakan'].includes(s)) {
         return 'Selesai';
     }
 

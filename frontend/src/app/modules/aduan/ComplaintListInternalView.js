@@ -50,6 +50,9 @@ const formatAkSubtypeDisplay = (value) => {
 };
 
 const getExpandedSections = (item) => {
+    const currentStatusDisplay = String(item?.aj_current_status || '').trim() === 'Other'
+        ? (item?.aj_current_status_other || 'Other')
+        : item?.aj_current_status;
     const endDateTime = [item.end_date, (item.end_time || '').toString().slice(0, 5)]
         .filter(Boolean)
         .join(' ');
@@ -109,7 +112,7 @@ const getExpandedSections = (item) => {
             columns: [
                 [
                     ['Klasifikasi', item.aj_ppa_classification],
-                    ['Status Terkini', item.aj_current_status],
+                    ['Status Terkini', currentStatusDisplay],
                     ['Nombor Fail', item.aj_file_no || item.case_register_no],
                     ['Nama PPA Bertanggungjawab', item.pic_user?.name || item.picUser?.name || item.aj_handover_staff?.name || item.ajHandoverStaff?.name],
                     ['Respon On-Call', item.on_call_response || item.aj_on_call_response],
@@ -149,6 +152,7 @@ const getExpandedSections = (item) => {
 };
 
 const ComplaintListInternalView = ({
+    userRole,
     showCaseTabs,
     canCreateComplaint,
     onOpenForm,
@@ -330,15 +334,20 @@ const ComplaintListInternalView = ({
                                 </span>
                                 <span>
                                     <span className="app-status-pill">
-                                        {getComplaintStageLabel(item.current_stage || 'baru')}
+                                        {getComplaintStageLabel(item.current_stage || 'baru', userRole)}
                                     </span>
-                                    {item.case_type === 'AJ' && item.aj_current_status && (
+                                    {(() => {
+                                        const ajCurrentStatusDisplay = String(item?.aj_current_status || '').trim() === 'Other'
+                                            ? (item?.aj_current_status_other || 'Other')
+                                            : item?.aj_current_status;
+                                        return item.case_type === 'AJ' && ajCurrentStatusDisplay ? (
                                         <span className="app-status-stack">
                                             <span className="app-status-pill app-status-pill-soft">
-                                                {item.aj_current_status}
+                                                {ajCurrentStatusDisplay}
                                             </span>
                                         </span>
-                                    )}
+                                        ) : null;
+                                    })()}
                                     {(() => {
                                         const ipStatus = item.case_type === 'AK'
                                             ? (item.ak_ip_status || '')

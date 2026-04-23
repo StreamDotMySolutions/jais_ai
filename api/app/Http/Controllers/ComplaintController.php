@@ -9,6 +9,8 @@ use App\Models\Complaint;
 use App\Models\ComplaintAttachment;
 use App\Models\ComplaintOyd;
 use App\Models\ComplaintOydMedia;
+use App\Models\ComplaintPoliceReport;
+use App\Models\ComplaintPoliceReportMedia;
 use App\Models\ComplaintSeizureItem;
 use App\Models\ComplaintSeizureItemMedia;
 use App\Models\Staff;
@@ -16,6 +18,7 @@ use App\Models\District;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -246,7 +249,7 @@ class ComplaintController extends Controller
         $totalAj = (clone $query)->where('case_type', 'AJ')->count();
         $totalAk = (clone $query)->where('case_type', 'AK')->count();
         $totalKes = (clone $query)->where('is_case', true)->count();
-        $totalSelesai = (clone $query)->where('current_stage', 'selesai')->count();
+        $totalSelesai = (clone $query)->whereIn('current_stage', ['selesai', 'laporan_tindakan'])->count();
 
         $byCaseType = (clone $query)
             ->select('case_type', DB::raw('COUNT(*) as total'))
@@ -1391,6 +1394,8 @@ class ComplaintController extends Controller
             'oyds.media:id,complaint_oyd_id,category,file_name,mime,size,created_at',
             'seizureItems:id,complaint_id,item_no,description,storage',
             'seizureItems.media:id,complaint_seizure_item_id,category,file_name,mime,size,created_at',
+            'policeReports:id,complaint_id,report_no,description,station',
+            'policeReports.media:id,complaint_police_report_id,category,file_name,mime,size,created_at',
             'attachments:id,complaint_id,category,title,file_name,mime,size,created_at',
             'ajDirectiveStaff:id,name,staff_id,ic_number,phone,address,position,department',
             'ajHandoverStaff:id,name,staff_id,ic_number,phone,address,position,department',
@@ -1538,7 +1543,10 @@ class ComplaintController extends Controller
         $reportDate = $formatDateDmy($complaint->complaint_date);
         $reportTime = $formatTime12hDot($complaint->complaint_time);
         $mainStatus = strtoupper(trim((string) ($complaint->aj_ppa_classification ?? '')));
-        $reportText = trim((string) ($complaint->borang5_statement ?: $complaint->summary ?: '-'));
+        $reportText = $this->buildBorang5Narrative(
+            (string) ($complaint->borang5_statement ?: $complaint->summary ?: ''),
+            (string) ($complaint->address ?: '')
+        );
 
         $subjectReference = (string) ($complaint->reference_no ?: ('Aduan #' . $complaint->id));
         $subject = trim((string) ($validated['subject'] ?? '')) ?: "Borang 5 Aduan {$subjectReference}";
@@ -1828,6 +1836,12 @@ class ComplaintController extends Controller
         if (! trim((string) $complaint->aj_current_status)) {
             $missingFields[] = 'Status Terkini';
         }
+        if (
+            trim((string) $complaint->aj_current_status) === 'Other'
+            && trim((string) $complaint->aj_current_status_other) === ''
+        ) {
+            $missingFields[] = 'Status Terkini (Other)';
+        }
         if (! trim((string) $complaint->aj_directive_notes)) {
             $missingFields[] = 'Arahan Tindakan';
         }
@@ -1861,7 +1875,7 @@ class ComplaintController extends Controller
         }
 
         $request->validate([
-            'status' => 'required|string|in:baru,tunggu_pengesahan,menunggu_tindakan_pi,dalam_tindakan,kiv,selesai,disahkan,dihantar_ke_daerah',
+            'status' => 'required|string|in:baru,tunggu_pengesahan,menunggu_tindakan_pi,dalam_tindakan,kiv,selesai,laporan_tindakan,disahkan,dihantar_ke_daerah',
         ]);
 
         $complaint->update($this->stagePayload((string) $request->status));
@@ -1925,6 +1939,34 @@ class ComplaintController extends Controller
 
         if (! $request->filled('approver_staff_id')) {
             return response()->json(['message' => 'Sila pilih Pegawai Pengesah dahulu.'], 422);
+        }
+
+        $classification = strtoupper(trim((string) ($complaint->aj_ppa_classification ?? '')));
+        $offenseId = (int) ($complaint->aj_offense_id ?? 0);
+        $borang5Statement = trim((string) ($complaint->borang5_statement ?? ''));
+        $incidentAddress = trim((string) ($complaint->address ?? ''));
+
+        $missingFields = [];
+        if (! in_array($classification, ['FFA', 'KIV', 'NFA', 'OP'], true)) {
+            $missingFields[] = 'Klasifikasi';
+        }
+        if ($offenseId <= 0) {
+            $missingFields[] = 'Kesalahan Disyaki';
+        }
+        if ($incidentAddress === '') {
+            $missingFields[] = 'Alamat Kejadian';
+        }
+        if ($borang5Statement === '') {
+            $missingFields[] = 'Butiran Aduan (Borang 5)';
+        }
+
+        if (! empty($missingFields)) {
+            return response()->json([
+                'message' => 'Sila lengkapkan dan simpan medan wajib dahulu sebelum Hantar Pengesahan: ' . implode(', ', $missingFields) . '.',
+                'errors' => [
+                    'required_fields' => $missingFields,
+                ],
+            ], 422);
         }
 
         $payload = [];
@@ -2079,17 +2121,27 @@ class ComplaintController extends Controller
             $complaint->update($payload);
         }
 
-        return response()->json([
-            'message' => 'Maklumat aduan dikemaskini.',
-            'data' => $complaint->fresh()->load([
-                'submittedBy:id,name,email,office_type,district_id',
-                'submittedBy.staff',
-                'receivedBy:id,name,email',
-                'approverStaff:id,name,staff_id',
-                'picUser:id,name',
-                'appointment:id,complaint_id,start_at,end_at,status',
-            ]),
+        $freshComplaint = $complaint->fresh()->load([
+            'submittedBy:id,name,email,office_type,district_id',
+            'submittedBy.staff',
+            'receivedBy:id,name,email',
+            'approverStaff:id,name,staff_id',
+            'picUser:id,name',
+            'appointment:id,complaint_id,start_at,end_at,status',
         ]);
+        $autoBorang5EmailMeta = $this->autoSendBorang5EmailAfterMandatorySave($freshComplaint);
+
+        $response = [
+            'message' => 'Maklumat aduan dikemaskini.',
+            'data' => $freshComplaint,
+        ];
+        if ($autoBorang5EmailMeta) {
+            $response['meta'] = [
+                'borang5_auto_email' => $autoBorang5EmailMeta,
+            ];
+        }
+
+        return response()->json($response);
     }
 
     public function pickup(Request $request, Complaint $complaint)
@@ -2296,19 +2348,28 @@ class ComplaintController extends Controller
             'report' => 'required|array',
             'report.oyds' => 'nullable|array',
             'report.seizure_items' => 'nullable|array',
+            'report.police_report_status' => 'nullable|in:ada,tiada',
+            'report.police_reports' => 'nullable|array',
         ]);
 
         $report = $request->report;
         $isNoArrest = ($report['arrest_status'] ?? null) === 'tiada';
+        $isDispatchedToDistrict = (string) $complaint->current_stage === 'dihantar_ke_daerah';
+        $policeReportStatus = (string) ($report['police_report_status'] ?? '');
+        $incomingPoliceReports = $policeReportStatus === 'ada' ? ($report['police_reports'] ?? []) : [];
 
         $hasReportNotes = trim((string) ($report['report_notes'] ?? '')) !== '';
+        if ($isDispatchedToDistrict && ! $hasReportNotes) {
+            return response()->json([
+                'message' => 'Sila isi medan wajib Laporan Tindakan (Laporan) sebelum simpan.',
+            ], 422);
+        }
 
         $complaint->update([
             'aj_arrest_status' => $report['arrest_status'] ?? null,
             'aj_male_count' => $isNoArrest ? null : ($report['male_count'] !== '' ? $report['male_count'] : null),
             'aj_female_count' => $isNoArrest ? null : ($report['female_count'] !== '' ? $report['female_count'] : null),
             'aj_other_count' => $isNoArrest ? null : ($report['other_count'] !== '' ? $report['other_count'] : null),
-            'aj_report_no' => $report['report_no'] ?? null,
             'aj_action_datetime' => $report['action_datetime'] ?? null,
             'aj_report_offense_id' => $report['offense_id'] ?? null,
             'aj_arrest_by' => $isNoArrest ? null : ($report['arrest_by'] ?? null),
@@ -2322,19 +2383,16 @@ class ComplaintController extends Controller
             'handover_at' => $report['handover_at'] ?? null,
             'handover_notes' => $report['handover_notes'] ?? null,
             'aj_seizure_status' => $report['seizure_status'] ?? null,
+            'aj_police_report_status' => $report['police_report_status'] ?? null,
         ]);
 
         // Auto progress stage: after aduan is approved and pegawai daerah completes the report,
-        // mark it as "selesai" (Laporan Tindakan Selesai).
-        if (
-            $hasReportNotes
-            && $user->hasRole('pegawai_daerah')
-            && (string) $complaint->current_stage === 'dihantar_ke_daerah'
-        ) {
-            $complaint->update($this->stagePayload('selesai'));
+        // mark it as "laporan_tindakan" (Laporan Tindakan Selesai).
+        if ($hasReportNotes && $isDispatchedToDistrict) {
+            $complaint->update($this->stagePayload('laporan_tindakan'));
         }
 
-        DB::transaction(function () use ($complaint, $report) {
+        DB::transaction(function () use ($complaint, $report, $incomingPoliceReports) {
             $existingOyds = ComplaintOyd::where('complaint_id', $complaint->id)
                 ->get()
                 ->keyBy('id');
@@ -2427,17 +2485,82 @@ class ComplaintController extends Controller
                     'storage' => $row['storage'] ?? null,
                 ]);
             }
+
+            $existingReports = ComplaintPoliceReport::where('complaint_id', $complaint->id)
+                ->with('media')
+                ->get()
+                ->keyBy('id');
+            $incomingReports = $incomingPoliceReports;
+            $incomingReportIds = collect($incomingReports)
+                ->pluck('id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            foreach ($existingReports as $existingReport) {
+                if (! in_array((int) $existingReport->id, $incomingReportIds, true)) {
+                    foreach ($existingReport->media as $media) {
+                        if ($media->path) {
+                            Storage::disk($media->disk ?: 'local')->delete($media->path);
+                        }
+                        $media->delete();
+                    }
+                    $existingReport->delete();
+                }
+            }
+
+            foreach ($incomingReports as $row) {
+                $rowId = isset($row['id']) && $row['id'] !== '' ? (int) $row['id'] : null;
+                $hasValue = collect([
+                    $row['report_no'] ?? null,
+                    $row['description'] ?? null,
+                    $row['station'] ?? null,
+                ])->contains(fn ($value) => trim((string) $value) !== '');
+
+                if ($rowId && $existingReports->has($rowId)) {
+                    $existingReports->get($rowId)->update([
+                        'report_no' => $row['report_no'] ?? null,
+                        'description' => $row['description'] ?? null,
+                        'station' => $row['station'] ?? null,
+                    ]);
+                    continue;
+                }
+
+                if (! $hasValue) {
+                    continue;
+                }
+
+                ComplaintPoliceReport::create([
+                    'complaint_id' => $complaint->id,
+                    'report_no' => $row['report_no'] ?? null,
+                    'description' => $row['description'] ?? null,
+                    'station' => $row['station'] ?? null,
+                ]);
+            }
         });
 
-        return response()->json([
-            'message' => 'AJ report updated',
-            'data' => $complaint->load([
+        $freshComplaint = $complaint->fresh();
+        $autoLaporanEmailMeta = $this->autoSendLaporanTindakanEmailAfterSave($freshComplaint);
+
+        $response = [
+            'message' => 'Laporan pemeriksaan dikemaskini.',
+            'data' => $freshComplaint->load([
                 'oyds:id,complaint_id,name,id_number,investigator_name,file_no',
                 'oyds.media:id,complaint_oyd_id,category,file_name,mime,size,created_at',
                 'seizureItems:id,complaint_id,item_no,description,storage',
                 'seizureItems.media:id,complaint_seizure_item_id,category,file_name,mime,size,created_at',
+                'policeReports:id,complaint_id,report_no,description,station',
+                'policeReports.media:id,complaint_police_report_id,category,file_name,mime,size,created_at',
             ]),
-        ]);
+        ];
+
+        if ($autoLaporanEmailMeta) {
+            $response['meta'] = [
+                'laporan_tindakan_auto_email' => $autoLaporanEmailMeta,
+            ];
+        }
+
+        return response()->json($response);
     }
 
     public function updateAjActionReport(Request $request, Complaint $complaint)
@@ -2459,6 +2582,7 @@ class ComplaintController extends Controller
             'report.handover_at' => 'nullable|date',
             'report.handover_notes' => 'nullable|string|max:20000',
             'report.current_status' => 'nullable|string|max:255',
+            'report.current_status_other' => 'nullable|string|max:255',
             'report.case_register_no' => 'nullable|string|max:255',
             'report.op_category' => 'nullable|string|max:255',
             'report.op_case_status' => 'nullable|string|max:255',
@@ -2472,6 +2596,23 @@ class ComplaintController extends Controller
         ]);
 
         $report = $validated['report'];
+        $currentStatus = trim((string) ($report['current_status'] ?? ''));
+        $currentStatusOther = trim((string) ($report['current_status_other'] ?? ''));
+        if ($currentStatus === 'Other' && $currentStatusOther === '') {
+            return response()->json([
+                'message' => 'Sila isi maklumat Status Terkini (Other).',
+                'errors' => [
+                    'current_status_other' => ['Sila isi maklumat Status Terkini (Other).'],
+                ],
+            ], 422);
+        }
+        $submittedCaseRegisterNo = trim((string) ($report['case_register_no'] ?? ''));
+        $effectiveCaseRegisterNo = $submittedCaseRegisterNo !== ''
+            ? $submittedCaseRegisterNo
+            : trim((string) ($complaint->case_register_no ?? ''));
+        if ($effectiveCaseRegisterNo === '') {
+            $effectiveCaseRegisterNo = $this->buildCaseRegisterNoFromComplaint($complaint);
+        }
         $historyEntries = collect($report['history_entries'] ?? [])
             ->map(function ($row, $index) {
                 $classification = strtoupper(trim((string) ($row['classification'] ?? '')));
@@ -2497,7 +2638,7 @@ class ComplaintController extends Controller
 
         $latestClassification = $historyEntries->last()['classification'] ?? $complaint->aj_ppa_classification;
 
-        DB::transaction(function () use ($complaint, $report, $historyEntries, $latestClassification) {
+        DB::transaction(function () use ($complaint, $report, $historyEntries, $latestClassification, $effectiveCaseRegisterNo, $currentStatus, $currentStatusOther) {
             $complaint->update([
                 'aj_directive_staff_id' => $report['directive_staff_id'] ?? null,
                 'aj_handover_staff_id' => $report['handover_staff_id'] ?? null,
@@ -2505,8 +2646,11 @@ class ComplaintController extends Controller
                 'aj_directive_notes' => $report['directive_notes'] ?? null,
                 'handover_at' => $report['handover_at'] ?? null,
                 'handover_notes' => $report['handover_notes'] ?? null,
-                'aj_current_status' => $report['current_status'] ?? null,
-                'case_register_no' => $report['case_register_no'] ?? null,
+                'aj_current_status' => $currentStatus !== '' ? $currentStatus : null,
+                'aj_current_status_other' => $currentStatus === 'Other'
+                    ? ($currentStatusOther !== '' ? $currentStatusOther : null)
+                    : null,
+                'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : null,
                 'aj_op_category' => $report['op_category'] ?? null,
                 'aj_op_case_status' => $report['op_case_status'] ?? null,
                 'aj_op_notes' => $report['op_notes'] ?? null,
@@ -2735,6 +2879,133 @@ class ComplaintController extends Controller
             'message' => 'Barang kes dicipta.',
             'data' => $item->fresh(['media:id,complaint_seizure_item_id,category,file_name,mime,size,created_at']),
         ]);
+    }
+
+    public function createPoliceReport(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $data = $request->validate([
+            'report_no' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:1000',
+            'station' => 'nullable|string|max:255',
+        ]);
+
+        $report = ComplaintPoliceReport::create([
+            'complaint_id' => $complaint->id,
+            'report_no' => $data['report_no'] ?? null,
+            'description' => $data['description'] ?? null,
+            'station' => $data['station'] ?? null,
+        ]);
+
+        return response()->json([
+            'message' => 'Report polis dicipta.',
+            'data' => $report->fresh(['media:id,complaint_police_report_id,category,file_name,mime,size,created_at']),
+        ]);
+    }
+
+    public function uploadPoliceReportMedia(Request $request, Complaint $complaint, ComplaintPoliceReport $report)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $report->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Report polis tidak sah untuk aduan ini.'], 422);
+        }
+
+        $request->validate([
+            'category' => 'nullable|in:ic,bukti,lain_lain',
+            'files' => 'required|array|min:1',
+            'files.*' => 'file|max:51200|mimes:jpg,jpeg,png,webp,pdf',
+        ]);
+
+        $category = $request->input('category', 'lain_lain');
+        $disk = 'local';
+        $folder = "complaints/police-reports/{$complaint->id}/{$report->id}";
+        $files = $request->file('files', []);
+        foreach ($files as $file) {
+            $storedName = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs($folder, $storedName, $disk);
+
+            ComplaintPoliceReportMedia::create([
+                'complaint_police_report_id' => $report->id,
+                'category' => $category,
+                'file_name' => $file->getClientOriginalName(),
+                'stored_name' => $storedName,
+                'path' => $path,
+                'disk' => $disk,
+                'mime' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by_user_id' => $user->id,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Lampiran Report Polis berjaya dimuat naik.',
+            'media' => $report->fresh()->media()->orderByDesc('id')->get([
+                'id', 'complaint_police_report_id', 'category', 'file_name', 'mime', 'size', 'created_at',
+            ]),
+            'report' => $report->fresh(['media:id,complaint_police_report_id,category,file_name,mime,size,created_at']),
+        ]);
+    }
+
+    public function deletePoliceReportMedia(Request $request, Complaint $complaint, ComplaintPoliceReportMedia $media)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $report = ComplaintPoliceReport::find($media->complaint_police_report_id);
+        if (! $report || (int) $report->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Lampiran tidak sah untuk aduan ini.'], 422);
+        }
+
+        if ($media->path) {
+            Storage::disk($media->disk ?: 'local')->delete($media->path);
+        }
+        $media->delete();
+
+        return response()->json(['message' => 'Lampiran Report Polis dipadam.']);
+    }
+
+    public function downloadPoliceReportMedia(Request $request, Complaint $complaint, ComplaintPoliceReportMedia $media)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $report = ComplaintPoliceReport::find($media->complaint_police_report_id);
+        if (! $report || (int) $report->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Lampiran tidak sah untuk aduan ini.'], 422);
+        }
+        if (! $media->path) {
+            return response()->json(['message' => 'Fail lampiran tidak ditemui.'], 404);
+        }
+
+        $disk = $media->disk ?: 'local';
+        if (! Storage::disk($disk)->exists($media->path)) {
+            return response()->json(['message' => 'Fail lampiran tidak ditemui.'], 404);
+        }
+
+        return Storage::disk($disk)->download($media->path, $media->file_name);
     }
 
     public function uploadSeizureItemMedia(Request $request, Complaint $complaint, ComplaintSeizureItem $item)
@@ -3417,6 +3688,372 @@ class ComplaintController extends Controller
         return Storage::disk($disk)->download($attachment->path, $downloadName);
     }
 
+    private function buildCaseRegisterNoFromComplaint(Complaint $complaint): string
+    {
+        $referenceNo = trim((string) ($complaint->reference_no ?? ''));
+        $district = trim((string) ($complaint->district_name ?? ''));
+
+        // Expected reference format: AJ-Klang / 2026 / 04 / 0006
+        $parts = collect(explode('/', $referenceNo))
+            ->map(fn ($part) => trim((string) $part))
+            ->filter(fn ($part) => $part !== '')
+            ->values();
+
+        $head = (string) ($parts->get(0) ?? '');
+        $year = (string) ($parts->get(1) ?? '');
+        $month = (string) ($parts->get(2) ?? '');
+        $runningNo = (string) ($parts->get(3) ?? '');
+
+        if ($district === '') {
+            $district = preg_replace('/^(AJ|AK)\s*-\s*/i', '', $head) ?: '';
+            $district = trim((string) $district);
+        }
+
+        if ($year === '') {
+            $year = trim((string) ($complaint->complaint_year ?? ''));
+        }
+        if ($month === '') {
+            $month = trim((string) (substr((string) ($complaint->complaint_date ?? ''), 5, 2)));
+        }
+        if ($runningNo === '' && $referenceNo !== '') {
+            if (preg_match('/(\d{4})$/', $referenceNo, $matches)) {
+                $runningNo = $matches[1];
+            }
+        }
+
+        $district = $district !== '' ? $district : '-';
+        $year = $year !== '' ? $year : '-';
+        $month = $month !== '' ? $month : '-';
+        $runningNo = $runningNo !== '' ? $runningNo : '-';
+
+        return "KES-{$district} / {$year} / {$month} / {$runningNo}";
+    }
+
+    private function buildBorang5Narrative(string $rawText, string $incidentAddress): string
+    {
+        $text = trim($rawText);
+        $address = trim($incidentAddress);
+
+        if ($text === '') {
+            return '-';
+        }
+
+        if ($address === '') {
+            return $text;
+        }
+
+        $hasLokasiPrefix = preg_match('/^\s*(LOKASI|LOKASI KEJADIAN|ALAMAT KEJADIAN|ALAMAT LOKASI KEJADIAN)\s*:/i', $text) === 1;
+        if ($hasLokasiPrefix) {
+            return $text;
+        }
+
+        return "LOKASI : {$address}\n{$text}";
+    }
+
+    private function autoSendBorang5EmailAfterMandatorySave(Complaint $complaint): ?array
+    {
+        if (strtoupper((string) ($complaint->case_type ?: 'AJ')) !== 'AJ') {
+            return null;
+        }
+
+        if (! empty($complaint->borang5_auto_emailed_at)) {
+            return [
+                'sent' => false,
+                'reason' => 'already_sent',
+            ];
+        }
+
+        $classification = strtoupper(trim((string) ($complaint->aj_ppa_classification ?? '')));
+        $hasMandatory = in_array($classification, ['FFA', 'KIV', 'NFA', 'OP'], true)
+            && ! empty($complaint->aj_offense_id)
+            && trim((string) ($complaint->borang5_statement ?? '')) !== '';
+        if (! $hasMandatory) {
+            return null;
+        }
+
+        $rawRecipients = trim((string) env('BORANG5_AUTO_EMAIL_TO', ''));
+        if ($rawRecipients === '') {
+            return null;
+        }
+
+        $emails = collect(preg_split('/[;,]+/', $rawRecipients))
+            ->map(fn ($email) => trim((string) $email))
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->values()
+            ->all();
+        if (empty($emails)) {
+            return [
+                'sent' => false,
+                'reason' => 'invalid_recipient_config',
+            ];
+        }
+
+        $complaint->loadMissing([
+            'submittedBy:id,name,email',
+            'submittedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'receivedBy:id,name,email',
+            'receivedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'approverStaff:id,name,staff_id',
+        ]);
+
+        $channel = strtolower(trim((string) ($complaint->channel ?? '')));
+        $isPhysicalInformant = in_array($channel, ['walkin', 'walk-in', 'kaunter'], true);
+
+        $receiverStaff = $complaint->receivedBy?->staff ?: $complaint->submittedBy?->staff;
+        $issuerName = $complaint->submittedBy?->staff?->name
+            ?: $complaint->submittedBy?->name
+            ?: $complaint->receivedBy?->name
+            ?: '-';
+
+        $officerInformantName = $receiverStaff?->name ?: $complaint->receivedBy?->name ?: $issuerName;
+        $officerInformantIdNumber = $receiverStaff?->staff_id ?: $receiverStaff?->ic_number ?: '-';
+        $officerInformantOccupation = $receiverStaff?->position ?: 'Pegawai Penguatkuasa Agama';
+        $officerInformantContactNumber = $receiverStaff?->phone ?: '-';
+        $officerInformantAddress = $receiverStaff?->office_address ?: $receiverStaff?->address ?: '-';
+
+        $effectiveInformantName = $isPhysicalInformant
+            ? ($complaint->complainant_name ?: '-')
+            : $officerInformantName;
+        $effectiveInformantIdNumber = $isPhysicalInformant
+            ? ($complaint->identification_number ?: '-')
+            : $officerInformantIdNumber;
+        $effectiveInformantOccupation = $isPhysicalInformant
+            ? ($complaint->complainant_occupation ?: '-')
+            : $officerInformantOccupation;
+        $effectiveInformantContactNumber = $isPhysicalInformant
+            ? ($complaint->contact_number ?: '-')
+            : $officerInformantContactNumber;
+        $effectiveInformantAddress = $isPhysicalInformant
+            ? ($complaint->address ?: '-')
+            : $officerInformantAddress;
+
+        $approverSignerName = trim((string) ($complaint->approverStaff?->name ?: ''));
+        $effectiveOfficerSignerName = strtoupper((string) $approverSignerName);
+        $officerSignerPendingNote = ($approverSignerName === '')
+            ? '(Aduan belum disahkan oleh Pegawai Pengesah)'
+            : '';
+
+        $formatDateDmy = static function ($value): string {
+            if (! $value) return '-';
+            try {
+                return Carbon::parse($value)->format('d-m-Y');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+
+        $formatTime12hDot = static function ($value): string {
+            if (! $value) return '-';
+            try {
+                return Carbon::parse($value)->format('g.i A');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+
+        $reportDate = $formatDateDmy($complaint->complaint_date);
+        $reportTime = $formatTime12hDot($complaint->complaint_time);
+        $mainStatus = strtoupper(trim((string) ($complaint->aj_ppa_classification ?? '')));
+        $reportText = $this->buildBorang5Narrative(
+            (string) ($complaint->borang5_statement ?: $complaint->summary ?: ''),
+            (string) ($complaint->address ?: '')
+        );
+        $subjectReference = (string) ($complaint->reference_no ?: ('Aduan #' . $complaint->id));
+        $subject = "Borang 5 Aduan {$subjectReference}";
+        $bodyPlainText = "Assalamualaikum\n\n"
+            . "Aduan berstatus " . ($mainStatus !== '' ? $mainStatus : '-') . " untuk tindakan daerah "
+            . (string) ($complaint->district_name ?: '-') . ".\n"
+            . "Sila pastikan aduan diambil tindakan mengikut tempoh yang ditetapkan.\n\n"
+            . "Muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail Aduan.\n\n"
+            . "Terima kasih.";
+        $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
+            . nl2br(e($bodyPlainText))
+            . '</div>';
+        $pdfBinary = Pdf::loadView('pdf.complaints.borang5', [
+            'referenceNo' => $subjectReference,
+            'reportDate' => $reportDate,
+            'reportTime' => $reportTime,
+            'informantName' => (string) $effectiveInformantName,
+            'informantIdNumber' => (string) $effectiveInformantIdNumber,
+            'informantOccupation' => (string) $effectiveInformantOccupation,
+            'informantContactNumber' => (string) $effectiveInformantContactNumber,
+            'informantAddress' => (string) $effectiveInformantAddress,
+            'reportText' => (string) $reportText,
+            'officerSignerName' => (string) $effectiveOfficerSignerName,
+            'officerSignerPendingNote' => (string) $officerSignerPendingNote,
+            'mainStatus' => (string) $mainStatus,
+        ])
+            ->setPaper('a4', 'portrait')
+            ->output();
+        $safeReference = preg_replace('/[^A-Za-z0-9\-_]+/', '_', $subjectReference) ?: ('aduan_' . $complaint->id);
+        $pdfFileName = 'borang5_' . $safeReference . '.pdf';
+
+        try {
+            Mail::send([], [], function ($message) use ($emails, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($emails)
+                    ->subject($subject)
+                    ->html($html)
+                    ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
+            });
+
+            $complaint->forceFill([
+                'borang5_auto_emailed_at' => now(),
+            ])->save();
+
+            return [
+                'sent' => true,
+                'to' => $emails,
+                'subject' => $subject,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Auto Borang 5 email failed', [
+                'complaint_id' => $complaint->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'sent' => false,
+                'reason' => 'send_failed',
+            ];
+        }
+    }
+
+    private function autoSendLaporanTindakanEmailAfterSave(Complaint $complaint): ?array
+    {
+        if (strtoupper((string) ($complaint->case_type ?: 'AJ')) !== 'AJ') {
+            return null;
+        }
+
+        if (! empty($complaint->laporan_tindakan_auto_emailed_at)) {
+            return [
+                'sent' => false,
+                'reason' => 'already_sent',
+            ];
+        }
+
+        if (trim((string) ($complaint->aj_report_notes ?? '')) === '') {
+            return null;
+        }
+
+        $rawRecipients = trim((string) env('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', ''));
+        if ($rawRecipients === '') {
+            return null;
+        }
+
+        $emails = collect(preg_split('/[;,]+/', $rawRecipients))
+            ->map(fn ($email) => trim((string) $email))
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->values()
+            ->all();
+        if (empty($emails)) {
+            return [
+                'sent' => false,
+                'reason' => 'invalid_recipient_config',
+            ];
+        }
+
+        $complaint->loadMissing([
+            'submittedBy:id,name',
+            'submittedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'receivedBy:id,name',
+            'receivedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'ajDirectiveStaff:id,name',
+            'ajHandoverStaff:id,name,staff_id,ic_number,phone,address,position,department',
+            'picUser:id,name',
+            'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note',
+        ]);
+
+        $formatDateDmyDash = static function ($value): string {
+            if (! $value) return '-';
+            try {
+                return Carbon::parse($value)->format('d-m-Y');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+        $formatTime12hDot = static function ($value): string {
+            if (! $value) return '-';
+            try {
+                $dt = Carbon::parse($value);
+                return $dt->format('g.i A');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+        $tarikhMasa = $complaint->aj_directive_at
+            ?: $complaint->handover_at
+            ?: $complaint->aj_statement_datetime
+            ?: $complaint->aj_action_datetime
+            ?: trim((string) (($complaint->complaint_date ?: '') . ' ' . ($complaint->complaint_time ?: '')));
+        $reportDate = $formatDateDmyDash($tarikhMasa);
+        $reportTime = $formatTime12hDot($tarikhMasa);
+
+        $handoverStaff = $complaint->ajHandoverStaff;
+        $fallbackStaff = $complaint->receivedBy?->staff ?: $complaint->submittedBy?->staff;
+        $officerName = $handoverStaff?->name ?: $complaint->picUser?->name ?: $fallbackStaff?->name ?: '-';
+        $officerIdNo = $handoverStaff?->staff_id ?: $handoverStaff?->ic_number ?: $fallbackStaff?->staff_id ?: $fallbackStaff?->ic_number ?: '-';
+        $officerJob = $handoverStaff?->position ?: $fallbackStaff?->position ?: '-';
+        $officerPhone = $handoverStaff?->phone ?: $fallbackStaff?->phone ?: '-';
+        $officerAddress = $handoverStaff?->address ?: $handoverStaff?->department ?: $fallbackStaff?->address ?: $fallbackStaff?->department ?: '-';
+        $reportParagraph = strtoupper(trim((string) ($complaint->aj_report_notes ?? '')));
+        $noDaftar = trim((string) ($complaint->case_register_no ?? '')) !== ''
+            ? trim((string) $complaint->case_register_no)
+            : $this->buildCaseRegisterNoFromComplaint($complaint);
+
+        $subject = 'Laporan Tindakan : ' . ($complaint->case_register_no ?: $complaint->reference_no ?: ('Aduan #' . $complaint->id));
+        $bodyPlainText = "Assalamualaikum\n\n"
+            . "Laporan Tindakan bagi daerah " . ($complaint->district_name ?: '-') . " telah diperolehi.\n\n"
+            . "Sila muat turun salinan Laporan Tindakan di lampiran sebagai simpanan rekod di Fail KES.\n\n"
+            . "Terima kasih.";
+        $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
+            . nl2br(e($bodyPlainText))
+            . '</div>';
+
+        $pdfBinary = Pdf::loadView('pdf.complaints.laporan-tindakan', [
+            'noDaftar' => (string) ($noDaftar ?: '-'),
+            'reportDate' => (string) ($reportDate ?: '-'),
+            'reportTime' => (string) ($reportTime ?: '-'),
+            'officerName' => (string) ($officerName ?: '-'),
+            'officerIdNo' => (string) ($officerIdNo ?: '-'),
+            'officerJob' => (string) ($officerJob ?: '-'),
+            'officerPhone' => (string) ($officerPhone ?: '-'),
+            'officerAddress' => (string) ($officerAddress ?: '-'),
+            'reportParagraph' => (string) ($reportParagraph !== '' ? $reportParagraph : 'LAPORAN MASIH BELUM DIISI'),
+        ])->setPaper('a4', 'portrait')->output();
+
+        $safeReference = preg_replace('/[^A-Za-z0-9\-_]+/', '_', (string) ($complaint->reference_no ?: ('aduan_' . $complaint->id))) ?: ('aduan_' . $complaint->id);
+        $pdfFileName = 'laporan_tindakan_' . $safeReference . '.pdf';
+
+        try {
+            Mail::send([], [], function ($message) use ($emails, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($emails)
+                    ->subject($subject)
+                    ->html($html)
+                    ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
+            });
+
+            $complaint->forceFill([
+                'laporan_tindakan_auto_emailed_at' => now(),
+            ])->save();
+
+            return [
+                'sent' => true,
+                'to' => $emails,
+                'subject' => $subject,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Auto Laporan Tindakan email failed', [
+                'complaint_id' => $complaint->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'sent' => false,
+                'reason' => 'send_failed',
+            ];
+        }
+    }
+
     private function stagePayload(string $stage): array
     {
         $payload = ['current_stage' => $stage];
@@ -3446,6 +4083,7 @@ class ComplaintController extends Controller
             'menunggu_tindakan_pi' => ['disahkan', 'dalam_tindakan'],
             'dihantar_ke_daerah' => ['disahkan', 'dalam_tindakan'],
             'disahkan' => ['dalam_tindakan'],
+            'laporan_tindakan' => ['selesai'],
             default => [],
         };
 

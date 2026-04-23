@@ -94,15 +94,21 @@ const ComplaintPrintLaporanTindakan = () => {
         `${complaint?.complaint_date || ''} ${complaint?.complaint_time || ''}`.trim();
 
     const noDaftar = (() => {
-        const district = complaint?.district_name ? String(complaint.district_name) : '';
-        const year = complaint?.complaint_year ? String(complaint.complaint_year) : '';
-        const no = complaint?.case_register_no || complaint?.reference_no || complaint?.id;
-        const prefix = 'KES';
-        if (!district && !year) {
-            return String(no || '-');
-        }
-        // Example: "KES - Gombak / 27 / 2026"
-        return `${prefix} - ${district || '-'} / ${no || '-'} / ${year || '-'}`;
+        const referenceNo = String(complaint?.reference_no || '').trim();
+        const normalizedDistrict = String(complaint?.district_name || '').trim();
+        const normalizedYear = String(complaint?.complaint_year || '').trim();
+        const dateMonth = String(complaint?.complaint_date || '').slice(5, 7);
+
+        // Expected reference format: AJ-Klang / 2026 / 04 / 0006
+        const parts = referenceNo.split('/').map((part) => part.trim()).filter(Boolean);
+        const head = parts[0] || '';
+        const parsedDistrict = head.replace(/^(AJ|AK)\s*-\s*/i, '').trim();
+        const year = parts[1] || normalizedYear || '-';
+        const month = parts[2] || dateMonth || '-';
+        const runningNo = parts[3] || '-';
+        const district = parsedDistrict || normalizedDistrict || '-';
+
+        return `KES-${district} / ${year} / ${month} / ${runningNo}`;
     })();
 
     const officer = complaint?.aj_handover_staff || null;

@@ -212,6 +212,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/seizure-items', [App\Http\Controllers\ComplaintController::class, 'createSeizureItem'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/police-reports', [App\Http\Controllers\ComplaintController::class, 'createPoliceReport'])
+        ->whereNumber('complaint');
     Route::put('/complaints/{complaint}/oyds/{oyd}', [App\Http\Controllers\ComplaintController::class, 'updateOyd'])
         ->whereNumber('complaint')
         ->whereNumber('oyd');
@@ -235,6 +237,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/seizure-items/{item}/media', [App\Http\Controllers\ComplaintController::class, 'uploadSeizureItemMedia'])
         ->whereNumber('complaint')
         ->whereNumber('item');
+    Route::post('/complaints/{complaint}/police-reports/{report}/media', [App\Http\Controllers\ComplaintController::class, 'uploadPoliceReportMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('report');
     Route::get('/complaints/{complaint}/attachments/{attachment}/download', [App\Http\Controllers\ComplaintController::class, 'downloadAttachment'])
         ->whereNumber('complaint')
         ->whereNumber('attachment')
@@ -242,7 +247,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/complaints/{complaint}/seizure-item-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteSeizureItemMedia'])
         ->whereNumber('complaint')
         ->whereNumber('media');
+    Route::delete('/complaints/{complaint}/police-report-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deletePoliceReportMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('media');
     Route::get('/complaints/{complaint}/seizure-item-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadSeizureItemMedia'])
+        ->whereNumber('complaint')
+        ->whereNumber('media');
+    Route::get('/complaints/{complaint}/police-report-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadPoliceReportMedia'])
         ->whereNumber('complaint')
         ->whereNumber('media');
     Route::post('/complaints/{complaint}/ak', [App\Http\Controllers\ComplaintController::class, 'updateAkPayload'])

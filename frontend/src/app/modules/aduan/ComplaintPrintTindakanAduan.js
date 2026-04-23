@@ -110,7 +110,9 @@ const ComplaintPrintTindakanAduan = () => {
             time: row?.action_time ? formatTimeMalay(row.action_time) : '-',
             note: row?.note || '-',
         }));
-    const currentStatus = complaint?.aj_current_status || getComplaintStageLabel(complaint?.current_stage || 'baru');
+    const currentStatus = (String(complaint?.aj_current_status || '').trim() === 'Other')
+        ? (complaint?.aj_current_status_other || 'Other')
+        : (complaint?.aj_current_status || getComplaintStageLabel(complaint?.current_stage || 'baru'));
     const districtDisplay = complaint?.district_name || complaint?.district?.name || '-';
     const caseRegisterNo = complaint?.case_register_no || '-';
     const subjectCaseNo = caseRegisterNo !== '-' ? `KES- ${districtDisplay} / ${caseRegisterNo} / ${complaint?.complaint_year || '-'}` : (complaint?.reference_no || `Aduan #${id}`);
