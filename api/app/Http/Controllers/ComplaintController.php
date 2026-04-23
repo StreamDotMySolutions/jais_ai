@@ -1418,6 +1418,32 @@ class ComplaintController extends Controller
                 ->where('id', $complaint->classification_id)
                 ->value('code');
         }
+
+        $offenseIds = array_values(array_filter([
+            (int) ($complaint->ak_offense_id ?? 0),
+            (int) ($complaint->aj_offense_id ?? 0),
+            (int) ($complaint->aj_report_offense_id ?? 0),
+        ]));
+        $offenseMap = collect();
+        if (! empty($offenseIds)) {
+            $offenseMap = DB::table('ref_offenses')
+                ->whereIn('id', array_unique($offenseIds))
+                ->select('id', 'code', 'section', 'name')
+                ->get()
+                ->keyBy('id');
+        }
+
+        $akOffense = $offenseMap->get((int) ($complaint->ak_offense_id ?? 0));
+        $ajOffense = $offenseMap->get((int) ($complaint->aj_offense_id ?? 0));
+        $ajReportOffense = $offenseMap->get((int) ($complaint->aj_report_offense_id ?? 0));
+
+        $complaint->setAttribute('ak_offense', $akOffense);
+        $complaint->setAttribute('aj_offense', $ajOffense);
+        $complaint->setAttribute('offense', $ajReportOffense ?: $ajOffense ?: $akOffense);
+        $complaint->setAttribute('ak_offense_label', $this->formatOffenseLabel($akOffense));
+        $complaint->setAttribute('aj_offense_label', $this->formatOffenseLabel($ajOffense));
+        $complaint->setAttribute('offense_label', $this->formatOffenseLabel($ajReportOffense ?: $ajOffense ?: $akOffense));
+
         $isAssignedApprover = false;
         if ($user && $complaint->approverStaff) {
             if ($user->staff && $complaint->approver_staff_id) {
@@ -1450,6 +1476,21 @@ class ComplaintController extends Controller
                 'is_assigned_approver' => $isAssignedApprover,
             ],
         ]);
+    }
+
+    private function formatOffenseLabel($offense): string
+    {
+        if (! $offense) {
+            return '';
+        }
+
+        $code = trim((string) ($offense->code ?? ''));
+        $section = trim((string) ($offense->section ?? ''));
+        $name = trim((string) ($offense->name ?? ''));
+        $left = trim(implode(' ', array_filter([$code, $section])));
+        $label = trim(implode(' - ', array_filter([$left, $name])));
+
+        return $label;
     }
 
     public function emailBorang5(Request $request, Complaint $complaint)
@@ -1509,14 +1550,10 @@ class ComplaintController extends Controller
             : $officerInformantAddress;
 
         $approverSignerName = trim((string) ($complaint->approverStaff?->name ?: ''));
-        $akOfficerSignerName = trim((string) (
-            $complaint->receivedBy?->name
-            ?: $receiverStaff?->name
-            ?: ''
-        ));
+        // AK Borang 5: do not auto-fill officer signer with receiver/admin fallback.
         $effectiveOfficerSignerName = strtoupper((string) (
             $complaint->case_type === 'AK'
-                ? $akOfficerSignerName
+                ? ''
                 : $approverSignerName
         ));
         $officerSignerPendingNote = (strtoupper((string) ($complaint->case_type ?: 'AJ')) === 'AJ' && $approverSignerName === '')
@@ -3696,6 +3733,82 @@ class ComplaintController extends Controller
         return Storage::disk($disk)->download($attachment->path, $downloadName);
     }
 
+    public function uploadAttachment(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'files' => 'required|array|min:1|max:10',
+            'files.*' => 'file|max:51200|mimes:pdf,jpg,jpeg,png,doc,docx',
+            'category' => 'nullable|string|max:50',
+        ]);
+
+        $uploaded = [];
+        foreach ($request->file('files', []) as $file) {
+            $path = $file->store("complaints/{$complaint->id}/attachments", 'local');
+            $attachment = ComplaintAttachment::create([
+                'complaint_id' => $complaint->id,
+                'category' => trim((string) ($validated['category'] ?? '')) ?: 'document',
+                'title' => null,
+                'file_name' => $file->getClientOriginalName(),
+                'path' => $path,
+                'disk' => 'local',
+                'mime' => $file->getMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by_user_id' => $user->id,
+            ]);
+
+            $uploaded[] = [
+                'id' => $attachment->id,
+                'complaint_id' => $attachment->complaint_id,
+                'category' => $attachment->category,
+                'file_name' => $attachment->title ?: $attachment->file_name,
+                'mime' => $attachment->mime,
+                'size' => $attachment->size,
+                'created_at' => optional($attachment->created_at)?->toDateTimeString(),
+                'download_url' => route('complaints.attachments.download', [
+                    'complaint' => $complaint->id,
+                    'attachment' => $attachment->id,
+                ]),
+            ];
+        }
+
+        return response()->json([
+            'message' => 'Lampiran berjaya dimuat naik.',
+            'data' => $uploaded,
+        ]);
+    }
+
+    public function deleteAttachment(Request $request, Complaint $complaint, ComplaintAttachment $attachment)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $attachment->complaint_id !== (int) $complaint->id) {
+            return response()->json(['message' => 'Lampiran tidak sah untuk aduan ini.'], 404);
+        }
+
+        $disk = $attachment->disk ?: 'local';
+        if ($attachment->path && Storage::disk($disk)->exists($attachment->path)) {
+            Storage::disk($disk)->delete($attachment->path);
+        }
+        $attachment->delete();
+
+        return response()->json([
+            'message' => 'Lampiran dipadam.',
+        ]);
+    }
+
     private function buildCaseRegisterNoFromComplaint(Complaint $complaint): string
     {
         $referenceNo = trim((string) ($complaint->reference_no ?? ''));
@@ -3846,8 +3959,12 @@ class ComplaintController extends Controller
             : $officerInformantAddress;
 
         $approverSignerName = trim((string) ($complaint->approverStaff?->name ?: ''));
-        $effectiveOfficerSignerName = strtoupper((string) $approverSignerName);
-        $officerSignerPendingNote = ($approverSignerName === '')
+        $effectiveOfficerSignerName = strtoupper((string) (
+            $complaint->case_type === 'AK'
+                ? ''
+                : $approverSignerName
+        ));
+        $officerSignerPendingNote = (strtoupper((string) ($complaint->case_type ?: 'AJ')) === 'AJ' && $approverSignerName === '')
             ? '(Aduan belum disahkan oleh Pegawai Pengesah)'
             : '';
 

@@ -138,20 +138,18 @@ const ComplaintPrintBorang5 = () => {
         complaint?.approverStaff?.name ||
         ''
     ).trim();
-    const akOfficerSignerName = String(
-        complaint?.received_by?.name ||
-        complaint?.receivedBy?.name ||
-        receiverStaff?.name ||
-        ''
-    ).trim();
+    // AK Borang 5: do not auto-fill officer signer with receiver/admin fallback.
     const effectiveOfficerSignerName = caseType === 'AK'
-        ? akOfficerSignerName
+        ? ''
         : approverSignerName;
     const officerSignerPendingNote = caseType === 'AJ' && !approverSignerName
         ? '(Aduan belum disahkan oleh Pegawai Pengesah)'
         : '';
     const hasOfficerSignerName = String(effectiveOfficerSignerName || '').trim() !== '';
-    const signerRequiredTitle = hasOfficerSignerName ? undefined : 'Borang 5 hanya boleh dijana selepas aduan disahkan oleh Pegawai Pengesah.';
+    const isSignerRequired = caseType === 'AJ';
+    const signerRequiredTitle = !isSignerRequired || hasOfficerSignerName
+        ? undefined
+        : 'Borang 5 hanya boleh dijana selepas aduan disahkan oleh Pegawai Pengesah.';
     const districtName = complaint?.district_name || complaint?.district?.name || '-';
     const incidentAddress = caseType === 'AK'
         ? akLatestAddress
@@ -265,7 +263,7 @@ const ComplaintPrintBorang5 = () => {
                     className="app-button app-button-ghost"
                     type="button"
                     onClick={openEmailModal}
-                    disabled={isEmailSending || !hasOfficerSignerName}
+                    disabled={isEmailSending || (isSignerRequired && !hasOfficerSignerName)}
                     title={signerRequiredTitle}
                 >
                     Email
@@ -274,7 +272,7 @@ const ComplaintPrintBorang5 = () => {
                     className="app-button"
                     type="button"
                     onClick={() => window.print()}
-                    disabled={!hasOfficerSignerName}
+                    disabled={isSignerRequired && !hasOfficerSignerName}
                     title={signerRequiredTitle}
                 >
                     Cetak Borang 5
@@ -356,7 +354,7 @@ const ComplaintPrintBorang5 = () => {
                     <div className="print-borang5-sign-empty" />
                     <div className="print-borang5-sign-col">
                         <div className="print-borang5-sign-label">Tandatangan Pegawai Penguatkuasa Agama</div>
-                        <div className="print-borang5-sign-name">{renderValue(effectiveOfficerSignerName)}</div>
+                        <div className="print-borang5-sign-name">{effectiveOfficerSignerName || ''}</div>
                         {officerSignerPendingNote && (
                             <div className="print-borang5-sign-note">{officerSignerPendingNote}</div>
                         )}

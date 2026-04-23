@@ -225,7 +225,7 @@
             <div class="sign-empty"></div>
             <div class="sign-col">
                 <div class="sign-label">Tandatangan Pegawai Penguatkuasa Agama</div>
-                <div class="sign-name">{{ $officerSignerName ?: '-' }}</div>
+                <div class="sign-name">{{ $officerSignerName ?: '' }}</div>
                 @if(!empty($officerSignerPendingNote))
                     <div class="sign-note">{{ $officerSignerPendingNote }}</div>
                 @endif

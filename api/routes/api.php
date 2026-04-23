@@ -241,10 +241,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/police-reports/{report}/media', [App\Http\Controllers\ComplaintController::class, 'uploadPoliceReportMedia'])
         ->whereNumber('complaint')
         ->whereNumber('report');
+    Route::post('/complaints/{complaint}/attachments', [App\Http\Controllers\ComplaintController::class, 'uploadAttachment'])
+        ->whereNumber('complaint');
     Route::get('/complaints/{complaint}/attachments/{attachment}/download', [App\Http\Controllers\ComplaintController::class, 'downloadAttachment'])
         ->whereNumber('complaint')
         ->whereNumber('attachment')
         ->name('complaints.attachments.download');
+    Route::delete('/complaints/{complaint}/attachments/{attachment}', [App\Http\Controllers\ComplaintController::class, 'deleteAttachment'])
+        ->whereNumber('complaint')
+        ->whereNumber('attachment');
     Route::delete('/complaints/{complaint}/seizure-item-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteSeizureItemMedia'])
         ->whereNumber('complaint')
         ->whereNumber('media');

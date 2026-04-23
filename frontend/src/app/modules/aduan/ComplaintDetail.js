@@ -456,7 +456,11 @@ const ComplaintDetail = () => {
 
     const saveBasicField = async (fieldName, value) => {
         const currentStage = (complaint?.current_stage || '').toString();
-        const isAduanEditingLocked = ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+        const isAkCase = (complaint?.case_type || '').toString().toUpperCase() === 'AK';
+        const lockedStages = isAkCase
+            ? ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'dihantar_ke_daerah']
+            : ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'];
+        const isAduanEditingLocked = lockedStages.includes(currentStage);
         if (!apiUrl || !id || isAduanEditingLocked) return;
         const token = localStorage.getItem('token');
         const payload = { [fieldName]: value };
@@ -547,7 +551,11 @@ const ComplaintDetail = () => {
 
     const saveBasic = () => {
         const currentStage = (complaint?.current_stage || '').toString();
-        const isAduanEditingLocked = ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+        const isAkCase = (complaint?.case_type || '').toString().toUpperCase() === 'AK';
+        const lockedStages = isAkCase
+            ? ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'dihantar_ke_daerah']
+            : ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'];
+        const isAduanEditingLocked = lockedStages.includes(currentStage);
         if (!apiUrl || !id || basicSaving || isAduanEditingLocked) {
             return;
         }
@@ -1768,7 +1776,10 @@ const ComplaintDetail = () => {
             : akEventNoun;
     const isCaseTypeLocked = Boolean(complaint?.approver_confirmed_at) || ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
     const isAwaitingApproval = currentStage === 'tunggu_pengesahan' && !complaint?.approver_confirmed_at;
-    const isAduanBoxLocked = ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+    const aduanLockedStages = currentCaseType === 'AK'
+        ? ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'dihantar_ke_daerah']
+        : ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'];
+    const isAduanBoxLocked = aduanLockedStages.includes(currentStage);
     const isSaveDisabled = isAwaitingApproval;
     const saveDisabledTitle = isSaveDisabled ? 'Tidak boleh simpan semasa menunggu tindakan pengesah.' : undefined;
     const hasSavedAjReportNotes = String(complaint?.aj_report_notes || '').trim() !== '';
@@ -1776,7 +1787,11 @@ const ComplaintDetail = () => {
     const laporanTindakanPrintDisabledTitle = isSaveDisabled
         ? saveDisabledTitle
         : (!hasSavedAjReportNotes ? 'Sila isi dan simpan medan Laporan dahulu sebelum cetak Laporan Tindakan.' : undefined);
-    const aduanBoxDisabledTitle = isAduanBoxLocked ? 'Tidak boleh dikemaskini apabila status aduan Menunggu tindakan pengesah, Disahkan atau Dihantar ke Daerah.' : undefined;
+    const aduanBoxDisabledTitle = isAduanBoxLocked
+        ? (currentCaseType === 'AK'
+            ? 'Tidak boleh dikemaskini apabila status aduan Menunggu tindakan pengesah atau Dihantar ke Daerah.'
+            : 'Tidak boleh dikemaskini apabila status aduan Menunggu tindakan pengesah, Disahkan atau Dihantar ke Daerah.')
+        : undefined;
     const canEditAduanBox = canEditBasicComplaint && !isAduanBoxLocked;
     const approverName = (complaint?.approverStaff?.name || '').trim().toLowerCase();
     const approverDisplayName = currentCaseType === 'AK'
@@ -2680,8 +2695,16 @@ const ComplaintDetail = () => {
                                     token={token}
                                     recordId={complaint.id}
                                     attachments={complaint.attachments || []}
-                                    canUpload={false}
-                                    canDelete={false}
+                                    canUpload={canEditAduanBox}
+                                    canDelete={canEditAduanBox}
+                                    getUploadUrl={({ apiUrl: baseUrl, recordId }) =>
+                                        baseUrl && recordId ? `${baseUrl}/complaints/${recordId}/attachments` : ''
+                                    }
+                                    getDeleteUrl={({ apiUrl: baseUrl, recordId, attachmentId }) =>
+                                        baseUrl && recordId && attachmentId
+                                            ? `${baseUrl}/complaints/${recordId}/attachments/${attachmentId}`
+                                            : ''
+                                    }
                                     getDownloadUrl={({ apiUrl: baseUrl, attachment }) => {
                                         if (attachment?.download_url) {
                                             return attachment.download_url;
@@ -2690,6 +2713,16 @@ const ComplaintDetail = () => {
                                             return '';
                                         }
                                         return `${baseUrl}/complaints/${complaint.id}/attachments/${attachment.id}/download`;
+                                    }}
+                                    onAttachmentsChange={(updater) => {
+                                        setComplaint((prev) => {
+                                            if (!prev) {
+                                                return prev;
+                                            }
+                                            const current = Array.isArray(prev.attachments) ? prev.attachments : [];
+                                            const nextAttachments = typeof updater === 'function' ? updater(current) : updater;
+                                            return { ...prev, attachments: nextAttachments };
+                                        });
                                     }}
                                 />
                             </div>
@@ -3113,34 +3146,6 @@ const ComplaintDetail = () => {
 
                     {complaint.case_type === 'AK' && activeKey === 'tindakan' && (
                         <div className="app-tab-panel">
-                            <div className="app-detail-number-actions">
-                                <button
-                                    className="app-button app-button-ghost"
-                                    type="button"
-                                    disabled={!isBorang5Enabled}
-                                    title={borang5DisabledTitle}
-                                    onClick={() => window.open(
-                                        `/app/complaints/${id}/print/borang-5`,
-                                        'borang5',
-                                        'width=980,height=720,scrollbars=yes,resizable=yes'
-                                    )}
-                                >
-                                    <i className="bi bi-printer"></i>
-                                    Borang 5
-                                </button>
-                                <button
-                                    className="app-button app-button-ghost"
-                                    type="button"
-                                    onClick={() => window.open(
-                                        `/app/complaints/${id}/print/laporan-tindakan`,
-                                        'laporanTindakan',
-                                        'width=980,height=720,scrollbars=yes,resizable=yes'
-                                    )}
-                                >
-                                    <i className="bi bi-printer"></i>
-                                    Laporan Tindakan
-                                </button>
-                            </div>
                             {payloadMessage && (
                                 <SharedInlineAlert
                                     type={payloadMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
@@ -3177,12 +3182,6 @@ const ComplaintDetail = () => {
                                     />
                                 </label>
 
-                                <div className="app-form-actions app-span-full app-align-right">
-                                    <button className="app-button" type="button" onClick={submitAkPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
-                                        {isAkFirstIntakeSave ? 'Terima & Sahkan Aduan' : 'Simpan'}
-                                    </button>
-                                </div>
-
                                 <div className="app-approver-card app-span-full">
                                     <div className="app-approver-grid">
                                         <div className="app-approver-block">
@@ -3210,6 +3209,38 @@ const ComplaintDetail = () => {
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div className="app-report-sticky app-span-full">
+                                    <button className="app-button" type="button" onClick={submitAkPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
+                                        {isAkFirstIntakeSave ? 'Terima & Sahkan Aduan' : 'Simpan'}
+                                    </button>
+                                    <button
+                                        className="app-button app-button-ghost"
+                                        type="button"
+                                        disabled={!isBorang5Enabled}
+                                        title={borang5DisabledTitle}
+                                        onClick={() => window.open(
+                                            `/app/complaints/${id}/print/borang-5`,
+                                            'borang5',
+                                            'width=980,height=720,scrollbars=yes,resizable=yes'
+                                        )}
+                                    >
+                                        <i className="bi bi-printer"></i>
+                                        Borang 5
+                                    </button>
+                                    <button
+                                        className="app-button app-button-ghost"
+                                        type="button"
+                                        onClick={() => window.open(
+                                            `/app/complaints/${id}/print/laporan-tindakan`,
+                                            'laporanTindakan',
+                                            'width=980,height=720,scrollbars=yes,resizable=yes'
+                                        )}
+                                    >
+                                        <i className="bi bi-printer"></i>
+                                        Laporan Tindakan
+                                    </button>
                                 </div>
                             </div>
                             {assigneeMessage && (
@@ -3424,7 +3455,7 @@ const ComplaintDetail = () => {
                                     />
                                 </label>
 
-                                <div className="app-form-actions app-span-full app-align-right">
+                                <div className="app-report-sticky app-span-full">
                                     <button className="app-button" type="button" onClick={submitAkPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
                                     </button>
