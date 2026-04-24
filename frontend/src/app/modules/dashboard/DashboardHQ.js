@@ -9,6 +9,8 @@ const DashboardHQ = ({ data, role, selectedDistrictId, onDistrictChange, isLoadi
     const districtSummary = data?.district_summary || [];
     const recentComplaints = data?.recent_complaints || [];
     const stageSummary = data?.stage_summary || [];
+    const visibleStageSummary = stageSummary.slice(0, 6);
+    const visibleRecentComplaints = recentComplaints.slice(0, 6);
     const statusLink = (status) => `/app/complaints?status=${encodeURIComponent(status)}`;
     const districtLink = (districtId) => `/app/complaints?district_id=${encodeURIComponent(String(districtId || ''))}`;
 
@@ -145,13 +147,13 @@ const DashboardHQ = ({ data, role, selectedDistrictId, onDistrictChange, isLoadi
                         <h4>Status Semasa</h4>
                         <span className="app-pill">{stageSummary.length} status</span>
                     </div>
-                    <ul className="app-list app-list--compact">
+                    <ul className="app-list app-list--compact app-card-scroll">
                         {stageSummary.length === 0 ? (
                             <li>
                                 <p className="app-muted mb-0">Tiada data status untuk skop semasa.</p>
                             </li>
                         ) : (
-                            stageSummary.map((item) => (
+                            visibleStageSummary.map((item) => (
                                 <li key={`${item.stage}-${item.total}`}>
                                     <div>
                                         <strong>{getComplaintStageLabel(item.stage, role)}</strong>
@@ -165,6 +167,12 @@ const DashboardHQ = ({ data, role, selectedDistrictId, onDistrictChange, isLoadi
                             ))
                         )}
                     </ul>
+                    <div className="app-card-footer-actions">
+                        <Link className="app-action-link" to="/app/complaints">
+                            <strong>Lihat Semua Status</strong>
+                            <p>Buka senarai aduan penuh dengan penapis status.</p>
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="app-card">
@@ -172,13 +180,13 @@ const DashboardHQ = ({ data, role, selectedDistrictId, onDistrictChange, isLoadi
                         <h4>Aduan Terkini</h4>
                         <span className="app-pill">{recentComplaints.length} item</span>
                     </div>
-                    <ul className="app-list">
+                    <ul className="app-list app-card-scroll">
                         {recentComplaints.length === 0 ? (
                             <li>
                                 <p className="app-muted mb-0">Belum ada aduan terkini.</p>
                             </li>
                         ) : (
-                            recentComplaints.map((item) => (
+                            visibleRecentComplaints.map((item) => (
                                 <li key={item.id}>
                                     <div>
                                         <strong>{item.reference_no || `Aduan #${item.id}`}</strong>
@@ -193,6 +201,12 @@ const DashboardHQ = ({ data, role, selectedDistrictId, onDistrictChange, isLoadi
                             ))
                         )}
                     </ul>
+                    <div className="app-card-footer-actions">
+                        <Link className="app-action-link" to="/app/complaints">
+                            <strong>Lihat Senarai Aduan</strong>
+                            <p>Pergi ke menu senarai aduan untuk paparan penuh.</p>
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>
