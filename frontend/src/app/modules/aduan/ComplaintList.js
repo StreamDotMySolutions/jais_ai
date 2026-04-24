@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import ComplaintForm from './ComplaintForm';
 import ComplainFormPegawai from './complainFormPegawai';
@@ -349,6 +349,7 @@ const ComplaintList = ({
     const apiUrl = process.env.REACT_APP_API_URL;
     const toast = useToast();
     const navigate = useNavigate();
+    const location = useLocation();
     const { items: offenseItems } = useOffenseOptions({ apiUrl });
     const { items: mahkamahItems } = useMahkamahOptions({ apiUrl, token: localStorage.getItem('token') });
     const [complaints, setComplaints] = useState([]);
@@ -617,6 +618,29 @@ const ComplaintList = ({
         const timer = window.setInterval(() => setTimeTick(Date.now()), 60 * 1000);
         return () => window.clearInterval(timer);
     }, []);
+
+    useEffect(() => {
+        const query = new URLSearchParams(location.search || '');
+        const status = (query.get('status') || '').trim();
+        const district = (query.get('district_id') || '').trim();
+
+        if (!status && !district) {
+            return;
+        }
+
+        setDraftFilters((prev) => ({
+            ...prev,
+            status: status || '',
+            district: district || '',
+        }));
+        setFilters((prev) => ({
+            ...prev,
+            status: status || '',
+            district: district || '',
+        }));
+        setStatusTab(status || 'all');
+        setPage(1);
+    }, [location.search]);
 
     const getClassificationAlert = (item) => {
         if (!item || item.case_type !== 'AJ') return null;

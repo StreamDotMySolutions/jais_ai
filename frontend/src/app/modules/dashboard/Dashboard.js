@@ -1,226 +1,113 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import DashboardHQ from './DashboardHQ';
+import DashboardDaerah from './DashboardDaerah';
+
+const HQ_ROLES = ['system', 'admin', 'pegawai', 'pegawai_hq'];
+
+const normalizeRole = (value) => {
+    const role = (value || '').toString().trim().toLowerCase();
+    if (!role || role === 'null' || role === 'undefined') {
+        return 'awam';
+    }
+    return role;
+};
 
 const Dashboard = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
+    const role = useMemo(() => normalizeRole(localStorage.getItem('role')), []);
+    const token = localStorage.getItem('token');
+    const isHqRole = HQ_ROLES.includes(role);
+    const isDistrictRole = role === 'pegawai_daerah';
+
     const [isLoading, setIsLoading] = useState(true);
-    const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
-    const [pendingApprovalLoading, setPendingApprovalLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [data, setData] = useState(null);
+    const [selectedDistrictId, setSelectedDistrictId] = useState('');
 
-    useEffect(() => {
-        const timer = setTimeout(() => setIsLoading(false), 650);
-        return () => clearTimeout(timer);
-    }, []);
-
-    useEffect(() => {
+    const fetchDashboard = useCallback(async () => {
         if (!apiUrl) {
-            setPendingApprovalLoading(false);
+            setError('REACT_APP_API_URL tidak ditetapkan.');
+            setIsLoading(false);
             return;
         }
-        const token = localStorage.getItem('token');
-        setPendingApprovalLoading(true);
-        axios.get(`${apiUrl}/complaints/pending-approval`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            params: { per_page: 1 },
-        })
-            .then((response) => {
-                setPendingApprovalCount(response?.data?.meta?.total ?? response?.data?.data?.length ?? 0);
-            })
-            .catch(() => {
-                setPendingApprovalCount(0);
-            })
-            .finally(() => {
-                setPendingApprovalLoading(false);
+
+        try {
+            setIsLoading(true);
+            setError('');
+            const params = {};
+            if (isHqRole && selectedDistrictId) {
+                params.district_id = selectedDistrictId;
+            }
+
+            const response = await axios.get(`${apiUrl}/dashboard`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                params,
             });
-    }, [apiUrl]);
+
+            setData(response?.data || null);
+        } catch (fetchError) {
+            setError(fetchError?.response?.data?.message || fetchError?.message || 'Gagal memuat dashboard.');
+            setData(null);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [apiUrl, isHqRole, selectedDistrictId, token]);
+
+    useEffect(() => {
+        fetchDashboard();
+    }, [fetchDashboard]);
+
+    if (isLoading) {
+        return (
+            <div className="app-dashboard">
+                <div className="app-welcome">
+                    <div className="app-skeleton-stack">
+                        <span className="app-skeleton-line app-skeleton-line--lg"></span>
+                        <span className="app-skeleton-line app-skeleton-line--md"></span>
+                    </div>
+                    <span className="app-skeleton-pill"></span>
+                </div>
+                <div className="app-metrics">
+                    {Array.from({ length: 4 }, (_, index) => (
+                        <div className="app-metric-card" key={`dashboard-skeleton-${index}`}>
+                            <div className="app-skeleton-stack">
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                                <span className="app-skeleton-line app-skeleton-line--xl"></span>
+                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="app-dashboard">
+                <div className="app-card">
+                    <div className="app-card-header">
+                        <h4>Dashboard</h4>
+                    </div>
+                    <p className="app-muted mb-0">{error}</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isDistrictRole) {
+        return <DashboardDaerah data={data} role={role} />;
+    }
 
     return (
-        <div className="app-dashboard">
-            <div className="app-welcome">
-                <div>
-                    {isLoading ? (
-                        <div className="app-skeleton-stack">
-                            <span className="app-skeleton-line app-skeleton-line--lg"></span>
-                            <span className="app-skeleton-line app-skeleton-line--md"></span>
-                        </div>
-                    ) : (
-                        <>
-                            <h3>Selamat kembali</h3>
-                            <p>Ringkasan operasi aduan untuk hari ini.</p>
-                        </>
-                    )}
-                </div>
-                {isLoading ? (
-                    <span className="app-skeleton-pill"></span>
-                ) : (
-                    <button className="app-cta">Lihat Aduan Terbaru</button>
-                )}
-            </div>
-
-            <div className="app-metrics">
-                <div className="app-metric-card">
-                    {isLoading ? (
-                        <div className="app-skeleton-stack">
-                            <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                            <span className="app-skeleton-line app-skeleton-line--xl"></span>
-                            <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                        </div>
-                    ) : (
-                        <>
-                            <span>Aduan Baharu</span>
-                            <strong>24</strong>
-                            <small>Sejak 24 jam</small>
-                        </>
-                    )}
-                </div>
-                <div className="app-metric-card">
-                    {isLoading ? (
-                        <div className="app-skeleton-stack">
-                            <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                            <span className="app-skeleton-line app-skeleton-line--xl"></span>
-                            <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                        </div>
-                    ) : (
-                        <>
-                            <span>Dalam Tindakan</span>
-                            <strong>18</strong>
-                            <small>Perlu tindakan</small>
-                        </>
-                    )}
-                </div>
-                <div className="app-metric-card">
-                    {isLoading ? (
-                        <div className="app-skeleton-stack">
-                            <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                            <span className="app-skeleton-line app-skeleton-line--xl"></span>
-                            <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                        </div>
-                    ) : (
-                        <>
-                            <span>Disahkan</span>
-                            <strong>9</strong>
-                            <small>Menunggu daerah</small>
-                        </>
-                    )}
-                </div>
-                <div className="app-metric-card">
-                    {isLoading ? (
-                        <div className="app-skeleton-stack">
-                            <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                            <span className="app-skeleton-line app-skeleton-line--xl"></span>
-                            <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                        </div>
-                    ) : (
-                        <>
-                            <span>Selesai</span>
-                            <strong>36</strong>
-                            <small>Minggu ini</small>
-                        </>
-                    )}
-                </div>
-            </div>
-
-            <div className="app-grid">
-                <div className="app-card">
-                    <div className="app-card-header">
-                        {isLoading ? (
-                            <>
-                                <span className="app-skeleton-line app-skeleton-line--md"></span>
-                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                            </>
-                        ) : (
-                            <>
-                                <h4>Aduan Keutamaan</h4>
-                                <span className="app-pill">4 item</span>
-                            </>
-                        )}
-                    </div>
-                    <ul className="app-list">
-                        {isLoading ? (
-                            Array.from({ length: 3 }, (_, index) => (
-                                <li key={`priority-skeleton-${index}`}>
-                                    <div className="app-skeleton-stack">
-                                        <span className="app-skeleton-line app-skeleton-line--md"></span>
-                                        <span className="app-skeleton-line"></span>
-                                    </div>
-                                    <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                                </li>
-                            ))
-                        ) : (
-                            <>
-                                <li>
-                                    <div>
-                                        <strong>JAIS-2025-9AD3F2</strong>
-                                        <p>Kes melibatkan aduan awam di Petaling.</p>
-                                    </div>
-                                    <span className="app-tag">Baharu</span>
-                                </li>
-                                <li>
-                                    <div>
-                                        <strong>JAIS-2025-7P9LAX</strong>
-                                        <p>Semakan semula diperlukan sebelum dihantar.</p>
-                                    </div>
-                                    <span className="app-tag pending">Siasatan</span>
-                                </li>
-                                <li>
-                                    <div>
-                                        <strong>JAIS-2025-2K1HLM</strong>
-                                        <p>Menunggu kelulusan pegawai kedua.</p>
-                                    </div>
-                                    <span className="app-tag info">Semakan</span>
-                                </li>
-                            </>
-                        )}
-                    </ul>
-                </div>
-
-                <div className="app-card">
-                    <div className="app-card-header">
-                        {isLoading ? (
-                            <>
-                                <span className="app-skeleton-line app-skeleton-line--md"></span>
-                                <span className="app-skeleton-line app-skeleton-line--sm"></span>
-                            </>
-                        ) : (
-                            <>
-                                <h4>Notis Tindakan</h4>
-                                <span className="app-pill">Hari ini</span>
-                            </>
-                        )}
-                    </div>
-                    <div className="app-actions">
-                        {isLoading || pendingApprovalLoading ? (
-                            Array.from({ length: 3 }, (_, index) => (
-                                <div key={`notice-skeleton-${index}`} className="app-skeleton-stack">
-                                    <span className="app-skeleton-line app-skeleton-line--md"></span>
-                                    <span className="app-skeleton-line"></span>
-                                </div>
-                            ))
-                        ) : (
-                            <>
-                                <Link className="app-action-link" to="/app/complaints/pending-approval">
-                                    <strong>{pendingApprovalCount} aduan</strong>
-                                    <p className="app-text-blink">Menunggu pengesahan anda.</p>
-                                </Link>
-                                <div>
-                                    <strong>12 aduan</strong>
-                                    <p>Perlu ditugaskan kepada PIC daerah.</p>
-                                </div>
-                                <div>
-                                    <strong>5 aduan</strong>
-                                    <p>Menunggu pengesahan kedua.</p>
-                                </div>
-                                <div>
-                                    <strong>3 aduan</strong>
-                                    <p>Perlu kemaskini status KIV.</p>
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
+        <DashboardHQ
+            data={data}
+            role={role}
+            selectedDistrictId={selectedDistrictId}
+            onDistrictChange={(value) => setSelectedDistrictId(value)}
+            isLoading={isLoading}
+        />
     );
 };
 
