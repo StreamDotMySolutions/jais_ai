@@ -2043,6 +2043,8 @@ body {
 
 .app-shell.is-collapsed .app-brand {
   padding: 2rem 0.9rem 1.25rem;
+  justify-content: center;
+  gap: 0.35rem;
 }
 
 .app-brand-text {
@@ -2064,6 +2066,12 @@ body {
 
 .app-shell.is-collapsed .app-brand-sub {
   display: none;
+}
+
+.app-shell.is-collapsed .app-brand-mark {
+  font-size: 1.02rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
 .app-nav {
@@ -4727,6 +4735,24 @@ body {
   gap: 1.5rem;
 }
 
+.app-approver-grid--equal {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 0;
+}
+
+.app-approver-grid--equal .app-approver-block:first-child {
+  padding-right: 1.8rem;
+  border-right: 1px solid #dbe6df;
+}
+
+.app-approver-grid--equal .app-approver-block:last-child {
+  padding-left: 1.8rem;
+}
+
+.app-approver-block {
+  min-width: 0;
+}
+
 .app-approver-row {
   display: flex;
   align-items: center;
@@ -4872,6 +4898,36 @@ body {
   font-size: 0.9rem;
 }
 
+.app-calendar-filter {
+  display: grid;
+  gap: 0.2rem;
+  margin-top: 0.45rem;
+}
+
+.app-calendar-filter small {
+  font-size: 0.7rem;
+  color: #6b7a83;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.app-calendar-filter select {
+  border: 1px solid #d8e3dc;
+  border-radius: 9px;
+  min-height: 34px;
+  padding: 0.25rem 0.55rem;
+  background: #ffffff;
+  color: #1d2b24;
+  min-width: 220px;
+}
+
+.app-calendar-scope {
+  display: block;
+  margin-top: 0.45rem;
+  color: #5c6d65;
+  font-size: 0.75rem;
+}
+
 .app-icon-button {
   border: 1px solid #e3ebe6;
   background: #ffffff;
@@ -4913,7 +4969,7 @@ body {
 .app-calendar-days {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-auto-rows: minmax(120px, 1fr);
+  grid-auto-rows: minmax(172px, 1fr);
 }
 
 .app-calendar-cell {
@@ -4923,7 +4979,7 @@ body {
   position: relative;
   z-index: 0;
   padding: 0.5rem 0.6rem 0.6rem;
-  min-height: 120px;
+  min-height: 172px;
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
@@ -5121,26 +5177,39 @@ body {
 .app-calendar-events {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.2rem;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .app-calendar-event {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
+  gap: 0.28rem;
+  font-size: 0.7rem;
   color: #1d3f8b;
   background: #e7efff;
   border-radius: 6px;
-  padding: 0.2rem 0.4rem;
+  padding: 0.14rem 0.32rem;
   text-decoration: none;
   border: 0;
   cursor: pointer;
   text-align: left;
 }
 
+.app-calendar-event span {
+  font-size: 0.64rem;
+  opacity: 0.9;
+  flex: 0 0 auto;
+}
+
 .app-calendar-event strong {
   font-weight: 600;
+  font-size: 0.68rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-calendar-more-btn {
@@ -9001,6 +9070,10 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .app-approver-grid--equal {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .app-approver-card {
     flex-direction: column;
     align-items: stretch;
@@ -9096,6 +9169,24 @@ body {
 
 .app-aduan-list .app-filter-field label {
   font-size: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .app-approver-grid--equal {
+    grid-template-columns: 1fr;
+  }
+
+  .app-approver-grid--equal .app-approver-block:first-child {
+    padding-right: 0;
+    border-right: 0;
+    border-bottom: 1px solid #dbe6df;
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .app-approver-grid--equal .app-approver-block:last-child {
+    padding-left: 0;
+  }
 }
 
 .app-aduan-list .app-search-select-label {

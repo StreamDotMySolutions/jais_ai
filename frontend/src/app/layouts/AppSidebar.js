@@ -127,7 +127,7 @@ const AppSidebar = ({
         <div className="app-sidebar">
             <div className="app-brand">
                 <div className="app-brand-text">
-                    <span className="app-brand-mark">i-SYAEMS</span>
+                    <span className="app-brand-mark">{isCollapsed ? 'iS' : 'i-SYAEMS'}</span>
                     <span className="app-brand-sub"></span>
                 </div>
                 <button
@@ -136,7 +136,7 @@ const AppSidebar = ({
                     onClick={onToggleCollapse}
                     aria-label="Toggle sidebar"
                 >
-                    <i className={`bi ${isCollapsed ? 'bi-chevron-right' : 'bi-chevron-left'}`}></i>
+                    <i className="bi bi-list"></i>
                 </button>
             </div>
 

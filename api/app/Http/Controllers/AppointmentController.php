@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Appointment;
+use App\Models\District;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -18,22 +19,66 @@ class AppointmentController extends Controller
         $validated = $request->validate([
             'start_at' => 'required|date',
             'end_at' => 'required|date|after_or_equal:start_at',
+            'district_id' => 'nullable|integer|exists:districts,id',
         ]);
 
         $startAt = Carbon::parse($validated['start_at'])->startOfDay();
         $endAt = Carbon::parse($validated['end_at'])->endOfDay();
+        $isHqScope = $user->hasAnyRole(['pegawai', 'pegawai_hq', 'admin', 'system']);
+        $isDistrictScope = $user->hasRole('pegawai_daerah');
 
-        $appointments = Appointment::query()
+        $viewerDistrictId = $this->resolveUserDistrictId($user);
+        $selectedDistrictId = null;
+        if ($isDistrictScope) {
+            $selectedDistrictId = $viewerDistrictId;
+        } elseif ($isHqScope) {
+            $selectedDistrictId = ! empty($validated['district_id']) ? (int) $validated['district_id'] : null;
+        }
+
+        $appointmentsQuery = Appointment::query()
             ->where('status', 'booked')
             ->where('start_at', '<=', $endAt)
             ->where('end_at', '>=', $startAt)
-            ->with(['complaint:id,reference_no,case_type,complainant_name,identification_number,contact_number,complaint_date,complaint_time,address,district_name,summary,current_stage'])
+            ->whereHas('complaint', function ($query) use ($selectedDistrictId, $isDistrictScope) {
+                if ($selectedDistrictId) {
+                    $query->where('district_id', $selectedDistrictId);
+                    return;
+                }
+
+                if ($isDistrictScope) {
+                    // Pegawai daerah tanpa district yang valid tidak boleh lihat rekod daerah lain.
+                    $query->whereRaw('1 = 0');
+                }
+            })
+            ->with(['complaint:id,reference_no,case_type,complainant_name,identification_number,contact_number,complaint_date,complaint_time,address,district_id,district_name,summary,current_stage'])
             ->orderBy('start_at')
             ->get(['id', 'complaint_id', 'title', 'start_at', 'end_at', 'status']);
 
+        $viewerDistrict = null;
+        if ($viewerDistrictId) {
+            $viewerDistrict = District::query()->where('id', $viewerDistrictId)->first(['id', 'name']);
+        }
+
+        $availableDistricts = [];
+        if ($isHqScope) {
+            $availableDistricts = District::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']);
+        }
+
         return response()->json([
             'message' => 'Appointment list',
-            'data' => $appointments,
+            'scope' => $isDistrictScope ? 'daerah' : 'hq',
+            'viewer' => [
+                'district_id' => $viewerDistrict?->id,
+                'district_name' => $viewerDistrict?->name,
+            ],
+            'filters' => [
+                'district_id' => $selectedDistrictId,
+                'available_districts' => $availableDistricts,
+            ],
+            'data' => $appointmentsQuery,
         ]);
     }
 
@@ -74,5 +119,23 @@ class AppointmentController extends Controller
             'message' => $hasConflict ? 'Slot tidak tersedia.' : 'Slot tersedia.',
             'available' => ! $hasConflict,
         ]);
+    }
+
+    private function resolveUserDistrictId($user): ?int
+    {
+        if (! $user) {
+            return null;
+        }
+
+        if (! empty($user->district_id)) {
+            return (int) $user->district_id;
+        }
+
+        $user->loadMissing('staff:id,user_id,district_id');
+        if ($user->staff && ! empty($user->staff->district_id)) {
+            return (int) $user->staff->district_id;
+        }
+
+        return null;
     }
 }

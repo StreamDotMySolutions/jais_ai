@@ -56,16 +56,9 @@ const getExpandedSections = (item) => {
     const endDateTime = [item.end_date, (item.end_time || '').toString().slice(0, 5)]
         .filter(Boolean)
         .join(' ');
-    const channel = String(item.channel || '').trim().toLowerCase();
-    const isWalkInInformant = ['walkin', 'walk-in', 'kaunter'].includes(channel);
-    const fallbackInformantName = isWalkInInformant
-        ? (item.complainant_name || '')
-        : (item.received_by?.name || item.receivedBy?.name || item.complainant_name || '');
-    const fallbackInformantId = item.identification_number || '';
-    const fallbackInformantPhone = item.contact_number || '';
-    const effectiveInformantName = item.informant_name || fallbackInformantName;
-    const effectiveInformantId = item.informant_identification_number || fallbackInformantId;
-    const effectiveInformantPhone = item.informant_contact_number || fallbackInformantPhone;
+    const effectiveInformantName = item.informant_name || '-';
+    const effectiveInformantId = item.informant_identification_number || '-';
+    const effectiveInformantPhone = item.informant_contact_number || '-';
 
     return [
         {

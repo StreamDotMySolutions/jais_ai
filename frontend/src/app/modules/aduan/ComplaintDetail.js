@@ -253,22 +253,9 @@ const ComplaintDetail = () => {
     const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase();
     const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp_web'].includes(complaintChannelNormalized);
     const isBasicEditLockedBySource = LOCKED_BASIC_EDIT_CHANNELS.includes(complaintChannelNormalized);
-    const isWalkInInformant = ['walkin', 'walk-in', 'kaunter'].includes(complaintChannelNormalized);
-    const receiverName = complaint?.received_by?.name || complaint?.receivedBy?.name || '';
-    const receiverStaff = complaint?.received_by?.staff || complaint?.receivedBy?.staff || null;
-    const effectiveInformantName = (complaint?.informant_name || '').trim()
-        || (isWalkInInformant ? (complaint?.complainant_name || '') : receiverName)
-        || '';
-    const effectiveInformantIdNumber = (complaint?.informant_identification_number || '').trim()
-        || (isWalkInInformant
-            ? (complaint?.identification_number || '')
-            : (receiverStaff?.staff_id || receiverStaff?.ic_number || ''))
-        || '';
-    const effectiveInformantContactNumber = (complaint?.informant_contact_number || '').trim()
-        || (isWalkInInformant
-            ? (complaint?.contact_number || '')
-            : (receiverStaff?.phone || ''))
-        || '';
+    const effectiveInformantName = (complaint?.informant_name || '').trim();
+    const effectiveInformantIdNumber = (complaint?.informant_identification_number || '').trim();
+    const effectiveInformantContactNumber = (complaint?.informant_contact_number || '').trim();
     const canEditBasicComplaint = isPegawaiRole && !isBasicEditLockedBySource;
     const autoClassificationGuardRef = useRef({});
     const suppressUnloadReleaseRef = useRef(false);
@@ -1794,9 +1781,7 @@ const ComplaintDetail = () => {
         : undefined;
     const canEditAduanBox = canEditBasicComplaint && !isAduanBoxLocked;
     const approverName = (complaint?.approverStaff?.name || '').trim().toLowerCase();
-    const approverDisplayName = currentCaseType === 'AK'
-        ? (complaint?.approverStaff?.name || complaint?.received_by?.name || complaint?.receivedBy?.name || '-')
-        : (complaint?.approverStaff?.name || '-');
+    const approverDisplayName = (complaint?.approverStaff?.name || '').trim() || '-';
     const canApprove = Boolean(
         !complaint?.approver_confirmed_at
         && (
@@ -3062,7 +3047,7 @@ const ComplaintDetail = () => {
                                 </label>
 
                                 <div className="app-approver-card app-span-full">
-                                    <div className="app-approver-grid">
+                                    <div className="app-approver-grid app-approver-grid--equal">
                                         <div className="app-approver-block">
                                             <div className="app-approver-row">
                                                 <span>Penerima Aduan</span>

@@ -43,6 +43,14 @@ const endOfWeek = (date) => {
     return next;
 };
 
+const normalizeRole = (value) => {
+    const role = (value || '').toString().trim().toLowerCase();
+    if (!role || role === 'null' || role === 'undefined') {
+        return 'awam';
+    }
+    return role;
+};
+
 const buildCalendarDays = (baseDate) => {
     const monthStart = startOfMonth(baseDate);
     const monthEnd = endOfMonth(baseDate);
@@ -59,6 +67,8 @@ const buildCalendarDays = (baseDate) => {
 
 const AppointmentCalendar = ({ isPopup = false }) => {
     const apiUrl = process.env.REACT_APP_API_URL;
+    const role = normalizeRole(localStorage.getItem('role'));
+    const isHqRole = ['pegawai', 'pegawai_hq', 'admin', 'system'].includes(role);
     const [searchParams] = useSearchParams();
     const focusDate = searchParams.get('date');
     const initialDate = focusDate ? new Date(focusDate) : new Date();
@@ -68,6 +78,9 @@ const AppointmentCalendar = ({ isPopup = false }) => {
     const [expandedDates, setExpandedDates] = useState({});
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [appointments, setAppointments] = useState([]);
+    const [districtFilter, setDistrictFilter] = useState('');
+    const [availableDistricts, setAvailableDistricts] = useState([]);
+    const [viewerDistrictName, setViewerDistrictName] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -89,10 +102,14 @@ const AppointmentCalendar = ({ isPopup = false }) => {
             params: {
                 start_at: formatDateKey(monthStart),
                 end_at: formatDateKey(monthEnd),
+                ...(isHqRole && districtFilter ? { district_id: districtFilter } : {}),
             },
         })
             .then((response) => {
-                setAppointments(response?.data?.data || []);
+                const payload = response?.data || {};
+                setAppointments(payload?.data || []);
+                setAvailableDistricts(payload?.filters?.available_districts || []);
+                setViewerDistrictName(payload?.viewer?.district_name || '');
             })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal mendapatkan temujanji.');
@@ -101,7 +118,7 @@ const AppointmentCalendar = ({ isPopup = false }) => {
             .finally(() => {
                 setIsLoading(false);
             });
-    }, [apiUrl, monthKey]);
+    }, [apiUrl, monthKey, districtFilter, isHqRole]);
 
     const appointmentsByDay = useMemo(() => {
         const map = new Map();
@@ -167,6 +184,22 @@ const AppointmentCalendar = ({ isPopup = false }) => {
                 <div className="app-calendar-title">
                     {!isPopup && <h2>Kalendar Temujanji</h2>}
                     <span>{monthLabel}</span>
+                    {!isPopup && isHqRole && (
+                        <label className="app-calendar-filter">
+                            <small>Daerah</small>
+                            <select value={districtFilter} onChange={(event) => setDistrictFilter(event.target.value)}>
+                                <option value="">Semua Daerah</option>
+                                {availableDistricts.map((district) => (
+                                    <option key={district.id} value={district.id}>
+                                        {district.name}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
+                    {!isPopup && !isHqRole && viewerDistrictName && (
+                        <small className="app-calendar-scope">Daerah: {viewerDistrictName}</small>
+                    )}
                 </div>
             </div>
 

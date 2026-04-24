@@ -2158,8 +2158,10 @@ class ComplaintController extends Controller
         }
 
         if (! empty($payload)) {
-            $payload['received_by_user_id'] = $user->id;
-            $payload['received_at'] = now();
+            if (! $complaint->received_by_user_id) {
+                $payload['received_by_user_id'] = $user->id;
+                $payload['received_at'] = now();
+            }
             $complaint->update($payload);
         }
 
@@ -2360,8 +2362,10 @@ class ComplaintController extends Controller
             'aj_prosecution_notes' => $request->payload['prosecution_notes'] ?? null,
             'aj_fir_no' => $request->payload['fir_no'] ?? null,
         ];
-        $payload['received_by_user_id'] = $user->id;
-        $payload['received_at'] = now();
+        if (! $complaint->received_by_user_id) {
+            $payload['received_by_user_id'] = $user->id;
+            $payload['received_at'] = now();
+        }
         if ((string) $complaint->current_stage === 'baru' && $ppaClassification) {
             $payload = array_merge($payload, $this->stagePayload('dalam_tindakan'));
         }
