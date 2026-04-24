@@ -3985,7 +3985,7 @@ const ComplaintDetail = () => {
                                                 </div>
 
                                                 <label className="app-form-field">
-                                                    <span>Tarikh / Masa Tindakan</span>
+                                                    <span>Tarikh / Masa</span>
                                                     <input
                                                         type="datetime-local"
                                                         value={ajReport.action_datetime}

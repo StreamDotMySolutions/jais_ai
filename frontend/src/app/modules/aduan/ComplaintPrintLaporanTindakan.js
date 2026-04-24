@@ -86,7 +86,7 @@ const ComplaintPrintLaporanTindakan = () => {
         return `${hh12}.${pad2(mm)} ${isPm ? 'PM' : 'AM'}`;
     };
 
-    const tarikhMasa = complaint?.aj_statement_datetime || '';
+    const tarikhMasa = complaint?.aj_action_datetime || '';
 
     const noDaftar = (() => {
         const referenceNo = String(complaint?.reference_no || '').trim();
