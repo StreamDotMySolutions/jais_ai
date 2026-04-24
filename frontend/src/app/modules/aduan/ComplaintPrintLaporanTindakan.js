@@ -86,12 +86,7 @@ const ComplaintPrintLaporanTindakan = () => {
         return `${hh12}.${pad2(mm)} ${isPm ? 'PM' : 'AM'}`;
     };
 
-    const tarikhMasa =
-        complaint?.aj_directive_at ||
-        complaint?.handover_at ||
-        complaint?.aj_statement_datetime ||
-        complaint?.aj_action_datetime ||
-        `${complaint?.complaint_date || ''} ${complaint?.complaint_time || ''}`.trim();
+    const tarikhMasa = complaint?.aj_statement_datetime || '';
 
     const noDaftar = (() => {
         const referenceNo = String(complaint?.reference_no || '').trim();
@@ -111,22 +106,12 @@ const ComplaintPrintLaporanTindakan = () => {
         return `KES-${district} / ${year} / ${month} / ${runningNo}`;
     })();
 
-    const caseType = String(complaint?.case_type || '').trim().toUpperCase();
-    const channel = String(complaint?.channel || '').trim().toLowerCase();
-    const isWalkIn = ['walkin', 'walk-in', 'kaunter'].includes(channel);
-    const handoverStaff = complaint?.aj_handover_staff || complaint?.ajHandoverStaff || null;
-    const receiverStaff =
-        complaint?.received_by?.staff ||
-        complaint?.receivedBy?.staff ||
-        complaint?.submitted_by?.staff ||
-        complaint?.submittedBy?.staff ||
-        null;
-    const fallbackOfficer = isWalkIn ? (handoverStaff || receiverStaff) : receiverStaff;
-    const officerName = fallbackOfficer?.name || '';
-    const officerIdNo = fallbackOfficer?.staff_id || fallbackOfficer?.ic_number || '-';
-    const officerJob = fallbackOfficer?.position || '-';
-    const officerPhone = fallbackOfficer?.phone || '-';
-    const officerAddress = fallbackOfficer?.office_address || fallbackOfficer?.address || fallbackOfficer?.department || '-';
+    const arrestStaff = complaint?.aj_arrest_staff || complaint?.ajArrestStaff || null;
+    const officerName = arrestStaff?.name || '';
+    const officerIdNo = arrestStaff?.staff_id || arrestStaff?.ic_number || '-';
+    const officerJob = arrestStaff?.position || '-';
+    const officerPhone = arrestStaff?.phone || '-';
+    const officerAddress = arrestStaff?.office_address || arrestStaff?.address || arrestStaff?.department || '-';
     const reportParagraph = String(laporanText || '').trim().toUpperCase();
     const reportDate = formatDateDMY(tarikhMasa);
     const reportTime = formatTime12hDot(tarikhMasa);
