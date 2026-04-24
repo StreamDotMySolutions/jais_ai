@@ -297,7 +297,9 @@ const ComplaintPrintBorang5 = () => {
                     <div className="print-borang5-meta">REK-BPN-01</div>
                     <div className="print-borang5-title">BORANG 5</div>
                     <div className="print-borang5-title">ENAKMEN TATACARA JENAYAH SYARIAH (NEGERI SELANGOR) 2003</div>
-                    <div className="print-borang5-title">Subsyeksyen 54(2) / 57(1)</div>
+                    <div className="print-borang5-title">
+                        {caseType === 'AK' ? 'Subseksyen 54(2)' : 'Subseksyen 54(2) / 57(1)'}
+                    </div>
                     <div className="print-borang5-title print-borang5-title-spacer">&nbsp;</div>
                     <div className="print-borang5-title">MAKLUMAT KEPADA PEGAWAI PENGUATKUASA AGAMA</div>
                 </div>
