@@ -127,8 +127,8 @@ const AppSidebar = ({
         <div className="app-sidebar">
             <div className="app-brand">
                 <div className="app-brand-text">
-                    <span className="app-brand-mark">JAIS</span>
-                    <span className="app-brand-sub">{isCollapsed ? '' : 'Aduan'}</span>
+                    <span className="app-brand-mark">i-SYAEMS</span>
+                    <span className="app-brand-sub"></span>
                 </div>
                 <button
                     className="app-collapse-toggle"

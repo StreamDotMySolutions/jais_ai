@@ -3037,6 +3037,18 @@ body {
   margin-top: 1rem;
 }
 
+.app-inline-link {
+  color: var(--jais-green);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.app-inline-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .app-inline-edit {
   display: inline-flex;
   align-items: center;

@@ -168,10 +168,7 @@ const DashboardHQ = ({ data, role, selectedDistrictId, onDistrictChange, isLoadi
                         )}
                     </ul>
                     <div className="app-card-footer-actions">
-                        <Link className="app-action-link" to="/app/complaints">
-                            <strong>Lihat Semua Status</strong>
-                            <p>Buka senarai aduan penuh dengan penapis status.</p>
-                        </Link>
+                        <Link className="app-inline-link" to="/app/complaints">Lihat Semua Status</Link>
                     </div>
                 </div>
 
@@ -202,10 +199,7 @@ const DashboardHQ = ({ data, role, selectedDistrictId, onDistrictChange, isLoadi
                         )}
                     </ul>
                     <div className="app-card-footer-actions">
-                        <Link className="app-action-link" to="/app/complaints">
-                            <strong>Lihat Senarai Aduan</strong>
-                            <p>Pergi ke menu senarai aduan untuk paparan penuh.</p>
-                        </Link>
+                        <Link className="app-inline-link" to="/app/complaints">Lihat Senarai</Link>
                     </div>
                 </div>
             </div>
