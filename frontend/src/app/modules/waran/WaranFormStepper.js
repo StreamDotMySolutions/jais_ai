@@ -646,7 +646,13 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 </div>
                                 <div className="app-form-field">
                                     <label>No. Ruj Fail Waran</label>
-                                    <input type="text" placeholder="Contoh: 494" value={formData.no_ruj_fail} onChange={updateField('no_ruj_fail')} />
+                                    <input
+                                        type="text"
+                                        placeholder="Akan dijana automatik"
+                                        value={formData.no_ruj_fail}
+                                        readOnly
+                                    />
+                                    <small className="app-inline-note">Auto ikut daerah + tahun (reset setiap tahun).</small>
                                 </div>
                                 <div className="app-form-field">
                                     <label>Tarikh / Masa Waran Diterima</label>

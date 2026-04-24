@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\IwaranWaranAttachment;
 use App\Models\IwaranWarrant;
+use App\Services\IwaranReferenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -30,7 +31,7 @@ class IwaranWarrantController extends Controller
         return implode(',', array_map(fn ($v) => $this->csvCell($v), $cells)) . "\r\n";
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, IwaranReferenceService $referenceService): JsonResponse
     {
         $data = $request->validate([
             'jenis_waran' => ['nullable', 'in:tangkap,geledah'],
@@ -70,6 +71,24 @@ class IwaranWarrantController extends Controller
             $data['pendaftar_staff_id'] = $pendaftarStaffId;
         }
         $data['status'] = $data['status'] ?? 'draf';
+        $data['tahun'] = (int) ($data['tahun'] ?? Carbon::parse($data['tarikh_masa_terima'] ?? now())->format('Y'));
+
+        $providedNoRujFail = trim((string) ($data['no_ruj_fail'] ?? ''));
+        if ($providedNoRujFail === '') {
+            $districtId = (int) ($data['daerah_id'] ?? 0);
+            if ($districtId <= 0) {
+                return response()->json([
+                    'message' => 'Daerah wajib dipilih untuk jana No. Ruj Fail waran.',
+                    'errors' => [
+                        'daerah_id' => ['Daerah wajib dipilih untuk jana No. Ruj Fail waran.'],
+                    ],
+                ], 422);
+            }
+
+            $data['no_ruj_fail'] = $referenceService->generateReferenceNo($districtId, (int) $data['tahun']);
+        } else {
+            $data['no_ruj_fail'] = $providedNoRujFail;
+        }
 
         $iwaranWarrant = IwaranWarrant::create($data);
 
