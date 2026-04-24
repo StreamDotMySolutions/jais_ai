@@ -5,6 +5,7 @@ import { useToast } from '../../components/SharedToastProvider';
 import InlineAlert from '../../components/SharedInlineAlert';
 import AttachmentSection from '../../components/SharedAttachmentSection';
 import SharedStaffSelect from '../../components/SharedStaffSelect';
+import SearchSelect from '../../../libs/SearchSelect';
 
 const emptyForm = {
     jenis_waran: '',
@@ -43,6 +44,27 @@ const emptyMahkamahDraft = {
     nama: '',
     daerah_id: '',
     emel: '',
+};
+
+const isOtherJenisKes = (option) => {
+    const name = String(option?.nama || '').toLowerCase().trim();
+    return name === 'lain-lain' || name === 'lain lain' || name.startsWith('lain');
+};
+
+const getJenisKesLabel = (item) => {
+    const code = String(item?.code || '').trim();
+    const nama = String(item?.nama || '').trim();
+    if (!code) {
+        return nama;
+    }
+    return `${code} - ${nama}`;
+};
+
+const readInputValue = (input) => {
+    if (typeof input === 'string' || typeof input === 'number') {
+        return String(input);
+    }
+    return String(input?.target?.value || '');
 };
 
 const WaranFormStepper = ({ mode = 'create' }) => {
@@ -103,8 +125,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         if (formData.jenis_kes_mal_lain) {
             return true;
         }
-        const name = String(selectedMalOption?.nama || '').toLowerCase().trim();
-        return name === 'lain-lain' || name === 'lain lain' || name.startsWith('lain');
+        return isOtherJenisKes(selectedMalOption);
     }, [formData.jenis_kes_mal_lain, selectedMalOption]);
 
     const selectedJenayahOption = useMemo(() => {
@@ -119,9 +140,24 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         if (formData.jenis_kes_jenayah_lain) {
             return true;
         }
-        const name = String(selectedJenayahOption?.nama || '').toLowerCase().trim();
-        return name === 'lain-lain' || name === 'lain lain' || name.startsWith('lain');
+        return isOtherJenisKes(selectedJenayahOption);
     }, [formData.jenis_kes_jenayah_lain, selectedJenayahOption]);
+
+    const jenisKesMalSearchOptions = useMemo(() => (
+        (jenisKesMalOptions || []).map((item) => ({
+            value: String(item.id),
+            label: getJenisKesLabel(item),
+            searchLabel: `${String(item?.code || '')} ${String(item?.nama || '')}`.trim(),
+        }))
+    ), [jenisKesMalOptions]);
+
+    const jenisKesJenayahSearchOptions = useMemo(() => (
+        (jenisKesJenayahOptions || []).map((item) => ({
+            value: String(item.id),
+            label: getJenisKesLabel(item),
+            searchLabel: `${String(item?.code || '')} ${String(item?.nama || '')}`.trim(),
+        }))
+    ), [jenisKesJenayahOptions]);
 
     const updateField = (field) => (event) => {
         setValidationErrors((prev) => {
@@ -191,12 +227,11 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         updateField('mahkamah_id')(event);
     };
 
-    const updateJenisKesMal = (event) => {
-        const value = event.target.value;
+    const updateJenisKesMal = (input) => {
+        const value = readInputValue(input);
         // Clear "lain-lain" text when switching away from other.
         const nextOption = (jenisKesMalOptions || []).find((item) => String(item.id) === String(value)) || null;
-        const name = String(nextOption?.nama || '').toLowerCase().trim();
-        const isOther = name === 'lain-lain' || name === 'lain lain' || name.startsWith('lain');
+        const isOther = isOtherJenisKes(nextOption);
 
         setValidationErrors((prev) => {
             if (!prev || (!prev.jenis_kes_mal_id && !prev.jenis_kes_mal_lain)) {
@@ -217,12 +252,11 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         }));
     };
 
-    const updateJenisKesJenayah = (event) => {
-        const value = event.target.value;
+    const updateJenisKesJenayah = (input) => {
+        const value = readInputValue(input);
         // Clear "lain-lain" text when switching away from other.
         const nextOption = (jenisKesJenayahOptions || []).find((item) => String(item.id) === String(value)) || null;
-        const name = String(nextOption?.nama || '').toLowerCase().trim();
-        const isOther = name === 'lain-lain' || name === 'lain lain' || name.startsWith('lain');
+        const isOther = isOtherJenisKes(nextOption);
 
         setValidationErrors((prev) => {
             if (!prev || (!prev.jenis_kes_jenayah_id && !prev.jenis_kes_jenayah_lain)) {
@@ -639,12 +673,13 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 </div>
                                 <div className="app-form-field">
                                     <label>Jenis Kesalahan (Mal)</label>
-                                    <select value={formData.jenis_kes_mal_id} onChange={updateJenisKesMal}>
-                                        <option value="">Pilih kesalahan</option>
-                                        {jenisKesMalOptions.map((item) => (
-                                            <option key={item.id} value={item.id}>{item.nama}</option>
-                                        ))}
-                                    </select>
+                                    <SearchSelect
+                                        value={formData.jenis_kes_mal_id}
+                                        options={jenisKesMalSearchOptions}
+                                        placeholder="Pilih kesalahan"
+                                        searchPlaceholder="Cari kod / nama kesalahan..."
+                                        onChange={updateJenisKesMal}
+                                    />
                                 </div>
                                 {showMalOther && (
                                     <div className="app-form-field">
@@ -659,12 +694,13 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 )}
                                 <div className="app-form-field">
                                     <label>Jenis Kesalahan (Jenayah)</label>
-                                    <select value={formData.jenis_kes_jenayah_id} onChange={updateJenisKesJenayah}>
-                                        <option value="">Pilih kesalahan</option>
-                                        {jenisKesJenayahOptions.map((item) => (
-                                            <option key={item.id} value={item.id}>{item.nama}</option>
-                                        ))}
-                                    </select>
+                                    <SearchSelect
+                                        value={formData.jenis_kes_jenayah_id}
+                                        options={jenisKesJenayahSearchOptions}
+                                        placeholder="Pilih kesalahan"
+                                        searchPlaceholder="Cari kod / nama kesalahan..."
+                                        onChange={updateJenisKesJenayah}
+                                    />
                                 </div>
                                 {showJenayahOther && (
                                     <div className="app-form-field">
