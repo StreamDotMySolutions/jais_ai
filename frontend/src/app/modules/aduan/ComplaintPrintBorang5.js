@@ -127,37 +127,43 @@ const ComplaintPrintBorang5 = () => {
     const complainantOccupation = complaint?.complainant_occupation || '';
     const complainantContactNumber = complaint?.contact_number || '';
     const complainantAddress = complaint?.address || '';
-    const akLatestAddress = (complaint?.ak_event_location || '').toString().trim();
+    const complainantCurrentAddress = complaint?.current_address || '';
     const effectiveInformantName = isPhysicalInformant ? complainantName : officerInformantName;
+    const effectiveInformantSignerName = String(effectiveInformantName || '').toLocaleUpperCase('ms-MY');
     const effectiveInformantIdNumber = isPhysicalInformant ? complainantIdNumber : officerInformantIdNumber;
     const effectiveInformantOccupation = isPhysicalInformant ? complainantOccupation : officerInformantOccupation;
     const effectiveInformantContactNumber = isPhysicalInformant ? complainantContactNumber : officerInformantContactNumber;
-    const effectiveInformantAddress = isPhysicalInformant ? complainantAddress : officerInformantAddress;
+    const effectiveInformantAddressBase = isPhysicalInformant ? complainantAddress : officerInformantAddress;
+    const effectiveInformantAddress = caseType === 'AK'
+        ? (complainantCurrentAddress || '')
+        : effectiveInformantAddressBase;
     const approverSignerName = String(
         complaint?.approver_staff?.name ||
         complaint?.approverStaff?.name ||
         ''
     ).trim();
-    // AK Borang 5: do not auto-fill officer signer with receiver/admin fallback.
     const effectiveOfficerSignerName = caseType === 'AK'
-        ? ''
+        ? (approverSignerName || '-')
         : approverSignerName;
-    const officerSignerPendingNote = caseType === 'AJ' && !approverSignerName
-        ? '(Aduan belum disahkan oleh Pegawai Pengesah)'
-        : '';
-    const hasOfficerSignerName = String(effectiveOfficerSignerName || '').trim() !== '';
+    const hasOfficerSignerName = String(
+        caseType === 'AK' ? effectiveOfficerSignerName : approverSignerName
+    ).trim() !== '';
     const isSignerRequired = caseType === 'AJ';
     const signerRequiredTitle = !isSignerRequired || hasOfficerSignerName
         ? undefined
         : 'Borang 5 hanya boleh dijana selepas aduan disahkan oleh Pegawai Pengesah.';
     const districtName = complaint?.district_name || complaint?.district?.name || '-';
-    const incidentAddress = caseType === 'AK'
-        ? akLatestAddress
-        : String(complaint?.address || '').trim();
     const reportText = (() => {
         if (!reportTextRaw) {
             return '';
         }
+        if (caseType === 'AK') {
+            // AK Borang 5: do not auto-show/prefill LOKASI line.
+            return reportTextRaw
+                .replace(/^\s*(LOKASI|LOKASI KEJADIAN|ALAMAT KEJADIAN|ALAMAT LOKASI KEJADIAN)\s*:[^\r\n]*(\r?\n)?/i, '')
+                .trim();
+        }
+        const incidentAddress = String(complaint?.address || '').trim();
         if (!incidentAddress) {
             return reportTextRaw;
         }
@@ -315,20 +321,22 @@ const ComplaintPrintBorang5 = () => {
                         <div className="print-borang5-value">{renderValue(effectiveInformantName)}</div>
                     </div>
                     <div className="print-borang5-row">
-                        <div className="print-borang5-label">No. K/P Pengadu</div>
+                        <div className="print-borang5-label">{caseType === 'AK' ? 'No Kad Pengenalan Diri' : 'No. K/P Pengadu'}</div>
                         <div className="print-borang5-value">{renderValue(effectiveInformantIdNumber)}</div>
                     </div>
                     <div className="print-borang5-row">
-                        <div className="print-borang5-label">Pekerjaan Pengadu</div>
+                        <div className="print-borang5-label">{caseType === 'AK' ? 'Pekerjaan' : 'Pekerjaan Pengadu'}</div>
                         <div className="print-borang5-value">{renderValue(effectiveInformantOccupation)}</div>
                     </div>
                     <div className="print-borang5-row">
-                        <div className="print-borang5-label">No. Telefon Pengadu</div>
+                        <div className="print-borang5-label">{caseType === 'AK' ? 'No. Telefon' : 'No. Telefon Pengadu'}</div>
                         <div className="print-borang5-value">{renderValue(effectiveInformantContactNumber)}</div>
                     </div>
                     <div className="print-borang5-row">
-                        <div className="print-borang5-label">Alamat Pengadu</div>
-                        <div className="print-borang5-value">{renderValue(effectiveInformantAddress)}</div>
+                        <div className="print-borang5-label">{caseType === 'AK' ? 'Alamat' : 'Alamat Pengadu'}</div>
+                        <div className="print-borang5-value">
+                            {caseType === 'AK' ? (effectiveInformantAddress || '') : renderValue(effectiveInformantAddress)}
+                        </div>
                     </div>
                 </div>
 
@@ -341,7 +349,7 @@ const ComplaintPrintBorang5 = () => {
                     <div className="print-borang5-sign-empty" />
                     <div className="print-borang5-sign-col">
                         <div className="print-borang5-sign-label">Tandatangan Pemberi Maklumat</div>
-                        <div className="print-borang5-sign-name">{renderValue(effectiveInformantName)}</div>
+                        <div className="print-borang5-sign-name">{renderValue(effectiveInformantSignerName)}</div>
                     </div>
                 </div>
 
@@ -355,9 +363,6 @@ const ComplaintPrintBorang5 = () => {
                     <div className="print-borang5-sign-col">
                         <div className="print-borang5-sign-label">Tandatangan Pegawai Penguatkuasa Agama</div>
                         <div className="print-borang5-sign-name">{effectiveOfficerSignerName || ''}</div>
-                        {officerSignerPendingNote && (
-                            <div className="print-borang5-sign-note">{officerSignerPendingNote}</div>
-                        )}
                     </div>
                 </div>
 

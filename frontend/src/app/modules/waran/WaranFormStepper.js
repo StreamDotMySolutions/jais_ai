@@ -7,11 +7,13 @@ import AttachmentSection from '../../components/SharedAttachmentSection';
 import SharedStaffSelect from '../../components/SharedStaffSelect';
 import SearchSelect from '../../../libs/SearchSelect';
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 const emptyForm = {
     jenis_waran: '',
     no_ruj_fail: '',
     tarikh_masa_terima: '',
-    tahun: '',
+    tahun: String(CURRENT_YEAR),
     no_kes: '',
     jenis_kes_mal_id: '',
     jenis_kes_mal_lain: '',
@@ -100,6 +102,14 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         laporan: true,
         lampiran: true,
     });
+
+    const yearOptions = useMemo(() => {
+        const years = [];
+        for (let year = CURRENT_YEAR + 1; year >= CURRENT_YEAR - 10; year -= 1) {
+            years.push(String(year));
+        }
+        return years;
+    }, []);
 
     const isEdit = mode === 'edit';
 
@@ -473,6 +483,12 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             if (!formData.jenis_waran) {
                 errors.jenis_waran = 'Jenis waran wajib dipilih.';
             }
+            if (!formData.tarikh_masa_terima) {
+                errors.tarikh_masa_terima = 'Tarikh / Masa waran diterima wajib diisi.';
+            }
+            if (!formData.tahun) {
+                errors.tahun = 'Tahun wajib dipilih.';
+            }
             if (!formData.mahkamah_id) {
                 errors.mahkamah_id = 'Mahkamah wajib dipilih.';
             }
@@ -514,6 +530,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             setValidationErrors(errors);
             setError('Sila lengkapkan medan wajib yang ditanda *.');
             setMessage('');
+            toast.error('Sila lengkapkan medan wajib yang ditanda *.');
             return;
         }
 
@@ -655,12 +672,28 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     <small className="app-inline-note">Auto ikut daerah + tahun (reset setiap tahun).</small>
                                 </div>
                                 <div className="app-form-field">
-                                    <label>Tarikh / Masa Waran Diterima</label>
-                                    <input type="datetime-local" value={formData.tarikh_masa_terima} onChange={updateField('tarikh_masa_terima')} />
+                                    <label>Tarikh / Masa Waran Diterima *</label>
+                                    <input
+                                        type="datetime-local"
+                                        className={validationErrors.tarikh_masa_terima ? 'app-input-error' : ''}
+                                        value={formData.tarikh_masa_terima}
+                                        onChange={updateField('tarikh_masa_terima')}
+                                    />
+                                    {validationErrors.tarikh_masa_terima && (
+                                        <small className="app-inline-note app-inline-note-error">{validationErrors.tarikh_masa_terima}</small>
+                                    )}
                                 </div>
                                 <div className="app-form-field">
-                                    <label>Tahun</label>
-                                    <input type="number" placeholder="2026" value={formData.tahun} onChange={updateField('tahun')} />
+                                    <label>Tahun *</label>
+                                    <select className={validationErrors.tahun ? 'app-input-error' : ''} value={formData.tahun} onChange={updateField('tahun')}>
+                                        <option value="">Pilih tahun</option>
+                                        {yearOptions.map((year) => (
+                                            <option key={year} value={year}>{year}</option>
+                                        ))}
+                                    </select>
+                                    {validationErrors.tahun && (
+                                        <small className="app-inline-note app-inline-note-error">{validationErrors.tahun}</small>
+                                    )}
                                 </div>
                                 </div>
                             )}

@@ -129,7 +129,7 @@ function ComplaintForm({
         store.setValue('ak_event_date', '');
         store.setValue('ak_event_place', '');
         store.setValue('ak_event_time', '');
-        store.setValue('ak_event_location', '');
+        store.setValue('current_address', '');
         store.setValue('ak_rujuk_date', '');
         setAddressDraft('');
         setOfficerAkTemplateKey('');
@@ -205,7 +205,7 @@ function ComplaintForm({
         const akEventDate = (store.getValue('ak_event_date') || '').trim();
         const akEventPlace = (store.getValue('ak_event_place') || '').trim();
         const akEventTime = (store.getValue('ak_event_time') || '').trim();
-        const akEventLocation = (store.getValue('ak_event_location') || '').trim();
+        const akEventLocation = (store.getValue('current_address') || '').trim();
         const akRujukDate = (store.getValue('ak_rujuk_date') || '').trim();
         const useFamilyEventSection = selectedCaseType === 'AK' && ['nikah', 'cerai', 'rujuk', 'poligami'].includes(akSubtype);
         const usePlaceAsAddress = useFamilyEventSection;
@@ -251,8 +251,8 @@ function ComplaintForm({
         if (!districtId) localErrors.district_id = 'Wajib diisi';
         if (!effectiveAddress) {
             localErrors[selectedCaseType === 'AK'
-                ? 'ak_event_location'
-                : (useFamilyEventSection ? (usePlaceAsAddress ? 'ak_event_place' : 'ak_event_location') : 'address')] = 'Wajib diisi';
+                ? 'current_address'
+                : (useFamilyEventSection ? (usePlaceAsAddress ? 'ak_event_place' : 'current_address') : 'address')] = 'Wajib diisi';
         }
         if (!effectiveIncidentDate) {
             localErrors[useFamilyEventSection ? 'ak_event_date' : 'incident_date'] = 'Wajib diisi';
@@ -289,7 +289,7 @@ function ComplaintForm({
                 if (!akEventDate) familyErrors.ak_event_date = 'Wajib diisi';
                 if (!akEventPlace) familyErrors.ak_event_place = 'Wajib diisi';
                 if (!akEventTime) familyErrors.ak_event_time = 'Wajib diisi';
-                if (!usePlaceAsAddress && !akEventLocation) familyErrors.ak_event_location = 'Wajib diisi';
+                if (!usePlaceAsAddress && !akEventLocation) familyErrors.current_address = 'Wajib diisi';
                 if (akSubtype === 'rujuk' && !akRujukDate) familyErrors.ak_rujuk_date = 'Wajib diisi';
                 if (Object.keys(familyErrors).length > 0) {
                     store.setValue('errors', familyErrors);
@@ -341,7 +341,7 @@ function ComplaintForm({
             { key: 'identification_number', value: store.getValue('identification_number') },
             { key: 'contact_number', value: store.getValue('contact_number') },
             { key: 'complainant_occupation', value: store.getValue('complainant_occupation') },
-            { key: 'address', value: selectedCaseType === 'AK' ? '-' : (useFamilyEventSection ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location')) : store.getValue('address')) },
+            { key: 'address', value: selectedCaseType === 'AK' ? '-' : (useFamilyEventSection ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('current_address')) : store.getValue('address')) },
             { key: 'district_id', value: store.getValue('district_id') },
             { key: 'summary', value: store.getValue('summary') },
             { key: 'borang5_statement', value: store.getValue('borang5_statement') },
@@ -359,7 +359,7 @@ function ComplaintForm({
             { key: 'ak_event_date', value: store.getValue('ak_event_date') },
             { key: 'ak_event_place', value: store.getValue('ak_event_place') },
             { key: 'ak_event_time', value: store.getValue('ak_event_time') },
-            { key: 'ak_event_location', value: store.getValue('ak_event_location') },
+            { key: 'current_address', value: store.getValue('current_address') },
             { key: 'ak_rujuk_date', value: store.getValue('ak_rujuk_date') },
             { key: 'consent_accepted', value: !officerMode && agreementAccepted ? '1' : '0' },
             { key: 'consent_text_version', value: !officerMode ? CONSENT_TEXT_VERSION : '' },
@@ -419,13 +419,13 @@ function ComplaintForm({
     const akEventDate = store.getValue('ak_event_date') || '';
     const akEventPlace = store.getValue('ak_event_place') || '';
     const akEventTime = store.getValue('ak_event_time') || '';
-    const akEventLocation = store.getValue('ak_event_location') || '';
+    const akEventLocation = store.getValue('current_address') || '';
     const akRujukDate = store.getValue('ak_rujuk_date') || '';
     const useFamilyEventSection = caseType === 'AK' && ['nikah', 'cerai', 'rujuk', 'poligami'].includes(akSubtype);
     const usePlaceAsAddress = useFamilyEventSection;
     const incidentTitle = 'Butiran Kejadian';
     const districtPlaceholder = caseType === 'AJ' ? 'Pilih Daerah Kejadian *' : 'Pilih Daerah *';
-    const addressFieldName = caseType === 'AK' ? 'ak_event_location' : 'address';
+    const addressFieldName = caseType === 'AK' ? 'current_address' : 'address';
     const addressPlaceholder = caseType === 'AJ' ? 'Alamat/Lokasi Kejadian *' : 'Alamat Terkini *';
     const addressValue = addressDraft || store.getValue(addressFieldName) || '';
     const templatesByCaseType = {
@@ -489,7 +489,7 @@ function ComplaintForm({
         const dateDot = formatBorang5TemplateDate(store.getValue('complaint_date'));
         const timeDot = formatBorang5TemplateTime(store.getValue('complaint_time'));
         const address = ((caseType === 'AK')
-            ? (store.getValue('ak_event_location') || '')
+            ? (store.getValue('current_address') || '')
             : (store.getValue('address') || '')).toString().trim();
 
         if (dateDot) {
@@ -767,9 +767,9 @@ function ComplaintForm({
         const date = (useFamilyEventSection ? store.getValue('ak_event_date') : store.getValue('incident_date')) || '[TARIKH]';
         const time = (useFamilyEventSection ? store.getValue('ak_event_time') : store.getValue('incident_time')) || '[MASA]';
         const lokasi = ((caseType === 'AK'
-            ? (store.getValue('ak_event_location') || '')
+            ? (store.getValue('current_address') || '')
             : (useFamilyEventSection
-                ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('ak_event_location'))
+                ? (usePlaceAsAddress ? store.getValue('ak_event_place') : store.getValue('current_address'))
                 : store.getValue('address'))) || '').trim() || '[Nama premis/hotel, alamat penuh, bilik (jika ada)]';
         const daerah = districtName || '[Daerah]';
 
@@ -1168,7 +1168,7 @@ function ComplaintForm({
                                             store.setValue('ak_event_date', '');
                                             store.setValue('ak_event_place', '');
                                             store.setValue('ak_event_time', '');
-                                            store.setValue('ak_event_location', '');
+                                            store.setValue('current_address', '');
                                             store.setValue('ak_rujuk_date', '');
                                             setAddressDraft('');
                                         }}
@@ -1292,7 +1292,7 @@ function ComplaintForm({
                             <Row className='mb-4'>
                                 <InputTextarea
                                     type='text'
-                                    fieldName='ak_event_location'
+                                    fieldName='current_address'
                                     placeholder='Alamat Terkini *'
                                     icon='bi-geo-alt'
                                     rows='4'

@@ -1,6 +1,51 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+
+const formatDateMalay = (value) => {
+    if (!value) {
+        return '-';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return date.toLocaleDateString('ms-MY', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'Asia/Kuala_Lumpur',
+    });
+};
+
+const formatDateTimeMalay = (value) => {
+    if (!value) {
+        return '-';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return date.toLocaleString('ms-MY', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kuala_Lumpur',
+    });
+};
+
+const toTitle = (value) => {
+    if (!value) {
+        return '-';
+    }
+    return String(value)
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (m) => m.toUpperCase());
+};
 
 const WaranPrint = () => {
     const { id } = useParams();
@@ -28,6 +73,13 @@ const WaranPrint = () => {
             .finally(() => setIsLoading(false));
     }, [apiUrl, id, token]);
 
+    const executionDateTime = useMemo(() => (
+        record?.tarikh_masa_perlaksanaan_1
+        || record?.tarikh_masa_perlaksanaan_2
+        || record?.tarikh_masa_perlaksanaan_3
+        || null
+    ), [record]);
+
     if (isLoading) {
         return <div className="app-empty">Memuatkan...</div>;
     }
@@ -52,81 +104,87 @@ const WaranPrint = () => {
                 </button>
             </div>
 
-            <div className="app-print-sheet">
-                <div className="app-print-header">
-                    <div>
-                        <div className="app-print-eyebrow">i-WARAN</div>
-                        <h1>Butiran Waran</h1>
-                        <div className="app-print-sub">
-                            ID: <strong>{record.id}</strong>
-                        </div>
-                    </div>
-                    <div className="app-print-meta">
-                        <div>
-                            <span>Status</span>
-                            <strong>{record.status || 'draf'}</strong>
-                        </div>
-                        <div>
-                            <span>Tarikh Terima</span>
-                            <strong>{record.tarikh_masa_terima || '-'}</strong>
-                        </div>
-                    </div>
+            <div className="app-print-sheet app-waran-report-sheet">
+                <div className="app-waran-report-code">BORANG LW332</div>
+
+                <div className="app-waran-report-title">
+                    <h1>LAPORAN PERLAKSANAAN WARAN TANGKAP</h1>
+                    <h2>BAHAGIAN PENGURUSAN PENGUATKUASAAN</h2>
+                    <h2>JABATAN AGAMA ISLAM SELANGOR</h2>
                 </div>
 
-                <div className="app-print-block">
-                    <h3>Maklumat Waran</h3>
-                    <div className="app-print-grid">
-                        <div><span>No. Ruj Fail</span><strong>{record.no_ruj_fail || '-'}</strong></div>
-                        <div><span>Jenis Waran</span><strong>{record.jenis_waran || '-'}</strong></div>
-                        <div><span>No. Kes</span><strong>{record.no_kes || '-'}</strong></div>
-                        <div><span>Daerah</span><strong>{record.daerah?.name || '-'}</strong></div>
-                        <div><span>Mahkamah</span><strong>{record.mahkamah?.nama || '-'}</strong></div>
-                        <div><span>Tarikh Bicara</span><strong>{record.tarikh_bicara || '-'}</strong></div>
-                    </div>
-                </div>
+                <section className="app-waran-report-section">
+                    <h3>MAKLUMAT WARAN</h3>
+                    <div className="app-waran-report-table">
+                        <div className="k">NO. RUJUKAN FAIL WARAN</div>
+                        <div className="v">{record.no_ruj_fail || '-'}</div>
 
-                <div className="app-print-block">
-                    <h3>Maklumat OKT</h3>
-                    <div className="app-print-grid">
-                        <div><span>Nama</span><strong>{record.nama_okt || '-'}</strong></div>
-                        <div><span>No. K/P</span><strong>{record.no_kp_okt || '-'}</strong></div>
-                        <div><span>No. Telefon</span><strong>{record.telefon_okt || '-'}</strong></div>
-                        <div className="span-2"><span>Alamat</span><strong style={{ whiteSpace: 'pre-wrap' }}>{record.alamat_okt || '-'}</strong></div>
-                    </div>
-                </div>
+                        <div className="k">PENAMA WARAN</div>
+                        <div className="v">{record.nama_okt || '-'}</div>
 
-                <div className="app-print-block">
-                    <h3>Pelaksanaan</h3>
-                    <div className="app-print-grid">
-                        <div><span>Pelaksana</span><strong>{record.pelaksana?.name || '-'}</strong></div>
-                        <div><span>Jumlah Perlaksanaan</span><strong>{record.jumlah_perlaksanaan ?? '-'}</strong></div>
-                        <div><span>Hasil Perlaksanaan</span><strong>{record.hasil_perlaksanaan?.nama || '-'}</strong></div>
-                        <div className="span-2"><span>Alamat Pejabat</span><strong style={{ whiteSpace: 'pre-wrap' }}>{record.alamat_pejabat || '-'}</strong></div>
-                    </div>
-                    {record.laporan && (
-                        <div className="app-print-note">
-                            <div className="k">Laporan</div>
-                            <div style={{ whiteSpace: 'pre-wrap' }}>{record.laporan}</div>
-                        </div>
-                    )}
-                </div>
+                        <div className="k">NO. K/P atau PASSPORT</div>
+                        <div className="v">{record.no_kp_okt || '-'}</div>
 
-                <div className="app-print-block">
-                    <h3>Lampiran</h3>
-                    {record.attachments?.length ? (
-                        <ol className="app-print-list">
-                            {record.attachments.map((f) => (
-                                <li key={f.id}>{f.file_name}</li>
-                            ))}
-                        </ol>
-                    ) : (
-                        <div className="app-print-muted">Tiada lampiran.</div>
-                    )}
-                </div>
+                        <div className="k">ALAMAT</div>
+                        <div className="v" style={{ whiteSpace: 'pre-wrap' }}>{record.alamat_okt || '-'}</div>
+
+                        <div className="k">KES JENAYAH BILANGAN</div>
+                        <div className="v">{record.no_kes || '-'}</div>
+
+                        <div className="k">TARIKH PERBICARAAN</div>
+                        <div className="v">{formatDateMalay(record.tarikh_bicara)}</div>
+
+                        <div className="k">MAHKAMAH</div>
+                        <div className="v">{record.mahkamah?.nama || '-'}</div>
+                    </div>
+                </section>
+
+                <section className="app-waran-report-section">
+                    <h3>LAPORAN PERLAKSANAAN</h3>
+                    <div className="app-waran-report-table app-waran-report-table-compact">
+                        <div className="k">STATUS</div>
+                        <div className="v">{toTitle(record.status || 'draf')}</div>
+                    </div>
+
+                    <div className="app-waran-report-paragraph" style={{ marginTop: '0.45rem' }}>
+                        Bahawasanya saya Pegawai Penguatkuasa Agama <strong>{record.pelaksana?.name || '-'}</strong>,
+                        beralamat di <strong>{record.alamat_pejabat || 'Bahagian Pengurusan Penguatkuasaan, Jabatan Agama Islam Selangor'}</strong>,
+                        dengan sesungguhnya telah melaksanakan waran tangkap seperti yang dinyatakan di atas.
+                    </div>
+
+                    <div className="app-waran-report-subtitle">LAPORAN</div>
+                    <div className="app-waran-report-paragraph" style={{ whiteSpace: 'pre-wrap' }}>
+                        {record.laporan || '-'}
+                    </div>
+
+                    <div className="app-waran-report-table" style={{ marginTop: '0.8rem' }}>
+                        <div className="k">HASIL PERLAKSANAAN</div>
+                        <div className="v">{record.hasil_perlaksanaan?.nama || '-'}</div>
+
+                        <div className="k">TARIKH PERLAKSANAAN</div>
+                        <div className="v">{formatDateTimeMalay(executionDateTime)}</div>
+                    </div>
+                </section>
+
+                <section className="app-waran-signatures">
+                    <div className="app-waran-signature-block">
+                        <div className="t">Disediakan oleh</div>
+                        <div className="line"></div>
+                        <div className="name">{record.pelaksana?.name || '-'}</div>
+                        <div className="role">Pegawai Penguatkuasa Agama</div>
+                    </div>
+
+                    <div className="app-waran-signature-block">
+                        <div className="t">Disahkan oleh</div>
+                        <div className="line"></div>
+                        <div className="name">{record.pendaftar?.name || '-'}</div>
+                        <div className="role">Bahagian Pengurusan Penguatkuasaan</div>
+                        <div className="role">Jabatan Agama Islam Selangor</div>
+                    </div>
+                </section>
             </div>
         </div>
     );
 };
 
 export default WaranPrint;
-

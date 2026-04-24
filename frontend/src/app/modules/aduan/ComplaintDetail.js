@@ -224,7 +224,7 @@ const ComplaintDetail = () => {
         ak_event_date: '',
         ak_event_place: '',
         ak_event_time: '',
-        ak_event_location: '',
+        current_address: '',
         ak_rujuk_date: '',
         district_id: '',
         address: '',
@@ -440,7 +440,7 @@ const ComplaintDetail = () => {
             ak_event_date: complaint.ak_event_date || '',
             ak_event_place: complaint.ak_event_place || '',
             ak_event_time: (complaint.ak_event_time || '').slice(0, 5),
-            ak_event_location: complaint.ak_event_location || '',
+            current_address: complaint.current_address || '',
             ak_rujuk_date: complaint.ak_rujuk_date || '',
             district_id: complaint.district_id ? String(complaint.district_id) : '',
             address: complaint.address || '',
@@ -611,7 +611,7 @@ const ComplaintDetail = () => {
         const dateDot = formatBorang5TemplateDate(basicDraft.complaint_date);
         const timeDot = formatBorang5TemplateTime(basicDraft.complaint_time);
         const address = (((complaint?.case_type || 'AJ') === 'AK')
-            ? (basicDraft.ak_event_location || '')
+            ? (basicDraft.current_address || '')
             : (basicDraft.address || '')).trim();
 
         if (dateDot) {
@@ -656,7 +656,7 @@ const ComplaintDetail = () => {
         const dateDot = formatBorang5TemplateDate(dateIso || basicDraft.complaint_date);
         const timeDot = formatBorang5TemplateTime(timeHhmm || basicDraft.complaint_time);
         const address = (((complaint?.case_type || 'AJ') === 'AK')
-            ? (basicDraft.ak_event_location || '')
+            ? (basicDraft.current_address || '')
             : (basicDraft.address || '')).trim();
 
         if (dateDot) {
@@ -2246,13 +2246,13 @@ const ComplaintDetail = () => {
                                         <div className="app-kv-stack">
                                             <span className="app-kv-value">
                                                 <SharedInlineEditText
-                                                    value={complaint.ak_event_location}
+                                                    value={complaint.current_address}
                                                     placeholder="-"
                                                     canEdit={canEditAduanBox}
                                                     mode="textarea"
                                                     fullWidth
                                                     maxLength={1000}
-                                                    onConfirm={(next) => saveBasicField('ak_event_location', next)}
+                                                    onConfirm={(next) => saveBasicField('current_address', next)}
                                                 />
                                             </span>
                                         </div>
@@ -2498,8 +2498,8 @@ const ComplaintDetail = () => {
                                             <span>Alamat Terkini</span>
                                             <textarea
                                                 rows="4"
-                                                value={basicDraft.ak_event_location}
-                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, ak_event_location: event.target.value }))}
+                                                value={basicDraft.current_address}
+                                                onChange={(event) => setBasicDraft((prev) => ({ ...prev, current_address: event.target.value }))}
                                             />
                                         </label>
                                     )}

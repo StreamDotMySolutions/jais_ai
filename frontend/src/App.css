@@ -6534,6 +6534,118 @@ body {
   color: #6b7a83;
 }
 
+.app-waran-report-sheet {
+  font-family: "Times New Roman", Georgia, serif;
+  font-size: 11pt;
+  color: #111111;
+  max-width: 21cm;
+  margin: 0 auto;
+  padding: 2.2cm 2.0cm 2.0cm;
+  line-height: 1.22;
+}
+
+.app-waran-report-code {
+  text-align: right;
+  font-size: 9.5pt;
+  margin-bottom: 1.8cm;
+  font-weight: 700;
+}
+
+.app-waran-report-title {
+  text-align: center;
+  margin-bottom: 1.35cm;
+}
+
+.app-waran-report-title h1,
+.app-waran-report-title h2 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.app-waran-report-title h1 {
+  font-size: 11.5pt;
+  margin-bottom: 0.45cm;
+}
+
+.app-waran-report-title h2 {
+  font-size: 11.5pt;
+  margin-bottom: 0.24cm;
+}
+
+.app-waran-report-section {
+  margin-top: 1.0cm;
+}
+
+.app-waran-report-section h3 {
+  margin: 0 0 0.35cm;
+  font-size: 11.5pt;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.app-waran-report-table {
+  display: grid;
+  grid-template-columns: 4.9cm minmax(0, 1fr);
+  gap: 0.26cm 0.78cm;
+}
+
+.app-waran-report-table .k {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.app-waran-report-table .v {
+  min-height: 1.1em;
+}
+
+.app-waran-report-table-compact {
+  grid-template-columns: 2.4cm minmax(0, 1fr);
+}
+
+.app-waran-report-paragraph {
+  margin-top: 0.28cm;
+  line-height: 1.35;
+  text-align: justify;
+}
+
+.app-waran-report-subtitle {
+  margin-top: 0.35cm;
+  font-size: 11.5pt;
+  font-weight: 700;
+}
+
+.app-waran-signatures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3.8cm;
+  margin-top: 2.15cm;
+}
+
+.app-waran-signature-block {
+  text-align: center;
+}
+
+.app-waran-signature-block .t {
+  font-size: 10.5pt;
+}
+
+.app-waran-signature-block .line {
+  width: 78%;
+  margin: 2.4cm auto 0.3cm;
+  border-top: 1px solid #111111;
+}
+
+.app-waran-signature-block .name {
+  font-size: 10.5pt;
+  font-weight: 700;
+}
+
+.app-waran-signature-block .role {
+  font-size: 10pt;
+  line-height: 1.25;
+}
+
 @media print {
   .app-print-toolbar {
     display: none !important;
@@ -6557,6 +6669,12 @@ body {
     border: 0 !important;
     border-radius: 0 !important;
     padding: 0 !important;
+  }
+
+  .app-waran-report-sheet {
+    max-width: none;
+    margin: 0;
+    padding: 2.0cm 1.8cm 1.8cm;
   }
 }
 

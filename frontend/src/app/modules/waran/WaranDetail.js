@@ -120,6 +120,18 @@ const WaranDetail = () => {
             });
     };
 
+    const openWaranPrintPopup = () => {
+        const url = `/app/i-waran/${record.id}/print`;
+        const popup = window.open(
+            url,
+            'laporanPelaksanaanWaran',
+            'width=980,height=720,scrollbars=yes,resizable=yes'
+        );
+        if (!popup) {
+            navigate(url);
+        }
+    };
+
     if (isLoading) {
         return <div className="app-empty">Memuatkan rekod...</div>;
     }
@@ -176,10 +188,10 @@ const WaranDetail = () => {
                     <button
                         className="app-button app-button-ghost"
                         type="button"
-                        onClick={() => navigate(`/app/i-waran/${record.id}/print`)}
+                        onClick={openWaranPrintPopup}
                     >
                         <i className="bi bi-printer"></i>
-                        Print / PDF
+                        Laporan Pelaksanaan Waran
                     </button>
                     <button
                         className="app-button app-button-ghost"

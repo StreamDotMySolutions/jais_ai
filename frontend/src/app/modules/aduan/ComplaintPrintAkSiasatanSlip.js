@@ -90,7 +90,7 @@ const ComplaintPrintAkSiasatanSlip = () => {
     const oydsName = complaint?.complainant_name || complaint?.ak_partner_name || '-';
     const offense = resolveOffenseLabel(complaint);
     const temujanji = formatDateTimeDMY(complaint?.ak_investigation_datetime);
-    const tempat = complaint?.ak_event_place || complaint?.ak_event_location || complaint?.address || '-';
+    const tempat = complaint?.ak_event_place || complaint?.current_address || complaint?.address || '-';
     const signName = complaint?.complainant_name || '-';
     const signId = complaint?.identification_number || '-';
 

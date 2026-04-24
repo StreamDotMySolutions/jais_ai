@@ -2082,7 +2082,7 @@ class ComplaintController extends Controller
             'ak_event_date' => 'nullable|date',
             'ak_event_place' => 'nullable|string|max:255',
             'ak_event_time' => 'nullable|date_format:H:i',
-            'ak_event_location' => 'nullable|string|max:1000',
+            'current_address' => 'nullable|string|max:1000',
             'ak_rujuk_date' => 'nullable|date',
             'attachments' => 'nullable|array|max:10',
             'attachments.*' => 'file|max:51200|mimes:pdf,jpg,jpeg,png,doc,docx',
@@ -2109,7 +2109,7 @@ class ComplaintController extends Controller
             'ak_poligami_wife_count',
             'ak_event_date',
             'ak_event_place',
-            'ak_event_location',
+            'current_address',
             'ak_rujuk_date',
         ] as $key) {
             if (array_key_exists($key, $validated)) {
@@ -3567,7 +3567,7 @@ class ComplaintController extends Controller
             'ak_event_date' => 'nullable|date',
             'ak_event_place' => 'nullable|string|max:255',
             'ak_event_time' => 'nullable|date_format:H:i',
-            'ak_event_location' => 'nullable|string|max:1000',
+            'current_address' => 'nullable|string|max:1000',
             'ak_rujuk_date' => 'nullable|date',
             'consent_accepted' => 'nullable|boolean',
             'consent_text_version' => 'nullable|string|max:50',
@@ -3655,7 +3655,7 @@ class ComplaintController extends Controller
             'ak_event_date' => $caseType === 'AK' ? $request->input('ak_event_date') : null,
             'ak_event_place' => $caseType === 'AK' ? $request->input('ak_event_place') : null,
             'ak_event_time' => ($caseType === 'AK' && $request->filled('ak_event_time')) ? ($request->input('ak_event_time') . ':00') : null,
-            'ak_event_location' => $caseType === 'AK' ? $request->input('ak_event_location') : null,
+            'current_address' => $caseType === 'AK' ? $request->input('current_address') : null,
             'ak_rujuk_date' => $caseType === 'AK' ? $request->input('ak_rujuk_date') : null,
             'channel' => $channel,
             'consent_accepted' => $isPublicChannel ? $request->boolean('consent_accepted') : false,
@@ -3875,7 +3875,7 @@ class ComplaintController extends Controller
     {
         $caseType = strtoupper(trim((string) ($complaint->case_type ?: 'AJ')));
         if ($caseType === 'AK') {
-            return trim((string) ($complaint->ak_event_location ?: ''));
+            return trim((string) ($complaint->current_address ?: ''));
         }
 
         return trim((string) ($complaint->address ?: ''));

@@ -36,8 +36,8 @@ class IwaranWarrantController extends Controller
         $data = $request->validate([
             'jenis_waran' => ['nullable', 'in:tangkap,geledah'],
             'no_ruj_fail' => ['nullable', 'string'],
-            'tarikh_masa_terima' => ['nullable', 'date'],
-            'tahun' => ['nullable', 'integer'],
+            'tarikh_masa_terima' => ['required', 'date'],
+            'tahun' => ['required', 'integer', 'digits:4'],
             'no_kes' => ['nullable', 'string'],
             'jenis_kes_mal_id' => ['nullable', 'integer'],
             'jenis_kes_mal_lain' => ['nullable', 'string', 'max:255'],
@@ -978,8 +978,8 @@ class IwaranWarrantController extends Controller
         $data = $request->validate([
             'jenis_waran' => ['nullable', 'in:tangkap,geledah'],
             'no_ruj_fail' => ['nullable', 'string'],
-            'tarikh_masa_terima' => ['nullable', 'date'],
-            'tahun' => ['nullable', 'integer'],
+            'tarikh_masa_terima' => ['required', 'date'],
+            'tahun' => ['required', 'integer', 'digits:4'],
             'no_kes' => ['nullable', 'string'],
             'jenis_kes_mal_id' => ['nullable', 'integer'],
             'jenis_kes_mal_lain' => ['nullable', 'string', 'max:255'],

@@ -132,6 +132,7 @@ function App() {
           <Route path="/app/complaints/:id/print/tindakan-aduan" element={<ComplaintPrintTindakanAduan />} />
           <Route path="/app/complaints/:id/print/laporan-tindakan" element={<ComplaintPrintLaporanTindakan />} />
           <Route path="/app/complaints/:id/print/ak-siasatan-slip" element={<ComplaintPrintAkSiasatanSlip />} />
+          <Route path="/app/i-waran/:id/print" element={<WaranPrint />} />
           <Route path="/app/appointments/popup" element={<AppointmentCalendar isPopup />} />
           <Route element={<AppLayout />}>
             <Route path="/app/dashboard" element={<DashboardByRole />} />
@@ -178,7 +179,6 @@ function App() {
             <Route path="/app/i-waran/semakan-okt" element={<WaranOktSearchList />} />
             <Route path="/app/i-waran/new" element={<WaranFormStepper />} />
             <Route path="/app/i-waran/:id" element={<WaranDetail />} />
-            <Route path="/app/i-waran/:id/print" element={<WaranPrint />} />
             <Route path="/app/i-waran/:id/edit" element={<WaranFormStepper mode="edit" />} />
             <Route
               path="/app/i-waran/report"

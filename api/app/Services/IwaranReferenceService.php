@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\IwaranWarrant;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class IwaranReferenceService
 {
@@ -12,8 +13,9 @@ class IwaranReferenceService
     {
         $resolvedYear = $this->resolveYear($year, $at);
         $next = $this->reserveDistrictYearRunningNumber($districtId, $resolvedYear);
+        $districtName = $this->resolveDistrictName($districtId);
 
-        return str_pad((string) $next, 4, '0', STR_PAD_LEFT);
+        return "{$districtName} / {$resolvedYear} / " . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
 
     public function reserveDistrictYearRunningNumber(int $districtId, int $year): int
@@ -39,8 +41,8 @@ class IwaranReferenceService
                                 });
                         })
                         ->whereNotNull('no_ruj_fail')
-                        ->whereRaw("no_ruj_fail REGEXP '^[0-9]+$'")
-                        ->max(DB::raw('CAST(no_ruj_fail AS UNSIGNED)'))
+                        ->whereRaw("no_ruj_fail REGEXP '[0-9]{4}$'")
+                        ->max(DB::raw('CAST(RIGHT(no_ruj_fail, 4) AS UNSIGNED)'))
                 );
 
                 DB::table('iwaran_reference_sequences')->insert([
@@ -81,6 +83,18 @@ class IwaranReferenceService
         $date = $at ?: now();
 
         return (int) $date->format('Y');
+    }
+
+    private function resolveDistrictName(int $districtId): string
+    {
+        $name = (string) DB::table('districts')->where('id', $districtId)->value('name');
+        $name = trim(preg_replace('/\s+/', ' ', $name));
+
+        if ($name === '') {
+            return 'Daerah Tidak Diketahui';
+        }
+
+        return Str::of($name)->replace('/', '-')->toString();
     }
 }
 
