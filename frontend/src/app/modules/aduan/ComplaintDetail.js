@@ -3074,7 +3074,6 @@ const ComplaintDetail = () => {
                                                     apiUrl={apiUrl}
                                                     value={approverStaffId}
                                                     onChange={setApproverStaffId}
-                                                    officeType="hq"
                                                     disabled={Boolean(complaint.approver_confirmed_at)}
                                                 />
                                             </div>
@@ -3714,11 +3713,10 @@ const ComplaintDetail = () => {
                                         apiUrl={apiUrl}
                                         value={ajActionReport.handover_staff_id || ''}
                                         onChange={(value) => updateActionReportField('handover_staff_id', value)}
-                                        sameDistrictOfStaffId={ajActionReport.directive_staff_id || ''}
-                                        placeholder={ajActionReport.directive_staff_id ? '-- Pilih Pegawai Daerah --' : '-- Pilih Pegawai Yang Mengeluarkan Arahan dahulu --'}
-                                        disabled={!ajActionReport.directive_staff_id}
+                                        placeholder="-- Pilih Pegawai --"
                                         searchable
                                         searchPlaceholder="Cari pegawai yang menerima arahan..."
+                                        showDistrictLabel
                                     />
                                 </div>
 

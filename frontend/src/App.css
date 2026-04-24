@@ -4779,6 +4779,18 @@ body {
   box-sizing: border-box;
 }
 
+.app-approver-row .app-search-select {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.app-approver-row .app-search-select-body {
+  width: 100%;
+}
+
+
 .app-approver-row strong {
   color: #1f2f26;
   font-weight: 600;
