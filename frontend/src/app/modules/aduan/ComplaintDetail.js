@@ -65,6 +65,12 @@ const AJ_OP_CASE_STATUS_OPTIONS = [
 ];
 
 const LOCKED_BASIC_EDIT_CHANNELS = ['portal', 'web', 'whatsapp', 'whatsapp_web'];
+const normalizePpaClassification = (value) => {
+    const normalized = String(value || '').trim().toUpperCase();
+    if (normalized === 'FFA') return 'FNA';
+    if (['FNA', 'KIV', 'NFA', 'OP'].includes(normalized)) return normalized;
+    return '';
+};
 
 const ComplaintDetail = () => {
     const navigate = useNavigate();
@@ -808,7 +814,7 @@ const ComplaintDetail = () => {
             khalwat_detail_id: complaint.aj_khalwat_detail_id ? String(complaint.aj_khalwat_detail_id) : '',
             judi_detail_id: complaint.aj_judi_detail_id ? String(complaint.aj_judi_detail_id) : '',
             notes: complaint.aj_notes || '',
-            classification: complaint.aj_ppa_classification || '',
+            classification: normalizePpaClassification(complaint.aj_ppa_classification),
             supervisor_staff_id: complaint.aj_supervisor_staff_id ? String(complaint.aj_supervisor_staff_id) : '',
             ip_status: complaint.aj_ip_status || '',
             ip_due_date: complaint.aj_ip_due_date || '',
@@ -876,7 +882,7 @@ const ComplaintDetail = () => {
         });
         const existingHistoryEntries = (complaint.action_updates || []).length
             ? complaint.action_updates.map((row) => ({
-                classification: row.classification || '',
+                classification: normalizePpaClassification(row.classification),
                 action_date: row.action_date || '',
                 action_time: row.action_time || '',
                 note: row.note || '',
@@ -886,7 +892,7 @@ const ComplaintDetail = () => {
             ? existingHistoryEntries
             : (complaint.aj_ppa_classification
                 ? [{
-                    classification: complaint.aj_ppa_classification || '',
+                    classification: normalizePpaClassification(complaint.aj_ppa_classification),
                     action_date: complaint.complaint_date || '',
                     action_time: (complaint.complaint_time || '').slice(0, 5),
                     note: complaint.aj_notes || '',
@@ -1600,7 +1606,7 @@ const ComplaintDetail = () => {
                     ? (ajActionReport.current_status_other || '')
                     : '',
                 history_entries: (ajActionReport.history_entries || []).map((row) => ({
-                    classification: row.classification || '',
+                    classification: normalizePpaClassification(row.classification),
                     action_date: row.action_date || null,
                     action_time: row.action_time || '',
                     note: row.note || '',
@@ -1656,7 +1662,7 @@ const ComplaintDetail = () => {
                 return;
             }
 
-            const savedClassification = (complaint?.aj_ppa_classification || '').toString().trim();
+            const savedClassification = normalizePpaClassification(complaint?.aj_ppa_classification);
             const savedOffenseId = complaint?.aj_offense_id ? String(complaint.aj_offense_id) : '';
             const savedBorang5 = (complaint?.borang5_statement || '').toString().trim();
             const savedIncidentAddress = (complaint?.address || '').toString().trim();
@@ -1800,7 +1806,7 @@ const ComplaintDetail = () => {
     const normalizeHistoryEntries = (entries) => (
         (Array.isArray(entries) ? entries : [])
             .map((row) => ({
-                classification: String(row?.classification || '').trim().toUpperCase(),
+                classification: normalizePpaClassification(row?.classification),
                 action_date: String(row?.action_date || '').trim(),
                 action_time: String(row?.action_time || '').trim(),
                 note: String(row?.note || '').trim(),
@@ -2926,7 +2932,7 @@ const ComplaintDetail = () => {
                                     <h5>Klasifikasi</h5>
                                     <div className="app-radio-cards">
                                         {[
-                                            { value: 'FFA', label: 'For Further Action (FFA)' },
+                                            { value: 'FNA', label: 'For Necessary Action (FNA)' },
                                             { value: 'KIV', label: 'Keep In View (KIV)' },
                                             { value: 'NFA', label: 'No Further Action (NFA)' },
                                             { value: 'OP', label: 'Out of Procedure (OP)' },
@@ -3787,7 +3793,7 @@ const ComplaintDetail = () => {
                                                         onChange={(event) => updateActionHistoryRow(index, 'classification', event.target.value)}
                                                     >
                                                         <option value="">-- Pilih --</option>
-                                                        {['FFA', 'KIV', 'NFA', 'OP'].map((option) => (
+                                                        {['FNA', 'KIV', 'NFA', 'OP'].map((option) => (
                                                             <option key={option} value={option}>{option}</option>
                                                         ))}
                                                     </select>

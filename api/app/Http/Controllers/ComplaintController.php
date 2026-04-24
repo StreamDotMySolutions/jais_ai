@@ -644,7 +644,10 @@ class ComplaintController extends Controller
         }
 
         if ($request->filled('classification')) {
-            $query->whereRaw('UPPER(aj_ppa_classification) = ?', [strtoupper($request->string('classification')->toString())]);
+            $classification = $this->normalizePpaClassification($request->string('classification')->toString());
+            if ($classification) {
+                $this->applyPpaClassificationFilter($query, $classification);
+            }
         }
 
         if ($request->filled('from_date')) {
@@ -679,7 +682,7 @@ class ComplaintController extends Controller
                 return [
                     'action_status' => $status ?: 'Tidak diketahui',
                     'total' => (int) $group->sum('total'),
-                    'ffa_total' => (int) $group->where('aj_ppa_classification', 'FFA')->sum('total'),
+                    'fna_total' => (int) $group->whereIn('aj_ppa_classification', ['FNA', 'FFA'])->sum('total'),
                     'kiv_total' => (int) $group->where('aj_ppa_classification', 'KIV')->sum('total'),
                     'nfa_total' => (int) $group->where('aj_ppa_classification', 'NFA')->sum('total'),
                     'op_total' => (int) $group->where('aj_ppa_classification', 'OP')->sum('total'),
@@ -691,9 +694,17 @@ class ComplaintController extends Controller
         $classificationRows = $rows
             ->groupBy('aj_ppa_classification')
             ->map(function ($group, $classification) {
+                $normalized = $this->normalizePpaClassification((string) $classification);
                 return [
-                    'classification' => $classification ?: 'Tidak diketahui',
+                    'classification' => $normalized ?: 'Tidak diketahui',
                     'total' => (int) $group->sum('total'),
+                ];
+            })
+            ->groupBy('classification')
+            ->map(function ($group, $classification) {
+                return [
+                    'classification' => $classification,
+                    'total' => (int) collect($group)->sum('total'),
                 ];
             })
             ->sortByDesc('total')
@@ -835,10 +846,10 @@ class ComplaintController extends Controller
             ]
         );
 
-        $statusSheet = $this->addReportSheet($spreadsheet, 'By Action Status', ['Status Tindakan', 'FFA', 'KIV', 'NFA', 'OP', 'Jumlah']);
+        $statusSheet = $this->addReportSheet($spreadsheet, 'By Action Status', ['Status Tindakan', 'FNA', 'KIV', 'NFA', 'OP', 'Jumlah']);
         $statusRows = collect($data['status_rows'] ?? [])->map(fn ($row) => [
             $row['action_status'] ?? 'Tidak diketahui',
-            (int) ($row['ffa_total'] ?? 0),
+            (int) ($row['fna_total'] ?? 0),
             (int) ($row['kiv_total'] ?? 0),
             (int) ($row['nfa_total'] ?? 0),
             (int) ($row['op_total'] ?? 0),
@@ -1989,7 +2000,8 @@ class ComplaintController extends Controller
         $incidentAddress = trim((string) ($complaint->address ?? ''));
 
         $missingFields = [];
-        if (! in_array($classification, ['FFA', 'KIV', 'NFA', 'OP'], true)) {
+        $classification = $this->normalizePpaClassification($classification);
+        if (! $classification) {
             $missingFields[] = 'Klasifikasi';
         }
         if ($offenseId <= 0) {
@@ -2311,7 +2323,10 @@ class ComplaintController extends Controller
         ]);
 
         $ppaClassification = strtoupper(trim((string) ($request->payload['classification'] ?? '')));
-        $allowedPpa = ['FFA', 'KIV', 'NFA', 'OP'];
+        $allowedPpa = ['FNA', 'KIV', 'NFA', 'OP'];
+        if ($ppaClassification === 'FFA') {
+            $ppaClassification = 'FNA';
+        }
         if (! in_array($ppaClassification, $allowedPpa, true)) {
             $ppaClassification = null;
         }
@@ -2662,7 +2677,8 @@ class ComplaintController extends Controller
         $historyEntries = collect($report['history_entries'] ?? [])
             ->map(function ($row, $index) {
                 $classification = strtoupper(trim((string) ($row['classification'] ?? '')));
-                if (! in_array($classification, ['FFA', 'KIV', 'NFA', 'OP'], true)) {
+                $classification = $this->normalizePpaClassification($classification);
+                if (! $classification) {
                     $classification = null;
                 }
 
@@ -3899,7 +3915,8 @@ class ComplaintController extends Controller
         }
 
         $classification = strtoupper(trim((string) ($complaint->aj_ppa_classification ?? '')));
-        $hasMandatory = in_array($classification, ['FFA', 'KIV', 'NFA', 'OP'], true)
+        $classification = $this->normalizePpaClassification($classification);
+        $hasMandatory = in_array($classification, ['FNA', 'KIV', 'NFA', 'OP'], true)
             && ! empty($complaint->aj_offense_id)
             && trim((string) ($complaint->borang5_statement ?? '')) !== '';
         if (! $hasMandatory) {
@@ -4473,9 +4490,9 @@ class ComplaintController extends Controller
             $query->whereRaw('LOWER(aj_prosecution_status) = ?', [strtolower($prosecutionStatus)]);
         }
 
-        $classification = strtoupper(trim((string) $request->query('classification', '')));
-        if ($classification !== '') {
-            $query->whereRaw('UPPER(aj_ppa_classification) = ?', [$classification]);
+        $classification = $this->normalizePpaClassification((string) $request->query('classification', ''));
+        if ($classification) {
+            $this->applyPpaClassificationFilter($query, $classification);
         }
 
         $receiver = trim((string) $request->query('received_by', ''));
@@ -4867,6 +4884,34 @@ class ComplaintController extends Controller
         }
 
         return null;
+    }
+
+    private function normalizePpaClassification(?string $value): ?string
+    {
+        $classification = strtoupper(trim((string) $value));
+        if ($classification === '') {
+            return null;
+        }
+        if ($classification === 'FFA') {
+            $classification = 'FNA';
+        }
+
+        return in_array($classification, ['FNA', 'KIV', 'NFA', 'OP'], true)
+            ? $classification
+            : null;
+    }
+
+    private function applyPpaClassificationFilter($query, string $classification): void
+    {
+        if ($classification === 'FNA') {
+            $query->where(function ($subQuery) {
+                $subQuery->whereRaw('UPPER(aj_ppa_classification) = ?', ['FNA'])
+                    ->orWhereRaw('UPPER(aj_ppa_classification) = ?', ['FFA']);
+            });
+            return;
+        }
+
+        $query->whereRaw('UPPER(aj_ppa_classification) = ?', [$classification]);
     }
 
     private function respondWithPagination($query, Request $request, string $message)

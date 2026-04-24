@@ -434,7 +434,10 @@ class ImportZohoComplaintsCommand extends Command
     private function mapClassification(?string $value): ?string
     {
         $normalized = strtoupper(trim((string) $value));
-        return in_array($normalized, ['FFA', 'KIV', 'NFA', 'OP'], true) ? $normalized : null;
+        if ($normalized === 'FFA') {
+            $normalized = 'FNA';
+        }
+        return in_array($normalized, ['FNA', 'KIV', 'NFA', 'OP'], true) ? $normalized : null;
     }
 
     private function mapArrestStatus(?string $value): ?string

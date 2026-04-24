@@ -283,7 +283,7 @@ const ComplaintListFilter = ({
                                                 onChange={(event) => setDraftFilters({ ...draftFilters, classification: event.target.value })}
                                             >
                                                 <option value="">Semua</option>
-                                                <option value="FFA">For Further Action (FFA)</option>
+                                                <option value="FNA">For Necessary Action (FNA)</option>
                                                 <option value="KIV">Keep In View (KIV)</option>
                                                 <option value="NFA">No Further Action (NFA)</option>
                                                 <option value="OP">Out of Procedure (OP)</option>

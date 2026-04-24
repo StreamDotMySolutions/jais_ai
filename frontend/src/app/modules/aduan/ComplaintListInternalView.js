@@ -48,6 +48,11 @@ const formatAkSubtypeDisplay = (value) => {
     if (subtype === 'poligami') return 'Poligami';
     return '';
 };
+const normalizePpaClassification = (value) => {
+    const normalized = String(value || '').trim().toUpperCase();
+    if (normalized === 'FFA') return 'FNA';
+    return normalized;
+};
 
 const getExpandedSections = (item) => {
     const currentStatusDisplay = String(item?.aj_current_status || '').trim() === 'Other'
@@ -104,7 +109,7 @@ const getExpandedSections = (item) => {
             title: 'Tindakan',
             columns: [
                 [
-                    ['Klasifikasi', item.aj_ppa_classification],
+                    ['Klasifikasi', normalizePpaClassification(item.aj_ppa_classification)],
                     ['Status Terkini', currentStatusDisplay],
                     ['Nombor Fail', item.aj_file_no || item.case_register_no],
                     ['Nama PPA Bertanggungjawab', item.pic_user?.name || item.picUser?.name || item.aj_handover_staff?.name || item.ajHandoverStaff?.name],

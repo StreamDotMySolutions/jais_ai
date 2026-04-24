@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('complaints', function (Blueprint $table) {
             if (! Schema::hasColumn('complaints', 'aj_ppa_classification')) {
-                // PPA classification: FFA/KIV/NFA/OP (AJ only)
+                // PPA classification: FNA/KIV/NFA/OP (AJ only)
                 $table->string('aj_ppa_classification', 10)->nullable()->after('aj_notes');
             }
         });
@@ -25,4 +25,3 @@ return new class extends Migration
         });
     }
 };
-

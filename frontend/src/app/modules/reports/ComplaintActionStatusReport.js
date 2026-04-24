@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 
-const CLASSIFICATION_OPTIONS = ['FFA', 'KIV', 'NFA', 'OP'];
+const CLASSIFICATION_OPTIONS = ['FNA', 'KIV', 'NFA', 'OP'];
 
 const ComplaintActionStatusReport = ({
     title = 'Statistik Status Tindakan',
@@ -213,7 +213,7 @@ const ComplaintActionStatusReport = ({
                                                                 <div className="app-report-bar-fill" style={{ width }}></div>
                                                             </div>
                                                             <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.35rem', flexWrap: 'wrap', fontSize: '0.85rem' }}>
-                                                                <span style={{ color: '#1d4ed8' }}>FFA: {row.ffa_total || 0}</span>
+                                                                <span style={{ color: '#1d4ed8' }}>FNA: {row.fna_total || row.ffa_total || 0}</span>
                                                                 <span style={{ color: '#db2777' }}>KIV: {row.kiv_total || 0}</span>
                                                                 <span style={{ color: '#0f766e' }}>NFA: {row.nfa_total || 0}</span>
                                                                 <span style={{ color: '#92400e' }}>OP: {row.op_total || 0}</span>
@@ -257,7 +257,7 @@ const ComplaintActionStatusReport = ({
                                         <div className="app-inline-table app-inline-clean">
                                             <div className="app-inline-table-header" style={{ gridTemplateColumns: '1fr 0.35fr 0.35fr 0.35fr 0.35fr 0.35fr' }}>
                                                 <span>Status Tindakan</span>
-                                                <span>FFA</span>
+                                                <span>FNA</span>
                                                 <span>KIV</span>
                                                 <span>NFA</span>
                                                 <span>OP</span>
@@ -266,7 +266,7 @@ const ComplaintActionStatusReport = ({
                                             {summary.status_rows.map((row) => (
                                                 <div key={`table-${row.action_status}`} className="app-inline-table-row" style={{ gridTemplateColumns: '1fr 0.35fr 0.35fr 0.35fr 0.35fr 0.35fr' }}>
                                                     <span>{row.action_status || 'Tidak diketahui'}</span>
-                                                    <span>{row.ffa_total || 0}</span>
+                                                    <span>{row.fna_total || row.ffa_total || 0}</span>
                                                     <span>{row.kiv_total || 0}</span>
                                                     <span>{row.nfa_total || 0}</span>
                                                     <span>{row.op_total || 0}</span>

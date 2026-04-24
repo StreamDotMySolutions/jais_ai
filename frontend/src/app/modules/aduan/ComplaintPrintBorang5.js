@@ -117,7 +117,10 @@ const ComplaintPrintBorang5 = () => {
     const reportTextRaw = String(complaint?.borang5_statement || complaint?.summary || '').trim();
     const reportDate = formatDateDMY(complaint?.complaint_date);
     const reportTime = complaint?.complaint_time ? formatTime12hDot(complaint.complaint_time) : '-';
-    const mainStatus = (complaint?.aj_ppa_classification || '').toString().trim().toUpperCase();
+    const mainStatus = (() => {
+        const normalized = (complaint?.aj_ppa_classification || '').toString().trim().toUpperCase();
+        return normalized === 'FFA' ? 'FNA' : normalized;
+    })();
     const consentAccepted = Boolean(complaint?.consent_accepted);
     const consentAcceptedAt = complaint?.consent_accepted_at ? formatDateDMY(complaint.consent_accepted_at) : '';
     const officerInformantName =
