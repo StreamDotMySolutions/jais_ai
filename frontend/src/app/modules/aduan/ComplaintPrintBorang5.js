@@ -52,6 +52,13 @@ const ComplaintPrintBorang5 = () => {
     }
 
     const renderValue = (value) => value || '-';
+    const renderUpperValue = (value) => {
+        const text = String(value || '').trim();
+        if (!text) {
+            return '-';
+        }
+        return text.toLocaleUpperCase('ms-MY');
+    };
     const pad2 = (value) => String(value ?? '').padStart(2, '0');
 
     const formatDateDMY = (value) => {
@@ -318,24 +325,26 @@ const ComplaintPrintBorang5 = () => {
                     )}
                     <div className="print-borang5-row">
                         <div className="print-borang5-label">Nama</div>
-                        <div className="print-borang5-value">{renderValue(effectiveInformantName)}</div>
+                        <div className="print-borang5-value">{renderUpperValue(effectiveInformantName)}</div>
                     </div>
                     <div className="print-borang5-row">
                         <div className="print-borang5-label">{caseType === 'AK' ? 'No Kad Pengenalan Diri' : 'No. K/P Pengadu'}</div>
-                        <div className="print-borang5-value">{renderValue(effectiveInformantIdNumber)}</div>
+                        <div className="print-borang5-value">{renderUpperValue(effectiveInformantIdNumber)}</div>
                     </div>
                     <div className="print-borang5-row">
                         <div className="print-borang5-label">{caseType === 'AK' ? 'Pekerjaan' : 'Pekerjaan Pengadu'}</div>
-                        <div className="print-borang5-value">{renderValue(effectiveInformantOccupation)}</div>
+                        <div className="print-borang5-value">{renderUpperValue(effectiveInformantOccupation)}</div>
                     </div>
                     <div className="print-borang5-row">
                         <div className="print-borang5-label">{caseType === 'AK' ? 'No. Telefon' : 'No. Telefon Pengadu'}</div>
-                        <div className="print-borang5-value">{renderValue(effectiveInformantContactNumber)}</div>
+                        <div className="print-borang5-value">{renderUpperValue(effectiveInformantContactNumber)}</div>
                     </div>
                     <div className="print-borang5-row">
                         <div className="print-borang5-label">{caseType === 'AK' ? 'Alamat' : 'Alamat Pengadu'}</div>
                         <div className="print-borang5-value">
-                            {caseType === 'AK' ? (effectiveInformantAddress || '') : renderValue(effectiveInformantAddress)}
+                            {caseType === 'AK'
+                                ? String(effectiveInformantAddress || '').toLocaleUpperCase('ms-MY')
+                                : renderUpperValue(effectiveInformantAddress)}
                         </div>
                     </div>
                 </div>
