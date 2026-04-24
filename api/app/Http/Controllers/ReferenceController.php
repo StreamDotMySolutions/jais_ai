@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ReferenceController extends Controller
 {
@@ -101,18 +102,32 @@ class ReferenceController extends Controller
 
     public function iwaranJenisKes(): JsonResponse
     {
+        $hasCodeColumn = Schema::hasColumn('ref_iwaran_jenis_kes', 'code');
+
         $query = DB::table('ref_iwaran_jenis_kes')
-            ->where('is_active', 1)
-            ->orderBy('nama');
+            ->where('is_active', 1);
+
+        if ($hasCodeColumn) {
+            $query->orderBy('code');
+        }
+
+        $query->orderBy('nama');
 
         $kategori = request()->get('kategori');
         if ($kategori) {
             $query->where('kategori', $kategori);
         }
 
+        $data = $hasCodeColumn
+            ? $query->get(['id', 'code', 'kategori', 'nama'])
+            : $query->get(['id', 'kategori', 'nama'])->map(function ($item) {
+                $item->code = null;
+                return $item;
+            });
+
         return response()->json([
             'message' => 'Jenis kes i-WARAN',
-            'data' => $query->get(['id', 'kategori', 'nama']),
+            'data' => $data,
         ]);
     }
 
