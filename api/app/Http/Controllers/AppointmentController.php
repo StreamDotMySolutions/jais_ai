@@ -24,8 +24,8 @@ class AppointmentController extends Controller
 
         $startAt = Carbon::parse($validated['start_at'])->startOfDay();
         $endAt = Carbon::parse($validated['end_at'])->endOfDay();
-        $isHqScope = $user->hasAnyRole(['pegawai', 'pegawai_hq', 'admin', 'system']);
-        $isDistrictScope = $user->hasRole('pegawai_daerah');
+        $isDistrictScope = $this->isDistrictScopedUser($user);
+        $isHqScope = ! $isDistrictScope;
 
         $viewerDistrictId = $this->resolveUserDistrictId($user);
         $selectedDistrictId = null;
@@ -137,5 +137,30 @@ class AppointmentController extends Controller
         }
 
         return null;
+    }
+
+    private function isDistrictScopedUser($user): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['admin', 'system', 'pegawai_hq'])) {
+            return false;
+        }
+
+        if ($user->hasRole('pegawai_daerah')) {
+            return true;
+        }
+
+        $userOfficeType = strtolower(trim((string) ($user->office_type ?? '')));
+        if ($userOfficeType === 'daerah') {
+            return true;
+        }
+
+        $user->loadMissing('staff:id,user_id,office_type');
+        $staffOfficeType = strtolower(trim((string) ($user->staff->office_type ?? '')));
+
+        return $staffOfficeType === 'daerah';
     }
 }

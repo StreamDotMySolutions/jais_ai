@@ -1611,8 +1611,17 @@ class ComplaintController extends Controller
             . "Muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail Aduan.\n\n"
             . "Terima kasih.";
         $bodyPlainText = $customBody !== '' ? $customBody : $defaultBody;
+        $statusText = $mainStatus !== '' ? $mainStatus : '-';
+        $districtText = (string) ($complaint->district_name ?: '-');
+        $highlightLine = "Aduan berstatus {$statusText} untuk tindakan daerah {$districtText}.";
+        $escapedBody = nl2br(e($bodyPlainText));
+        $escapedBody = str_replace(
+            e($highlightLine),
+            'Aduan berstatus <strong>' . e($statusText) . '</strong> untuk tindakan daerah <strong>' . e($districtText) . '</strong>.',
+            $escapedBody
+        );
         $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
-            . nl2br(e($bodyPlainText))
+            . $escapedBody
             . '</div>';
         $pdfBinary = Pdf::loadView('pdf.complaints.borang5', [
             'referenceNo' => $subjectReference,
@@ -1745,11 +1754,19 @@ class ComplaintController extends Controller
 
         $defaultBody = "Assalamualaikum\n\n"
             . "Laporan Tindakan bagi daerah " . ($complaint->district_name ?: '-') . " telah diperolehi.\n\n"
-            . "Sila muat turun salinan Tindakan Aduan di lampiran sebagai simpanan rekod di Fail KES.\n\n"
+            . "Sila muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail KES.\n\n"
+            . "Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan\n\n"
             . "Terima kasih.";
         $bodyPlainText = trim((string) ($validated['body'] ?? '')) ?: $defaultBody;
+        $highlightLine = 'Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan';
+        $escapedBody = nl2br(e($bodyPlainText));
+        $escapedBody = str_replace(
+            e($highlightLine),
+            '<strong>' . e($highlightLine) . '</strong>',
+            $escapedBody
+        );
         $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
-            . nl2br(e($bodyPlainText))
+            . $escapedBody
             . '</div>';
 
         $pdfBinary = Pdf::loadView('pdf.complaints.tindakan-aduan', [
@@ -4022,8 +4039,17 @@ class ComplaintController extends Controller
             . "Sila pastikan aduan diambil tindakan mengikut tempoh yang ditetapkan.\n\n"
             . "Muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail Aduan.\n\n"
             . "Terima kasih.";
+        $statusText = $mainStatus !== '' ? $mainStatus : '-';
+        $districtText = (string) ($complaint->district_name ?: '-');
+        $highlightLine = "Aduan berstatus {$statusText} untuk tindakan daerah {$districtText}.";
+        $escapedBody = nl2br(e($bodyPlainText));
+        $escapedBody = str_replace(
+            e($highlightLine),
+            'Aduan berstatus <strong>' . e($statusText) . '</strong> untuk tindakan daerah <strong>' . e($districtText) . '</strong>.',
+            $escapedBody
+        );
         $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
-            . nl2br(e($bodyPlainText))
+            . $escapedBody
             . '</div>';
         $pdfBinary = Pdf::loadView('pdf.complaints.borang5', [
             'referenceNo' => $subjectReference,
@@ -4159,10 +4185,18 @@ class ComplaintController extends Controller
         $subject = 'Laporan Tindakan : ' . ($complaint->case_register_no ?: $complaint->reference_no ?: ('Aduan #' . $complaint->id));
         $bodyPlainText = "Assalamualaikum\n\n"
             . "Laporan Tindakan bagi daerah " . ($complaint->district_name ?: '-') . " telah diperolehi.\n\n"
-            . "Sila muat turun salinan Laporan Tindakan di lampiran sebagai simpanan rekod di Fail KES.\n\n"
+            . "Sila muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail KES.\n\n"
+            . "Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan\n\n"
             . "Terima kasih.";
+        $highlightLine = 'Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan';
+        $escapedBody = nl2br(e($bodyPlainText));
+        $escapedBody = str_replace(
+            e($highlightLine),
+            '<strong>' . e($highlightLine) . '</strong>',
+            $escapedBody
+        );
         $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
-            . nl2br(e($bodyPlainText))
+            . $escapedBody
             . '</div>';
 
         $pdfBinary = Pdf::loadView('pdf.complaints.laporan-tindakan', [

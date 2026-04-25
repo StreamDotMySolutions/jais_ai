@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
@@ -68,7 +68,7 @@ const buildCalendarDays = (baseDate) => {
 const AppointmentCalendar = ({ isPopup = false }) => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const role = normalizeRole(localStorage.getItem('role'));
-    const isHqRole = ['pegawai', 'pegawai_hq', 'admin', 'system'].includes(role);
+    const initialScope = role === 'pegawai_daerah' ? 'daerah' : 'hq';
     const [searchParams] = useSearchParams();
     const focusDate = searchParams.get('date');
     const initialDate = focusDate ? new Date(focusDate) : new Date();
@@ -78,11 +78,15 @@ const AppointmentCalendar = ({ isPopup = false }) => {
     const [expandedDates, setExpandedDates] = useState({});
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [appointments, setAppointments] = useState([]);
-    const [districtFilter, setDistrictFilter] = useState('');
-    const [availableDistricts, setAvailableDistricts] = useState([]);
     const [viewerDistrictName, setViewerDistrictName] = useState('');
+    const [calendarScope, setCalendarScope] = useState(initialScope);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchBy, setSearchBy] = useState('reference_no');
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isSearchParamOpen, setIsSearchParamOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const searchParamRef = useRef(null);
 
     const { days, monthStart, monthEnd } = useMemo(() => buildCalendarDays(currentDate), [currentDate]);
     const monthLabel = formatMonthLabel(currentDate);
@@ -102,14 +106,14 @@ const AppointmentCalendar = ({ isPopup = false }) => {
             params: {
                 start_at: formatDateKey(monthStart),
                 end_at: formatDateKey(monthEnd),
-                ...(isHqRole && districtFilter ? { district_id: districtFilter } : {}),
             },
         })
             .then((response) => {
                 const payload = response?.data || {};
                 setAppointments(payload?.data || []);
-                setAvailableDistricts(payload?.filters?.available_districts || []);
                 setViewerDistrictName(payload?.viewer?.district_name || '');
+                const nextScope = payload?.scope === 'daerah' ? 'daerah' : 'hq';
+                setCalendarScope(nextScope);
             })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal mendapatkan temujanji.');
@@ -118,11 +122,60 @@ const AppointmentCalendar = ({ isPopup = false }) => {
             .finally(() => {
                 setIsLoading(false);
             });
-    }, [apiUrl, monthKey, districtFilter, isHqRole]);
+    }, [apiUrl, monthKey]);
+
+    const searchOptions = useMemo(() => {
+        const base = [
+            { value: 'reference_no', label: 'No. Aduan' },
+            { value: 'complainant_name', label: 'Nama Pengadu' },
+            { value: 'identification_number', label: 'No. K/P' },
+            { value: 'contact_number', label: 'No. Telefon' },
+        ];
+        if (calendarScope === 'hq') {
+            base.push({ value: 'district_name', label: 'Daerah' });
+        }
+        return base;
+    }, [calendarScope]);
+
+    useEffect(() => {
+        if (!searchOptions.some((option) => option.value === searchBy)) {
+            setSearchBy(searchOptions[0]?.value || 'reference_no');
+        }
+    }, [searchBy, searchOptions]);
+
+    useEffect(() => {
+        const handleOutsideClick = (event) => {
+            if (searchParamRef.current && !searchParamRef.current.contains(event.target)) {
+                setIsSearchOpen(false);
+                setIsSearchParamOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleOutsideClick);
+        return () => document.removeEventListener('mousedown', handleOutsideClick);
+    }, []);
+
+    const filteredAppointments = useMemo(() => {
+        const term = String(searchQuery || '').trim().toLowerCase();
+        if (!term) {
+            return appointments;
+        }
+
+        return appointments.filter((item) => {
+            const complaint = item?.complaint || {};
+            const lookup = {
+                reference_no: complaint?.reference_no,
+                complainant_name: complaint?.complainant_name,
+                identification_number: complaint?.identification_number,
+                contact_number: complaint?.contact_number,
+                district_name: complaint?.district_name,
+            };
+            return String(lookup[searchBy] || '').toLowerCase().includes(term);
+        });
+    }, [appointments, searchBy, searchQuery]);
 
     const appointmentsByDay = useMemo(() => {
         const map = new Map();
-        appointments.forEach((item) => {
+        filteredAppointments.forEach((item) => {
             const start = new Date(item.start_at);
             const key = formatDateKey(start);
             if (!map.has(key)) {
@@ -134,7 +187,7 @@ const AppointmentCalendar = ({ isPopup = false }) => {
             items.sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
         });
         return map;
-    }, [appointments]);
+    }, [filteredAppointments]);
 
 
     const handlePrev = () => {
@@ -173,34 +226,82 @@ const AppointmentCalendar = ({ isPopup = false }) => {
             onClick={() => {
                 setActiveSlotDate(null);
                 closeEventPopover();
+                setIsSearchOpen(false);
+                setIsSearchParamOpen(false);
             }}
         >
-            <div className="app-calendar-header">
-                <div className="app-calendar-actions">
-                    <button className="app-button app-button-ghost" type="button" onClick={handleToday}>Hari Ini</button>
-                    <button className="app-icon-button" type="button" onClick={handlePrev} aria-label="Bulan sebelumnya">‹</button>
-                    <button className="app-icon-button" type="button" onClick={handleNext} aria-label="Bulan seterusnya">›</button>
+            <div className="app-calendar-header app-calendar-header--google">
+                <div className="app-calendar-head-left">
+                    <button className="app-button app-button-ghost" type="button" onClick={handleToday}>Today</button>
+                    <button className="app-icon-button" type="button" onClick={handlePrev} aria-label="Bulan sebelumnya">
+                        <i className="bi bi-chevron-left"></i>
+                    </button>
+                    <button className="app-icon-button" type="button" onClick={handleNext} aria-label="Bulan seterusnya">
+                        <i className="bi bi-chevron-right"></i>
+                    </button>
+                    <div className="app-calendar-title app-calendar-title--google">
+                        <span>{monthLabel}</span>
+                        {!isPopup && calendarScope === 'daerah' && viewerDistrictName && (
+                            <small className="app-calendar-scope">Daerah: {viewerDistrictName}</small>
+                        )}
+                    </div>
                 </div>
-                <div className="app-calendar-title">
-                    {!isPopup && <h2>Kalendar Temujanji</h2>}
-                    <span>{monthLabel}</span>
-                    {!isPopup && isHqRole && (
-                        <label className="app-calendar-filter">
-                            <small>Daerah</small>
-                            <select value={districtFilter} onChange={(event) => setDistrictFilter(event.target.value)}>
-                                <option value="">Semua Daerah</option>
-                                {availableDistricts.map((district) => (
-                                    <option key={district.id} value={district.id}>
-                                        {district.name}
-                                    </option>
-                                ))}
-                            </select>
-                        </label>
-                    )}
-                    {!isPopup && !isHqRole && viewerDistrictName && (
-                        <small className="app-calendar-scope">Daerah: {viewerDistrictName}</small>
-                    )}
-                </div>
+                {!isPopup && (
+                    <div className="app-calendar-head-right" ref={searchParamRef} onClick={(event) => event.stopPropagation()}>
+                        <div className="app-calendar-search app-calendar-search--compact">
+                            <button
+                                className="app-calendar-search-icon"
+                                type="button"
+                                onClick={() => setIsSearchOpen((prev) => !prev)}
+                                aria-label="Buka carian"
+                            >
+                                <i className="bi bi-search"></i>
+                            </button>
+                            <button className="app-calendar-view-chip" type="button" aria-label="Paparan bulan">
+                                Month <i className="bi bi-chevron-down"></i>
+                            </button>
+                        </div>
+                        {isSearchOpen && (
+                            <div className="app-calendar-search-popover">
+                                <div className="app-calendar-search-row">
+                                    <i className="bi bi-search" aria-hidden="true"></i>
+                                    <input
+                                        type="text"
+                                        value={searchQuery}
+                                        onChange={(event) => setSearchQuery(event.target.value)}
+                                        placeholder="Search"
+                                        aria-label="Carian kalendar"
+                                    />
+                                    <button
+                                        className="app-calendar-search-toggle"
+                                        type="button"
+                                        onClick={() => setIsSearchParamOpen((prev) => !prev)}
+                                        aria-label="Pilih parameter carian"
+                                    >
+                                        <i className={`bi ${isSearchParamOpen ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                </div>
+                                {isSearchParamOpen && (
+                                    <div className="app-calendar-search-menu">
+                                        {searchOptions.map((option) => (
+                                            <button
+                                                key={option.value}
+                                                type="button"
+                                                className={`app-calendar-search-option${searchBy === option.value ? ' is-active' : ''}`}
+                                                onClick={() => {
+                                                    setSearchBy(option.value);
+                                                    setIsSearchParamOpen(false);
+                                                }}
+                                            >
+                                                {option.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="app-calendar-grid">
@@ -433,3 +534,4 @@ const AppointmentCalendar = ({ isPopup = false }) => {
 };
 
 export default AppointmentCalendar;
+

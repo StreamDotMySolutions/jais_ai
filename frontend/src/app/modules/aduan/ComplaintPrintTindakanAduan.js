@@ -122,7 +122,9 @@ const ComplaintPrintTindakanAduan = () => {
         '',
         `Laporan Tindakan bagi daerah ${districtDisplay} telah diperolehi.`,
         '',
-        'Sila muat turun salinan Tindakan Aduan di lampiran sebagai simpanan rekod di Fail KES.',
+        'Sila muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail KES.',
+        '',
+        'Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan',
         '',
         'Terima kasih.',
     ].join('\n');

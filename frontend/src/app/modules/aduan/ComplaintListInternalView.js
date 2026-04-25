@@ -48,6 +48,38 @@ const formatAkSubtypeDisplay = (value) => {
     if (subtype === 'poligami') return 'Poligami';
     return '';
 };
+
+const formatDateLabel = (value) => {
+    if (!value) return '-';
+    const raw = String(value).trim();
+    const parts = raw.split('-');
+    if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return raw;
+};
+
+const formatDateWithTime = (dateValue, timeValue) => {
+    const dateLabel = formatDateLabel(dateValue);
+    if (dateLabel === '-') return '-';
+    const timeLabel = String(timeValue || '').trim().slice(0, 5);
+    return timeLabel ? `${dateLabel}, ${timeLabel}` : dateLabel;
+};
+
+const isPublicComplaintChannel = (channel) => {
+    const normalized = String(channel || '').trim().toLowerCase();
+    return ['portal', 'web', 'whatsapp', 'whatsapp_web'].includes(normalized);
+};
+
+const getListDateTimeLabel = (item) => {
+    if (isPublicComplaintChannel(item?.channel)) {
+        const createdAtLabel = formatShortDateTime(item?.created_at);
+        if (createdAtLabel !== '-') {
+            return createdAtLabel;
+        }
+    }
+    return formatDateWithTime(item?.complaint_date, item?.complaint_time);
+};
 const normalizePpaClassification = (value) => {
     const normalized = String(value || '').trim().toUpperCase();
     if (normalized === 'FFA') return 'FNA';
@@ -320,7 +352,7 @@ const ComplaintListInternalView = ({
                                     >
                                         {item.reference_no || '-'}
                                     </button>
-                                    <span className="app-complaint-cell-meta">{item.complaint_date || '-'}</span>
+                                    <span className="app-complaint-cell-meta">{getListDateTimeLabel(item)}</span>
                                     <span className="app-complaint-cell-name">{item.complainant_name || '-'}</span>
                                 </span>
                                 <span className="app-complaint-cell">
