@@ -6323,8 +6323,8 @@ body {
 }
 
 .app-textarea-400 {
-  height: 400px;
-  min-height: 400px;
+  height: 250px;
+  min-height: 250px;
 }
 
 .app-textarea-300 {
