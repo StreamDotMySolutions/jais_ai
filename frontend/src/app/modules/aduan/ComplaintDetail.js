@@ -954,19 +954,7 @@ const ComplaintDetail = () => {
     }, [complaint]);
 
     const updateReportField = (field, value) => {
-        setAjReport((prev) => {
-            if (field === 'arrest_status' && value === 'tiada') {
-                return {
-                    ...prev,
-                    arrest_status: value,
-                    male_count: '',
-                    female_count: '',
-                    other_count: '',
-                    arrest_by: '',
-                };
-            }
-            return { ...prev, [field]: value };
-        });
+        setAjReport((prev) => ({ ...prev, [field]: value }));
     };
 
     const updateActionReportField = (field, value) => {
@@ -4011,70 +3999,70 @@ const ComplaintDetail = () => {
                                                     />
                                                 </label>
                                             </div>
-                                            {ajReport.arrest_status === 'ada' && (
-                                                <div className="app-arrest-row app-arrest-row-2 app-span-full">
-                                                    <div className="app-form-field app-tangkapan-grid">
-                                                        <span>Jumlah Tangkapan</span>
-                                                        <div className="app-tangkapan-fields app-tangkapan-fields-3">
-                                                            <label>
-                                                                <small>Lelaki</small>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    value={ajReport.male_count}
-                                                                    onChange={(event) => updateReportField('male_count', event.target.value)}
-                                                                />
-                                                            </label>
-                                                            <label>
-                                                                <small>Perempuan</small>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    value={ajReport.female_count}
-                                                                    onChange={(event) => updateReportField('female_count', event.target.value)}
-                                                                />
-                                                            </label>
-                                                            <label>
-                                                                <small>Lain-lain</small>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    value={ajReport.other_count}
-                                                                    onChange={(event) => updateReportField('other_count', event.target.value)}
-                                                                />
-                                                            </label>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="app-form-field">
-                                                        <span>Tangkapan Oleh</span>
-                                                        <div className="app-inline-radio-group">
-                                                            {['Pegawai Penguatkuasa Agama', 'Pegawai Masjid', 'Pegawai Polis', 'Orang Awam'].map((label) => (
-                                                                <label className="app-inline-radio app-inline-radio-compact" key={label}>
-                                                                    <input
-                                                                        type="radio"
-                                                                        name="aj_arrest_by"
-                                                                        value={label}
-                                                                        checked={ajReport.arrest_by === label}
-                                                                        onChange={() => updateReportField('arrest_by', label)}
-                                                                    />
-                                                                    <span>{label}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="app-form-field">
-                                                        <span>Pegawai Penangkap</span>
-                                                        <SharedStaffSelect
-                                                            apiUrl={apiUrl}
-                                                            value={ajReport.arrest_staff_id || ''}
-                                                            onChange={(value) => updateReportField('arrest_staff_id', value)}
-                                                            placeholder="-- Pilih Pegawai Penangkap --"
-                                                        />
+                                            <div className="app-arrest-row app-arrest-row-2 app-span-full">
+                                                <div className="app-form-field app-tangkapan-grid">
+                                                    <span>Jumlah Tangkapan</span>
+                                                    <div className="app-tangkapan-fields app-tangkapan-fields-3">
+                                                        <label>
+                                                            <small>Lelaki</small>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={ajReport.male_count}
+                                                                onChange={(event) => updateReportField('male_count', event.target.value)}
+                                                            />
+                                                        </label>
+                                                        <label>
+                                                            <small>Perempuan</small>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={ajReport.female_count}
+                                                                onChange={(event) => updateReportField('female_count', event.target.value)}
+                                                            />
+                                                        </label>
+                                                        <label>
+                                                            <small>Lain-lain</small>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={ajReport.other_count}
+                                                                onChange={(event) => updateReportField('other_count', event.target.value)}
+                                                            />
+                                                        </label>
                                                     </div>
                                                 </div>
-                                            )}
+
+                                                <div className="app-form-field">
+                                                    <span>Tangkapan Oleh</span>
+                                                    <div className="app-inline-radio-group">
+                                                        {['Pegawai Penguatkuasa Agama', 'Pegawai Masjid', 'Pegawai Polis', 'Orang Awam'].map((label) => (
+                                                            <label className="app-inline-radio app-inline-radio-compact" key={label}>
+                                                                <input
+                                                                    type="radio"
+                                                                    name="aj_arrest_by"
+                                                                    value={label}
+                                                                    checked={ajReport.arrest_by === label}
+                                                                    onChange={() => updateReportField('arrest_by', label)}
+                                                                />
+                                                                <span>{label}</span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div className="app-arrest-row app-span-full">
+                                                <div className="app-form-field">
+                                                    <span>Pegawai Penangkap</span>
+                                                    <SharedStaffSelect
+                                                        apiUrl={apiUrl}
+                                                        value={ajReport.arrest_staff_id || ''}
+                                                        onChange={(value) => updateReportField('arrest_staff_id', value)}
+                                                        placeholder="-- Pilih Pegawai Penangkap --"
+                                                    />
+                                                </div>
+                                            </div>
 
                                         <div className="app-form-field app-span-full">
                                             <span>Maklumat OYDS</span>
