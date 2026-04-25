@@ -293,7 +293,7 @@ const ComplaintListInternalView = ({
                     <span>Aduan</span>
                     <span>Daerah / Kategori</span>
                     <span>Status / Tindakan</span>
-                    <span>Ringkasan</span>
+                    <span>Butiran Aduan</span>
                     <span>Tindakan</span>
                 </div>
                 {Array.from({ length: 6 }, (_, index) => (

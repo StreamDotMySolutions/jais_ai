@@ -702,7 +702,7 @@ const ComplaintList = ({
         { key: 'aduan', label: 'Aduan', sortable: false },
         { key: 'lokasi', label: 'Daerah / Kategori', sortable: false },
         { key: 'status_group', label: 'Status / Tindakan', sortable: false },
-        { key: 'summary', label: 'Ringkasan', sortable: false },
+        { key: 'summary', label: 'Butiran Aduan', sortable: false },
         { key: 'actions', label: 'Tindakan', sortable: false },
     ];
 

@@ -4343,7 +4343,8 @@ class ComplaintController extends Controller
                     ->where('reference_no', 'like', '%' . $keyword . '%')
                     ->orWhere('complainant_name', 'like', '%' . $keyword . '%')
                     ->orWhere('district_name', 'like', '%' . $keyword . '%')
-                    ->orWhere('summary', 'like', '%' . $keyword . '%');
+                    ->orWhere('summary', 'like', '%' . $keyword . '%')
+                    ->orWhere('borang5_statement', 'like', '%' . $keyword . '%');
             });
         }
 
@@ -4359,7 +4360,11 @@ class ComplaintController extends Controller
 
         $summary = trim((string) $request->query('summary', ''));
         if ($summary !== '') {
-            $query->where('summary', 'like', '%' . $summary . '%');
+            $query->where(function ($subQuery) use ($summary) {
+                $subQuery
+                    ->where('summary', 'like', '%' . $summary . '%')
+                    ->orWhere('borang5_statement', 'like', '%' . $summary . '%');
+            });
         }
 
         $caseRegisterNo = trim((string) $request->query('case_register_no', ''));
@@ -4963,6 +4968,12 @@ class ComplaintController extends Controller
         ]);
 
         $items = $query->paginate($perPage);
+        $items->getCollection()->transform(function ($item) {
+            $preferredSummary = trim((string) ($item->borang5_statement ?? ''));
+            $fallbackSummary = trim((string) ($item->summary ?? ''));
+            $item->summary = $preferredSummary !== '' ? $preferredSummary : $fallbackSummary;
+            return $item;
+        });
 
         return response()->json([
             'message' => $message,
