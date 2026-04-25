@@ -186,19 +186,19 @@
                 <td class="row-value">{{ $informantName ?: '-' }}</td>
             </tr>
             <tr>
-                <td class="row-label">No. K/P Pengadu</td>
+                <td class="row-label">{{ strtoupper((string) ($caseType ?? 'AJ')) === 'AK' ? 'No Kad Pengenalan Diri' : 'No. K/P' }}</td>
                 <td class="row-value">{{ $informantIdNumber ?: '-' }}</td>
             </tr>
             <tr>
-                <td class="row-label">Pekerjaan Pengadu</td>
+                <td class="row-label">Pekerjaan</td>
                 <td class="row-value">{{ $informantOccupation ?: '-' }}</td>
             </tr>
             <tr>
-                <td class="row-label">No. Telefon Pengadu</td>
+                <td class="row-label">No. Telefon</td>
                 <td class="row-value">{{ $informantContactNumber ?: '-' }}</td>
             </tr>
             <tr>
-                <td class="row-label">Alamat Pengadu</td>
+                <td class="row-label">Alamat</td>
                 <td class="row-value">{{ $informantAddress ?: '-' }}</td>
             </tr>
         </table>
