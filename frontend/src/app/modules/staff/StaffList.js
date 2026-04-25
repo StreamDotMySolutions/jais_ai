@@ -10,6 +10,7 @@ const emptyForm = {
     ic_number: '',
     staff_id: '',
     phone: '',
+    no_tel_pejabat: '',
     address: '',
     office_address: '',
     marital_status: '',
@@ -122,6 +123,7 @@ const StaffList = () => {
             ic_number: item.ic_number || '',
             staff_id: item.staff_id || '',
             phone: item.phone || '',
+            no_tel_pejabat: item.no_tel_pejabat || '',
             address: item.address || '',
             office_address: item.office_address || '',
             marital_status: item.marital_status || '',
@@ -377,6 +379,10 @@ const StaffList = () => {
                             <label className="app-form-field">
                                 <span>No HP</span>
                                 <input value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
+                            </label>
+                            <label className="app-form-field">
+                                <span>No Tel Pejabat</span>
+                                <input value={form.no_tel_pejabat} onChange={(e) => updateField('no_tel_pejabat', e.target.value)} />
                             </label>
                             <label className="app-form-field">
                                 <span>Alamat Rumah</span>

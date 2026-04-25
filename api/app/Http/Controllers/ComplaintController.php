@@ -1523,9 +1523,9 @@ class ComplaintController extends Controller
 
         $complaint->load([
             'submittedBy:id,name,email',
-            'submittedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'submittedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,address,position,department',
             'receivedBy:id,name,email',
-            'receivedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'receivedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,address,position,department',
             'approverStaff:id,name,staff_id',
         ]);
 
@@ -1541,7 +1541,7 @@ class ComplaintController extends Controller
         $officerInformantName = $receiverStaff?->name ?: $complaint->receivedBy?->name ?: $issuerName;
         $officerInformantIdNumber = $receiverStaff?->staff_id ?: $receiverStaff?->ic_number ?: '-';
         $officerInformantOccupation = $receiverStaff?->position ?: 'Pegawai Penguatkuasa Agama';
-        $officerInformantContactNumber = $receiverStaff?->phone ?: '-';
+        $officerInformantContactNumber = $receiverStaff?->no_tel_pejabat ?: '-';
         $officerInformantAddress = $receiverStaff?->office_address ?: $receiverStaff?->address ?: '-';
 
         $effectiveInformantName = $isPhysicalInformant
@@ -1625,6 +1625,7 @@ class ComplaintController extends Controller
             . '</div>';
         $pdfBinary = Pdf::loadView('pdf.complaints.borang5', [
             'referenceNo' => $subjectReference,
+            'caseType' => strtoupper((string) ($complaint->case_type ?: 'AJ')),
             'reportDate' => $reportDate,
             'reportTime' => $reportTime,
             'informantName' => (string) $effectiveInformantName,
@@ -3959,9 +3960,9 @@ class ComplaintController extends Controller
 
         $complaint->loadMissing([
             'submittedBy:id,name,email',
-            'submittedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'submittedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,address,position,department',
             'receivedBy:id,name,email',
-            'receivedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'receivedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,address,position,department',
             'approverStaff:id,name,staff_id',
         ]);
 
@@ -3977,7 +3978,7 @@ class ComplaintController extends Controller
         $officerInformantName = $receiverStaff?->name ?: $complaint->receivedBy?->name ?: $issuerName;
         $officerInformantIdNumber = $receiverStaff?->staff_id ?: $receiverStaff?->ic_number ?: '-';
         $officerInformantOccupation = $receiverStaff?->position ?: 'Pegawai Penguatkuasa Agama';
-        $officerInformantContactNumber = $receiverStaff?->phone ?: '-';
+        $officerInformantContactNumber = $receiverStaff?->no_tel_pejabat ?: '-';
         $officerInformantAddress = $receiverStaff?->office_address ?: $receiverStaff?->address ?: '-';
 
         $effectiveInformantName = $isPhysicalInformant
@@ -4053,6 +4054,7 @@ class ComplaintController extends Controller
             . '</div>';
         $pdfBinary = Pdf::loadView('pdf.complaints.borang5', [
             'referenceNo' => $subjectReference,
+            'caseType' => strtoupper((string) ($complaint->case_type ?: 'AJ')),
             'reportDate' => $reportDate,
             'reportTime' => $reportTime,
             'informantName' => (string) $effectiveInformantName,
