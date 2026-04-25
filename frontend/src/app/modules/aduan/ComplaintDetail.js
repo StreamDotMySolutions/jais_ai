@@ -2983,7 +2983,7 @@ const ComplaintDetail = () => {
                                     />
                                 </div>
 
-                                <label className="app-form-field app-span-full">
+                                <div className="app-form-field app-span-full">
                                     <div className="app-field-inline-head">
                                         <span>Butiran Aduan (Borang 5)</span>
                                         <div className="app-field-inline-actions">
@@ -3008,7 +3008,7 @@ const ComplaintDetail = () => {
                                         onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
                                         placeholder="Saya dengan ini mengesahkan maklumat berikut"
                                     />
-                                </label>
+                                </div>
 
                                 <div className="app-form-field">
                                     <span>Jenis Kesalahan</span>
@@ -3167,7 +3167,7 @@ const ComplaintDetail = () => {
                                     />
                                 </div>
 
-                                <label className="app-form-field app-span-full">
+                                <div className="app-form-field app-span-full">
                                     <div className="app-field-inline-head">
                                         <span>Butiran Aduan (Borang 5)</span>
                                         <div className="app-field-inline-actions">
@@ -3192,7 +3192,7 @@ const ComplaintDetail = () => {
                                         onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
                                         placeholder="Butiran Aduan (Borang 5)"
                                     />
-                                </label>
+                                </div>
 
                                 <div className="app-approver-card app-span-full">
                                     <div className="app-approver-grid">
