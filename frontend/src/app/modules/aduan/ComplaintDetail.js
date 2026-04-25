@@ -747,17 +747,32 @@ const ComplaintDetail = () => {
     const applyBorang5OfficerTemplate = (templateKey, offense) => {
         const tpl = BORANG5_OFFICER_TEMPLATES.find((item) => item.key === templateKey)
             || BORANG5_OFFICER_TEMPLATES.find((item) => item.key === 'generic');
-        if (!tpl) return;
+        if (!tpl) return false;
 
         const existing = (basicDraft.borang5_statement || '').trim();
         const nextText = hydrateBorang5Template((tpl.text || '').replace('{{OFFENSE}}', formatOffenseLabel(offense)));
 
         if (existing && existing !== nextText) {
             const ok = window.confirm('Butiran Aduan (Borang 5) akan diganti dengan template yang dipilih. Teruskan?');
-            if (!ok) return;
+            if (!ok) return false;
         }
 
         setBasicDraft((prev) => ({ ...prev, borang5_statement: nextText }));
+        return true;
+    };
+
+    const insertBorang5Template = (offenseId) => {
+        if (!offenseId) {
+            toast.error('Sila pilih Kesalahan Disyaki dahulu.');
+            return;
+        }
+
+        const offense = (offenseItems || []).find((item) => String(item.id) === String(offenseId));
+        const suggestedKey = resolveTemplateKeyFromOffense(offense) || 'generic';
+        const inserted = applyBorang5OfficerTemplate(suggestedKey, offense);
+        if (inserted) {
+            toast.success('Template Borang 5 dimasukkan.');
+        }
     };
 
     useEffect(() => {
@@ -2965,17 +2980,27 @@ const ComplaintDetail = () => {
                                         value={ajPayload.offense_id || ''}
                                         label="Kesalahan Disyaki *"
                                         onChange={(value) => setAjPayload((prev) => ({ ...prev, offense_id: value }))}
-                                        onItemSelected={(item) => {
-                                            if (!item) return;
-                                            const suggestedKey = resolveTemplateKeyFromOffense(item) || 'generic';
-                                            applyBorang5OfficerTemplate(suggestedKey, item);
-                                        }}
                                     />
                                 </div>
 
                                 <label className="app-form-field app-span-full">
-                                    <small className="app-hint">Template akan diisi automatik selepas memilih Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
-                                    <span>Saya dengan ini mengesahkan maklumat berikut <span className="complaint-required">*</span></span>
+                                    <div className="app-field-inline-head">
+                                        <span>Butiran Aduan (Borang 5)</span>
+                                        <div className="app-field-inline-actions">
+                                            <button
+                                                type="button"
+                                                className="app-button app-button-ghost app-button-mini"
+                                                onClick={() => insertBorang5Template(ajPayload.offense_id || '')}
+                                            >
+                                                <i className="bi bi-magic"></i>
+                                                Insert Template
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="app-field-inline-head">
+                                        <span>Saya dengan ini mengesahkan maklumat berikut <span className="complaint-required">*</span></span>
+                                        <small className="app-hint app-hint-inline-right">Klik Insert Template untuk isi format ikut Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
+                                    </div>
                                     <textarea
                                         className="app-textarea-250"
                                         rows="10"
@@ -2983,7 +3008,6 @@ const ComplaintDetail = () => {
                                         onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
                                         placeholder="Saya dengan ini mengesahkan maklumat berikut"
                                     />
-                                    <small className="app-hint">Borang 5 akan memaparkan baris <strong>LOKASI :</strong> berdasarkan <strong>Alamat Kejadian</strong>.</small>
                                 </label>
 
                                 <div className="app-form-field">
@@ -3140,17 +3164,27 @@ const ComplaintDetail = () => {
                                         value={akPayload.offense_id || ''}
                                         label={<><span>Kesalahan Disyaki </span><span className="complaint-required">*</span></>}
                                         onChange={(value) => setAkPayload((prev) => ({ ...prev, offense_id: value }))}
-                                        onItemSelected={(item) => {
-                                            if (!item) return;
-                                            const suggestedKey = resolveTemplateKeyFromOffense(item) || 'generic';
-                                            applyBorang5OfficerTemplate(suggestedKey, item);
-                                        }}
                                     />
                                 </div>
 
                                 <label className="app-form-field app-span-full">
-                                    <span>Butiran Aduan (Borang 5)</span>
-                                    <small className="app-hint">Template akan diisi automatik selepas memilih Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
+                                    <div className="app-field-inline-head">
+                                        <span>Butiran Aduan (Borang 5)</span>
+                                        <div className="app-field-inline-actions">
+                                            <button
+                                                type="button"
+                                                className="app-button app-button-ghost app-button-mini"
+                                                onClick={() => insertBorang5Template(akPayload.offense_id || '')}
+                                            >
+                                                <i className="bi bi-magic"></i>
+                                                Insert Template
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="app-field-inline-head">
+                                        <span>Butiran untuk pengesahan <span className="complaint-required">*</span></span>
+                                        <small className="app-hint app-hint-inline-right">Klik Insert Template untuk isi format ikut Kesalahan Disyaki. Pegawai boleh ubah mengikut fakta kes.</small>
+                                    </div>
                                     <textarea
                                         className="app-textarea-250"
                                         rows="10"
