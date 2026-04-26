@@ -4452,6 +4452,7 @@ body {
   font-weight: 600;
   font-size: 0.85rem;
   padding: 0.6rem 1rem;
+  min-height: 35px;
   border-radius: 999px;
   position: relative;
   text-align: center;
@@ -4559,13 +4560,31 @@ body {
 }
 
 .app-radio-cards label.active {
-  border-color: rgba(26, 106, 75, 0.5);
-  background: #f2f7f4;
-  box-shadow: 0 12px 22px rgba(12, 26, 18, 0.08);
+  border-color: rgba(26, 106, 75, 0.65);
+  background: #e9f5ee;
+  color: #173828;
+  box-shadow: 0 10px 18px rgba(12, 26, 18, 0.08);
 }
 
 .app-radio-cards input {
   accent-color: var(--jais-green);
+}
+
+.app-radio-cards label.disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background: #eef2ef;
+  border-color: #d8dfda;
+  color: #7b8780;
+  box-shadow: none;
+}
+
+.app-radio-cards label.active.disabled {
+  opacity: 0.9;
+  background: #e9f5ee;
+  border-color: rgba(26, 106, 75, 0.55);
+  color: #173828;
+  box-shadow: none;
 }
 
 .app-classification-option {
@@ -9936,6 +9955,10 @@ body {
   font-size: 0.82rem;
   font-weight: 600;
   color: #2b3a31;
+}
+
+.app-aduan-detail .app-step {
+  font-size: 0.90rem;
 }
 
 .app-aduan-detail .app-form-field input,

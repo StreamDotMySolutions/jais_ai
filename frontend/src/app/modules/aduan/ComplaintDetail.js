@@ -263,6 +263,7 @@ const ComplaintDetail = () => {
     const effectiveInformantIdNumber = (complaint?.informant_identification_number || '').trim();
     const effectiveInformantContactNumber = (complaint?.informant_contact_number || '').trim();
     const canEditBasicComplaint = isPegawaiRole && !isBasicEditLockedBySource;
+    const isArrestStatusLocked = Boolean(complaint?.laporan_tindakan_auto_emailed_at);
     const autoClassificationGuardRef = useRef({});
     const suppressUnloadReleaseRef = useRef(false);
     const autoPickupGuardRef = useRef({});
@@ -3972,22 +3973,24 @@ const ComplaintDetail = () => {
                                         <div className="app-form-grid app-report-grid app-arrest-grid-compact">
                                             <div className="app-form-field app-span-full">
                                                 <div className="app-radio-cards app-radio-cards-2">
-                                                    <label className={ajReport.arrest_status === 'ada' ? 'active' : ''}>
+                                                    <label className={`${ajReport.arrest_status === 'ada' ? 'active' : ''} ${isArrestStatusLocked ? 'disabled' : ''}`.trim()}>
                                                         <input
                                                             type="radio"
                                                             name="aj_arrest_status"
                                                             value="ada"
                                                             checked={ajReport.arrest_status === 'ada'}
+                                                            disabled={isArrestStatusLocked}
                                                             onChange={() => updateReportField('arrest_status', 'ada')}
                                                         />
                                                         <span>Ada Tangkapan</span>
                                                     </label>
-                                                    <label className={ajReport.arrest_status === 'tiada' ? 'active' : ''}>
+                                                    <label className={`${ajReport.arrest_status === 'tiada' ? 'active' : ''} ${isArrestStatusLocked ? 'disabled' : ''}`.trim()}>
                                                         <input
                                                             type="radio"
                                                             name="aj_arrest_status"
                                                             value="tiada"
                                                             checked={ajReport.arrest_status === 'tiada'}
+                                                            disabled={isArrestStatusLocked}
                                                             onChange={() => updateReportField('arrest_status', 'tiada')}
                                                         />
                                                         <span>Tiada Tangkapan</span>
