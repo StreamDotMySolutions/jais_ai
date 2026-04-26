@@ -18,7 +18,7 @@ class ComplaintReferenceService
         $district = trim((string) $districtName) !== '' ? trim((string) $districtName) : 'Tidak Diketahui';
         $district = preg_replace('/\s+/', ' ', $district);
         $district = str_replace('/', '-', $district);
-        $prefix = "{$type}-{$district} / {$year} / {$month} / ";
+        $prefix = "{$type}-{$district}/{$year}/{$month}/";
 
         $next = $this->reserveYearlyRunningNumber($year);
 
@@ -70,4 +70,3 @@ class ComplaintReferenceService
         }, 3);
     }
 }
-

@@ -1430,6 +1430,8 @@ class ComplaintController extends Controller
                 ->value('code');
         }
 
+        $this->normalizeComplaintReferenceAttributes($complaint);
+
         $offenseIds = array_values(array_filter([
             (int) ($complaint->ak_offense_id ?? 0),
             (int) ($complaint->aj_offense_id ?? 0),
@@ -3538,7 +3540,7 @@ class ComplaintController extends Controller
         if ($searchBy === 'informant_ic') {
             $payload = $complaints->map(function (Complaint $complaint) {
                 return [
-                    'reference_no' => $complaint->reference_no,
+                    'reference_no' => $this->normalizeComplaintReferenceNo($complaint->reference_no),
                     'search_by' => 'informant_ic',
                     'case_type' => $complaint->case_type,
                     'complaint_date' => $complaint->complaint_date,
@@ -3562,7 +3564,7 @@ class ComplaintController extends Controller
         return response()->json([
             'message' => 'Complaint found',
             'data' => [
-                'reference_no' => $complaint->reference_no,
+                'reference_no' => $this->normalizeComplaintReferenceNo($complaint->reference_no),
                 'search_by' => $searchBy,
                 'case_type' => $complaint->case_type,
                 'complaint_date' => $complaint->complaint_date,
@@ -3736,7 +3738,7 @@ class ComplaintController extends Controller
             'reference_no' => $referenceNo,
             'data' => [
                 'id' => $complaint->id,
-                'reference_no' => $complaint->reference_no,
+                'reference_no' => $this->normalizeComplaintReferenceNo($complaint->reference_no),
             ],
         ]);
     }
@@ -4032,8 +4034,8 @@ class ComplaintController extends Controller
             (string) ($complaint->borang5_statement ?: $complaint->summary ?: ''),
             $this->resolveBorang5IncidentAddress($complaint)
         );
-        $subjectReference = (string) ($complaint->reference_no ?: ('Aduan #' . $complaint->id));
-        $subject = "Borang 5 Aduan {$subjectReference}";
+        $subjectReference = preg_replace('/\s*\/\s*/', '/', (string) ($complaint->reference_no ?: ('Aduan #' . $complaint->id)));
+        $subject = 'ADUAN JENAYAH ' . ($classification ?: '-') . ' : ' . $subjectReference;
         $bodyPlainText = "Assalamualaikum\n\n"
             . "Aduan berstatus " . ($mainStatus !== '' ? $mainStatus : '-') . " untuk tindakan daerah "
             . (string) ($complaint->district_name ?: '-') . ".\n"
@@ -4069,8 +4071,7 @@ class ComplaintController extends Controller
         ])
             ->setPaper('a4', 'portrait')
             ->output();
-        $safeReference = preg_replace('/[^A-Za-z0-9\-_]+/', '_', $subjectReference) ?: ('aduan_' . $complaint->id);
-        $pdfFileName = 'borang5_' . $safeReference . '.pdf';
+        $pdfFileName = 'BORANG 5 - FIR.pdf';
 
         try {
             Mail::send([], [], function ($message) use ($emails, $subject, $html, $pdfBinary, $pdfFileName): void {
@@ -4184,7 +4185,11 @@ class ComplaintController extends Controller
             ? trim((string) $complaint->case_register_no)
             : $this->buildCaseRegisterNoFromComplaint($complaint);
 
-        $subject = 'Laporan Tindakan : ' . ($complaint->case_register_no ?: $complaint->reference_no ?: ('Aduan #' . $complaint->id));
+        $arrestStatusLabel = (($complaint->arrest_status === 'ada' || $complaint->aj_arrest_status === 'ada'))
+            ? 'Ada Tangkapan'
+            : 'Tiada Tangkapan';
+        $subjectReference = preg_replace('/\s*\/\s*/', '/', (string) ($complaint->reference_no ?: ('Aduan #' . $complaint->id)));
+        $subject = 'TINDAKAN (' . $arrestStatusLabel . ') : KES - ' . $subjectReference;
         $bodyPlainText = "Assalamualaikum\n\n"
             . "Laporan Tindakan bagi daerah " . ($complaint->district_name ?: '-') . " telah diperolehi.\n\n"
             . "Sila muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail KES.\n\n"
@@ -4213,8 +4218,7 @@ class ComplaintController extends Controller
             'reportParagraph' => (string) ($reportParagraph !== '' ? $reportParagraph : 'LAPORAN MASIH BELUM DIISI'),
         ])->setPaper('a4', 'portrait')->output();
 
-        $safeReference = preg_replace('/[^A-Za-z0-9\-_]+/', '_', (string) ($complaint->reference_no ?: ('aduan_' . $complaint->id))) ?: ('aduan_' . $complaint->id);
-        $pdfFileName = 'laporan_tindakan_' . $safeReference . '.pdf';
+        $pdfFileName = 'BORANG 5 - KES.pdf';
 
         try {
             Mail::send([], [], function ($message) use ($emails, $subject, $html, $pdfBinary, $pdfFileName): void {
@@ -4972,6 +4976,7 @@ class ComplaintController extends Controller
             $preferredSummary = trim((string) ($item->borang5_statement ?? ''));
             $fallbackSummary = trim((string) ($item->summary ?? ''));
             $item->summary = $preferredSummary !== '' ? $preferredSummary : $fallbackSummary;
+            $this->normalizeComplaintReferenceAttributes($item);
             return $item;
         });
 
@@ -5029,5 +5034,24 @@ class ComplaintController extends Controller
         }, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    private function normalizeComplaintReferenceNo(?string $referenceNo): string
+    {
+        $raw = trim((string) $referenceNo);
+        if ($raw === '') {
+            return '';
+        }
+
+        return preg_replace('/\s*\/\s*/', '/', $raw) ?? $raw;
+    }
+
+    private function normalizeComplaintReferenceAttributes($complaint): void
+    {
+        if (! $complaint || ! isset($complaint->reference_no)) {
+            return;
+        }
+
+        $complaint->reference_no = $this->normalizeComplaintReferenceNo($complaint->reference_no);
     }
 }
