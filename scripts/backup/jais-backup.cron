@@ -1,0 +1,9 @@
+# JAIS AI daily backup. Install with:
+#   sudo install -m 644 jais-backup.cron /etc/cron.d/jais-backup
+# Adjust the schedule and paths to your server.
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Run daily at 02:15 server time.
+15 2 * * *  root  /opt/jais/jais-backup.sh >> /var/log/jais-backup.log 2>&1
