@@ -10,6 +10,7 @@ const emptyForm = {
     ic_number: '',
     staff_id: '',
     phone: '',
+    office_id: '',
     no_tel_pejabat: '',
     address: '',
     office_address: '',
@@ -29,6 +30,7 @@ const StaffList = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const [staff, setStaff] = useState([]);
     const [districts, setDistricts] = useState([]);
+    const [offices, setOffices] = useState([]);
     const [roles, setRoles] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -102,6 +104,17 @@ const StaffList = () => {
         if (!apiUrl) {
             return;
         }
+        axios.get(`${apiUrl}/references/offices`)
+            .then((response) => {
+                setOffices(response?.data?.data || []);
+            })
+            .catch(() => {});
+    }, [apiUrl]);
+
+    useEffect(() => {
+        if (!apiUrl) {
+            return;
+        }
         axios.get(`${apiUrl}/roles`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -123,6 +136,7 @@ const StaffList = () => {
             ic_number: item.ic_number || '',
             staff_id: item.staff_id || '',
             phone: item.phone || '',
+            office_id: item.office_id || item.office?.id || '',
             no_tel_pejabat: item.no_tel_pejabat || '',
             address: item.address || '',
             office_address: item.office_address || '',
@@ -148,6 +162,25 @@ const StaffList = () => {
 
     const updateField = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const updateOfficeType = (value) => {
+        setForm((prev) => ({
+            ...prev,
+            office_type: value,
+            office_id: '',
+            district_id: value === 'daerah' ? prev.district_id : '',
+        }));
+    };
+
+    const updateOfficeId = (value) => {
+        const selectedOffice = offices.find((item) => String(item.id) === String(value));
+        setForm((prev) => ({
+            ...prev,
+            office_id: value,
+            office_type: selectedOffice?.office_type || prev.office_type,
+            district_id: selectedOffice?.district_id ? String(selectedOffice.district_id) : (selectedOffice?.office_type === 'hq' ? '' : prev.district_id),
+        }));
     };
 
     const saveStaff = (event) => {
@@ -213,6 +246,7 @@ const StaffList = () => {
         { key: 'staff_id', label: 'ID Kakitangan', sortable: true },
         { key: 'phone', label: 'Telefon', sortable: true },
         { key: 'grade', label: 'Gred', sortable: true },
+        { key: 'office', label: 'Pejabat', sortable: true },
         { key: 'office_type', label: 'Penempatan Operasi', sortable: true },
         { key: 'district', label: 'Daerah', sortable: true },
         { key: 'account', label: 'Akaun', sortable: true },
@@ -224,6 +258,7 @@ const StaffList = () => {
         staff_id: (item) => item.staff_id || '',
         phone: (item) => item.phone || '',
         grade: (item) => item.grade || '',
+        office: (item) => item.office?.name || '',
         office_type: (item) => item.office_type === 'hq' ? 'HQ' : item.office_type === 'daerah' ? 'Daerah' : '',
         district: (item) => item.district?.name || '',
         account: (item) => item.user?.email || item.email || '',
@@ -244,6 +279,18 @@ const StaffList = () => {
             setSortDir('asc');
         }
     };
+
+    const filteredOffices = useMemo(() => {
+        if (!form.office_type) {
+            return offices;
+        }
+        return offices.filter((item) => item.office_type === form.office_type);
+    }, [offices, form.office_type]);
+
+    const selectedOffice = useMemo(
+        () => offices.find((item) => String(item.id) === String(form.office_id || '')) || null,
+        [offices, form.office_id]
+    );
 
     return (
         <div className="app-complaints">
@@ -301,6 +348,7 @@ const StaffList = () => {
                                     <div>{item.staff_id || '-'}</div>
                                     <div>{item.phone || '-'}</div>
                                     <div>{item.grade || '-'}</div>
+                                    <div>{item.office?.name || '-'}</div>
                                     <div>{item.office_type === 'hq' ? 'HQ' : item.office_type === 'daerah' ? 'Daerah' : '-'}</div>
                                     <div>{item.district?.name || '-'}</div>
                                     <div className="app-staff-account-cell">
@@ -381,16 +429,8 @@ const StaffList = () => {
                                 <input value={form.phone} onChange={(e) => updateField('phone', e.target.value)} />
                             </label>
                             <label className="app-form-field">
-                                <span>No Tel Pejabat</span>
-                                <input value={form.no_tel_pejabat} onChange={(e) => updateField('no_tel_pejabat', e.target.value)} />
-                            </label>
-                            <label className="app-form-field">
                                 <span>Alamat Rumah</span>
                                 <input value={form.address} onChange={(e) => updateField('address', e.target.value)} />
-                            </label>
-                            <label className="app-form-field">
-                                <span>Alamat Pejabat</span>
-                                <input value={form.office_address} onChange={(e) => updateField('office_address', e.target.value)} />
                             </label>
                             <label className="app-form-field">
                                 <span>Status Kahwin</span>
@@ -414,10 +454,21 @@ const StaffList = () => {
                             </label>
                             <label className="app-form-field">
                                 <span>Penempatan Operasi</span>
-                                <select value={form.office_type} onChange={(e) => updateField('office_type', e.target.value)}>
+                                <select value={form.office_type} onChange={(e) => updateOfficeType(e.target.value)}>
                                     <option value="">Pilih Penempatan</option>
                                     <option value="hq">HQ</option>
                                     <option value="daerah">Daerah</option>
+                                </select>
+                            </label>
+                            <label className="app-form-field">
+                                <span>Pejabat</span>
+                                <select value={form.office_id} onChange={(e) => updateOfficeId(e.target.value)}>
+                                    <option value="">Pilih Pejabat</option>
+                                    {filteredOffices.map((office) => (
+                                        <option key={office.id} value={office.id}>
+                                            {office.name}
+                                        </option>
+                                    ))}
                                 </select>
                             </label>
                             {form.office_type === 'daerah' && (
@@ -433,6 +484,18 @@ const StaffList = () => {
                                     </select>
                                 </label>
                             )}
+                            <div className="app-span-full app-form-section">
+                                <h5>Maklumat Pejabat</h5>
+                                <p>Maklumat telefon dan alamat pejabat kini diambil daripada pejabat yang dipilih.</p>
+                            </div>
+                            <label className="app-form-field">
+                                <span>No Tel Pejabat</span>
+                                <input value={selectedOffice?.phone || ''} readOnly placeholder="Ikut rekod pejabat" />
+                            </label>
+                            <label className="app-form-field">
+                                <span>Alamat Pejabat</span>
+                                <input value={selectedOffice?.address || ''} readOnly placeholder="Ikut rekod pejabat" />
+                            </label>
                             <div className="app-span-full app-form-section">
                                 <h5>Akaun Login</h5>
                                 <p>Isi e-mel untuk paut akaun sedia ada. Jika belum ada akaun, isi kata laluan untuk cipta akaun baru.</p>

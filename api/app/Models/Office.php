@@ -5,24 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Staff extends Model
+class Office extends Model
 {
     use HasFactory;
 
     protected $guarded = ['id'];
-
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
 
     public function district()
     {
         return $this->belongsTo(District::class);
     }
 
-    public function office()
+    public function staff()
     {
-        return $this->belongsTo(Office::class);
+        return $this->hasMany(Staff::class);
     }
 }

@@ -130,8 +130,8 @@ const ComplaintPrintBorang5 = () => {
         issuerName;
     const officerInformantIdNumber = receiverStaff?.staff_id || receiverStaff?.ic_number || '-';
     const officerInformantOccupation = receiverStaff?.position || 'Pegawai Penguatkuasa Agama';
-    const officerInformantContactNumber = receiverStaff?.no_tel_pejabat || '-';
-    const officerInformantAddress = receiverStaff?.office_address || receiverStaff?.address || '-';
+    const officerInformantContactNumber = receiverStaff?.office?.phone || receiverStaff?.no_tel_pejabat || '-';
+    const officerInformantAddress = receiverStaff?.office?.address || receiverStaff?.office_address || receiverStaff?.address || '-';
     const complainantName = complaint?.complainant_name || '';
     const complainantIdNumber = complaint?.identification_number || '';
     const complainantOccupation = complaint?.complainant_occupation || '';

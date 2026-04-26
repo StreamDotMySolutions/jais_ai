@@ -315,6 +315,7 @@ Route::get('/references/arahan-beredar-sections', [ReferenceController::class, '
 Route::get('/references/iwaran-jenis-kes', [ReferenceController::class, 'iwaranJenisKes']);
 Route::get('/references/iwaran-hasil', [ReferenceController::class, 'iwaranHasil']);
 Route::get('/references/mahkamah', [ReferenceController::class, 'mahkamah']);
+Route::get('/references/offices', [ReferenceController::class, 'offices']);
 
 // Telegram Webhook
 Route::post('/telegram/webhook', [App\Http\Controllers\Telegram\WebhookController::class, 'handleWebhook'])->name('telegram.webhook');

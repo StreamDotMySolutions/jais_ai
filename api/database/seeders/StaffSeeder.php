@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\District;
+use App\Models\Office;
 use App\Models\Staff;
 use Illuminate\Database\Seeder;
 
@@ -20,6 +21,16 @@ class StaffSeeder extends Seeder
         $districtMap = District::query()
             ->pluck('id', 'name')
             ->all();
+
+        $districtOfficeMap = Office::query()
+            ->where('office_type', 'daerah')
+            ->whereNotNull('district_id')
+            ->pluck('id', 'district_id')
+            ->all();
+
+        $hqOfficeId = Office::query()
+            ->where('code', 'HQ')
+            ->value('id');
 
         $rows = [
             // PAID Sabak Bernam
@@ -116,6 +127,10 @@ class StaffSeeder extends Seeder
                 }
             }
 
+            $officeId = $officeType === 'hq'
+                ? $hqOfficeId
+                : ($districtOfficeMap[$districtId] ?? null);
+
             Staff::updateOrCreate(
                 ['ic_number' => $row['ic']],
                 [
@@ -125,6 +140,7 @@ class StaffSeeder extends Seeder
                     'department' => $officeType === 'hq' ? $departmentHq : 'PAID ' . $row['district'],
                     'office_type' => $officeType,
                     'district_id' => $districtId,
+                    'office_id' => $officeId,
                     'is_active' => true,
                 ]
             );

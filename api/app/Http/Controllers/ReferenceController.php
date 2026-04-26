@@ -157,6 +157,30 @@ class ReferenceController extends Controller
         ]);
     }
 
+    public function offices(): JsonResponse
+    {
+        $items = DB::table('offices')
+            ->leftJoin('districts', 'offices.district_id', '=', 'districts.id')
+            ->where('offices.is_active', 1)
+            ->orderByRaw("CASE WHEN offices.office_type = 'hq' THEN 0 ELSE 1 END")
+            ->orderBy('offices.name')
+            ->get([
+                'offices.id',
+                'offices.code',
+                'offices.name',
+                'offices.office_type',
+                'offices.district_id',
+                'offices.phone',
+                'offices.address',
+                'districts.name as district_name',
+            ]);
+
+        return response()->json([
+            'message' => 'Senarai pejabat',
+            'data' => $items,
+        ]);
+    }
+
     public function storeMahkamah(Request $request): JsonResponse
     {
         $user = $request->user();

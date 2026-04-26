@@ -2,6 +2,8 @@
 
 namespace Database\Seeders;
 
+use App\Models\District;
+use App\Models\Office;
 use App\Models\Staff;
 use Illuminate\Database\Seeder;
 
@@ -11,6 +13,27 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
     {
         $officePhone = '1800882424';
         $officeAddress = 'HOTLINE 24 JAM BAHAGIAN PENGURUSAN PENGUATKUASA JAIS';
+        $petalingDistrictId = District::query()
+            ->where('code', 'PET')
+            ->orWhere('name', 'Petaling')
+            ->value('id');
+
+        Office::query()->update([
+            'phone' => $officePhone,
+            'address' => $officeAddress,
+        ]);
+
+        $hqOffice = Office::query()->updateOrCreate(
+            ['code' => 'HQ'],
+            [
+                'name' => 'Ibu Pejabat JAIS',
+                'office_type' => 'hq',
+                'district_id' => $petalingDistrictId,
+                'phone' => $officePhone,
+                'address' => $officeAddress,
+                'is_active' => true,
+            ]
+        );
 
         $targets = [
             [
@@ -76,6 +99,9 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
                     }
                 })
                 ->update([
+                    'office_id' => $hqOffice->id,
+                    'office_type' => 'hq',
+                    'district_id' => $petalingDistrictId,
                     'no_tel_pejabat' => $officePhone,
                     'office_address' => $officeAddress,
                 ]);
@@ -91,4 +117,3 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
         }
     }
 }
-

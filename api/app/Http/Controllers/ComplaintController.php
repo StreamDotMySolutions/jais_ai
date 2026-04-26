@@ -1395,8 +1395,10 @@ class ComplaintController extends Controller
         $complaint->load([
             'submittedBy:id,name,email,office_type,district_id',
             'submittedBy.staff',
+            'submittedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'receivedBy:id,name,email',
             'receivedBy.staff',
+            'receivedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'approverStaff:id,name,staff_id',
             'picUser:id,name',
             'appointment:id,complaint_id,start_at,end_at,status',
@@ -1408,10 +1410,14 @@ class ComplaintController extends Controller
             'policeReports:id,complaint_id,report_no,description,station',
             'policeReports.media:id,complaint_police_report_id,category,file_name,mime,size,created_at',
             'attachments:id,complaint_id,category,title,file_name,mime,size,created_at',
-            'ajDirectiveStaff:id,name,staff_id,ic_number,phone,address,position,department',
-            'ajHandoverStaff:id,name,staff_id,ic_number,phone,address,position,department',
-            'ajArrestStaff:id,name,staff_id,ic_number,phone,address,position,department',
-            'ajProsecutorStaff:id,name,staff_id,ic_number,phone,address,position,department',
+            'ajDirectiveStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'ajDirectiveStaff.office:id,name,code,office_type,district_id,phone,address',
+            'ajHandoverStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'ajHandoverStaff.office:id,name,code,office_type,district_id,phone,address',
+            'ajArrestStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'ajArrestStaff.office:id,name,code,office_type,district_id,phone,address',
+            'ajProsecutorStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'ajProsecutorStaff.office:id,name,code,office_type,district_id,phone,address',
         ]);
         $complaint->attachments?->each(function ($attachment) use ($complaint) {
             $attachment->original_file_name = $attachment->file_name;
@@ -1525,9 +1531,11 @@ class ComplaintController extends Controller
 
         $complaint->load([
             'submittedBy:id,name,email',
-            'submittedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,address,position,department',
+            'submittedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'submittedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'receivedBy:id,name,email',
-            'receivedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,address,position,department',
+            'receivedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'receivedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'approverStaff:id,name,staff_id',
         ]);
 
@@ -1543,8 +1551,8 @@ class ComplaintController extends Controller
         $officerInformantName = $receiverStaff?->name ?: $complaint->receivedBy?->name ?: $issuerName;
         $officerInformantIdNumber = $receiverStaff?->staff_id ?: $receiverStaff?->ic_number ?: '-';
         $officerInformantOccupation = $receiverStaff?->position ?: 'Pegawai Penguatkuasa Agama';
-        $officerInformantContactNumber = $receiverStaff?->no_tel_pejabat ?: '-';
-        $officerInformantAddress = $receiverStaff?->office_address ?: $receiverStaff?->address ?: '-';
+        $officerInformantContactNumber = $this->resolveStaffOfficePhone($receiverStaff);
+        $officerInformantAddress = $this->resolveStaffOfficeAddress($receiverStaff);
 
         $effectiveInformantName = $isPhysicalInformant
             ? ($complaint->complainant_name ?: '-')
@@ -2200,7 +2208,10 @@ class ComplaintController extends Controller
         $freshComplaint = $complaint->fresh()->load([
             'submittedBy:id,name,email,office_type,district_id',
             'submittedBy.staff',
+            'submittedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'receivedBy:id,name,email',
+            'receivedBy.staff',
+            'receivedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'approverStaff:id,name,staff_id',
             'picUser:id,name',
             'appointment:id,complaint_id,start_at,end_at,status',
@@ -3962,9 +3973,11 @@ class ComplaintController extends Controller
 
         $complaint->loadMissing([
             'submittedBy:id,name,email',
-            'submittedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,address,position,department',
+            'submittedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'submittedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'receivedBy:id,name,email',
-            'receivedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,address,position,department',
+            'receivedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'receivedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'approverStaff:id,name,staff_id',
         ]);
 
@@ -3980,8 +3993,8 @@ class ComplaintController extends Controller
         $officerInformantName = $receiverStaff?->name ?: $complaint->receivedBy?->name ?: $issuerName;
         $officerInformantIdNumber = $receiverStaff?->staff_id ?: $receiverStaff?->ic_number ?: '-';
         $officerInformantOccupation = $receiverStaff?->position ?: 'Pegawai Penguatkuasa Agama';
-        $officerInformantContactNumber = $receiverStaff?->no_tel_pejabat ?: '-';
-        $officerInformantAddress = $receiverStaff?->office_address ?: $receiverStaff?->address ?: '-';
+        $officerInformantContactNumber = $this->resolveStaffOfficePhone($receiverStaff);
+        $officerInformantAddress = $this->resolveStaffOfficeAddress($receiverStaff);
 
         $effectiveInformantName = $isPhysicalInformant
             ? ($complaint->complainant_name ?: '-')
@@ -4139,11 +4152,14 @@ class ComplaintController extends Controller
 
         $complaint->loadMissing([
             'submittedBy:id,name',
-            'submittedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'submittedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'submittedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'receivedBy:id,name',
-            'receivedBy.staff:id,name,staff_id,ic_number,phone,address,position,department',
+            'receivedBy.staff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'receivedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'ajDirectiveStaff:id,name',
-            'ajHandoverStaff:id,name,staff_id,ic_number,phone,address,position,department',
+            'ajHandoverStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'ajHandoverStaff.office:id,name,code,office_type,district_id,phone,address',
             'picUser:id,name',
             'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note',
         ]);
@@ -4178,8 +4194,8 @@ class ComplaintController extends Controller
         $officerName = $handoverStaff?->name ?: $complaint->picUser?->name ?: $fallbackStaff?->name ?: '-';
         $officerIdNo = $handoverStaff?->staff_id ?: $handoverStaff?->ic_number ?: $fallbackStaff?->staff_id ?: $fallbackStaff?->ic_number ?: '-';
         $officerJob = $handoverStaff?->position ?: $fallbackStaff?->position ?: '-';
-        $officerPhone = $handoverStaff?->phone ?: $fallbackStaff?->phone ?: '-';
-        $officerAddress = $handoverStaff?->address ?: $handoverStaff?->department ?: $fallbackStaff?->address ?: $fallbackStaff?->department ?: '-';
+        $officerPhone = $this->resolveStaffOfficePhone($handoverStaff ?: $fallbackStaff);
+        $officerAddress = $this->resolveStaffOfficeAddress($handoverStaff ?: $fallbackStaff);
         $reportParagraph = strtoupper(trim((string) ($complaint->aj_report_notes ?? '')));
         $noDaftar = trim((string) ($complaint->case_register_no ?? '')) !== ''
             ? trim((string) $complaint->case_register_no)
@@ -4248,6 +4264,43 @@ class ComplaintController extends Controller
                 'reason' => 'send_failed',
             ];
         }
+    }
+
+    private function resolveStaffOfficePhone(?Staff $staff): string
+    {
+        if (! $staff) {
+            return '-';
+        }
+
+        $officePhone = trim((string) ($staff->office?->phone ?? ''));
+        if ($officePhone !== '') {
+            return $officePhone;
+        }
+
+        $fallbackPhone = trim((string) ($staff->no_tel_pejabat ?? ''));
+
+        return $fallbackPhone !== '' ? $fallbackPhone : '-';
+    }
+
+    private function resolveStaffOfficeAddress(?Staff $staff): string
+    {
+        if (! $staff) {
+            return '-';
+        }
+
+        $officeAddress = trim((string) ($staff->office?->address ?? ''));
+        if ($officeAddress !== '') {
+            return $officeAddress;
+        }
+
+        foreach (['office_address', 'address', 'department'] as $field) {
+            $value = trim((string) ($staff->{$field} ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return '-';
     }
 
     private function stagePayload(string $stage): array

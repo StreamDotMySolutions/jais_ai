@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Office;
 use App\Models\Staff;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -25,7 +26,7 @@ class StaffController extends Controller
         $keyword = trim((string) $request->query('keyword', ''));
 
         $query = Staff::query()
-            ->with(['user:id,name,email', 'user.roles', 'district:id,name'])
+            ->with(['user:id,name,email', 'user.roles', 'district:id,name', 'office:id,name,code,office_type,district_id,phone,address'])
             ->orderBy('name');
 
         if ($keyword !== '') {
@@ -76,7 +77,7 @@ class StaffController extends Controller
             }
         }
 
-        $staff = $query->with(['district:id,name'])->get(['id', 'name', 'staff_id', 'office_type', 'district_id']);
+        $staff = $query->with(['district:id,name', 'office:id,name,code,office_type,district_id,phone,address'])->get(['id', 'name', 'staff_id', 'office_type', 'district_id', 'office_id']);
 
         return response()->json([
             'message' => 'Staff options',
@@ -104,6 +105,7 @@ class StaffController extends Controller
             'grade' => 'nullable|string|max:50',
             'department' => 'nullable|string|max:255',
             'department_code' => 'nullable|string|max:100',
+            'office_id' => 'nullable|exists:offices,id',
             'office_type' => 'nullable|string|in:hq,daerah',
             'district_id' => 'nullable|exists:districts,id',
             'email' => 'nullable|string|email|max:255',
@@ -115,6 +117,7 @@ class StaffController extends Controller
             $userId = null;
             $normalizedEmail = isset($validated['email']) ? strtolower(trim((string) $validated['email'])) : '';
             $existingUser = $normalizedEmail !== '' ? User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->first() : null;
+            $officeContext = $this->resolveOfficeContext($validated);
 
             if ($normalizedEmail !== '') {
                 if ($existingUser) {
@@ -150,14 +153,15 @@ class StaffController extends Controller
                 'grade' => $validated['grade'] ?? null,
                 'department' => $validated['department'] ?? null,
                 'department_code' => $validated['department_code'] ?? null,
-                'office_type' => $validated['office_type'] ?? null,
-                'district_id' => $validated['district_id'] ?? null,
+                'office_id' => $officeContext['office_id'],
+                'office_type' => $officeContext['office_type'],
+                'district_id' => $officeContext['district_id'],
             ]);
         });
 
         return response()->json([
             'message' => 'Staff created',
-            'data' => $staff->load(['user:id,name,email', 'district:id,name']),
+            'data' => $staff->load(['user:id,name,email', 'district:id,name', 'office:id,name,code,office_type,district_id,phone,address']),
         ]);
     }
 
@@ -181,6 +185,7 @@ class StaffController extends Controller
             'grade' => 'nullable|string|max:50',
             'department' => 'nullable|string|max:255',
             'department_code' => 'nullable|string|max:100',
+            'office_id' => 'nullable|exists:offices,id',
             'office_type' => 'nullable|string|in:hq,daerah',
             'district_id' => 'nullable|exists:districts,id',
             'email' => 'nullable|string|email|max:255|unique:users,email,' . ($staff->user_id ?? 'NULL'),
@@ -191,6 +196,7 @@ class StaffController extends Controller
         DB::transaction(function () use ($staff, $validated) {
             $normalizedEmail = isset($validated['email']) ? strtolower(trim((string) $validated['email'])) : '';
             $existingUser = $normalizedEmail !== '' ? User::whereRaw('LOWER(email) = ?', [$normalizedEmail])->first() : null;
+            $officeContext = $this->resolveOfficeContext($validated);
 
             if ($normalizedEmail !== '') {
                 if ($staff->user_id) {
@@ -247,14 +253,15 @@ class StaffController extends Controller
                 'grade' => $validated['grade'] ?? null,
                 'department' => $validated['department'] ?? null,
                 'department_code' => $validated['department_code'] ?? null,
-                'office_type' => $validated['office_type'] ?? null,
-                'district_id' => $validated['district_id'] ?? null,
+                'office_id' => $officeContext['office_id'],
+                'office_type' => $officeContext['office_type'],
+                'district_id' => $officeContext['district_id'],
             ]);
         });
 
         return response()->json([
             'message' => 'Staff updated',
-            'data' => $staff->load(['user:id,name,email', 'district:id,name']),
+            'data' => $staff->load(['user:id,name,email', 'district:id,name', 'office:id,name,code,office_type,district_id,phone,address']),
         ]);
     }
 
@@ -311,12 +318,51 @@ class StaffController extends Controller
                 ]);
             }
 
-            return $staff->fresh(['user:id,name,email', 'user.roles', 'district:id,name']);
+            return $staff->fresh(['user:id,name,email', 'user.roles', 'district:id,name', 'office:id,name,code,office_type,district_id,phone,address']);
         });
 
         return response()->json([
             'message' => 'Akaun berjaya didaftarkan. Kata laluan lalai ialah "password".',
             'data' => $staffWithUser,
         ]);
+    }
+
+    private function resolveOfficeContext(array $validated): array
+    {
+        $office = null;
+        $officeId = isset($validated['office_id']) && $validated['office_id'] !== ''
+            ? (int) $validated['office_id']
+            : null;
+
+        if ($officeId) {
+            $office = Office::query()->find($officeId);
+        }
+
+        if (! $office) {
+            $officeType = trim((string) ($validated['office_type'] ?? ''));
+            $districtId = isset($validated['district_id']) && $validated['district_id'] !== ''
+                ? (int) $validated['district_id']
+                : null;
+
+            if (in_array($officeType, ['hq', 'daerah'], true)) {
+                $officeQuery = Office::query()
+                    ->where('office_type', $officeType)
+                    ->where('is_active', true);
+
+                if ($officeType === 'daerah' && $districtId) {
+                    $officeQuery->where('district_id', $districtId);
+                }
+
+                $office = $officeType === 'hq'
+                    ? $officeQuery->orderByRaw("CASE WHEN code = 'HQ' THEN 0 ELSE 1 END")->orderBy('name')->first()
+                    : $officeQuery->orderBy('name')->first();
+            }
+        }
+
+        return [
+            'office_id' => $office?->id,
+            'office_type' => $office?->office_type ?: ($validated['office_type'] ?? null),
+            'district_id' => $office?->district_id ?: ($validated['district_id'] ?? null),
+        ];
     }
 }
