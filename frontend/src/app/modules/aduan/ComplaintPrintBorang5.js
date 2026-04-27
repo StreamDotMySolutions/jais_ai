@@ -8,6 +8,7 @@ const ComplaintPrintBorang5 = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const toast = useToast();
     const [complaint, setComplaint] = useState(null);
+    const [offices, setOffices] = useState([]);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isEmailSending, setIsEmailSending] = useState(false);
@@ -25,11 +26,15 @@ const ComplaintPrintBorang5 = () => {
             return;
         }
         const token = localStorage.getItem('token');
-        axios.get(`${apiUrl}/complaints/${id}`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then((response) => {
-                setComplaint(response?.data?.data || null);
+        Promise.all([
+            axios.get(`${apiUrl}/complaints/${id}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            }),
+            axios.get(`${apiUrl}/references/offices`),
+        ])
+            .then(([complaintResponse, officeResponse]) => {
+                setComplaint(complaintResponse?.data?.data || null);
+                setOffices(officeResponse?.data?.data || []);
             })
             .catch((err) => {
                 setError(err?.message || 'Gagal mendapatkan aduan.');
@@ -128,10 +133,15 @@ const ComplaintPrintBorang5 = () => {
         complaint?.received_by?.name ||
         complaint?.receivedBy?.name ||
         issuerName;
+    const receiverStaffOfficeType = String(receiverStaff?.office?.office_type || receiverStaff?.office_type || '').trim().toLowerCase();
+    const hqOffice = offices.find((office) => String(office?.code || '').trim().toUpperCase() === 'HQ');
+    const borang5ContextOffice = !isPhysicalInformant && receiverStaffOfficeType === 'hq'
+        ? (hqOffice || receiverStaff?.office || null)
+        : (receiverStaff?.office || null);
     const officerInformantIdNumber = receiverStaff?.staff_id || receiverStaff?.ic_number || '-';
     const officerInformantOccupation = receiverStaff?.position || 'Pegawai Penguatkuasa Agama';
-    const officerInformantContactNumber = receiverStaff?.office?.phone || receiverStaff?.no_tel_pejabat || '-';
-    const officerInformantAddress = receiverStaff?.office?.address || receiverStaff?.office_address || receiverStaff?.address || '-';
+    const officerInformantContactNumber = borang5ContextOffice?.phone || receiverStaff?.no_tel_pejabat || '-';
+    const officerInformantAddress = borang5ContextOffice?.address || receiverStaff?.office_address || receiverStaff?.address || '-';
     const complainantName = complaint?.complainant_name || '';
     const complainantIdNumber = complaint?.identification_number || '';
     const complainantOccupation = complaint?.complainant_occupation || '';

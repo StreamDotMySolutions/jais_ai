@@ -13,8 +13,9 @@ use App\Models\ComplaintPoliceReport;
 use App\Models\ComplaintPoliceReportMedia;
 use App\Models\ComplaintSeizureItem;
 use App\Models\ComplaintSeizureItemMedia;
-use App\Models\Staff;
 use App\Models\District;
+use App\Models\Office;
+use App\Models\Staff;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -1551,8 +1552,8 @@ class ComplaintController extends Controller
         $officerInformantName = $receiverStaff?->name ?: $complaint->receivedBy?->name ?: $issuerName;
         $officerInformantIdNumber = $receiverStaff?->staff_id ?: $receiverStaff?->ic_number ?: '-';
         $officerInformantOccupation = $receiverStaff?->position ?: 'Pegawai Penguatkuasa Agama';
-        $officerInformantContactNumber = $this->resolveStaffOfficePhone($receiverStaff);
-        $officerInformantAddress = $this->resolveStaffOfficeAddress($receiverStaff);
+        $officerInformantContactNumber = $this->resolveBorang5OfficePhone($complaint, $receiverStaff);
+        $officerInformantAddress = $this->resolveBorang5OfficeAddress($complaint, $receiverStaff);
 
         $effectiveInformantName = $isPhysicalInformant
             ? ($complaint->complainant_name ?: '-')
@@ -3993,8 +3994,8 @@ class ComplaintController extends Controller
         $officerInformantName = $receiverStaff?->name ?: $complaint->receivedBy?->name ?: $issuerName;
         $officerInformantIdNumber = $receiverStaff?->staff_id ?: $receiverStaff?->ic_number ?: '-';
         $officerInformantOccupation = $receiverStaff?->position ?: 'Pegawai Penguatkuasa Agama';
-        $officerInformantContactNumber = $this->resolveStaffOfficePhone($receiverStaff);
-        $officerInformantAddress = $this->resolveStaffOfficeAddress($receiverStaff);
+        $officerInformantContactNumber = $this->resolveBorang5OfficePhone($complaint, $receiverStaff);
+        $officerInformantAddress = $this->resolveBorang5OfficeAddress($complaint, $receiverStaff);
 
         $effectiveInformantName = $isPhysicalInformant
             ? ($complaint->complainant_name ?: '-')
@@ -4282,6 +4283,18 @@ class ComplaintController extends Controller
         return $fallbackPhone !== '' ? $fallbackPhone : '-';
     }
 
+    private function resolveBorang5OfficePhone(Complaint $complaint, ?Staff $staff): string
+    {
+        $office = $this->resolveBorang5ContextOffice($complaint, $staff);
+        $officePhone = trim((string) ($office?->phone ?? ''));
+
+        if ($officePhone !== '') {
+            return $officePhone;
+        }
+
+        return $this->resolveStaffOfficePhone($staff);
+    }
+
     private function resolveStaffOfficeAddress(?Staff $staff): string
     {
         if (! $staff) {
@@ -4301,6 +4314,37 @@ class ComplaintController extends Controller
         }
 
         return '-';
+    }
+
+    private function resolveBorang5OfficeAddress(Complaint $complaint, ?Staff $staff): string
+    {
+        $office = $this->resolveBorang5ContextOffice($complaint, $staff);
+        $officeAddress = trim((string) ($office?->address ?? ''));
+
+        if ($officeAddress !== '') {
+            return $officeAddress;
+        }
+
+        return $this->resolveStaffOfficeAddress($staff);
+    }
+
+    private function resolveBorang5ContextOffice(Complaint $complaint, ?Staff $staff): ?Office
+    {
+        $channel = strtolower(trim((string) ($complaint->channel ?? '')));
+        $isPhysicalInformant = in_array($channel, ['walkin', 'walk-in', 'kaunter'], true);
+        if ($isPhysicalInformant) {
+            return null;
+        }
+
+        $staffOfficeType = strtolower(trim((string) ($staff?->office?->office_type ?? $staff?->office_type ?? '')));
+        if ($staffOfficeType === 'hq') {
+            return Office::query()
+                ->where('code', 'HQ')
+                ->where('is_active', true)
+                ->first();
+        }
+
+        return $staff?->office;
     }
 
     private function stagePayload(string $stage): array
