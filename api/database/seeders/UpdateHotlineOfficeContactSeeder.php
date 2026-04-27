@@ -12,16 +12,25 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
     public function run(): void
     {
         $officePhone = '1800882424';
-        $officeAddress = 'HOTLINE 24 JAM BAHAGIAN PENGURUSAN PENGUATKUASA JAIS';
+        $hqOfficeAddress = 'HOTLINE 24 JAM BAHAGIAN PENGURUSAN PENGUATKUASA JAIS';
         $petalingDistrictId = District::query()
             ->where('code', 'PET')
             ->orWhere('name', 'Petaling')
             ->value('id');
 
-        Office::query()->update([
-            'phone' => $officePhone,
-            'address' => $officeAddress,
-        ]);
+        $districtOfficeAddresses = [
+            'APG' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID AMPANG',
+            'GOM' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID GOMBAK',
+            'HLA' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID HULU LANGAT',
+            'HLS' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID HULU SELANGOR',
+            'KLG' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID KLANG',
+            'KSE' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID KUALA SELANGOR',
+            'KUL' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID KUALA LANGAT',
+            'PET' => 'TINGKAT 4, MENARA UTARA, BSIS BAHAGIAN PENGURUSAN PENGUATKUASAAN JAIS',
+            'SBN' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID SABAK BERNAM',
+            'SEP' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID SEPANG',
+            'SHA' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID SHAH ALAM',
+        ];
 
         $hqOffice = Office::query()->updateOrCreate(
             ['code' => 'HQ'],
@@ -30,10 +39,32 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
                 'office_type' => 'hq',
                 'district_id' => $petalingDistrictId,
                 'phone' => $officePhone,
-                'address' => $officeAddress,
+                'address' => $hqOfficeAddress,
                 'is_active' => true,
             ]
         );
+
+        foreach ($districtOfficeAddresses as $code => $address) {
+            $district = District::query()
+                ->where('code', $code)
+                ->first();
+
+            if (! $district) {
+                continue;
+            }
+
+            Office::query()->updateOrCreate(
+                ['code' => $code],
+                [
+                    'name' => 'PAID ' . $district->name,
+                    'office_type' => 'daerah',
+                    'district_id' => $district->id,
+                    'phone' => $officePhone,
+                    'address' => $address,
+                    'is_active' => true,
+                ]
+            );
+        }
 
         $targets = [
             [
@@ -103,7 +134,7 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
                     'office_type' => 'hq',
                     'district_id' => $petalingDistrictId,
                     'no_tel_pejabat' => $officePhone,
-                    'office_address' => $officeAddress,
+                    'office_address' => $hqOfficeAddress,
                 ]);
 
             if ($this->command) {
