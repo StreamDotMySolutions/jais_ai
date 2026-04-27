@@ -145,9 +145,9 @@ class StaffController extends Controller
                 'ic_number' => $validated['ic_number'] ?? null,
                 'staff_id' => $validated['staff_id'] ?? null,
                 'phone' => $validated['phone'] ?? null,
-                'no_tel_pejabat' => $validated['no_tel_pejabat'] ?? null,
+                'no_tel_pejabat' => $officeContext['office_phone'],
                 'address' => $validated['address'] ?? null,
-                'office_address' => $validated['office_address'] ?? null,
+                'office_address' => $officeContext['office_address'],
                 'marital_status' => $validated['marital_status'] ?? null,
                 'position' => $validated['position'] ?? null,
                 'grade' => $validated['grade'] ?? null,
@@ -245,9 +245,9 @@ class StaffController extends Controller
                 'ic_number' => $validated['ic_number'] ?? null,
                 'staff_id' => $validated['staff_id'] ?? null,
                 'phone' => $validated['phone'] ?? null,
-                'no_tel_pejabat' => $validated['no_tel_pejabat'] ?? null,
+                'no_tel_pejabat' => $officeContext['office_phone'],
                 'address' => $validated['address'] ?? null,
-                'office_address' => $validated['office_address'] ?? null,
+                'office_address' => $officeContext['office_address'],
                 'marital_status' => $validated['marital_status'] ?? null,
                 'position' => $validated['position'] ?? null,
                 'grade' => $validated['grade'] ?? null,
@@ -363,6 +363,8 @@ class StaffController extends Controller
             'office_id' => $office?->id,
             'office_type' => $office?->office_type ?: ($validated['office_type'] ?? null),
             'district_id' => $office?->district_id ?: ($validated['district_id'] ?? null),
+            'office_phone' => $office?->phone ?: ($validated['no_tel_pejabat'] ?? null),
+            'office_address' => $office?->address ?: ($validated['office_address'] ?? null),
         ];
     }
 }

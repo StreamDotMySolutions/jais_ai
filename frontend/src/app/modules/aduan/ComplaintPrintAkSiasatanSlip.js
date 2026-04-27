@@ -56,6 +56,7 @@ const ComplaintPrintAkSiasatanSlip = () => {
     const { id } = useParams();
     const apiUrl = process.env.REACT_APP_API_URL;
     const [complaint, setComplaint] = useState(null);
+    const [offices, setOffices] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -66,10 +67,16 @@ const ComplaintPrintAkSiasatanSlip = () => {
             return;
         }
         const token = localStorage.getItem('token');
-        axios.get(`${apiUrl}/complaints/${id}`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then((response) => setComplaint(response?.data?.data || null))
+        Promise.all([
+            axios.get(`${apiUrl}/complaints/${id}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            }),
+            axios.get(`${apiUrl}/references/offices`),
+        ])
+            .then(([complaintResponse, officeResponse]) => {
+                setComplaint(complaintResponse?.data?.data || null);
+                setOffices(officeResponse?.data?.data || []);
+            })
             .catch((err) => setError(err?.message || 'Gagal mendapatkan aduan.'))
             .finally(() => setIsLoading(false));
     }, [apiUrl, id]);
@@ -90,7 +97,11 @@ const ComplaintPrintAkSiasatanSlip = () => {
     const oydsName = complaint?.complainant_name || complaint?.ak_partner_name || '-';
     const offense = resolveOffenseLabel(complaint);
     const temujanji = formatDateTimeDMY(complaint?.ak_investigation_datetime);
-    const tempat = complaint?.ak_event_place || complaint?.current_address || complaint?.address || '-';
+    const districtOffice = offices.find((office) => (
+        office?.office_type === 'daerah'
+        && String(office?.district_id || '') === String(complaint?.district_id || '')
+    ));
+    const tempat = districtOffice?.address || '-';
     const signName = complaint?.complainant_name || '-';
     const signId = complaint?.identification_number || '-';
 
