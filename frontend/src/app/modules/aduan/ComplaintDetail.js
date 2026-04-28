@@ -200,6 +200,7 @@ const ComplaintDetail = () => {
     const [payloadMessage, setPayloadMessage] = useState('');
     const [reportMessage, setReportMessage] = useState('');
     const [actionReportMessage, setActionReportMessage] = useState('');
+    const [isAjReportModalOpen, setIsAjReportModalOpen] = useState(false);
     const [statusInput, setStatusInput] = useState('');
     const [caseTypeMessage, setCaseTypeMessage] = useState('');
     const [assigneeMessage, setAssigneeMessage] = useState('');
@@ -239,6 +240,12 @@ const ComplaintDetail = () => {
         borang5_statement: '',
         offense_id: '',
     });
+    const primaryCase = complaint?.primary_case || null;
+    const complaintCases = Array.isArray(complaint?.cases) ? complaint.cases : [];
+    const [isAttachCaseOpen, setIsAttachCaseOpen] = useState(false);
+    const [caseSearchKeyword, setCaseSearchKeyword] = useState('');
+    const [caseSearchResults, setCaseSearchResults] = useState([]);
+    const [isCaseSearchLoading, setIsCaseSearchLoading] = useState(false);
     const [reportSections, setReportSections] = useState({
         issuer: true,
         arrest: true,
@@ -270,6 +277,7 @@ const ComplaintDetail = () => {
     const autoClassificationGuardRef = useRef({});
     const suppressUnloadReleaseRef = useRef(false);
     const autoPickupGuardRef = useRef({});
+    const autoOpenCaseReportGuardRef = useRef('');
     const formatChannelLabel = (channel) => {
         const value = (channel || '').toString().trim().toLowerCase();
         if (!value) return '-';
@@ -302,6 +310,13 @@ const ComplaintDetail = () => {
             hour12: false,
             timeZone: 'Asia/Kuala_Lumpur',
         });
+    };
+
+    const formatArrestStatusLabel = (value) => {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (normalized === 'ada') return 'Ada Tangkapan';
+        if (normalized === 'tiada') return 'Tiada Tangkapan';
+        return '-';
     };
     useEffect(() => {
         if (!apiUrl) {
@@ -825,6 +840,7 @@ const ComplaintDetail = () => {
         if (!complaint) {
             return;
         }
+        const caseSource = complaint.primary_case || complaint;
 
         setAjPayload({
             ...ajPayloadDefault,
@@ -849,26 +865,34 @@ const ComplaintDetail = () => {
         });
         setAjReport({
             ...ajReportDefault,
-            arrest_status: complaint.aj_arrest_status || '',
-            male_count: complaint.aj_male_count ?? '',
-            female_count: complaint.aj_female_count ?? '',
-            other_count: complaint.aj_other_count ?? '',
-            action_datetime: complaint.aj_action_datetime || '',
-            offense_id: complaint.aj_report_offense_id
-                ? String(complaint.aj_report_offense_id)
-                : (complaint.aj_offense_id ? String(complaint.aj_offense_id) : ''),
-            arrest_by: complaint.aj_arrest_by || '',
-            arrest_staff_id: complaint.aj_arrest_staff_id ? String(complaint.aj_arrest_staff_id) : '',
-            statement_datetime: complaint.aj_statement_datetime || '',
-            court_date: complaint.aj_court_date || '',
-            report_notes: complaint.aj_report_notes || '',
-            file_no: complaint.aj_file_no || '',
-            directive_staff_id: complaint.aj_directive_staff_id ? String(complaint.aj_directive_staff_id) : '',
-            handover_staff_id: complaint.aj_handover_staff_id ? String(complaint.aj_handover_staff_id) : '',
-            directive_at: complaint.aj_directive_at || '',
-            directive_notes: complaint.aj_directive_notes || '',
-            handover_at: complaint.handover_at || '',
-            handover_notes: complaint.handover_notes || '',
+            arrest_status: caseSource.arrest_status || caseSource.aj_arrest_status || '',
+            male_count: caseSource.male_count ?? caseSource.aj_male_count ?? '',
+            female_count: caseSource.female_count ?? caseSource.aj_female_count ?? '',
+            other_count: caseSource.other_count ?? caseSource.aj_other_count ?? '',
+            action_datetime: caseSource.action_datetime || caseSource.aj_action_datetime || '',
+            offense_id: caseSource.report_offense_id
+                ? String(caseSource.report_offense_id)
+                : (caseSource.aj_report_offense_id
+                    ? String(caseSource.aj_report_offense_id)
+                    : (complaint.aj_offense_id ? String(complaint.aj_offense_id) : '')),
+            arrest_by: caseSource.arrest_by || caseSource.aj_arrest_by || '',
+            arrest_staff_id: caseSource.arrest_staff_id
+                ? String(caseSource.arrest_staff_id)
+                : (caseSource.aj_arrest_staff_id ? String(caseSource.aj_arrest_staff_id) : ''),
+            statement_datetime: caseSource.statement_datetime || caseSource.aj_statement_datetime || '',
+            court_date: caseSource.court_date || caseSource.aj_court_date || '',
+            report_notes: caseSource.report_notes || caseSource.aj_report_notes || '',
+            file_no: caseSource.file_no || caseSource.aj_file_no || '',
+            directive_staff_id: caseSource.directive_staff_id
+                ? String(caseSource.directive_staff_id)
+                : (caseSource.aj_directive_staff_id ? String(caseSource.aj_directive_staff_id) : ''),
+            handover_staff_id: caseSource.handover_staff_id
+                ? String(caseSource.handover_staff_id)
+                : (caseSource.aj_handover_staff_id ? String(caseSource.aj_handover_staff_id) : ''),
+            directive_at: caseSource.directive_at || caseSource.aj_directive_at || '',
+            directive_notes: caseSource.directive_notes || caseSource.aj_directive_notes || '',
+            handover_at: caseSource.handover_at || complaint.handover_at || '',
+            handover_notes: caseSource.handover_notes || complaint.handover_notes || '',
             oyds: (complaint.oyds || []).length
                 ? complaint.oyds.map((row) => ({
                     id: row.id,
@@ -920,19 +944,23 @@ const ComplaintDetail = () => {
                 : ajActionReportDefault.history_entries);
         setAjActionReport({
             ...ajActionReportDefault,
-            directive_staff_id: complaint.aj_directive_staff_id ? String(complaint.aj_directive_staff_id) : '',
-            handover_staff_id: complaint.aj_handover_staff_id ? String(complaint.aj_handover_staff_id) : '',
-            directive_at: complaint.aj_directive_at || '',
-            directive_notes: complaint.aj_directive_notes || '',
-            handover_at: complaint.handover_at || '',
-            handover_notes: complaint.handover_notes || '',
-            current_status: complaint.aj_current_status || '',
-            current_status_other: complaint.aj_current_status_other || '',
-            case_register_no: complaint.case_register_no || '',
-            op_category: complaint.aj_op_category || '',
-            op_case_status: complaint.aj_op_case_status || '',
-            op_notes: complaint.aj_op_notes || '',
-            file_no: complaint.aj_file_no || '',
+            directive_staff_id: caseSource.directive_staff_id
+                ? String(caseSource.directive_staff_id)
+                : (caseSource.aj_directive_staff_id ? String(caseSource.aj_directive_staff_id) : ''),
+            handover_staff_id: caseSource.handover_staff_id
+                ? String(caseSource.handover_staff_id)
+                : (caseSource.aj_handover_staff_id ? String(caseSource.aj_handover_staff_id) : ''),
+            directive_at: caseSource.directive_at || caseSource.aj_directive_at || '',
+            directive_notes: caseSource.directive_notes || caseSource.aj_directive_notes || '',
+            handover_at: caseSource.handover_at || complaint.handover_at || '',
+            handover_notes: caseSource.handover_notes || complaint.handover_notes || '',
+            current_status: caseSource.current_status || caseSource.aj_current_status || '',
+            current_status_other: caseSource.current_status_other || caseSource.aj_current_status_other || '',
+            case_register_no: caseSource.case_register_no || complaint.case_register_no || '',
+            op_category: caseSource.op_category || caseSource.aj_op_category || '',
+            op_case_status: caseSource.op_case_status || caseSource.aj_op_case_status || '',
+            op_notes: caseSource.op_notes || caseSource.aj_op_notes || '',
+            file_no: caseSource.file_no || caseSource.aj_file_no || '',
             history_entries: derivedInitialHistory,
         });
         setAkPayload({
@@ -1679,7 +1707,7 @@ const ComplaintDetail = () => {
         axios.post(`${apiUrl}/complaints/${id}/aj-report`, {
             report: {
                 ...ajReport,
-                case_register_no: complaint?.case_register_no || buildCaseRegisterNoFromComplaint(complaint),
+                case_register_no: primaryCase?.case_register_no || complaint?.case_register_no || buildCaseRegisterNoFromComplaint(complaint),
             },
         }, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -1700,6 +1728,170 @@ const ComplaintDetail = () => {
                 const msg = err?.response?.data?.message || 'Gagal kemaskini laporan.';
                 setReportMessage(msg);
                 toast.error(msg);
+            });
+    };
+
+    const openAjCase = ({ openModal = false } = {}) => {
+        if (!apiUrl || !complaint) {
+            return;
+        }
+        axios.post(`${apiUrl}/complaints/${id}/open-case`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                const updated = response?.data?.data;
+                if (updated) {
+                    setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
+                }
+                if (openModal) {
+                    setIsAjReportModalOpen(true);
+                }
+                const msg = response?.data?.message || 'Kes berjaya dibuka.';
+                toast.success(msg);
+            })
+            .catch((err) => {
+                toast.error(err?.response?.data?.message || 'Gagal membuka kes.');
+            });
+    };
+
+    const createAdditionalAjCase = ({ openModal = false } = {}) => {
+        if (!apiUrl || !complaint) {
+            return;
+        }
+        axios.post(`${apiUrl}/complaints/${id}/cases`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                const updated = response?.data?.data;
+                if (updated) {
+                    setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
+                }
+                if (openModal) {
+                    setIsAjReportModalOpen(true);
+                }
+                toast.success(response?.data?.message || 'Kes baharu berjaya ditambah.');
+            })
+            .catch((err) => {
+                toast.error(err?.response?.data?.message || 'Gagal menambah kes baharu.');
+            });
+    };
+
+    const activateAjCase = (caseId, { openModal = false } = {}) => {
+        if (!apiUrl || !complaint || !caseId || Number(primaryCase?.id) === Number(caseId)) {
+            if (openModal && Number(primaryCase?.id) === Number(caseId)) {
+                setIsAjReportModalOpen(true);
+            }
+            return;
+        }
+        axios.post(`${apiUrl}/complaints/${id}/cases/${caseId}/activate`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                const updated = response?.data?.data;
+                if (updated) {
+                    setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
+                }
+                if (openModal) {
+                    setIsAjReportModalOpen(true);
+                }
+                toast.success(response?.data?.message || 'Kes berjaya dipilih.');
+            })
+            .catch((err) => {
+                toast.error(err?.response?.data?.message || 'Gagal menukar kes aktif.');
+            });
+    };
+
+    const openAjReportModalForNewCase = () => {
+        if (primaryCase?.id) {
+            createAdditionalAjCase({ openModal: true });
+            return;
+        }
+        openAjCase({ openModal: true });
+    };
+
+    const openAjReportModalForCase = (caseId) => {
+        if (!caseId) {
+            return;
+        }
+        if (Number(primaryCase?.id) === Number(caseId)) {
+            setIsAjReportModalOpen(true);
+            return;
+        }
+        activateAjCase(caseId, { openModal: true });
+    };
+
+    useEffect(() => {
+        if (!complaint || (complaint.case_type || '') !== 'AJ') {
+            return;
+        }
+
+        const params = new URLSearchParams(location.search || '');
+        if (params.get('open_case_report') !== '1') {
+            return;
+        }
+
+        const caseId = params.get('case_id') || primaryCase?.id;
+        if (!caseId) {
+            return;
+        }
+
+        const guardKey = `${id}:${caseId}`;
+        if (autoOpenCaseReportGuardRef.current === guardKey) {
+            return;
+        }
+        autoOpenCaseReportGuardRef.current = guardKey;
+
+        const foundIndex = AJ_STEPS.findIndex((s) => s.key === 'laporan_pemeriksaan');
+        if (foundIndex >= 0) {
+            setActiveStep(foundIndex);
+        }
+        openAjReportModalForCase(caseId);
+    }, [complaint, id, location.search, primaryCase?.id]);
+
+    const searchExistingCases = () => {
+        if (!apiUrl || !complaint) {
+            return;
+        }
+        setIsCaseSearchLoading(true);
+        axios.get(`${apiUrl}/cases`, {
+            params: {
+                case_type: complaint.case_type || 'AJ',
+                keyword: caseSearchKeyword || undefined,
+                exclude_complaint_id: complaint.id,
+                limit: 12,
+            },
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                setCaseSearchResults(Array.isArray(response?.data?.data) ? response.data.data : []);
+            })
+            .catch((err) => {
+                toast.error(err?.response?.data?.message || 'Gagal mencari kes sedia ada.');
+            })
+            .finally(() => {
+                setIsCaseSearchLoading(false);
+            });
+    };
+
+    const attachExistingAjCase = (caseId) => {
+        if (!apiUrl || !complaint || !caseId) {
+            return;
+        }
+        axios.post(`${apiUrl}/complaints/${id}/cases/${caseId}/attach`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                const updated = response?.data?.data;
+                if (updated) {
+                    setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
+                }
+                setIsAttachCaseOpen(false);
+                setCaseSearchResults([]);
+                setCaseSearchKeyword('');
+                toast.success(response?.data?.message || 'Kes sedia ada berjaya dipautkan.');
+            })
+            .catch((err) => {
+                toast.error(err?.response?.data?.message || 'Gagal memaut kes sedia ada.');
             });
     };
 
@@ -1885,7 +2077,7 @@ const ComplaintDetail = () => {
     const isAduanBoxLocked = aduanLockedStages.includes(currentStage);
     const isSaveDisabled = isAwaitingApproval;
     const saveDisabledTitle = isSaveDisabled ? 'Tidak boleh simpan semasa menunggu tindakan pengesah.' : undefined;
-    const hasSavedAjReportNotes = String(complaint?.aj_report_notes || '').trim() !== '';
+    const hasSavedAjReportNotes = String(primaryCase?.report_notes || complaint?.aj_report_notes || '').trim() !== '';
     const isLaporanTindakanPrintDisabled = isSaveDisabled || !hasSavedAjReportNotes;
     const laporanTindakanPrintDisabledTitle = isSaveDisabled
         ? saveDisabledTitle
@@ -1927,18 +2119,18 @@ const ComplaintDetail = () => {
     const savedHistoryEntriesNormalized = normalizeHistoryEntries(complaint?.action_updates || []);
     const hasUnsavedJanaTindakanChanges = (
         String(ajActionReport?.directive_staff_id || '') !== String(complaint?.aj_directive_staff_id || '')
-        || normalizeDateTimeLocalValue(ajActionReport?.directive_at) !== normalizeDateTimeLocalValue(complaint?.aj_directive_at)
+        || normalizeDateTimeLocalValue(ajActionReport?.directive_at) !== normalizeDateTimeLocalValue(primaryCase?.directive_at || complaint?.aj_directive_at)
         || String(ajActionReport?.handover_staff_id || '') !== String(complaint?.aj_handover_staff_id || '')
-        || normalizeDateTimeLocalValue(ajActionReport?.handover_at) !== normalizeDateTimeLocalValue(complaint?.handover_at)
+        || normalizeDateTimeLocalValue(ajActionReport?.handover_at) !== normalizeDateTimeLocalValue(primaryCase?.handover_at || complaint?.handover_at)
         || String(ajActionReport?.directive_notes || '').trim() !== String(complaint?.aj_directive_notes || '').trim()
         || String(ajActionReport?.handover_notes || '').trim() !== String(complaint?.handover_notes || '').trim()
-        || String(ajActionReport?.current_status || '').trim() !== String(complaint?.aj_current_status || '').trim()
-        || String(ajActionReport?.current_status_other || '').trim() !== String(complaint?.aj_current_status_other || '').trim()
-        || String(ajActionReport?.case_register_no || '').trim() !== String(complaint?.case_register_no || '').trim()
-        || String(ajActionReport?.op_category || '').trim() !== String(complaint?.aj_op_category || '').trim()
-        || String(ajActionReport?.op_case_status || '').trim() !== String(complaint?.aj_op_case_status || '').trim()
-        || String(ajActionReport?.op_notes || '').trim() !== String(complaint?.aj_op_notes || '').trim()
-        || String(ajActionReport?.file_no || '').trim() !== String(complaint?.aj_file_no || '').trim()
+        || String(ajActionReport?.current_status || '').trim() !== String(primaryCase?.current_status || complaint?.aj_current_status || '').trim()
+        || String(ajActionReport?.current_status_other || '').trim() !== String(primaryCase?.current_status_other || complaint?.aj_current_status_other || '').trim()
+        || String(ajActionReport?.case_register_no || '').trim() !== String(primaryCase?.case_register_no || complaint?.case_register_no || '').trim()
+        || String(ajActionReport?.op_category || '').trim() !== String(primaryCase?.op_category || complaint?.aj_op_category || '').trim()
+        || String(ajActionReport?.op_case_status || '').trim() !== String(primaryCase?.op_case_status || complaint?.aj_op_case_status || '').trim()
+        || String(ajActionReport?.op_notes || '').trim() !== String(primaryCase?.op_notes || complaint?.aj_op_notes || '').trim()
+        || String(ajActionReport?.file_no || '').trim() !== String(primaryCase?.file_no || complaint?.aj_file_no || '').trim()
         || JSON.stringify(draftHistoryEntriesNormalized) !== JSON.stringify(savedHistoryEntriesNormalized)
     );
     const janaTindakanMissingFields = [];
@@ -4114,6 +4306,158 @@ const ComplaintDetail = () => {
                     {complaint.case_type === 'AJ' && activeKey === 'laporan_pemeriksaan' && (
                         <div className="app-tab-panel">
                             <div className="app-report-stack">
+                                <div className="app-report-sticky app-span-full">
+                                    <div style={{ display: 'grid', gap: '.6rem', width: '100%' }}>
+                                        <div style={{ display: 'flex', gap: '.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <button className="app-button" type="button" onClick={openAjReportModalForNewCase}>
+                                                <i className="bi bi-plus-lg"></i>
+                                                Tambah Kes
+                                            </button>
+                                            <button
+                                                className="app-button app-button-ghost"
+                                                type="button"
+                                                onClick={() => {
+                                                    setIsAttachCaseOpen(true);
+                                                    setCaseSearchResults([]);
+                                                    setCaseSearchKeyword('');
+                                                }}
+                                            >
+                                                Paut ke Kes Sedia Ada
+                                            </button>
+                                        </div>
+                                        <div className="app-case-table-wrap">
+                                            <div className="app-case-table-header">
+                                                <div>BIL</div>
+                                                <div>NO. DAFTAR KES</div>
+                                                <div>NOMBOR FAIL</div>
+                                                <div>STATUS / TANGKAPAN</div>
+                                                <div>TINDAKAN</div>
+                                            </div>
+                                            {complaintCases.length > 0 ? (
+                                                <div className="app-case-table-body">
+                                                    {complaintCases.map((row, index) => {
+                                                        return (
+                                                            <div
+                                                                key={`case-list-${row.id}`}
+                                                                className="app-case-table-row"
+                                                            >
+                                                                <div>{index + 1}</div>
+                                                                <div className="app-case-table-cell-main">
+                                                                    <strong>
+                                                                        {row.case_register_no || `Kes #${row.id}`}
+                                                                    </strong>
+                                                                    <small>{formatDateTime(row.created_at)}</small>
+                                                                </div>
+                                                                <div>{row.file_no || '-'}</div>
+                                                                <div className="app-case-table-cell-status">
+                                                                    <span>{row.current_status || '-'}</span>
+                                                                    <small>{formatArrestStatusLabel(row.arrest_status)}</small>
+                                                                </div>
+                                                                <div className="app-case-table-actions">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="app-icon-button"
+                                                                        onClick={() => openAjReportModalForCase(row.id)}
+                                                                        title="Edit laporan tindakan"
+                                                                    >
+                                                                        <i className="bi bi-pencil-square"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="app-case-empty">
+                                                    Belum ada kes dibuka atau dipautkan untuk aduan ini.
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                {isAttachCaseOpen && (
+                                    <div className="app-modal">
+                                        <div
+                                            className="app-modal-backdrop"
+                                            onClick={() => {
+                                                setIsAttachCaseOpen(false);
+                                                setCaseSearchResults([]);
+                                                setCaseSearchKeyword('');
+                                            }}
+                                        ></div>
+                                        <div className="app-modal-content">
+                                            <div className="app-modal-header">
+                                                <div>
+                                                    <h4>Paut ke Kes Sedia Ada</h4>
+                                                    <p>Cari dan pilih kes yang hendak dipautkan kepada aduan ini.</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    className="app-modal-close"
+                                                    onClick={() => {
+                                                        setIsAttachCaseOpen(false);
+                                                        setCaseSearchResults([]);
+                                                        setCaseSearchKeyword('');
+                                                    }}
+                                                >
+                                                    <i className="bi bi-x-lg"></i>
+                                                </button>
+                                            </div>
+                                            <div className="app-modal-body">
+                                                <div style={{ display: 'flex', gap: '.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                                                    <input
+                                                        type="text"
+                                                        className="form-control"
+                                                        style={{ maxWidth: '320px' }}
+                                                        value={caseSearchKeyword}
+                                                        onChange={(event) => setCaseSearchKeyword(event.target.value)}
+                                                        placeholder="Cari No. Daftar Kes / Nombor Fail"
+                                                    />
+                                                    <button className="app-button app-button-ghost" type="button" onClick={searchExistingCases} disabled={isCaseSearchLoading}>
+                                                        {isCaseSearchLoading ? 'Mencari...' : 'Cari Kes'}
+                                                    </button>
+                                                </div>
+                                                {caseSearchResults.length > 0 && (
+                                                    <div style={{ display: 'grid', gap: '.5rem' }}>
+                                                        {caseSearchResults.map((row) => (
+                                                            <button
+                                                                key={`search-case-${row.id}`}
+                                                                type="button"
+                                                                className="app-card-link"
+                                                                style={{ textAlign: 'left', padding: '.8rem 1rem' }}
+                                                                onClick={() => attachExistingAjCase(row.id)}
+                                                            >
+                                                                <strong>{row.case_register_no || `Kes #${row.id}`}</strong>
+                                                                <div className="app-compact-meta">
+                                                                    <span>{row.file_no || 'Tiada nombor fail'}</span>
+                                                                    <span>{row.district_name || '-'}</span>
+                                                                    <span>{row.current_status || '-'}</span>
+                                                                </div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                {!isCaseSearchLoading && caseSearchResults.length === 0 && (
+                                                    <small className="app-hint">Cari nombor kes yang hendak dipautkan pada aduan ini.</small>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                                {isAjReportModalOpen && primaryCase && (
+                                    <div className="app-modal">
+                                        <div className="app-modal-backdrop" onClick={() => setIsAjReportModalOpen(false)}></div>
+                                        <div className="app-modal-content app-modal-content--wide">
+                                            <div className="app-modal-header">
+                                                <div>
+                                                    <h4>Laporan Tindakan</h4>
+                                                    <p>{primaryCase.case_register_no || '-'}</p>
+                                                </div>
+                                                <button type="button" className="app-modal-close" onClick={() => setIsAjReportModalOpen(false)}>
+                                                    <i className="bi bi-x-lg"></i>
+                                                </button>
+                                            </div>
+                                            <div className="app-modal-body">
                                 <div className="app-report-section">
                                     <button
                                         className="app-report-toggle"
@@ -4158,7 +4502,7 @@ const ComplaintDetail = () => {
                                                 <span>No. Daftar Kes</span>
                                                 <input
                                                     type="text"
-                                                    value={complaint?.case_register_no || buildCaseRegisterNoFromComplaint(complaint)}
+                                                    value={primaryCase?.case_register_no || complaint?.case_register_no || buildCaseRegisterNoFromComplaint(complaint)}
                                                     readOnly
                                                     disabled
                                                 />
@@ -4670,6 +5014,10 @@ const ComplaintDetail = () => {
                                         Laporan Tindakan
                                     </button>
                                 </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

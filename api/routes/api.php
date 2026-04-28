@@ -135,6 +135,12 @@ Route::middleware('auth:sanctum')->get('/complaints/{complaint}', [App\Http\Cont
     ->whereNumber('complaint');
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/cases', [App\Http\Controllers\ComplaintController::class, 'caseIndex']);
+    Route::post('/cases', [App\Http\Controllers\ComplaintController::class, 'storeCase']);
+    Route::get('/cases/{case}', [App\Http\Controllers\ComplaintController::class, 'caseShow'])
+        ->whereNumber('case');
+    Route::put('/cases/{case}', [App\Http\Controllers\ComplaintController::class, 'caseUpdate'])
+        ->whereNumber('case');
     Route::get('/appointments', [AppointmentController::class, 'index']);
     Route::get('/appointments/check', [AppointmentController::class, 'check']);
     Route::get('/i-waran', [IwaranWarrantController::class, 'index']);
@@ -207,6 +213,16 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj-action-report', [App\Http\Controllers\ComplaintController::class, 'updateAjActionReport'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/open-case', [App\Http\Controllers\ComplaintController::class, 'openCase'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/cases', [App\Http\Controllers\ComplaintController::class, 'createCase'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/cases/{case}/activate', [App\Http\Controllers\ComplaintController::class, 'activateCase'])
+        ->whereNumber('complaint')
+        ->whereNumber('case');
+    Route::post('/complaints/{complaint}/cases/{case}/attach', [App\Http\Controllers\ComplaintController::class, 'attachCase'])
+        ->whereNumber('complaint')
+        ->whereNumber('case');
     Route::post('/complaints/{complaint}/aj-report', [App\Http\Controllers\ComplaintController::class, 'updateAjReport'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/oyds', [App\Http\Controllers\ComplaintController::class, 'createOyd'])

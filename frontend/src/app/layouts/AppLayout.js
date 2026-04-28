@@ -44,6 +44,23 @@ const AppLayout = () => {
         });
     };
 
+    const normalizeFirMenu = (menuItems) => {
+        if (!Array.isArray(menuItems)) {
+            return [];
+        }
+
+        return menuItems.map((menu) => {
+            if ((menu?.path || '') !== '/app/aduan') {
+                return menu;
+            }
+            return {
+                ...menu,
+                label: 'FIR',
+                icon: menu.icon || 'bi-file-earmark-text',
+            };
+        });
+    };
+
     const ensureWaranCalendarMenu = (menuItems) => {
         if (!Array.isArray(menuItems) || menuItems.length === 0) {
             return [];
@@ -83,6 +100,57 @@ const AppLayout = () => {
         return nextMenus;
     };
 
+    const ensureCasesMenu = (menuItems) => {
+        if (!Array.isArray(menuItems) || menuItems.length === 0) {
+            return [];
+        }
+
+        const placeCasesAfterFir = (items) => {
+            const casesIndex = items.findIndex((menu) => (menu?.path || '') === '/app/cases');
+            const firIndex = items.findIndex((menu) => (menu?.path || '') === '/app/aduan');
+            if (casesIndex < 0 || firIndex < 0 || casesIndex === firIndex + 1) {
+                return items;
+            }
+
+            const nextItems = [...items];
+            const [casesMenu] = nextItems.splice(casesIndex, 1);
+            const nextFirIndex = nextItems.findIndex((menu) => (menu?.path || '') === '/app/aduan');
+            nextItems.splice(nextFirIndex + 1, 0, casesMenu);
+            return nextItems;
+        };
+
+        const hasCasesMenu = menuItems.some((menu) => (menu?.path || '') === '/app/cases');
+        if (hasCasesMenu) {
+            return placeCasesAfterFir(menuItems);
+        }
+
+        const firRootMenu = menuItems.find((menu) => (menu?.path || '') === '/app/aduan');
+        const complaintsMenu = menuItems.find((menu) => (menu?.path || '') === '/app/complaints');
+        if (!firRootMenu && !complaintsMenu) {
+            return menuItems;
+        }
+
+        const injectedMenu = {
+            id: 'virtual-cases-menu',
+            parent_id: null,
+            label: 'KES',
+            path: '/app/cases',
+            icon: 'bi-folder2-open',
+            sort_order: Number(firRootMenu?.sort_order || complaintsMenu?.sort_order || 0) + 1,
+            is_active: 1,
+        };
+
+        const insertAfterPath = firRootMenu ? '/app/aduan' : '/app/complaints';
+        const insertIndex = menuItems.findIndex((menu) => (menu?.path || '') === insertAfterPath);
+        if (insertIndex < 0) {
+            return [...menuItems, injectedMenu];
+        }
+
+        const nextMenus = [...menuItems];
+        nextMenus.splice(insertIndex + 1, 0, injectedMenu);
+        return placeCasesAfterFir(nextMenus);
+    };
+
     const loadMenus = () => {
         if (!apiUrl) {
             setMenuLoaded(true);
@@ -101,7 +169,8 @@ const AppLayout = () => {
                 const menuItems = filterRetiredMenus(menusResponse?.data?.data || []);
                 const pendingCount = Number(pendingResponse?.data?.meta?.total || 0);
                 const withPendingBadge = attachPendingApprovalCount(menuItems, pendingCount);
-                setMenus(ensureWaranCalendarMenu(withPendingBadge));
+                const withFirMenu = normalizeFirMenu(withPendingBadge);
+                setMenus(ensureCasesMenu(ensureWaranCalendarMenu(withFirMenu)));
             })
             .catch(() => {
                 setMenus([]);

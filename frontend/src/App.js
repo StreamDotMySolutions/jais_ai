@@ -26,6 +26,8 @@ import ComplaintPrintLaporanTindakan from './app/modules/aduan/ComplaintPrintLap
 import ComplaintPrintTindakanAduan from './app/modules/aduan/ComplaintPrintTindakanAduan';
 import ComplaintPrintAkSiasatanSlip from './app/modules/aduan/ComplaintPrintAkSiasatanSlip';
 import AppointmentCalendar from './app/modules/appointments/AppointmentCalendar';
+import CaseList from './app/modules/cases/CaseList';
+import CaseDetail from './app/modules/cases/CaseDetail';
 import StaffList from './app/modules/staff/StaffList';
 import RoleList from './app/modules/roles/RoleList';
 import MenuList from './app/modules/menus/MenuList';
@@ -137,6 +139,8 @@ function App() {
           <Route element={<AppLayout />}>
             <Route path="/app/dashboard" element={<DashboardByRole />} />
             <Route path="/app/appointments" element={<AppointmentCalendar />} />
+            <Route path="/app/cases" element={<CaseList />} />
+            <Route path="/app/cases/:id" element={<CaseDetail />} />
             <Route
               path="/app/complaints"
               element={<ComplaintListByRole />}

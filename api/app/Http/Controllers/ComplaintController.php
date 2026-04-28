@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller; 
 use Illuminate\Http\Request;
 use App\Models\Appointment;
+use App\Models\CaseRecord;
 use App\Models\Complaint;
 use App\Models\ComplaintAttachment;
 use App\Models\ComplaintOyd;
@@ -24,6 +25,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use App\Services\ComplaintReferenceService;
+use App\Services\CaseReferenceService;
 use App\Services\MobilePushNotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -36,7 +38,8 @@ class ComplaintController extends Controller
 {
     public function __construct(
         private MobilePushNotificationService $mobilePushNotificationService,
-        private ComplaintReferenceService $complaintReferenceService
+        private ComplaintReferenceService $complaintReferenceService,
+        private CaseReferenceService $caseReferenceService
     ) {
     }
 
@@ -65,6 +68,270 @@ class ComplaintController extends Controller
         $this->applyComplaintFilters($query, $request);
 
         return $this->respondWithPagination($query, $request, 'My complaints');
+    }
+
+    public function caseIndex(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'case_type' => 'nullable|string|max:10',
+            'keyword' => 'nullable|string|max:255',
+            'exclude_complaint_id' => 'nullable|integer',
+            'limit' => 'nullable|integer|min:1|max:50',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'with_complaints' => 'nullable',
+        ]);
+
+        $query = CaseRecord::query()
+            ->select([
+                'id',
+                'case_type',
+                'case_register_no',
+                'file_no',
+                'complaint_year',
+                'district_id',
+                'district_name',
+                'ppa_classification',
+                'current_status',
+                'arrest_status',
+                'action_datetime',
+                'created_at',
+            ])
+            ->withCount('complaints')
+            ->orderByDesc('id');
+
+        $withComplaints = filter_var($validated['with_complaints'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if ($withComplaints) {
+            $query->with(['complaints' => function ($subQuery) {
+                $subQuery->select([
+                    'complaints.id',
+                    'complaints.reference_no',
+                    'complaints.case_type',
+                    'complaints.district_name',
+                    'complaints.complainant_name',
+                    'complaints.complaint_date',
+                    'complaints.complaint_time',
+                ])->orderByDesc('complaints.id');
+            }]);
+        }
+
+        $caseType = strtoupper(trim((string) ($validated['case_type'] ?? '')));
+        if ($caseType !== '') {
+            $query->where('case_type', $caseType);
+        }
+
+        $keyword = trim((string) ($validated['keyword'] ?? ''));
+        if ($keyword !== '') {
+            $query->where(function ($subQuery) use ($keyword) {
+                $subQuery->where('case_register_no', 'like', '%' . $keyword . '%')
+                    ->orWhere('file_no', 'like', '%' . $keyword . '%')
+                    ->orWhere('district_name', 'like', '%' . $keyword . '%');
+            });
+        }
+
+        if ($user->hasRole('pegawai_daerah')) {
+            $districtId = $this->resolveUserDistrictId($user);
+            if ($districtId) {
+                $query->where('district_id', $districtId);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+
+        $excludeComplaintId = (int) ($validated['exclude_complaint_id'] ?? 0);
+        if ($excludeComplaintId > 0) {
+            $query->whereDoesntHave('complaints', function ($subQuery) use ($excludeComplaintId) {
+                $subQuery->where('complaints.id', $excludeComplaintId);
+            });
+        }
+
+        $perPage = (int) ($validated['per_page'] ?? 0);
+        if ($perPage > 0) {
+            $rows = $query->paginate($perPage);
+            return response()->json([
+                'message' => 'Senarai kes',
+                'data' => $rows->items(),
+                'meta' => [
+                    'current_page' => $rows->currentPage(),
+                    'last_page' => $rows->lastPage(),
+                    'per_page' => $rows->perPage(),
+                    'total' => $rows->total(),
+                ],
+            ]);
+        }
+
+        $limit = (int) ($validated['limit'] ?? 10);
+        $rows = $query->limit($limit)->get();
+
+        return response()->json([
+            'message' => 'Senarai kes',
+            'data' => $rows,
+        ]);
+    }
+
+    public function storeCase(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'complaint_ids' => ['required', 'array', 'min:1', 'max:50'],
+            'complaint_ids.*' => ['integer', 'distinct', 'exists:complaints,id'],
+        ]);
+
+        $complaintIds = array_values(array_unique(array_map('intval', $validated['complaint_ids'])));
+        $complaints = Complaint::query()
+            ->whereIn('id', $complaintIds)
+            ->orderByRaw('FIELD(id, ' . implode(',', $complaintIds) . ')')
+            ->get();
+
+        if ($complaints->count() !== count($complaintIds)) {
+            return response()->json(['message' => 'Sebahagian aduan tidak dijumpai.'], 422);
+        }
+
+        foreach ($complaints as $complaint) {
+            if (! $this->canViewComplaint($complaint, $user)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+            if (strtoupper(trim((string) ($complaint->case_type ?? ''))) !== 'AJ') {
+                return response()->json(['message' => 'Hanya aduan AJ boleh dibuka sebagai kes.'], 422);
+            }
+        }
+
+        $primaryComplaint = $complaints->first();
+        $districtId = (int) ($primaryComplaint->district_id ?? 0);
+        $hasDifferentDistrict = $complaints->contains(function ($complaint) use ($districtId) {
+            return (int) ($complaint->district_id ?? 0) !== $districtId;
+        });
+        if ($hasDifferentDistrict) {
+            return response()->json(['message' => 'Aduan yang dipilih mesti daripada daerah yang sama.'], 422);
+        }
+
+        if ($user->hasRole('pegawai_daerah')) {
+            $userDistrictId = $this->resolveUserDistrictId($user);
+            if (! $userDistrictId || (int) $userDistrictId !== $districtId) {
+                return response()->json(['message' => 'Kes luar daerah tidak dibenarkan.'], 403);
+            }
+        }
+
+        $case = DB::transaction(function () use ($complaints, $primaryComplaint) {
+            $case = $this->createAdditionalCaseForComplaint($primaryComplaint, [
+                'opened_at' => now(),
+            ]);
+
+            foreach ($complaints as $complaint) {
+                DB::table('case_complaint_links')->updateOrInsert(
+                    [
+                        'case_id' => $case->id,
+                        'complaint_id' => $complaint->id,
+                    ],
+                    [
+                        'is_primary' => true,
+                        'notes' => 'Case created from case list multi-complaint flow.',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]
+                );
+
+                $this->setPrimaryCase($complaint, $case->id);
+            }
+
+            return $case->fresh(['complaints:id,reference_no,case_type,district_name,complainant_name,complaint_date,complaint_time']);
+        }, 3);
+
+        return response()->json([
+            'message' => 'Kes baharu berjaya ditambah.',
+            'data' => $case,
+            'meta' => [
+                'primary_complaint_id' => $primaryComplaint->id,
+                'complaint_ids' => $complaintIds,
+            ],
+        ], 201);
+    }
+
+    public function caseShow(Request $request, CaseRecord $case)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        return response()->json([
+            'message' => 'Maklumat kes',
+            'data' => $this->loadCaseDetail($case),
+        ]);
+    }
+
+    public function caseUpdate(Request $request, CaseRecord $case)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'file_no' => ['nullable', 'string', 'max:255'],
+            'report_offense_id' => ['nullable', 'integer', 'exists:ref_offenses,id'],
+            'arrest_staff_id' => ['nullable', 'integer', 'exists:staff,id'],
+            'current_status' => ['nullable', 'string', 'max:255'],
+            'arrest_status' => ['nullable', 'string', 'max:20'],
+            'arrest_by' => ['nullable', 'string', 'max:255'],
+            'male_count' => ['nullable', 'integer', 'min:0'],
+            'female_count' => ['nullable', 'integer', 'min:0'],
+            'other_count' => ['nullable', 'integer', 'min:0'],
+            'action_datetime' => ['nullable', 'date'],
+            'statement_datetime' => ['nullable', 'date'],
+            'court_date' => ['nullable', 'date'],
+            'report_notes' => ['nullable', 'string'],
+            'seizure_status' => ['nullable', 'string', 'max:20'],
+            'police_report_status' => ['nullable', 'string', 'max:20'],
+            'seizure_items' => ['nullable', 'array'],
+            'seizure_items.*.item_no' => ['nullable', 'string', 'max:255'],
+            'seizure_items.*.description' => ['nullable', 'string', 'max:2000'],
+            'seizure_items.*.storage' => ['nullable', 'string', 'max:1000'],
+            'police_reports' => ['nullable', 'array'],
+            'police_reports.*.report_no' => ['nullable', 'string', 'max:255'],
+            'police_reports.*.description' => ['nullable', 'string', 'max:2000'],
+            'police_reports.*.station' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $case->update([
+            'file_no' => $this->nullableString($validated['file_no'] ?? null),
+            'report_offense_id' => $validated['report_offense_id'] ?? null,
+            'arrest_staff_id' => $validated['arrest_staff_id'] ?? null,
+            'current_status' => $this->nullableString($validated['current_status'] ?? null),
+            'arrest_status' => $this->nullableString($validated['arrest_status'] ?? null),
+            'arrest_by' => $this->nullableString($validated['arrest_by'] ?? null),
+            'male_count' => $validated['male_count'] ?? null,
+            'female_count' => $validated['female_count'] ?? null,
+            'other_count' => $validated['other_count'] ?? null,
+            'action_datetime' => $validated['action_datetime'] ?? null,
+            'statement_datetime' => $validated['statement_datetime'] ?? null,
+            'court_date' => $validated['court_date'] ?? null,
+            'report_notes' => $this->nullableString($validated['report_notes'] ?? null),
+            'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
+            'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
+            'seizure_items' => $this->normalizeCaseRows($validated['seizure_items'] ?? [], ['item_no', 'description', 'storage']),
+            'police_reports' => $this->normalizeCaseRows($validated['police_reports'] ?? [], ['report_no', 'description', 'station']),
+        ]);
+
+        return response()->json([
+            'message' => 'Maklumat kes berjaya dikemaskini.',
+            'data' => $this->loadCaseDetail($case->fresh()),
+        ]);
     }
 
     public function pendingApprovals(Request $request)
@@ -1419,6 +1686,7 @@ class ComplaintController extends Controller
             'ajArrestStaff.office:id,name,code,office_type,district_id,phone,address',
             'ajProsecutorStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
             'ajProsecutorStaff.office:id,name,code,office_type,district_id,phone,address',
+            'cases:id,case_type,case_register_no,file_no,complaint_year,district_id,district_name,ppa_classification,current_status,arrest_status,action_datetime,created_at',
         ]);
         $complaint->attachments?->each(function ($attachment) use ($complaint) {
             $attachment->original_file_name = $attachment->file_name;
@@ -1463,6 +1731,7 @@ class ComplaintController extends Controller
         $complaint->setAttribute('ak_offense_label', $this->formatOffenseLabel($akOffense));
         $complaint->setAttribute('aj_offense_label', $this->formatOffenseLabel($ajOffense));
         $complaint->setAttribute('offense_label', $this->formatOffenseLabel($ajReportOffense ?: $ajOffense ?: $akOffense));
+        $complaint->setAttribute('primary_case', $this->resolvePrimaryCaseForComplaint($complaint));
 
         $isAssignedApprover = false;
         if ($user && $complaint->approverStaff) {
@@ -1511,6 +1780,132 @@ class ComplaintController extends Controller
         $label = trim(implode(' - ', array_filter([$left, $name])));
 
         return $label;
+    }
+
+    public function openCase(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (strtoupper(trim((string) ($complaint->case_type ?? ''))) !== 'AJ') {
+            return response()->json(['message' => 'Hanya aduan AJ boleh dibuka sebagai kes.'], 422);
+        }
+
+        $case = DB::transaction(function () use ($complaint) {
+            return $this->findOrCreatePrimaryCase($complaint);
+        }, 3);
+
+        $freshComplaint = $complaint->fresh()->load([
+            'cases:id,case_type,case_register_no,file_no,complaint_year,district_id,district_name,ppa_classification,current_status,arrest_status,action_datetime,created_at',
+        ]);
+        $freshComplaint->setAttribute('primary_case', $this->resolvePrimaryCaseForComplaint($freshComplaint));
+
+        return response()->json([
+            'message' => 'Kes berjaya dibuka.',
+            'data' => $freshComplaint,
+            'meta' => [
+                'primary_case' => $case,
+            ],
+        ]);
+    }
+
+    public function createCase(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (strtoupper(trim((string) ($complaint->case_type ?? ''))) !== 'AJ') {
+            return response()->json(['message' => 'Hanya aduan AJ boleh dibuka sebagai kes.'], 422);
+        }
+
+        $case = DB::transaction(function () use ($complaint) {
+            return $this->createAdditionalCaseForComplaint($complaint);
+        }, 3);
+
+        $freshComplaint = $this->reloadComplaintWithCases($complaint);
+
+        return response()->json([
+            'message' => 'Kes baharu berjaya ditambah.',
+            'data' => $freshComplaint,
+            'meta' => [
+                'primary_case' => $case,
+            ],
+        ]);
+    }
+
+    public function activateCase(Request $request, Complaint $complaint, CaseRecord $case)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $complaint->cases()->where('cases.id', $case->id)->exists()) {
+            return response()->json(['message' => 'Kes ini tidak dipautkan pada aduan tersebut.'], 404);
+        }
+        if ($user->hasRole('pegawai_daerah')) {
+            $districtId = $this->resolveUserDistrictId($user);
+            if ($districtId && (int) ($case->district_id ?? 0) !== (int) $districtId) {
+                return response()->json(['message' => 'Kes luar daerah tidak dibenarkan.'], 403);
+            }
+        }
+
+        DB::transaction(function () use ($complaint, $case) {
+            $this->setPrimaryCase($complaint, $case->id);
+        }, 3);
+
+        return response()->json([
+            'message' => 'Kes aktif berjaya ditukar.',
+            'data' => $this->reloadComplaintWithCases($complaint),
+        ]);
+    }
+
+    public function attachCase(Request $request, Complaint $complaint, CaseRecord $case)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (strtoupper(trim((string) ($complaint->case_type ?? ''))) !== strtoupper(trim((string) ($case->case_type ?? '')))) {
+            return response()->json(['message' => 'Kategori kes tidak sepadan dengan aduan.'], 422);
+        }
+        if ($user->hasRole('pegawai_daerah')) {
+            $districtId = $this->resolveUserDistrictId($user);
+            if ($districtId && (int) ($case->district_id ?? 0) !== (int) $districtId) {
+                return response()->json(['message' => 'Kes luar daerah tidak dibenarkan.'], 403);
+            }
+        }
+
+        DB::transaction(function () use ($complaint, $case) {
+            DB::table('case_complaint_links')->insertOrIgnore([
+                'case_id' => $case->id,
+                'complaint_id' => $complaint->id,
+                'is_primary' => false,
+                'notes' => 'Attached to existing case from complaint detail flow.',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $this->setPrimaryCase($complaint, $case->id);
+        }, 3);
+
+        return response()->json([
+            'message' => 'Kes sedia ada berjaya dipautkan.',
+            'data' => $this->reloadComplaintWithCases($complaint),
+        ]);
     }
 
     public function emailBorang5(Request $request, Complaint $complaint)
@@ -1709,6 +2104,9 @@ class ComplaintController extends Controller
             'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note',
         ]);
 
+        $primaryCase = $this->resolvePrimaryCaseForComplaint($complaint);
+        $caseSource = $primaryCase ?: $complaint;
+
         $formatDateDmySlash = static function ($value): string {
             if (! $value) return '-';
             try {
@@ -1737,10 +2135,18 @@ class ComplaintController extends Controller
         $directiveBy = $complaint->ajDirectiveStaff?->name ?: '-';
         $pelaksanaName = $complaint->ajHandoverStaff?->name ?: $complaint->picUser?->name ?: '-';
 
-        $directiveDateText = $complaint->aj_directive_at ? $formatDateDmySlash($complaint->aj_directive_at) : $complaintDate;
-        $directiveTimeText = $complaint->aj_directive_at ? $formatTimeMalay($complaint->aj_directive_at) : $complaintTime;
-        $handoverDateText = $complaint->handover_at ? $formatDateDmySlash($complaint->handover_at) : $complaintDate;
-        $handoverTimeText = $complaint->handover_at ? $formatTimeMalay($complaint->handover_at) : $complaintTime;
+        $directiveDateText = ($caseSource->directive_at ?? $complaint->aj_directive_at)
+            ? $formatDateDmySlash($caseSource->directive_at ?? $complaint->aj_directive_at)
+            : $complaintDate;
+        $directiveTimeText = ($caseSource->directive_at ?? $complaint->aj_directive_at)
+            ? $formatTimeMalay($caseSource->directive_at ?? $complaint->aj_directive_at)
+            : $complaintTime;
+        $handoverDateText = ($caseSource->handover_at ?? $complaint->handover_at)
+            ? $formatDateDmySlash($caseSource->handover_at ?? $complaint->handover_at)
+            : $complaintDate;
+        $handoverTimeText = ($caseSource->handover_at ?? $complaint->handover_at)
+            ? $formatTimeMalay($caseSource->handover_at ?? $complaint->handover_at)
+            : $complaintTime;
         $historyRows = collect($complaint->actionUpdates ?? [])
             ->sortBy(fn ($row) => (int) ($row->sort_order ?? 0))
             ->filter(function ($row) {
@@ -1760,12 +2166,12 @@ class ComplaintController extends Controller
             ->values()
             ->all();
 
-        $currentStatus = $complaint->aj_current_status ?: ($complaint->current_stage ?: '-');
+        $currentStatus = ($caseSource->current_status ?? $complaint->aj_current_status) ?: ($complaint->current_stage ?: '-');
         $districtDisplay = $complaint->district_name ?: '-';
-        $caseRegisterNo = $complaint->case_register_no ?: '-';
+        $caseRegisterNo = ($caseSource->case_register_no ?? $complaint->case_register_no) ?: '-';
 
-        $defaultSubject = 'TINDAKAN (' . (($complaint->arrest_status === 'ada' || $complaint->aj_arrest_status === 'ada') ? 'Ada Tangkapan' : 'Tiada Tangkapan') . ') : '
-            . ($complaint->case_register_no ?: $complaint->reference_no ?: ('Aduan #' . $complaint->id));
+        $defaultSubject = 'TINDAKAN (' . ((($caseSource->arrest_status ?? null) === 'ada' || $complaint->aj_arrest_status === 'ada') ? 'Ada Tangkapan' : 'Tiada Tangkapan') . ') : '
+            . (($caseSource->case_register_no ?? $complaint->case_register_no) ?: $complaint->reference_no ?: ('Aduan #' . $complaint->id));
         $subject = trim((string) ($validated['subject'] ?? '')) ?: $defaultSubject;
 
         $defaultBody = "Assalamualaikum\n\n"
@@ -1800,7 +2206,7 @@ class ComplaintController extends Controller
             'historyRows' => $historyRows,
             'currentStatus' => $currentStatus,
             'caseRegisterNo' => $caseRegisterNo,
-            'directiveNotes' => (string) ($complaint->aj_directive_notes ?: $complaint->aj_report_notes ?: '-'),
+            'directiveNotes' => (string) (($caseSource->directive_notes ?? null) ?: ($caseSource->report_notes ?? null) ?: $complaint->aj_directive_notes ?: $complaint->aj_report_notes ?: '-'),
         ])->setPaper('a4', 'portrait')->output();
 
         $safeReference = preg_replace('/[^A-Za-z0-9\-_]+/', '_', (string) ($complaint->reference_no ?: ('aduan_' . $complaint->id))) ?: ('aduan_' . $complaint->id);
@@ -2476,41 +2882,48 @@ class ComplaintController extends Controller
             ], 422);
         }
 
+        $primaryCase = null;
         $effectiveCaseRegisterNo = trim((string) ($complaint->case_register_no ?? ''));
         if ($effectiveCaseRegisterNo === '') {
-            $effectiveCaseRegisterNo = $this->buildCaseRegisterNoFromComplaint($complaint);
+            $effectiveCaseRegisterNo = $this->generateCaseRegisterNo($complaint);
         }
 
-        $complaint->update([
-            'aj_arrest_status' => $report['arrest_status'] ?? null,
-            'aj_male_count' => $isNoArrest ? null : ($report['male_count'] !== '' ? $report['male_count'] : null),
-            'aj_female_count' => $isNoArrest ? null : ($report['female_count'] !== '' ? $report['female_count'] : null),
-            'aj_other_count' => $isNoArrest ? null : ($report['other_count'] !== '' ? $report['other_count'] : null),
-            'aj_action_datetime' => $report['action_datetime'] ?? null,
-            'aj_report_offense_id' => $report['offense_id'] ?? null,
-            'aj_arrest_by' => $isNoArrest ? null : ($report['arrest_by'] ?? null),
-            'aj_arrest_staff_id' => $report['arrest_staff_id'] ?? null,
-            'aj_statement_datetime' => $report['statement_datetime'] ?? null,
-            'aj_court_date' => $report['court_date'] ?? null,
-            'aj_report_notes' => $report['report_notes'] ?? null,
-            'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : null,
-            'aj_file_no' => $report['file_no'] ?? null,
-            'aj_directive_staff_id' => $report['directive_staff_id'] ?? null,
-            'aj_directive_at' => $report['directive_at'] ?? null,
-            'aj_directive_notes' => $report['directive_notes'] ?? null,
-            'handover_at' => $report['handover_at'] ?? null,
-            'handover_notes' => $report['handover_notes'] ?? null,
-            'aj_seizure_status' => $report['seizure_status'] ?? null,
-            'aj_police_report_status' => $report['police_report_status'] ?? null,
-        ]);
+        DB::transaction(function () use ($complaint, $report, $incomingPoliceReports, $isNoArrest, $hasReportNotes, $isDispatchedToDistrict, $effectiveCaseRegisterNo, &$primaryCase) {
+            $complaint->update([
+                'aj_arrest_status' => $report['arrest_status'] ?? null,
+                'aj_male_count' => $isNoArrest ? null : ($report['male_count'] !== '' ? $report['male_count'] : null),
+                'aj_female_count' => $isNoArrest ? null : ($report['female_count'] !== '' ? $report['female_count'] : null),
+                'aj_other_count' => $isNoArrest ? null : ($report['other_count'] !== '' ? $report['other_count'] : null),
+                'aj_action_datetime' => $report['action_datetime'] ?? null,
+                'aj_report_offense_id' => $report['offense_id'] ?? null,
+                'aj_arrest_by' => $isNoArrest ? null : ($report['arrest_by'] ?? null),
+                'aj_arrest_staff_id' => $report['arrest_staff_id'] ?? null,
+                'aj_statement_datetime' => $report['statement_datetime'] ?? null,
+                'aj_court_date' => $report['court_date'] ?? null,
+                'aj_report_notes' => $report['report_notes'] ?? null,
+                'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : null,
+                'aj_file_no' => $report['file_no'] ?? null,
+                'aj_directive_staff_id' => $report['directive_staff_id'] ?? null,
+                'aj_directive_at' => $report['directive_at'] ?? null,
+                'aj_directive_notes' => $report['directive_notes'] ?? null,
+                'handover_at' => $report['handover_at'] ?? null,
+                'handover_notes' => $report['handover_notes'] ?? null,
+                'aj_seizure_status' => $report['seizure_status'] ?? null,
+                'aj_police_report_status' => $report['police_report_status'] ?? null,
+            ]);
 
-        // Auto progress stage: after aduan is approved and pegawai daerah completes the report,
-        // mark it as "laporan_tindakan" (Laporan Tindakan Selesai).
-        if ($hasReportNotes && $isDispatchedToDistrict) {
-            $complaint->update($this->stagePayload('laporan_tindakan'));
-        }
+            $primaryCase = $this->findOrCreatePrimaryCase($complaint, [
+                'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : null,
+            ]);
 
-        DB::transaction(function () use ($complaint, $report, $incomingPoliceReports) {
+            $this->syncPrimaryCaseFromAjReport($primaryCase, $complaint, $report, $effectiveCaseRegisterNo, $isNoArrest);
+
+            // Auto progress stage: after aduan is approved and pegawai daerah completes the report,
+            // mark it as "laporan_tindakan" (Laporan Tindakan Selesai).
+            if ($hasReportNotes && $isDispatchedToDistrict) {
+                $complaint->update($this->stagePayload('laporan_tindakan'));
+            }
+
             $existingOyds = ComplaintOyd::where('complaint_id', $complaint->id)
                 ->get()
                 ->keyBy('id');
@@ -2657,7 +3070,10 @@ class ComplaintController extends Controller
             }
         });
 
-        $freshComplaint = $complaint->fresh();
+        $freshComplaint = $complaint->fresh()->load([
+            'cases:id,case_type,case_register_no,file_no,complaint_year,district_id,district_name,ppa_classification,current_status,arrest_status,action_datetime,created_at',
+        ]);
+        $freshComplaint->setAttribute('primary_case', $this->resolvePrimaryCaseForComplaint($freshComplaint));
         $autoLaporanEmailMeta = $this->autoSendLaporanTindakanEmailAfterSave($freshComplaint);
 
         $response = [
@@ -2729,7 +3145,7 @@ class ComplaintController extends Controller
             ? $submittedCaseRegisterNo
             : trim((string) ($complaint->case_register_no ?? ''));
         if ($effectiveCaseRegisterNo === '') {
-            $effectiveCaseRegisterNo = $this->buildCaseRegisterNoFromComplaint($complaint);
+            $effectiveCaseRegisterNo = $this->generateCaseRegisterNo($complaint);
         }
         $historyEntries = collect($report['history_entries'] ?? [])
             ->map(function ($row, $index) {
@@ -2757,7 +3173,7 @@ class ComplaintController extends Controller
 
         $latestClassification = $historyEntries->last()['classification'] ?? $complaint->aj_ppa_classification;
 
-        DB::transaction(function () use ($complaint, $report, $historyEntries, $latestClassification, $effectiveCaseRegisterNo, $currentStatus, $currentStatusOther) {
+        DB::transaction(function () use ($complaint, $report, $historyEntries, $latestClassification, $effectiveCaseRegisterNo, $currentStatus, $currentStatusOther, $submittedCaseRegisterNo) {
             $complaint->update([
                 'aj_directive_staff_id' => $report['directive_staff_id'] ?? null,
                 'aj_handover_staff_id' => $report['handover_staff_id'] ?? null,
@@ -2776,6 +3192,22 @@ class ComplaintController extends Controller
                 'aj_file_no' => $report['file_no'] ?? null,
                 'aj_ppa_classification' => $latestClassification,
             ]);
+
+            $primaryCase = $this->findPrimaryCase($complaint);
+            if ($primaryCase || $submittedCaseRegisterNo !== '') {
+                $primaryCase = $primaryCase ?: $this->findOrCreatePrimaryCase($complaint, [
+                    'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : null,
+                ]);
+                $this->syncPrimaryCaseFromAjActionReport(
+                    $primaryCase,
+                    $complaint,
+                    $report,
+                    $effectiveCaseRegisterNo,
+                    $latestClassification,
+                    $currentStatus,
+                    $currentStatusOther
+                );
+            }
 
             DB::table('complaint_action_updates')->where('complaint_id', $complaint->id)->delete();
 
@@ -2796,14 +3228,18 @@ class ComplaintController extends Controller
             }
         });
 
+        $freshComplaint = $complaint->fresh()->load([
+            'receivedBy:id,name,email',
+            'approverStaff:id,name,staff_id',
+            'ajDirectiveStaff:id,name,staff_id,ic_number,phone,address,position,department',
+            'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note,created_at',
+            'cases:id,case_type,case_register_no,file_no,complaint_year,district_id,district_name,ppa_classification,current_status,arrest_status,action_datetime,created_at',
+        ]);
+        $freshComplaint->setAttribute('primary_case', $this->resolvePrimaryCaseForComplaint($freshComplaint));
+
         return response()->json([
             'message' => 'Laporan tindakan dikemaskini.',
-            'data' => $complaint->fresh()->load([
-                'receivedBy:id,name,email',
-                'approverStaff:id,name,staff_id',
-                'ajDirectiveStaff:id,name,staff_id,ic_number,phone,address,position,department',
-                'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note,created_at',
-            ]),
+            'data' => $freshComplaint,
         ]);
     }
 
@@ -3886,12 +4322,238 @@ class ComplaintController extends Controller
         ]);
     }
 
+    private function findPrimaryCase(Complaint $complaint): ?CaseRecord
+    {
+        return $complaint->cases()
+            ->with(['district:id,name', 'directiveStaff:id,name,staff_id', 'handoverStaff:id,name,staff_id', 'arrestStaff:id,name,staff_id'])
+            ->orderByPivot('is_primary', 'desc')
+            ->orderBy('cases.id')
+            ->first();
+    }
+
+    private function resolvePrimaryCaseForComplaint(Complaint $complaint): ?CaseRecord
+    {
+        $case = $this->findPrimaryCase($complaint);
+        if (! $case) {
+            return null;
+        }
+
+        return $case;
+    }
+
+    private function findOrCreatePrimaryCase(Complaint $complaint, array $overrides = []): CaseRecord
+    {
+        $existing = $this->findPrimaryCase($complaint);
+        if ($existing) {
+            return $existing;
+        }
+
+        $payload = $this->buildCasePayloadFromComplaint($complaint, false, $overrides);
+        $case = CaseRecord::create($payload);
+        $complaint->cases()->attach($case->id, [
+            'is_primary' => true,
+            'notes' => 'Linked from complaint detail flow.',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        if (! trim((string) ($complaint->case_register_no ?? '')) && ! empty($payload['case_register_no'])) {
+            $complaint->update([
+                'case_register_no' => $payload['case_register_no'],
+            ]);
+        }
+
+        return $case->fresh();
+    }
+
+    private function createAdditionalCaseForComplaint(Complaint $complaint, array $overrides = []): CaseRecord
+    {
+        $payload = $this->buildCasePayloadFromComplaint($complaint, true, $overrides);
+        $case = CaseRecord::create($payload);
+
+        $complaint->cases()->attach($case->id, [
+            'is_primary' => true,
+            'notes' => 'Additional case created from complaint.',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->setPrimaryCase($complaint, $case->id);
+
+        return $case->fresh();
+    }
+
+    private function setPrimaryCase(Complaint $complaint, int $caseId): void
+    {
+        DB::table('case_complaint_links')
+            ->where('complaint_id', $complaint->id)
+            ->update([
+                'is_primary' => false,
+                'updated_at' => now(),
+            ]);
+
+        DB::table('case_complaint_links')
+            ->where('complaint_id', $complaint->id)
+            ->where('case_id', $caseId)
+            ->update([
+                'is_primary' => true,
+                'updated_at' => now(),
+            ]);
+    }
+
+    private function buildCasePayloadFromComplaint(Complaint $complaint, bool $forceNewSequence = false, array $overrides = []): array
+    {
+        $caseRegisterNo = trim((string) ($overrides['case_register_no'] ?? $complaint->case_register_no ?? ''));
+        if ($forceNewSequence || $caseRegisterNo === '') {
+            $caseRegisterNo = $this->generateCaseRegisterNo($complaint);
+        }
+
+        return array_merge([
+            'case_type' => strtoupper(trim((string) ($complaint->case_type ?? 'AJ'))),
+            'case_register_no' => $caseRegisterNo,
+            'file_no' => $complaint->aj_file_no,
+            'complaint_year' => $complaint->complaint_year,
+            'district_id' => $complaint->district_id,
+            'district_name' => $complaint->district_name,
+            'supervisor_staff_id' => $complaint->aj_supervisor_staff_id,
+            'directive_staff_id' => $complaint->aj_directive_staff_id,
+            'handover_staff_id' => $complaint->aj_handover_staff_id,
+            'arrest_staff_id' => $complaint->aj_arrest_staff_id,
+            'prosecutor_staff_id' => $complaint->aj_prosecutor_staff_id,
+            'report_offense_id' => $complaint->aj_report_offense_id ?: $complaint->aj_offense_id,
+            'mahkamah_id' => $complaint->aj_mahkamah_id,
+            'ppa_classification' => $complaint->aj_ppa_classification,
+            'ip_status' => $complaint->aj_ip_status,
+            'current_status' => $complaint->aj_current_status,
+            'current_status_other' => $complaint->aj_current_status_other,
+            'op_category' => $complaint->aj_op_category,
+            'op_case_status' => $complaint->aj_op_case_status,
+            'op_notes' => $complaint->aj_op_notes,
+            'prosecution_status' => $complaint->aj_prosecution_status,
+            'arrest_status' => $complaint->aj_arrest_status,
+            'arrest_by' => $complaint->aj_arrest_by,
+            'male_count' => $complaint->aj_male_count,
+            'female_count' => $complaint->aj_female_count,
+            'other_count' => $complaint->aj_other_count,
+            'directive_at' => $complaint->aj_directive_at,
+            'handover_at' => $complaint->handover_at,
+            'action_datetime' => $complaint->aj_action_datetime,
+            'statement_datetime' => $complaint->aj_statement_datetime,
+            'court_date' => $complaint->aj_court_date,
+            'opened_at' => $complaint->aj_directive_at ?: $complaint->aj_action_datetime ?: $complaint->created_at,
+            'directive_notes' => $complaint->aj_directive_notes,
+            'report_notes' => $complaint->aj_report_notes,
+            'investigation_notes' => $complaint->aj_investigation_notes,
+            'prosecution_notes' => $complaint->aj_prosecution_notes,
+            'seizure_status' => $complaint->aj_seizure_status,
+            'police_report_status' => $complaint->aj_police_report_status,
+            'fine' => $complaint->aj_fine,
+            'fir_no' => $complaint->aj_fir_no,
+            'charge_recommendations' => $complaint->aj_charge_recommendations,
+        ], $overrides);
+    }
+
+    private function reloadComplaintWithCases(Complaint $complaint): Complaint
+    {
+        $freshComplaint = $complaint->fresh()->load([
+            'cases:id,case_type,case_register_no,file_no,complaint_year,district_id,district_name,ppa_classification,current_status,arrest_status,action_datetime,created_at',
+        ]);
+        $freshComplaint->setAttribute('primary_case', $this->resolvePrimaryCaseForComplaint($freshComplaint));
+
+        return $freshComplaint;
+    }
+
+    private function generateCaseRegisterNo(Complaint $complaint): string
+    {
+        $caseType = strtoupper(trim((string) ($complaint->case_type ?: 'AJ')));
+        $baseDate = null;
+
+        try {
+            if (! empty($complaint->complaint_date)) {
+                $dateString = trim((string) $complaint->complaint_date);
+                $timeString = trim((string) ($complaint->complaint_time ?: '00:00:00'));
+                $baseDate = Carbon::parse($dateString . ' ' . $timeString);
+            }
+        } catch (\Throwable) {
+            $baseDate = null;
+        }
+
+        return $this->caseReferenceService->generateCaseRegisterNo(
+            $caseType,
+            $complaint->district_name,
+            $baseDate
+        );
+    }
+
+    private function syncPrimaryCaseFromAjReport(CaseRecord $case, Complaint $complaint, array $report, string $effectiveCaseRegisterNo, bool $isNoArrest): void
+    {
+        $case->update([
+            'case_type' => 'AJ',
+            'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : $case->case_register_no,
+            'file_no' => $report['file_no'] ?? null,
+            'complaint_year' => $complaint->complaint_year,
+            'district_id' => $complaint->district_id,
+            'district_name' => $complaint->district_name,
+            'directive_staff_id' => $report['directive_staff_id'] ?? null,
+            'handover_staff_id' => $report['handover_staff_id'] ?? null,
+            'arrest_staff_id' => $report['arrest_staff_id'] ?? null,
+            'report_offense_id' => $report['offense_id'] ?? null,
+            'arrest_status' => $report['arrest_status'] ?? null,
+            'arrest_by' => $isNoArrest ? null : ($report['arrest_by'] ?? null),
+            'male_count' => $isNoArrest ? null : (($report['male_count'] ?? '') !== '' ? $report['male_count'] : null),
+            'female_count' => $isNoArrest ? null : (($report['female_count'] ?? '') !== '' ? $report['female_count'] : null),
+            'other_count' => $isNoArrest ? null : (($report['other_count'] ?? '') !== '' ? $report['other_count'] : null),
+            'directive_at' => $report['directive_at'] ?? null,
+            'handover_at' => $report['handover_at'] ?? null,
+            'action_datetime' => $report['action_datetime'] ?? null,
+            'statement_datetime' => $report['statement_datetime'] ?? null,
+            'court_date' => $report['court_date'] ?? null,
+            'opened_at' => $case->opened_at ?: ($report['directive_at'] ?? null) ?: ($report['action_datetime'] ?? null) ?: $complaint->created_at,
+            'directive_notes' => $report['directive_notes'] ?? null,
+            'report_notes' => $report['report_notes'] ?? null,
+            'seizure_status' => $report['seizure_status'] ?? null,
+            'police_report_status' => $report['police_report_status'] ?? null,
+        ]);
+    }
+
+    private function syncPrimaryCaseFromAjActionReport(
+        CaseRecord $case,
+        Complaint $complaint,
+        array $report,
+        string $effectiveCaseRegisterNo,
+        ?string $latestClassification,
+        string $currentStatus,
+        string $currentStatusOther
+    ): void {
+        $case->update([
+            'case_type' => 'AJ',
+            'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : $case->case_register_no,
+            'file_no' => $report['file_no'] ?? null,
+            'complaint_year' => $complaint->complaint_year,
+            'district_id' => $complaint->district_id,
+            'district_name' => $complaint->district_name,
+            'directive_staff_id' => $report['directive_staff_id'] ?? null,
+            'handover_staff_id' => $report['handover_staff_id'] ?? null,
+            'directive_at' => $report['directive_at'] ?? null,
+            'handover_at' => $report['handover_at'] ?? null,
+            'directive_notes' => $report['directive_notes'] ?? null,
+            'ppa_classification' => $latestClassification,
+            'current_status' => $currentStatus !== '' ? $currentStatus : null,
+            'current_status_other' => $currentStatus === 'Other'
+                ? ($currentStatusOther !== '' ? $currentStatusOther : null)
+                : null,
+            'op_category' => $report['op_category'] ?? null,
+            'op_case_status' => $report['op_case_status'] ?? null,
+            'op_notes' => $report['op_notes'] ?? null,
+            'opened_at' => $case->opened_at ?: ($report['directive_at'] ?? null) ?: $complaint->created_at,
+        ]);
+    }
+
     private function buildCaseRegisterNoFromComplaint(Complaint $complaint): string
     {
         $referenceNo = trim((string) ($complaint->reference_no ?? ''));
         $district = trim((string) ($complaint->district_name ?? ''));
 
-        // Expected reference format: AJ-Klang / 2026 / 04 / 0006
         $parts = collect(explode('/', $referenceNo))
             ->map(fn ($part) => trim((string) $part))
             ->filter(fn ($part) => $part !== '')
@@ -4809,6 +5471,69 @@ class ComplaintController extends Controller
         }
 
         return false;
+    }
+
+    private function canViewCaseRecord(CaseRecord $case, $user): bool
+    {
+        if ($user->hasAnyRole(['system', 'admin', 'pegawai', 'pegawai_hq'])) {
+            return true;
+        }
+
+        if ($user->hasRole('pegawai_daerah')) {
+            $districtId = $this->resolveUserDistrictId($user);
+            return $districtId && (int) ($case->district_id ?? 0) === (int) $districtId;
+        }
+
+        return false;
+    }
+
+    private function loadCaseDetail(CaseRecord $case): CaseRecord
+    {
+        return $case->load([
+            'district:id,name',
+            'supervisorStaff:id,name,staff_id',
+            'directiveStaff:id,name,staff_id',
+            'handoverStaff:id,name,staff_id',
+            'arrestStaff:id,name,staff_id',
+            'prosecutorStaff:id,name,staff_id',
+            'complaints' => function ($query) {
+                $query->select([
+                    'complaints.id',
+                    'complaints.reference_no',
+                    'complaints.case_type',
+                    'complaints.district_name',
+                    'complaints.complainant_name',
+                    'complaints.complaint_date',
+                    'complaints.complaint_time',
+                    'complaints.current_stage',
+                ])->orderByDesc('case_complaint_links.is_primary')
+                    ->orderByDesc('complaints.id');
+            },
+        ]);
+    }
+
+    private function normalizeCaseRows(array $rows, array $fields): array
+    {
+        return collect($rows)
+            ->map(function ($row) use ($fields) {
+                $next = [];
+                foreach ($fields as $field) {
+                    $next[$field] = trim((string) ($row[$field] ?? ''));
+                }
+                return $next;
+            })
+            ->filter(function ($row) {
+                return collect($row)->contains(fn ($value) => trim((string) $value) !== '');
+            })
+            ->values()
+            ->all();
+    }
+
+    private function nullableString($value): ?string
+    {
+        $text = trim((string) ($value ?? ''));
+
+        return $text === '' ? null : $text;
     }
 
     private function isBasicOfficerEditLockedByChannel(?string $channel): bool

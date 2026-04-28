@@ -8,8 +8,9 @@ const ListPageLayout = ({
     filters,
     children,
     showCard = true,
+    className = '',
 }) => (
-    <div className="app-complaints">
+    <div className={`app-complaints ${className}`.trim()}>
         <div className="app-complaints-header">
             <div>
                 {eyebrow && <span className="app-eyebrow">{eyebrow}</span>}

@@ -38,6 +38,7 @@ const ComplaintPrintTindakanAduan = () => {
 
     const renderValue = (value) => value || '-';
     const pad2 = (value) => String(value ?? '').padStart(2, '0');
+    const caseSource = complaint?.primary_case || complaint;
 
     const formatDateDMY = (value) => {
         if (!value) {
@@ -86,10 +87,10 @@ const ComplaintPrintTindakanAduan = () => {
         '-';
     const directiveBy = complaint?.ajDirectiveStaff?.name || complaint?.aj_directive_staff?.name || '-';
     const pelaksanaName = complaint?.ajHandoverStaff?.name || complaint?.aj_handover_staff?.name || complaint?.picUser?.name || complaint?.pic_user?.name || '-';
-    const directiveAt = complaint?.aj_directive_at ? new Date(complaint.aj_directive_at) : null;
+    const directiveAt = (caseSource?.directive_at || complaint?.aj_directive_at) ? new Date(caseSource?.directive_at || complaint?.aj_directive_at) : null;
     const directiveDateText = directiveAt ? directiveAt.toLocaleDateString('ms-MY') : complaintDate;
     const directiveTimeText = directiveAt ? directiveAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : complaintTime;
-    const handoverAt = complaint?.handover_at ? new Date(complaint.handover_at) : null;
+    const handoverAt = (caseSource?.handover_at || complaint?.handover_at) ? new Date(caseSource?.handover_at || complaint?.handover_at) : null;
     const handoverDateText = handoverAt ? handoverAt.toLocaleDateString('ms-MY') : complaintDate;
     const handoverTimeText = handoverAt ? handoverAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : complaintTime;
     const actionHistoryEntries = Array.isArray(complaint?.actionUpdates)
@@ -110,13 +111,13 @@ const ComplaintPrintTindakanAduan = () => {
             time: row?.action_time ? formatTimeMalay(row.action_time) : '-',
             note: row?.note || '-',
         }));
-    const currentStatus = (String(complaint?.aj_current_status || '').trim() === 'Other')
-        ? (complaint?.aj_current_status_other || 'Other')
-        : (complaint?.aj_current_status || getComplaintStageLabel(complaint?.current_stage || 'baru'));
+    const currentStatus = (String(caseSource?.current_status || complaint?.aj_current_status || '').trim() === 'Other')
+        ? (caseSource?.current_status_other || complaint?.aj_current_status_other || 'Other')
+        : (caseSource?.current_status || complaint?.aj_current_status || getComplaintStageLabel(complaint?.current_stage || 'baru'));
     const districtDisplay = complaint?.district_name || complaint?.district?.name || '-';
-    const caseRegisterNo = complaint?.case_register_no || '-';
+    const caseRegisterNo = caseSource?.case_register_no || complaint?.case_register_no || '-';
     const subjectCaseNo = caseRegisterNo !== '-' ? `KES- ${districtDisplay} / ${caseRegisterNo} / ${complaint?.complaint_year || '-'}` : (complaint?.reference_no || `Aduan #${id}`);
-    const defaultSubject = `TINDAKAN (${(complaint?.aj_arrest_status || complaint?.arrest_status) === 'ada' ? 'Ada Tangkapan' : 'Tiada Tangkapan'}) : ${subjectCaseNo}`;
+    const defaultSubject = `TINDAKAN (${(caseSource?.arrest_status || complaint?.aj_arrest_status || complaint?.arrest_status) === 'ada' ? 'Ada Tangkapan' : 'Tiada Tangkapan'}) : ${subjectCaseNo}`;
     const defaultBody = [
         'Assalamualaikum',
         '',
@@ -268,7 +269,7 @@ const ComplaintPrintTindakanAduan = () => {
                 <div className="print-notes">
                     <span>Minit / Arahan Tindakan :</span>
                     <div className="print-notes-box">
-                        {renderValue(complaint.aj_directive_notes || complaint.aj_report_notes)}
+                        {renderValue(caseSource?.directive_notes || caseSource?.report_notes || complaint.aj_directive_notes || complaint.aj_report_notes)}
                     </div>
                 </div>
 

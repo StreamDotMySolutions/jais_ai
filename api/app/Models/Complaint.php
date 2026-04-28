@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Complaint extends Model
@@ -85,6 +86,13 @@ class Complaint extends Model
     public function attachments()
     {
         return $this->hasMany(ComplaintAttachment::class)->orderByDesc('id');
+    }
+
+    public function cases(): BelongsToMany
+    {
+        return $this->belongsToMany(CaseRecord::class, 'case_complaint_links', 'complaint_id', 'case_id')
+            ->withPivot(['id', 'is_primary', 'notes'])
+            ->withTimestamps();
     }
 
     public function ajDirectiveStaff()
