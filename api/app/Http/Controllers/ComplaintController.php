@@ -1568,7 +1568,11 @@ class ComplaintController extends Controller
             ? ($complaint->contact_number ?: '-')
             : $officerInformantContactNumber;
         $effectiveInformantAddress = $isPhysicalInformant
-            ? ($complaint->address ?: '-')
+            ? (
+                strtoupper(trim((string) ($complaint->case_type ?: 'AJ'))) === 'AJ'
+                    ? ($complaint->current_address ?: $complaint->address ?: '-')
+                    : ($complaint->address ?: '-')
+            )
             : $officerInformantAddress;
 
         $approverSignerName = trim((string) ($complaint->approverStaff?->name ?: ''));
@@ -2443,6 +2447,7 @@ class ComplaintController extends Controller
             'report.seizure_items' => 'nullable|array',
             'report.police_report_status' => 'nullable|in:ada,tiada',
             'report.police_reports' => 'nullable|array',
+            'report.file_no' => 'nullable|string|max:255',
         ]);
 
         $report = $request->report;
@@ -2451,11 +2456,29 @@ class ComplaintController extends Controller
         $policeReportStatus = (string) ($report['police_report_status'] ?? '');
         $incomingPoliceReports = $policeReportStatus === 'ada' ? ($report['police_reports'] ?? []) : [];
 
+        $missingFields = [];
+        if (trim((string) ($report['arrest_status'] ?? '')) === '') {
+            $missingFields[] = 'Status Tangkapan';
+        }
+        if (trim((string) ($report['action_datetime'] ?? '')) === '') {
+            $missingFields[] = 'Tarikh / Masa';
+        }
+        if (trim((string) ($report['arrest_staff_id'] ?? '')) === '') {
+            $missingFields[] = 'Pegawai Penangkap';
+        }
         $hasReportNotes = trim((string) ($report['report_notes'] ?? '')) !== '';
-        if ($isDispatchedToDistrict && ! $hasReportNotes) {
+        if (! $hasReportNotes) {
+            $missingFields[] = 'Laporan';
+        }
+        if (! empty($missingFields)) {
             return response()->json([
-                'message' => 'Sila isi medan wajib Laporan Tindakan (Laporan) sebelum simpan.',
+                'message' => 'Lengkapkan medan wajib dahulu sebelum Simpan: ' . implode(', ', $missingFields) . '.',
             ], 422);
+        }
+
+        $effectiveCaseRegisterNo = trim((string) ($complaint->case_register_no ?? ''));
+        if ($effectiveCaseRegisterNo === '') {
+            $effectiveCaseRegisterNo = $this->buildCaseRegisterNoFromComplaint($complaint);
         }
 
         $complaint->update([
@@ -2470,6 +2493,8 @@ class ComplaintController extends Controller
             'aj_statement_datetime' => $report['statement_datetime'] ?? null,
             'aj_court_date' => $report['court_date'] ?? null,
             'aj_report_notes' => $report['report_notes'] ?? null,
+            'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : null,
+            'aj_file_no' => $report['file_no'] ?? null,
             'aj_directive_staff_id' => $report['directive_staff_id'] ?? null,
             'aj_directive_at' => $report['directive_at'] ?? null,
             'aj_directive_notes' => $report['directive_notes'] ?? null,
@@ -4010,7 +4035,11 @@ class ComplaintController extends Controller
             ? ($complaint->contact_number ?: '-')
             : $officerInformantContactNumber;
         $effectiveInformantAddress = $isPhysicalInformant
-            ? ($complaint->address ?: '-')
+            ? (
+                strtoupper(trim((string) ($complaint->case_type ?: 'AJ'))) === 'AJ'
+                    ? ($complaint->current_address ?: $complaint->address ?: '-')
+                    : ($complaint->address ?: '-')
+            )
             : $officerInformantAddress;
 
         $approverSignerName = trim((string) ($complaint->approverStaff?->name ?: ''));

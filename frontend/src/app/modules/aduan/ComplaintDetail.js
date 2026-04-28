@@ -130,6 +130,7 @@ const ComplaintDetail = () => {
         statement_datetime: '',
         court_date: '',
         report_notes: '',
+        file_no: '',
         directive_staff_id: '',
         handover_staff_id: '',
         directive_at: '',
@@ -241,6 +242,8 @@ const ComplaintDetail = () => {
     const [reportSections, setReportSections] = useState({
         issuer: true,
         arrest: true,
+        action_briefing: true,
+        action_handover: true,
         oyds: true,
         seizure: true,
         police_report: true,
@@ -601,7 +604,7 @@ const ComplaintDetail = () => {
         if (!rawText) return '';
         let text = String(rawText);
 
-        // Borang 5 uses "Tarikh/Masa Aduan" (complaint_date/time) for PADA/JAM like current public flow.
+                // Borang 5 uses manual "Tarikh/Masa Borang 5" stored in complaint_date/time.
         const dateDot = formatBorang5TemplateDate(basicDraft.complaint_date);
         const timeDot = formatBorang5TemplateTime(basicDraft.complaint_time);
         const address = (((complaint?.case_type || 'AJ') === 'AK')
@@ -859,6 +862,7 @@ const ComplaintDetail = () => {
             statement_datetime: complaint.aj_statement_datetime || '',
             court_date: complaint.aj_court_date || '',
             report_notes: complaint.aj_report_notes || '',
+            file_no: complaint.aj_file_no || '',
             directive_staff_id: complaint.aj_directive_staff_id ? String(complaint.aj_directive_staff_id) : '',
             handover_staff_id: complaint.aj_handover_staff_id ? String(complaint.aj_handover_staff_id) : '',
             directive_at: complaint.aj_directive_at || '',
@@ -1040,6 +1044,51 @@ const ComplaintDetail = () => {
 
         updateReportField('report_notes', nextText);
         toast.success('Template laporan dimasukkan.');
+    };
+
+    const insertArahanTindakanTemplate = () => {
+        const classification = normalizePpaClassification(
+            ajPayload.classification || complaint?.aj_ppa_classification || ''
+        );
+
+        if (!classification) {
+            toast.error('Sila pilih Klasifikasi di tab Maklumat Aduan dahulu sebelum Insert Template.');
+            return;
+        }
+
+        const districtName = String(
+            complaint?.district_name || complaint?.district?.name || ''
+        ).trim().toLocaleUpperCase('ms-MY') || 'DAERAH BERKAITAN';
+        const districtNameRaw = String(
+            complaint?.district_name || complaint?.district?.name || ''
+        ).trim().toLocaleLowerCase('ms-MY');
+        const isPetalingDistrict = districtNameRaw === 'petaling';
+
+        const templateMap = {
+            FNA: isPetalingDistrict
+                ? 'LAKSANAKAN ADUAN DENGAN BERHEMAH MENGIKUT UNDANG-UNDANG YANG SEDIA ADA.'
+                : `KEJADIAN SEDANG BERLAKU, SALUR MAKLUMAT ADUAN KEPADA PPA ${districtName} UNTUK TINDAKAN LANJUT MENGIKUT UNDANG-UNDANG SEDIA ADA.`,
+            KIV: 'PEMBERI MAKLUMAT AKAN MENGESAHKAN MAKLUMAT ADUAN SEMULA APABILA KEJADIAN SEDANG BERLAKU',
+            NFA: 'TIADA ALASAN MENCUKUPI UNTUK LAKSANA TINDAKAN LANJUT',
+            OP: 'SILA DAPATKAN MINIT/ARAHAN KPPA',
+        };
+
+        const nextText = String(templateMap[classification] || '').trim();
+        if (!nextText) {
+            toast.error('Template arahan tindakan tidak ditemui.');
+            return;
+        }
+
+        const existing = String(ajActionReport.directive_notes || '').trim();
+        if (existing && existing !== nextText) {
+            const ok = window.confirm('Arahan Tindakan akan diganti dengan template yang dicadangkan. Teruskan?');
+            if (!ok) {
+                return;
+            }
+        }
+
+        updateActionReportField('directive_notes', nextText);
+        toast.success('Template arahan tindakan dimasukkan.');
     };
 
     const updateOyds = (index, field, value) => {
@@ -1359,6 +1408,37 @@ const ComplaintDetail = () => {
     const toggleReportSection = (key) => {
         setReportSections((prev) => ({ ...prev, [key]: !prev[key] }));
     };
+    const getDateTimeLocalDatePart = (value) => normalizeDateTimeLocalValue(value).split('T')[0] || '';
+    const getDateTimeLocalTimePart = (value) => normalizeDateTimeLocalValue(value).split('T')[1] || '';
+    const updateActionReportDateTimePart = (field, part, nextValue) => {
+        const current = normalizeDateTimeLocalValue(ajActionReport?.[field]);
+        const currentDate = current.split('T')[0] || '';
+        const currentTime = current.split('T')[1] || '';
+        const nextDate = part === 'date' ? nextValue : currentDate;
+        const nextTime = part === 'time' ? nextValue : currentTime;
+
+        if (!nextDate && !nextTime) {
+            updateActionReportField(field, '');
+            return;
+        }
+
+        updateActionReportField(field, `${nextDate || ''}T${nextTime || ''}`);
+    };
+    const buildCaseRegisterNoFromComplaint = (sourceComplaint) => {
+        const district = String(sourceComplaint?.district_name || sourceComplaint?.district?.name || '').trim() || '-';
+        const year = String(sourceComplaint?.complaint_year || '').trim()
+            || String(sourceComplaint?.complaint_date || '').trim().slice(0, 4)
+            || '-';
+        const month = String(sourceComplaint?.complaint_date || '').trim().slice(5, 7) || '-';
+        let runningNo = '';
+        const referenceNo = String(sourceComplaint?.reference_no || '').trim();
+        const match = referenceNo.match(/(\d{4})$/);
+        if (match) {
+            runningNo = match[1];
+        }
+
+        return `KES-${district} / ${year || '-'} / ${month || '-'} / ${runningNo || '-'}`;
+    };
 
     const submitApproval = () => {
         if (!apiUrl) {
@@ -1492,6 +1572,8 @@ const ComplaintDetail = () => {
                     return axios.post(`${apiUrl}/complaints/${id}/basic`, {
                         borang5_statement: basicDraft.borang5_statement || '',
                         offense_id: ajPayload.offense_id || null,
+                        complaint_date: basicDraft.complaint_date || null,
+                        complaint_time: basicDraft.complaint_time || null,
                     }, {
                         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
                     })
@@ -1546,6 +1628,8 @@ const ComplaintDetail = () => {
                     return axios.post(`${apiUrl}/complaints/${id}/basic`, {
                         borang5_statement: basicDraft.borang5_statement || '',
                         offense_id: akPayload.offense_id || null,
+                        complaint_date: basicDraft.complaint_date || null,
+                        complaint_time: basicDraft.complaint_time || null,
                     }, {
                         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
                     })
@@ -1571,10 +1655,32 @@ const ComplaintDetail = () => {
         if (!apiUrl) {
             return;
         }
+        const ajReportMissingFields = [];
+        if (!String(ajReport?.arrest_status || '').trim()) {
+            ajReportMissingFields.push('Status Tangkapan');
+        }
+        if (!String(ajReport?.action_datetime || '').trim()) {
+            ajReportMissingFields.push('Tarikh / Masa');
+        }
+        if (!String(ajReport?.arrest_staff_id || '').trim()) {
+            ajReportMissingFields.push('Pegawai Penangkap');
+        }
+        if (!String(ajReport?.report_notes || '').trim()) {
+            ajReportMissingFields.push('Laporan');
+        }
+        if (ajReportMissingFields.length > 0) {
+            const msg = `Lengkapkan medan wajib dahulu sebelum Simpan: ${ajReportMissingFields.join(', ')}.`;
+            setReportMessage(msg);
+            toast.error(msg);
+            return;
+        }
         const token = localStorage.getItem('token');
         setReportMessage('');
         axios.post(`${apiUrl}/complaints/${id}/aj-report`, {
-            report: ajReport,
+            report: {
+                ...ajReport,
+                case_register_no: complaint?.case_register_no || buildCaseRegisterNoFromComplaint(complaint),
+            },
         }, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -2142,19 +2248,11 @@ const ComplaintDetail = () => {
                                 <strong>{complaint.complaint_year || '-'}</strong>
                             </div>
                             <div className="app-detail-submeta-item">
-                                <span className="app-detail-submeta-label">Tarikh</span>
-                                <strong>{complaint.complaint_date || '-'}</strong>
-                            </div>
-                            <div className="app-detail-submeta-item">
-                                <span className="app-detail-submeta-label">Masa</span>
-                                <strong>{complaint.complaint_time ? String(complaint.complaint_time).slice(0, 5) : '-'}</strong>
-                            </div>
-                            <div className="app-detail-submeta-item">
                                 <span className="app-detail-submeta-label">Kaedah Aduan</span>
                                 <strong>{formatChannelLabel(complaint.channel)}</strong>
                             </div>
                             <div className="app-detail-submeta-item">
-                                <span className="app-detail-submeta-label">Dihantar</span>
+                                <span className="app-detail-submeta-label">Direkodkan</span>
                                 <strong>{complaint.submitted_at ? formatDateTime(complaint.submitted_at) : '-'}</strong>
                             </div>
                         </div>
@@ -2235,7 +2333,7 @@ const ComplaintDetail = () => {
                                         />
                                     </span>
                                 </div>
-                                {currentCaseType === 'AK' && (
+                                {(currentCaseType === 'AK' || currentCaseType === 'AJ') && (
                                     <div className="app-kv app-kv--stack">
                                         <span className="app-kv-label">Alamat Terkini</span>
                                         <div className="app-kv-stack">
@@ -2488,7 +2586,7 @@ const ComplaintDetail = () => {
                                             onChange={(event) => setBasicDraft((prev) => ({ ...prev, contact_number: event.target.value }))}
                                         />
                                     </label>
-                                    {currentCaseType === 'AK' && (
+                                    {(currentCaseType === 'AK' || currentCaseType === 'AJ') && (
                                         <label className="app-form-field app-span-full">
                                             <span>Alamat Terkini</span>
                                             <textarea
@@ -2607,6 +2705,11 @@ const ComplaintDetail = () => {
                                             onChange={(event) => setBasicDraft((prev) => ({ ...prev, [isAkFamilyDetail ? 'ak_event_time' : 'complaint_time']: event.target.value }))}
                                         />
                                     </label>
+                                    {!isAkFamilyDetail && (
+                                        <div className="app-form-field app-span-full">
+                                            <small className="app-hint">Gunakan tarikh dan masa sebenar yang hendak dipaparkan dalam Borang 5. Audit sistem kekal pada masa dihantar.</small>
+                                        </div>
+                                    )}
                                     {isAkFamilyDetail && (
                                         <label className="app-form-field app-span-full">
                                             <span>{`Tempat ${akEventNoun}`}</span>
@@ -2984,6 +3087,24 @@ const ComplaintDetail = () => {
                                     />
                                 </div>
 
+                                <label className="app-form-field">
+                                    <span>Tarikh</span>
+                                    <input
+                                        type="date"
+                                        value={basicDraft.complaint_date}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, complaint_date: event.target.value }))}
+                                    />
+                                </label>
+
+                                <label className="app-form-field">
+                                    <span>Masa</span>
+                                    <input
+                                        type="time"
+                                        value={basicDraft.complaint_time}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, complaint_time: event.target.value }))}
+                                    />
+                                </label>
+
                                 <div className="app-form-field app-span-full">
                                     <div className="app-field-inline-head">
                                         <span>Butiran Aduan (Borang 5)</span>
@@ -3241,18 +3362,6 @@ const ComplaintDetail = () => {
                                     >
                                         <i className="bi bi-printer"></i>
                                         Borang 5
-                                    </button>
-                                    <button
-                                        className="app-button app-button-ghost"
-                                        type="button"
-                                        onClick={() => window.open(
-                                            `/app/complaints/${id}/print/laporan-tindakan`,
-                                            'laporanTindakan',
-                                            'width=980,height=720,scrollbars=yes,resizable=yes'
-                                        )}
-                                    >
-                                        <i className="bi bi-printer"></i>
-                                        Laporan Tindakan
                                     </button>
                                 </div>
                             </div>
@@ -3708,177 +3817,222 @@ const ComplaintDetail = () => {
                                     className=" app-detail-note"
                                 />
                             )}
-                            <div className="app-form-grid">
-                                <label className="app-form-field">
-                                    <span>Pegawai Yang Mengeluarkan Arahan</span>
-                                    <SharedStaffSelect
-                                        apiUrl={apiUrl}
-                                        value={ajActionReport.directive_staff_id || ''}
-                                        onChange={(value) => updateActionReportField('directive_staff_id', value)}
-                                        searchable
-                                        searchPlaceholder="Cari pegawai yang mengeluarkan arahan..."
-                                        showDistrictLabel
-                                    />
-                                </label>
+                            <div className="app-report-stack">
+                                <div className="app-report-section">
+                                    <button
+                                        className="app-report-toggle"
+                                        type="button"
+                                        onClick={() => toggleReportSection('action_briefing')}
+                                        aria-expanded={reportSections.action_briefing}
+                                    >
+                                        <h5>Makluman Aduan dan Arahan Penyelia</h5>
+                                        <i className={`bi ${reportSections.action_briefing ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                    {reportSections.action_briefing && (
+                                        <div className="app-form-grid app-report-grid">
+                                            <div className="app-form-field app-action-summary-card">
+                                                <span>Nama Penyelia Bertugas <span className="complaint-required">*</span></span>
+                                                <SharedStaffSelect
+                                                    apiUrl={apiUrl}
+                                                    value={ajActionReport.directive_staff_id || ''}
+                                                    onChange={(value) => updateActionReportField('directive_staff_id', value)}
+                                                    searchable
+                                                    searchPlaceholder="Cari pegawai yang mengeluarkan arahan..."
+                                                    showDistrictLabel
+                                                />
+                                            </div>
 
-                                <label className="app-form-field">
-                                    <span>Tarikh / Masa Maklum Aduan</span>
-                                    <input
-                                        type="datetime-local"
-                                        value={ajActionReport.directive_at || ''}
-                                        onChange={(event) => updateActionReportField('directive_at', event.target.value)}
-                                    />
-                                </label>
+                                            <label className="app-form-field app-action-summary-card">
+                                                <span>Tarikh Maklum Aduan <span className="complaint-required">*</span></span>
+                                                <input
+                                                    type="date"
+                                                    value={getDateTimeLocalDatePart(ajActionReport.directive_at)}
+                                                    onChange={(event) => updateActionReportDateTimePart('directive_at', 'date', event.target.value)}
+                                                />
+                                            </label>
 
-                                <div className="app-form-field">
-                                    <span>Pegawai Yang Menerima Arahan</span>
-                                    <SharedStaffSelect
-                                        apiUrl={apiUrl}
-                                        value={ajActionReport.handover_staff_id || ''}
-                                        onChange={(value) => updateActionReportField('handover_staff_id', value)}
-                                        placeholder="-- Pilih Pegawai --"
-                                        searchable
-                                        searchPlaceholder="Cari pegawai yang menerima arahan..."
-                                        showDistrictLabel
-                                    />
+                                            <label className="app-form-field app-action-summary-card">
+                                                <span>Masa Maklum Aduan <span className="complaint-required">*</span></span>
+                                                <input
+                                                    type="time"
+                                                    value={getDateTimeLocalTimePart(ajActionReport.directive_at)}
+                                                    onChange={(event) => updateActionReportDateTimePart('directive_at', 'time', event.target.value)}
+                                                />
+                                            </label>
+
+                                            <label className="app-form-field app-span-full">
+                                                <div className="app-field-inline-head">
+                                                    <span>Minit / Arahan Tindakan</span>
+                                                    <div className="app-field-inline-actions">
+                                                        <button
+                                                            type="button"
+                                                            className="app-button app-button-ghost app-button-mini"
+                                                            onClick={insertArahanTindakanTemplate}
+                                                        >
+                                                            <i className="bi bi-magic"></i>
+                                                            Insert Template
+                                                        </button>
+                                                        <small className="app-hint">Template ikut Klasifikasi di tab Maklumat Aduan.</small>
+                                                    </div>
+                                                </div>
+                                                <textarea
+                                                    rows="3"
+                                                    value={ajActionReport.directive_notes || ''}
+                                                    onChange={(event) => updateActionReportField('directive_notes', event.target.value)}
+                                                    placeholder="Arahan Tindakan *"
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
                                 </div>
 
-                                <label className="app-form-field">
-                                    <span>Tarikh / Masa Arahan Diterima</span>
-                                    <input
-                                        type="datetime-local"
-                                        value={ajActionReport.handover_at || ''}
-                                        onChange={(event) => updateActionReportField('handover_at', event.target.value)}
-                                    />
-                                </label>
-
-                                <label className="app-form-field app-span-full">
-                                    <span>Status Terkini</span>
-                                    <div className="app-inline-radio-group">
-                                        {AJ_CURRENT_STATUS_OPTIONS.map((option) => (
-                                            <label className="app-inline-radio app-inline-radio-compact" key={option}>
-                                                <input
-                                                    type="radio"
-                                                    name="aj_current_status"
-                                                    value={option}
-                                                    checked={ajActionReport.current_status === option}
-                                                    onChange={() => {
-                                                        updateActionReportField('current_status', option);
-                                                        if (option !== 'Other') {
-                                                            updateActionReportField('current_status_other', '');
-                                                        }
-                                                    }}
+                                <div className="app-report-section">
+                                    <button
+                                        className="app-report-toggle"
+                                        type="button"
+                                        onClick={() => toggleReportSection('action_handover')}
+                                        aria-expanded={reportSections.action_handover}
+                                    >
+                                        <h5>Serahan Aduan Kepada Anggota Pelaksana</h5>
+                                        <i className={`bi ${reportSections.action_handover ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                    {reportSections.action_handover && (
+                                        <div className="app-form-grid app-report-grid">
+                                            <div className="app-form-field app-action-summary-card">
+                                                <span>Pelaksana / Daerah Pelaksana <span className="complaint-required">*</span></span>
+                                                <SharedStaffSelect
+                                                    apiUrl={apiUrl}
+                                                    value={ajActionReport.handover_staff_id || ''}
+                                                    onChange={(value) => updateActionReportField('handover_staff_id', value)}
+                                                    placeholder="-- Pilih Pegawai --"
+                                                    searchable
+                                                    searchPlaceholder="Cari pegawai yang menerima arahan..."
+                                                    showDistrictLabel
                                                 />
-                                                <span>{option}</span>
+                                            </div>
+
+                                            <label className="app-form-field app-action-summary-card">
+                                                <span>Tarikh Serahan</span>
+                                                <input
+                                                    type="date"
+                                                    value={getDateTimeLocalDatePart(ajActionReport.handover_at)}
+                                                    onChange={(event) => updateActionReportDateTimePart('handover_at', 'date', event.target.value)}
+                                                />
                                             </label>
-                                        ))}
-                                    </div>
-                                </label>
 
-                                {ajActionReport.current_status === 'Other' && (
-                                    <label className="app-form-field app-span-full">
-                                        <span>Maklumat Status Terkini (Other)</span>
-                                        <input
-                                            type="text"
-                                            value={ajActionReport.current_status_other || ''}
-                                            onChange={(event) => updateActionReportField('current_status_other', event.target.value)}
-                                            placeholder="Sila nyatakan status terkini"
-                                        />
-                                    </label>
-                                )}
+                                            <label className="app-form-field app-action-summary-card">
+                                                <span>Masa Serahan</span>
+                                                <input
+                                                    type="time"
+                                                    value={getDateTimeLocalTimePart(ajActionReport.handover_at)}
+                                                    onChange={(event) => updateActionReportDateTimePart('handover_at', 'time', event.target.value)}
+                                                />
+                                            </label>
 
-                                <label className="app-form-field app-span-full">
-                                    <span>Arahan Tindakan</span>
-                                    <textarea
-                                        rows="3"
-                                        value={ajActionReport.directive_notes || ''}
-                                        onChange={(event) => updateActionReportField('directive_notes', event.target.value)}
-                                    />
-                                </label>
+                                            <label className="app-form-field app-span-full">
+                                                <span>Status Terkini <span className="complaint-required">*</span></span>
+                                                <div className="app-inline-radio-group">
+                                                    {AJ_CURRENT_STATUS_OPTIONS.map((option) => (
+                                                        <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                                            <input
+                                                                type="radio"
+                                                                name="aj_current_status"
+                                                                value={option}
+                                                                checked={ajActionReport.current_status === option}
+                                                                onChange={() => {
+                                                                    updateActionReportField('current_status', option);
+                                                                    if (option !== 'Other') {
+                                                                        updateActionReportField('current_status_other', '');
+                                                                    }
+                                                                }}
+                                                            />
+                                                            <span>{option}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </label>
 
-                                <div className="app-form-field app-span-full">
-                                    <span>Maklumat Terkini</span>
-                                    <div className="app-oyds-table-wrap">
-                                        <div className="app-oyds-table-head">
-                                            <div>Klasifikasi</div>
-                                            <div>Tarikh Klasifikasi</div>
-                                            <div>Masa</div>
-                                            <div>Catatan</div>
-                                            <div></div>
-                                        </div>
-                                        {(ajActionReport.history_entries || []).map((row, index) => (
-                                            <div className="app-oyds-table-row" key={`history-${index}`}>
-                                                <div className="app-oyds-table-cell">
-                                                    <select
-                                                        value={row.classification || ''}
-                                                        onChange={(event) => updateActionHistoryRow(index, 'classification', event.target.value)}
-                                                    >
-                                                        <option value="">-- Pilih --</option>
-                                                        {['FNA', 'KIV', 'NFA', 'OP'].map((option) => (
-                                                            <option key={option} value={option}>{option}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                                <div className="app-oyds-table-cell">
-                                                    <input
-                                                        type="date"
-                                                        value={row.action_date || ''}
-                                                        onChange={(event) => updateActionHistoryRow(index, 'action_date', event.target.value)}
-                                                    />
-                                                </div>
-                                                <div className="app-oyds-table-cell">
-                                                    <input
-                                                        type="time"
-                                                        value={row.action_time || ''}
-                                                        onChange={(event) => updateActionHistoryRow(index, 'action_time', event.target.value)}
-                                                    />
-                                                </div>
-                                                <div className="app-oyds-table-cell">
+                                            {ajActionReport.current_status === 'Other' && (
+                                                <label className="app-form-field app-span-full">
+                                                    <span>Maklumat Status Terkini (Other) <span className="complaint-required">*</span></span>
                                                     <input
                                                         type="text"
-                                                        value={row.note || ''}
-                                                        onChange={(event) => updateActionHistoryRow(index, 'note', event.target.value)}
+                                                        value={ajActionReport.current_status_other || ''}
+                                                        onChange={(event) => updateActionReportField('current_status_other', event.target.value)}
+                                                        placeholder="Sila nyatakan status terkini"
                                                     />
-                                                </div>
-                                                <div className="app-oyds-table-cell app-oyds-table-cell-action">
-                                                    <button
-                                                        type="button"
-                                                        className="app-icon-button"
-                                                        onClick={() => removeActionHistoryRow(index)}
-                                                        aria-label="Padam history"
-                                                        title="Padam history"
-                                                    >
-                                                        <i className="bi bi-trash"></i>
-                                                    </button>
+                                                </label>
+                                            )}
+
+                                            <div className="app-form-field app-span-full">
+                                                <span>Maklumat Terkini</span>
+                                                <div className="app-oyds-table-wrap">
+                                                    <div className="app-oyds-table-head">
+                                                        <div>Klasifikasi</div>
+                                                        <div>Tarikh Klasifikasi</div>
+                                                        <div>Masa</div>
+                                                        <div>Catatan</div>
+                                                        <div></div>
+                                                    </div>
+                                                    {(ajActionReport.history_entries || []).map((row, index) => (
+                                                        <div className="app-oyds-table-row" key={`history-${index}`}>
+                                                            <div className="app-oyds-table-cell">
+                                                                <select
+                                                                    value={row.classification || ''}
+                                                                    onChange={(event) => updateActionHistoryRow(index, 'classification', event.target.value)}
+                                                                >
+                                                                    <option value="">-- Pilih --</option>
+                                                                    {['FNA', 'KIV', 'NFA', 'OP'].map((option) => (
+                                                                        <option key={option} value={option}>{option}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <div className="app-oyds-table-cell">
+                                                                <input
+                                                                    type="date"
+                                                                    value={row.action_date || ''}
+                                                                    onChange={(event) => updateActionHistoryRow(index, 'action_date', event.target.value)}
+                                                                />
+                                                            </div>
+                                                            <div className="app-oyds-table-cell">
+                                                                <input
+                                                                    type="time"
+                                                                    value={row.action_time || ''}
+                                                                    onChange={(event) => updateActionHistoryRow(index, 'action_time', event.target.value)}
+                                                                />
+                                                            </div>
+                                                            <div className="app-oyds-table-cell">
+                                                                <input
+                                                                    type="text"
+                                                                    value={row.note || ''}
+                                                                    onChange={(event) => updateActionHistoryRow(index, 'note', event.target.value)}
+                                                                />
+                                                            </div>
+                                                            <div className="app-oyds-table-cell app-oyds-table-cell-action">
+                                                                <button
+                                                                    type="button"
+                                                                    className="app-icon-button"
+                                                                    onClick={() => removeActionHistoryRow(index)}
+                                                                    aria-label="Padam history"
+                                                                    title="Padam history"
+                                                                >
+                                                                    <i className="bi bi-trash"></i>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    <div className="app-inline-add">
+                                                        <button type="button" className="app-link" onClick={addActionHistoryRow}>
+                                                            + Tambah Maklumat Terkini
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        ))}
-                                        <div className="app-inline-add">
-                                            <button type="button" className="app-link" onClick={addActionHistoryRow}>
-                                                + Tambah Maklumat Terkini
-                                            </button>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
 
-                                <label className="app-form-field">
-                                    <span>No. Daftar Kes</span>
-                                    <input
-                                        type="text"
-                                        value={ajActionReport.case_register_no || ''}
-                                        onChange={(event) => updateActionReportField('case_register_no', event.target.value)}
-                                    />
-                                </label>
-
-                                <label className="app-form-field">
-                                    <span>Nombor Fail</span>
-                                    <input
-                                        type="text"
-                                        value={ajActionReport.file_no || ''}
-                                        onChange={(event) => updateActionReportField('file_no', event.target.value)}
-                                    />
-                                </label>
-
+                                <div className="app-form-grid">
                                 <label className="app-form-field app-span-full">
                                     <span>Kategori OP</span>
                                     <div className="app-inline-radio-group">
@@ -3953,6 +4107,7 @@ const ComplaintDetail = () => {
                                     </button>
                                 </div>
                             </div>
+                            </div>
                         </div>
                     )}
 
@@ -3972,6 +4127,7 @@ const ComplaintDetail = () => {
                                     {reportSections.arrest && (
                                         <div className="app-form-grid app-report-grid app-arrest-grid-compact">
                                             <div className="app-form-field app-span-full">
+                                                <span>Status Tangkapan <span className="complaint-required">*</span></span>
                                                 <div className="app-radio-cards app-radio-cards-2">
                                                     <label className={`${ajReport.arrest_status === 'ada' ? 'active' : ''} ${isArrestStatusLocked ? 'disabled' : ''}`.trim()}>
                                                         <input
@@ -3998,6 +4154,25 @@ const ComplaintDetail = () => {
                                                 </div>
                                             </div>
 
+                                            <label className="app-form-field">
+                                                <span>No. Daftar Kes</span>
+                                                <input
+                                                    type="text"
+                                                    value={complaint?.case_register_no || buildCaseRegisterNoFromComplaint(complaint)}
+                                                    readOnly
+                                                    disabled
+                                                />
+                                            </label>
+
+                                            <label className="app-form-field">
+                                                <span>Nombor Fail</span>
+                                                <input
+                                                    type="text"
+                                                    value={ajReport.file_no || ''}
+                                                    onChange={(event) => updateReportField('file_no', event.target.value)}
+                                                />
+                                            </label>
+
                                             <div className="app-arrest-row app-arrest-row-5 app-span-full">
                                                 <div className="app-form-field">
                                                     <span>Kesalahan</span>
@@ -4010,7 +4185,7 @@ const ComplaintDetail = () => {
                                                 </div>
 
                                                 <label className="app-form-field">
-                                                    <span>Tarikh / Masa</span>
+                                                    <span>Tarikh / Masa <span className="complaint-required">*</span></span>
                                                     <input
                                                         type="datetime-local"
                                                         value={ajReport.action_datetime}
@@ -4091,7 +4266,7 @@ const ComplaintDetail = () => {
 
                                             <div className="app-arrest-row app-span-full">
                                                 <div className="app-form-field">
-                                                    <span>Pegawai Penangkap</span>
+                                                    <span>Pegawai Penangkap <span className="complaint-required">*</span></span>
                                                     <SharedStaffSelect
                                                         apiUrl={apiUrl}
                                                         value={ajReport.arrest_staff_id || ''}
@@ -4204,7 +4379,7 @@ const ComplaintDetail = () => {
 
                                         <div className="app-form-field app-span-full">
                                             <div className="app-field-inline-head">
-                                                <span>LAPORAN</span>
+                                                <span>LAPORAN <span className="complaint-required">*</span></span>
                                                 <button
                                                     type="button"
                                                     className="app-button app-button-ghost app-button-mini"
@@ -4221,6 +4396,7 @@ const ComplaintDetail = () => {
                                                 onChange={(event) => updateReportField('report_notes', event.target.value)}
                                             />
                                         </div>
+
                                     </div>
                                     )}
                                 </div>

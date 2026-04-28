@@ -153,7 +153,9 @@ const ComplaintPrintBorang5 = () => {
     const effectiveInformantIdNumber = isPhysicalInformant ? complainantIdNumber : officerInformantIdNumber;
     const effectiveInformantOccupation = isPhysicalInformant ? complainantOccupation : officerInformantOccupation;
     const effectiveInformantContactNumber = isPhysicalInformant ? complainantContactNumber : officerInformantContactNumber;
-    const effectiveInformantAddressBase = isPhysicalInformant ? complainantAddress : officerInformantAddress;
+    const effectiveInformantAddressBase = isPhysicalInformant
+        ? ((caseType === 'AJ' ? (complainantCurrentAddress || complainantAddress) : complainantAddress) || '')
+        : officerInformantAddress;
     const effectiveInformantAddress = caseType === 'AK'
         ? (complainantCurrentAddress || '')
         : effectiveInformantAddressBase;
@@ -193,6 +195,38 @@ const ComplaintPrintBorang5 = () => {
         }
         return `LOKASI : ${incidentAddress}\n${reportTextRaw}`;
     })();
+    const renderReportText = (text) => {
+        const lines = String(text || '').split(/\r?\n/);
+        if (!lines.length) {
+            return '-';
+        }
+
+        let hasBoldedLokasiLine = false;
+
+        return lines.map((line, index) => {
+            const match = line.match(/^(\s*(?:LOKASI|LOKASI KEJADIAN|ALAMAT KEJADIAN|ALAMAT LOKASI KEJADIAN)\s*:\s*)(.*)$/i);
+            const key = `report-line-${index}`;
+
+            if (!match || hasBoldedLokasiLine) {
+                return (
+                    <React.Fragment key={key}>
+                        {line || '\u00A0'}
+                        {index < lines.length - 1 ? <br /> : null}
+                    </React.Fragment>
+                );
+            }
+
+            hasBoldedLokasiLine = true;
+
+            return (
+                <React.Fragment key={key}>
+                    <span>{match[1]}</span>
+                    <strong>{match[2] || '-'}</strong>
+                    {index < lines.length - 1 ? <br /> : null}
+                </React.Fragment>
+            );
+        });
+    };
 
     const openEmailModal = () => {
         const defaultSubject = `TINDAKAN (${mainStatus || 'Aduan'}) : ${complaint?.reference_no || `Aduan #${id}`}`;
@@ -366,7 +400,7 @@ const ComplaintPrintBorang5 = () => {
 
                 <div className="print-borang5-body">
                     <div className="print-borang5-body-title">SAYA DENGAN INI MEMBERIKAN MAKLUMAT BERIKUT :</div>
-                    <div className="print-borang5-body-text">{renderValue(reportText || '-')}</div>
+                    <div className="print-borang5-body-text">{renderReportText(reportText || '-')}</div>
                 </div>
 
                 <div className="print-borang5-sign-row">

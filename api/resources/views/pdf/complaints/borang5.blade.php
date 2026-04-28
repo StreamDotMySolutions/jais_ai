@@ -205,7 +205,25 @@
 
         <div class="body">
             <div class="body-title">SAYA DENGAN INI MEMBERIKAN MAKLUMAT BERIKUT :</div>
-            <div class="body-text">{{ $reportText ?: '-' }}</div>
+            @php
+                $reportLines = preg_split("/\r\n|\n|\r/", (string) ($reportText ?: '-'));
+                $hasBoldedLokasiLine = false;
+            @endphp
+            <div class="body-text">
+                @foreach($reportLines as $index => $line)
+                    @php
+                        $line = (string) $line;
+                        $matched = preg_match('/^(\s*(?:LOKASI|LOKASI KEJADIAN|ALAMAT KEJADIAN|ALAMAT LOKASI KEJADIAN)\s*:\s*)(.*)$/i', $line, $parts) === 1;
+                    @endphp
+                    @if($matched && ! $hasBoldedLokasiLine)
+                        @php $hasBoldedLokasiLine = true; @endphp
+                        <span>{{ $parts[1] }}</span><strong>{{ $parts[2] !== '' ? $parts[2] : '-' }}</strong>
+                    @else
+                        {{ $line !== '' ? $line : ' ' }}
+                    @endif
+                    @if($index < count($reportLines) - 1)<br>@endif
+                @endforeach
+            </div>
         </div>
 
         <div class="sign-row">

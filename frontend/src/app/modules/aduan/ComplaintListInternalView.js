@@ -71,6 +71,22 @@ const isPublicComplaintChannel = (channel) => {
     return ['portal', 'web', 'whatsapp', 'whatsapp_web'].includes(normalized);
 };
 
+const formatChannelLabel = (channel) => {
+    const value = String(channel || '').trim().toLowerCase();
+    if (!value) return '-';
+    if (value === 'portal') return 'Portal (Awam)';
+    if (value === 'web') return 'Web';
+    if (value === 'whatsapp') return 'WhatsApp AI';
+    if (value === 'whatsapp_web') return 'WhatsApp Web AI';
+    if (value === 'walkin') return 'Walk-in / Kaunter';
+    if (value === 'walk-in') return 'Walk-in / Kaunter';
+    if (value === 'telefon') return 'Telefon';
+    if (value === 'email') return 'Email';
+    if (value === 'agensi') return 'Agensi';
+    if (value === 'lain') return 'Lain-lain';
+    return channel || '-';
+};
+
 const getListDateTimeLabel = (item) => {
     if (isPublicComplaintChannel(item?.channel)) {
         const createdAtLabel = formatShortDateTime(item?.created_at);
@@ -353,6 +369,7 @@ const ComplaintListInternalView = ({
                                         {item.reference_no || '-'}
                                     </button>
                                     <span className="app-complaint-cell-meta">{getListDateTimeLabel(item)}</span>
+                                    <span className="app-complaint-cell-meta">{`Kaedah: ${formatChannelLabel(item.channel)}`}</span>
                                     <span className="app-complaint-cell-name">{item.complainant_name || '-'}</span>
                                 </span>
                                 <span className="app-complaint-cell">
