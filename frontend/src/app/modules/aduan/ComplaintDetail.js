@@ -247,6 +247,7 @@ const ComplaintDetail = () => {
         oyds: true,
         seizure: true,
         police_report: true,
+        op: true,
     });
     const [oydUploadDrafts, setOydUploadDrafts] = useState({});
     const [seizureUploadDrafts, setSeizureUploadDrafts] = useState({});
@@ -1683,6 +1684,9 @@ const ComplaintDetail = () => {
         axios.post(`${apiUrl}/complaints/${id}/aj-report`, {
             report: {
                 ...ajReport,
+                op_category: ajActionReport.op_category || '',
+                op_case_status: ajActionReport.op_case_status || '',
+                op_notes: ajActionReport.op_notes || '',
                 case_register_no: complaint?.case_register_no || buildCaseRegisterNoFromComplaint(complaint),
             },
         }, {
@@ -1939,9 +1943,6 @@ const ComplaintDetail = () => {
         || String(ajActionReport?.current_status || '').trim() !== String(complaint?.aj_current_status || '').trim()
         || String(ajActionReport?.current_status_other || '').trim() !== String(complaint?.aj_current_status_other || '').trim()
         || String(ajActionReport?.case_register_no || '').trim() !== String(complaint?.case_register_no || '').trim()
-        || String(ajActionReport?.op_category || '').trim() !== String(complaint?.aj_op_category || '').trim()
-        || String(ajActionReport?.op_case_status || '').trim() !== String(complaint?.aj_op_case_status || '').trim()
-        || String(ajActionReport?.op_notes || '').trim() !== String(complaint?.aj_op_notes || '').trim()
         || String(ajActionReport?.file_no || '').trim() !== String(complaint?.aj_file_no || '').trim()
         || JSON.stringify(draftHistoryEntriesNormalized) !== JSON.stringify(savedHistoryEntriesNormalized)
     );
@@ -4036,52 +4037,6 @@ const ComplaintDetail = () => {
                                     )}
                                 </div>
 
-                                <div className="app-form-grid">
-                                <label className="app-form-field app-span-full">
-                                    <span>Kategori OP</span>
-                                    <div className="app-inline-radio-group">
-                                        {AJ_OP_CATEGORY_OPTIONS.map((option) => (
-                                            <label className="app-inline-radio app-inline-radio-compact" key={option}>
-                                                <input
-                                                    type="radio"
-                                                    name="aj_op_category"
-                                                    value={option}
-                                                    checked={ajActionReport.op_category === option}
-                                                    onChange={() => updateActionReportField('op_category', option)}
-                                                />
-                                                <span>{option}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </label>
-
-                                <label className="app-form-field app-span-full">
-                                    <span>Status Kes OP</span>
-                                    <div className="app-inline-radio-group">
-                                        {AJ_OP_CASE_STATUS_OPTIONS.map((option) => (
-                                            <label className="app-inline-radio app-inline-radio-compact" key={option}>
-                                                <input
-                                                    type="radio"
-                                                    name="aj_op_case_status"
-                                                    value={option}
-                                                    checked={ajActionReport.op_case_status === option}
-                                                    onChange={() => updateActionReportField('op_case_status', option)}
-                                                />
-                                                <span>{option}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </label>
-
-                                <label className="app-form-field app-span-full">
-                                    <span>Catatan OP</span>
-                                    <textarea
-                                        rows="4"
-                                        value={ajActionReport.op_notes || ''}
-                                        onChange={(event) => updateActionReportField('op_notes', event.target.value)}
-                                    />
-                                </label>
-
                                 <div className="app-report-sticky app-span-full">
                                     <button className="app-button" type="button" onClick={submitAjActionReport} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
@@ -4110,7 +4065,6 @@ const ComplaintDetail = () => {
                                         Jana Tindakan
                                     </button>
                                 </div>
-                            </div>
                             </div>
                         </div>
                     )}
@@ -4644,6 +4598,65 @@ const ComplaintDetail = () => {
                                                 </div>
                                             )}
                                         </>
+                                    )}
+                                </div>
+                                <div className="app-report-section">
+                                    <button
+                                        className="app-report-toggle"
+                                        type="button"
+                                        onClick={() => toggleReportSection('op')}
+                                        aria-expanded={reportSections.op}
+                                    >
+                                        <h5>BUTIRAN OP</h5>
+                                        <i className={`bi ${reportSections.op ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                    {reportSections.op && (
+                                        <div className="app-form-grid app-report-grid">
+                                            <label className="app-form-field app-span-full">
+                                                <span>Kategori OP</span>
+                                                <div className="app-inline-radio-group">
+                                                    {AJ_OP_CATEGORY_OPTIONS.map((option) => (
+                                                        <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                                            <input
+                                                                type="radio"
+                                                                name="aj_op_category"
+                                                                value={option}
+                                                                checked={ajActionReport.op_category === option}
+                                                                onChange={() => updateActionReportField('op_category', option)}
+                                                            />
+                                                            <span>{option}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </label>
+
+                                            <label className="app-form-field app-span-full">
+                                                <span>Status Kes OP</span>
+                                                <div className="app-inline-radio-group">
+                                                    {AJ_OP_CASE_STATUS_OPTIONS.map((option) => (
+                                                        <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                                            <input
+                                                                type="radio"
+                                                                name="aj_op_case_status"
+                                                                value={option}
+                                                                checked={ajActionReport.op_case_status === option}
+                                                                onChange={() => updateActionReportField('op_case_status', option)}
+                                                            />
+                                                            <span>{option}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </label>
+
+                                            <label className="app-form-field app-span-full">
+                                                <span>Catatan OP</span>
+                                                <textarea
+                                                    rows="4"
+                                                    value={ajActionReport.op_notes || ''}
+                                                    onChange={(event) => updateActionReportField('op_notes', event.target.value)}
+                                                />
+                                            </label>
+                                        </div>
                                     )}
                                 </div>
                                 <div className="app-report-sticky">

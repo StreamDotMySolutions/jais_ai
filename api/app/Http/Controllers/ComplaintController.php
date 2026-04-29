@@ -2453,6 +2453,9 @@ class ComplaintController extends Controller
             'report.police_report_status' => 'nullable|in:ada,tiada',
             'report.police_reports' => 'nullable|array',
             'report.file_no' => 'nullable|string|max:255',
+            'report.op_category' => 'nullable|string|max:255',
+            'report.op_case_status' => 'nullable|string|max:255',
+            'report.op_notes' => 'nullable|string|max:20000',
         ]);
 
         $report = $request->report;
@@ -2507,6 +2510,9 @@ class ComplaintController extends Controller
             'handover_notes' => $report['handover_notes'] ?? null,
             'aj_seizure_status' => $report['seizure_status'] ?? null,
             'aj_police_report_status' => $report['police_report_status'] ?? null,
+            'aj_op_category' => $report['op_category'] ?? null,
+            'aj_op_case_status' => $report['op_case_status'] ?? null,
+            'aj_op_notes' => $report['op_notes'] ?? null,
         ]);
 
         // Auto progress stage: after aduan is approved and pegawai daerah completes the report,
