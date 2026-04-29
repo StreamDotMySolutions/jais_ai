@@ -64,7 +64,7 @@ const AJ_OP_CASE_STATUS_OPTIONS = [
     'Other',
 ];
 
-const LOCKED_BASIC_EDIT_CHANNELS = ['portal', 'web', 'whatsapp', 'whatsapp_web'];
+const LOCKED_BASIC_EDIT_CHANNELS = ['portal', 'web', 'whatsapp', 'whatsapp-meta', 'whatsapp-web'];
 const normalizePpaClassification = (value) => {
     const normalized = String(value || '').trim().toUpperCase();
     if (normalized === 'FFA') return 'FNA';
@@ -259,8 +259,8 @@ const ComplaintDetail = () => {
     const isPegawaiRole = ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
     const isPegawaiDaerahRole = role === 'pegawai_daerah';
     const detailTopBoxTitle = 'Aduan';
-    const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase();
-    const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp_web'].includes(complaintChannelNormalized);
+    const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase().replace(/_/g, '-');
+    const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp-web'].includes(complaintChannelNormalized);
     const isBasicEditLockedBySource = LOCKED_BASIC_EDIT_CHANNELS.includes(complaintChannelNormalized);
     const effectiveInformantName = (complaint?.informant_name || '').trim();
     const effectiveInformantIdNumber = (complaint?.informant_identification_number || '').trim();
@@ -1589,8 +1589,10 @@ const ComplaintDetail = () => {
                             setPayloadMessage(successMsg);
                             toast.success(successMsg);
                         })
-                        .catch(() => {
-                            toast.error('Gagal kemaskini maklumat.');
+                        .catch((err) => {
+                            const msg = err?.response?.data?.message || 'Gagal kemaskini maklumat.';
+                            setPayloadMessage(msg);
+                            toast.error(msg);
                         });
                 }
                 return undefined;
@@ -1640,8 +1642,10 @@ const ComplaintDetail = () => {
                             }
                             toast.success('Maklumat telah dikemaskini.');
                         })
-                        .catch(() => {
-                            toast.error('Gagal kemaskini maklumat.');
+                        .catch((err) => {
+                            const msg = err?.response?.data?.message || 'Gagal kemaskini maklumat.';
+                            setPayloadMessage(msg);
+                            toast.error(msg);
                         });
                 }
                 return undefined;

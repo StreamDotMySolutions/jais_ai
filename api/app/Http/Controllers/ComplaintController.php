@@ -2087,7 +2087,12 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $allowedWhenBasicLocked = ['borang5_statement', 'offense_id'];
+        $allowedWhenBasicLocked = [
+            'borang5_statement',
+            'offense_id',
+            'complaint_date',
+            'complaint_time',
+        ];
         $requestKeys = collect($request->keys())
             ->reject(fn ($key) => str_starts_with((string) $key, '_'))
             ->values()
@@ -4813,8 +4818,8 @@ class ComplaintController extends Controller
 
     private function isBasicOfficerEditLockedByChannel(?string $channel): bool
     {
-        $normalized = strtolower(trim((string) $channel));
-        return in_array($normalized, ['portal', 'web', 'whatsapp-meta', 'whatsapp-web'], true);
+        $normalized = str_replace('_', '-', strtolower(trim((string) $channel)));
+        return in_array($normalized, ['portal', 'web', 'whatsapp', 'whatsapp-meta', 'whatsapp-web'], true);
     }
 
     private function resolveUserDistrictId($user): ?int
