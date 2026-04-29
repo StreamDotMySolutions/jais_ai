@@ -69,6 +69,78 @@ const readInputValue = (input) => {
     return String(input?.target?.value || '');
 };
 
+const toDateTimeLocalValue = (value) => {
+    if (!value) {
+        return '';
+    }
+    const text = String(value).trim();
+    if (!text) {
+        return '';
+    }
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(text)) {
+        return text.slice(0, 16);
+    }
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(text)) {
+        return text.replace(' ', 'T').slice(0, 16);
+    }
+    const date = new Date(text);
+    if (Number.isNaN(date.getTime())) {
+        return text;
+    }
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const nullablePayloadFields = [
+    'no_ruj_fail',
+    'no_kes',
+    'jenis_kes_mal_id',
+    'jenis_kes_mal_lain',
+    'jenis_kes_jenayah_id',
+    'jenis_kes_jenayah_lain',
+    'mahkamah_id',
+    'daerah_id',
+    'emel',
+    'emel_mahkamah',
+    'tarikh_bicara',
+    'nama_okt',
+    'no_kp_okt',
+    'alamat_okt',
+    'telefon_okt',
+    'catatan_pendaftar',
+    'tindakan_oleh_staff_id',
+    'alamat_pejabat',
+    'status',
+    'jumlah_perlaksanaan',
+    'tarikh_masa_perlaksanaan_1',
+    'tarikh_masa_perlaksanaan_2',
+    'tarikh_masa_perlaksanaan_3',
+    'hasil_perlaksanaan_id',
+    'laporan',
+    'catatan_pelaksana',
+];
+
+const normalizeWaranPayload = (payload) => {
+    const next = { ...payload };
+    nullablePayloadFields.forEach((field) => {
+        if (typeof next[field] === 'string' && next[field].trim() === '') {
+            next[field] = null;
+        }
+    });
+    return next;
+};
+
+const flattenApiValidationErrors = (errors = {}) => (
+    Object.entries(errors || {}).reduce((carry, [field, messages]) => {
+        const key = String(field || '').replace(/^report\./, '');
+        const message = Array.isArray(messages) ? messages[0] : messages;
+        if (key && message) {
+            carry[key] = message;
+        }
+        return carry;
+    }, {})
+);
+
 const WaranFormStepper = ({ mode = 'create' }) => {
     const toast = useToast();
     const [step, setStep] = useState(1);
@@ -439,7 +511,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     ...prev,
                     jenis_waran: data.jenis_waran || '',
                     no_ruj_fail: data.no_ruj_fail || '',
-                    tarikh_masa_terima: data.tarikh_masa_terima || '',
+                    tarikh_masa_terima: toDateTimeLocalValue(data.tarikh_masa_terima),
                     tahun: data.tahun || '',
                     no_kes: data.no_kes || '',
                     jenis_kes_mal_id: data.jenis_kes_mal_id || '',
@@ -460,9 +532,9 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     alamat_pejabat: data.alamat_pejabat || '',
                     status: data.status || '',
                     jumlah_perlaksanaan: data.jumlah_perlaksanaan || '',
-                    tarikh_masa_perlaksanaan_1: data.tarikh_masa_perlaksanaan_1 || '',
-                    tarikh_masa_perlaksanaan_2: data.tarikh_masa_perlaksanaan_2 || '',
-                    tarikh_masa_perlaksanaan_3: data.tarikh_masa_perlaksanaan_3 || '',
+                    tarikh_masa_perlaksanaan_1: toDateTimeLocalValue(data.tarikh_masa_perlaksanaan_1),
+                    tarikh_masa_perlaksanaan_2: toDateTimeLocalValue(data.tarikh_masa_perlaksanaan_2),
+                    tarikh_masa_perlaksanaan_3: toDateTimeLocalValue(data.tarikh_masa_perlaksanaan_3),
                     hasil_perlaksanaan_id: data.hasil_perlaksanaan_id || '',
                     laporan_1: data.laporan || '',
                     laporan_2: '',
@@ -538,10 +610,10 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         setShowMessage(false);
         setMessage('');
         setError('');
-        const payload = {
+        const payload = normalizeWaranPayload({
             ...formData,
             laporan: laporanText,
-        };
+        });
         delete payload.laporan_1;
         delete payload.laporan_2;
 
@@ -572,8 +644,14 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                 }
             })
             .catch((err) => {
-                setError(err?.response?.data?.message || 'Gagal menyimpan waran.');
-                toast.error(err?.response?.data?.message || 'Gagal menyimpan waran.');
+                const apiErrors = flattenApiValidationErrors(err?.response?.data?.errors || {});
+                if (Object.keys(apiErrors).length > 0) {
+                    setValidationErrors((prev) => ({ ...prev, ...apiErrors }));
+                }
+                const firstError = Object.values(apiErrors)[0];
+                const msg = firstError || err?.response?.data?.message || 'Gagal menyimpan waran.';
+                setError(msg);
+                toast.error(msg);
             })
             .finally(() => setSaving(false));
     };
@@ -787,11 +865,29 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 </div>
                                 <div className="app-form-field">
                                     <label>Email</label>
-                                    <input type="email" placeholder="nama@domain.gov.my" value={formData.emel} onChange={updateField('emel')} />
+                                    <input
+                                        type="email"
+                                        className={validationErrors.emel ? 'app-input-error' : ''}
+                                        placeholder="nama@domain.gov.my"
+                                        value={formData.emel}
+                                        onChange={updateField('emel')}
+                                    />
+                                    {validationErrors.emel && (
+                                        <small className="app-inline-note app-inline-note-error">{validationErrors.emel}</small>
+                                    )}
                                 </div>
                                 <div className="app-form-field">
                                     <label>Email Mahkamah</label>
-                                    <input type="email" placeholder="mahkamah@domain.gov.my" value={formData.emel_mahkamah} onChange={updateField('emel_mahkamah')} />
+                                    <input
+                                        type="email"
+                                        className={validationErrors.emel_mahkamah ? 'app-input-error' : ''}
+                                        placeholder="mahkamah@domain.gov.my"
+                                        value={formData.emel_mahkamah}
+                                        onChange={updateField('emel_mahkamah')}
+                                    />
+                                    {validationErrors.emel_mahkamah && (
+                                        <small className="app-inline-note app-inline-note-error">{validationErrors.emel_mahkamah}</small>
+                                    )}
                                 </div>
                                 <div className="app-form-field">
                                     <label>Tarikh Perbicaraan *</label>
@@ -956,15 +1052,39 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 </div>
                                 <div className="app-form-field">
                                     <label>Tarikh / Masa Perlaksanaan (Pertama)</label>
-                                    <input type="datetime-local" value={formData.tarikh_masa_perlaksanaan_1} onChange={updateField('tarikh_masa_perlaksanaan_1')} />
+                                    <input
+                                        type="datetime-local"
+                                        className={validationErrors.tarikh_masa_perlaksanaan_1 ? 'app-input-error' : ''}
+                                        value={formData.tarikh_masa_perlaksanaan_1}
+                                        onChange={updateField('tarikh_masa_perlaksanaan_1')}
+                                    />
+                                    {validationErrors.tarikh_masa_perlaksanaan_1 && (
+                                        <small className="app-inline-note app-inline-note-error">{validationErrors.tarikh_masa_perlaksanaan_1}</small>
+                                    )}
                                 </div>
                                 <div className="app-form-field">
                                     <label>Tarikh / Masa Perlaksanaan (Kedua)</label>
-                                    <input type="datetime-local" value={formData.tarikh_masa_perlaksanaan_2} onChange={updateField('tarikh_masa_perlaksanaan_2')} />
+                                    <input
+                                        type="datetime-local"
+                                        className={validationErrors.tarikh_masa_perlaksanaan_2 ? 'app-input-error' : ''}
+                                        value={formData.tarikh_masa_perlaksanaan_2}
+                                        onChange={updateField('tarikh_masa_perlaksanaan_2')}
+                                    />
+                                    {validationErrors.tarikh_masa_perlaksanaan_2 && (
+                                        <small className="app-inline-note app-inline-note-error">{validationErrors.tarikh_masa_perlaksanaan_2}</small>
+                                    )}
                                 </div>
                                 <div className="app-form-field">
                                     <label>Tarikh / Masa Perlaksanaan (Ketiga)</label>
-                                    <input type="datetime-local" value={formData.tarikh_masa_perlaksanaan_3} onChange={updateField('tarikh_masa_perlaksanaan_3')} />
+                                    <input
+                                        type="datetime-local"
+                                        className={validationErrors.tarikh_masa_perlaksanaan_3 ? 'app-input-error' : ''}
+                                        value={formData.tarikh_masa_perlaksanaan_3}
+                                        onChange={updateField('tarikh_masa_perlaksanaan_3')}
+                                    />
+                                    {validationErrors.tarikh_masa_perlaksanaan_3 && (
+                                        <small className="app-inline-note app-inline-note-error">{validationErrors.tarikh_masa_perlaksanaan_3}</small>
+                                    )}
                                 </div>
                                 </div>
                             )}
