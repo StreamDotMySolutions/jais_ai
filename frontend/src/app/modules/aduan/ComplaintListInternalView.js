@@ -402,10 +402,16 @@ const ComplaintListInternalView = ({
                                         const prosecutionStatus = item.case_type === 'AK'
                                             ? ''
                                             : (item.aj_prosecution_status || '');
+                                        const opCaseStatus = item.case_type === 'AJ'
+                                            ? String(item.aj_op_case_status || '').trim()
+                                            : '';
+                                        const opCategory = item.case_type === 'AJ'
+                                            ? String(item.aj_op_category || '').trim()
+                                            : '';
                                         const receiverName = item?.received_by?.name || item?.receivedBy?.name || '';
                                         const approverName = item?.approver_staff?.name || item?.approverStaff?.name || '';
                                         const classificationAlert = getClassificationAlert ? getClassificationAlert(item) : null;
-                                        const show = Boolean(classificationAlert || ipStatus || prosecutionStatus || receiverName || approverName);
+                                        const show = Boolean(classificationAlert || ipStatus || prosecutionStatus || opCaseStatus || opCategory || receiverName || approverName);
                                         if (!show) {
                                             return null;
                                         }
@@ -425,6 +431,17 @@ const ComplaintListInternalView = ({
                                                 {prosecutionStatus && (
                                                     <span className={`app-status-pill-mini ${getProsecutionStatusBadgeTone(prosecutionStatus)}`}>
                                                         Pendakwaan: {getProsecutionStatusLabel(prosecutionStatus)}
+                                                    </span>
+                                                )}
+                                                {(opCaseStatus || opCategory) && (
+                                                    <span
+                                                        className="app-status-pill-mini is-muted"
+                                                        title={[
+                                                            opCaseStatus ? `Status Kes OP: ${opCaseStatus}` : '',
+                                                            opCategory ? `Kategori OP: ${opCategory}` : '',
+                                                        ].filter(Boolean).join(' | ')}
+                                                    >
+                                                        OP: {opCaseStatus || opCategory}
                                                     </span>
                                                 )}
                                                 {receiverName && (
