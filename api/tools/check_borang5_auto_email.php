@@ -13,11 +13,23 @@ $app->make(Kernel::class)->bootstrap();
 $complaintId = isset($argv[1]) ? (int) $argv[1] : 0;
 
 $rawRecipients = trim((string) env('BORANG5_AUTO_EMAIL_TO', ''));
+$rawCcRecipients = trim((string) env('BORANG5_AUTO_EMAIL_CC', ''));
 $recipientEmails = collect(preg_split('/[;,]+/', $rawRecipients))
     ->map(fn ($email) => trim((string) $email))
     ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+    ->unique(fn ($email) => strtolower($email))
     ->values()
     ->all();
+$ccEmails = collect(preg_split('/[;,]+/', $rawCcRecipients))
+    ->map(fn ($email) => trim((string) $email))
+    ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+    ->unique(fn ($email) => strtolower($email))
+    ->values()
+    ->all();
+if (empty($ccEmails) && count($recipientEmails) > 1) {
+    $ccEmails = array_slice($recipientEmails, 1);
+    $recipientEmails = array_slice($recipientEmails, 0, 1);
+}
 
 $normalizeClassification = static function ($value): string {
     $normalized = strtoupper(trim((string) $value));
@@ -58,7 +70,9 @@ echo "== Borang 5 Auto Email Check ==\n";
 echo 'APP_ENV: ' . (string) config('app.env') . "\n";
 echo 'DB_DATABASE: ' . (string) config('database.connections.' . config('database.default') . '.database') . "\n";
 echo 'BORANG5_AUTO_EMAIL_TO env(): ' . ($rawRecipients !== '' ? $rawRecipients : '[EMPTY]') . "\n";
-echo 'Valid recipients: ' . (! empty($recipientEmails) ? implode(', ', $recipientEmails) : '[NONE]') . "\n";
+echo 'BORANG5_AUTO_EMAIL_CC env(): ' . ($rawCcRecipients !== '' ? $rawCcRecipients : '[EMPTY]') . "\n";
+echo 'Valid To: ' . (! empty($recipientEmails) ? implode(', ', $recipientEmails) : '[NONE]') . "\n";
+echo 'Valid CC: ' . (! empty($ccEmails) ? implode(', ', $ccEmails) : '[NONE]') . "\n";
 echo 'Column borang5_auto_emailed_at exists: ' . (Schema::hasColumn('complaints', 'borang5_auto_emailed_at') ? 'YES' : 'NO') . "\n\n";
 
 if (! Schema::hasColumn('complaints', 'borang5_auto_emailed_at')) {
@@ -157,4 +171,3 @@ Complaint::query()
             $row->updated_at ?: '-'
         );
     });
-

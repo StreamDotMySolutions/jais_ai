@@ -3991,17 +3991,12 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $rawRecipients = trim((string) env('BORANG5_AUTO_EMAIL_TO', ''));
-        if ($rawRecipients === '') {
+        $recipients = $this->resolveAutoEmailRecipients('BORANG5_AUTO_EMAIL_TO', 'BORANG5_AUTO_EMAIL_CC');
+        if (empty($recipients['to']) && empty($recipients['cc'])) {
             return null;
         }
 
-        $emails = collect(preg_split('/[;,]+/', $rawRecipients))
-            ->map(fn ($email) => trim((string) $email))
-            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->values()
-            ->all();
-        if (empty($emails)) {
+        if (empty($recipients['to'])) {
             return [
                 'sent' => false,
                 'reason' => 'invalid_recipient_config',
@@ -4128,11 +4123,14 @@ class ComplaintController extends Controller
         $pdfFileName = 'BORANG 5 - FIR.pdf';
 
         try {
-            Mail::send([], [], function ($message) use ($emails, $subject, $html, $pdfBinary, $pdfFileName): void {
-                $message->to($emails)
+            Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($recipients['to'])
                     ->subject($subject)
                     ->html($html)
                     ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
+                if (! empty($recipients['cc'])) {
+                    $message->cc($recipients['cc']);
+                }
             });
 
             $complaint->forceFill([
@@ -4141,7 +4139,8 @@ class ComplaintController extends Controller
 
             return [
                 'sent' => true,
-                'to' => $emails,
+                'to' => $recipients['to'],
+                'cc' => $recipients['cc'],
                 'subject' => $subject,
             ];
         } catch (\Throwable $e) {
@@ -4174,17 +4173,12 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $rawRecipients = trim((string) env('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', ''));
-        if ($rawRecipients === '') {
+        $recipients = $this->resolveAutoEmailRecipients('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', 'LAPORAN_TINDAKAN_AUTO_EMAIL_CC');
+        if (empty($recipients['to']) && empty($recipients['cc'])) {
             return null;
         }
 
-        $emails = collect(preg_split('/[;,]+/', $rawRecipients))
-            ->map(fn ($email) => trim((string) $email))
-            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->values()
-            ->all();
-        if (empty($emails)) {
+        if (empty($recipients['to'])) {
             return [
                 'sent' => false,
                 'reason' => 'invalid_recipient_config',
@@ -4278,11 +4272,14 @@ class ComplaintController extends Controller
         $pdfFileName = 'BORANG 5 - KES.pdf';
 
         try {
-            Mail::send([], [], function ($message) use ($emails, $subject, $html, $pdfBinary, $pdfFileName): void {
-                $message->to($emails)
+            Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($recipients['to'])
                     ->subject($subject)
                     ->html($html)
                     ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
+                if (! empty($recipients['cc'])) {
+                    $message->cc($recipients['cc']);
+                }
             });
 
             $complaint->forceFill([
@@ -4291,7 +4288,8 @@ class ComplaintController extends Controller
 
             return [
                 'sent' => true,
-                'to' => $emails,
+                'to' => $recipients['to'],
+                'cc' => $recipients['cc'],
                 'subject' => $subject,
             ];
         } catch (\Throwable $e) {
@@ -4305,6 +4303,37 @@ class ComplaintController extends Controller
                 'reason' => 'send_failed',
             ];
         }
+    }
+
+    private function resolveAutoEmailRecipients(string $toEnvKey, string $ccEnvKey): array
+    {
+        $to = $this->parseEmailEnv((string) env($toEnvKey, ''));
+        $cc = $this->parseEmailEnv((string) env($ccEnvKey, ''));
+
+        if (empty($cc) && count($to) > 1) {
+            $cc = array_slice($to, 1);
+            $to = array_slice($to, 0, 1);
+        }
+
+        if (! empty($cc)) {
+            $toLookup = array_flip(array_map('strtolower', $to));
+            $cc = array_values(array_filter($cc, fn ($email) => ! isset($toLookup[strtolower($email)])));
+        }
+
+        return [
+            'to' => array_values($to),
+            'cc' => array_values($cc),
+        ];
+    }
+
+    private function parseEmailEnv(string $raw): array
+    {
+        return collect(preg_split('/[;,]+/', trim($raw)))
+            ->map(fn ($email) => trim((string) $email))
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique(fn ($email) => strtolower($email))
+            ->values()
+            ->all();
     }
 
     private function resolveStaffOfficePhone(?Staff $staff): string
