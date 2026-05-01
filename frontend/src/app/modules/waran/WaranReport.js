@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { formatMalaysiaDateStamp } from '../../utils/dateTime';
 
 const STATUS_LABELS = {
     draf: 'Draf',
@@ -149,7 +150,7 @@ const WaranReport = () => {
         })
             .then((response) => {
                 const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'text/csv' });
-                downloadBlob(blob, `i-waran-report-${new Date().toISOString().slice(0, 10)}.csv`);
+                downloadBlob(blob, `i-waran-report-${formatMalaysiaDateStamp()}.csv`);
             })
             .catch(() => setError('Gagal export laporan CSV.'));
     };
@@ -171,7 +172,7 @@ const WaranReport = () => {
         })
             .then((response) => {
                 const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                downloadBlob(blob, `i-waran-report-${new Date().toISOString().slice(0, 10)}.xlsx`);
+                downloadBlob(blob, `i-waran-report-${formatMalaysiaDateStamp()}.xlsx`);
             })
             .catch(() => setError('Gagal export laporan Excel.'));
     };

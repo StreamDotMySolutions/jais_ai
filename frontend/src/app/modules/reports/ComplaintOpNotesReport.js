@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import PaginationBar from '../../components/PaginationBar';
+import { formatMalaysiaDateTimeStamp } from '../../utils/dateTime';
 
 const formatDateTime = (value) => {
     if (!value) return '-';
@@ -107,7 +108,7 @@ const ComplaintOpNotesReport = () => {
             });
             const disposition = response?.headers?.['content-disposition'] || '';
             const match = disposition.match(/filename="?([^"]+)"?/i);
-            const filename = match?.[1] || `aduan-op-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
+            const filename = match?.[1] || `aduan-op-${formatMalaysiaDateTimeStamp()}.xlsx`;
             const blob = new Blob([response.data], {
                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             });

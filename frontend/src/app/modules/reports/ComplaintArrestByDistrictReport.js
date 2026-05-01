@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { formatMalaysiaDateTimeStamp } from '../../utils/dateTime';
 
 const ComplaintArrestByDistrictReport = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
@@ -65,7 +66,7 @@ const ComplaintArrestByDistrictReport = () => {
             });
             const disposition = response?.headers?.['content-disposition'] || '';
             const match = disposition.match(/filename="?([^"]+)"?/i);
-            const filename = match?.[1] || `aduan-arrest-by-district-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
+            const filename = match?.[1] || `aduan-arrest-by-district-${formatMalaysiaDateTimeStamp()}.xlsx`;
             const blob = new Blob([response.data], {
                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             });

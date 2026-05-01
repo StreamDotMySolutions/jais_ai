@@ -14,6 +14,7 @@ import ComplaintListHeader from './ComplaintListHeader';
 import ComplaintListFilter from './ComplaintListFilter';
 import useOffenseOptions from '../../hooks/useOffenseOptions';
 import useMahkamahOptions from '../../hooks/useMahkamahOptions';
+import { formatMalaysiaDateTimeStamp } from '../../utils/dateTime';
 
 const getListScope = ({ isPublicRole, fetchEndpoint }) => {
     if (isPublicRole) {
@@ -593,7 +594,7 @@ const ComplaintList = ({
 
             const disposition = response?.headers?.['content-disposition'] || '';
             const match = disposition.match(/filename="?([^"]+)"?/i);
-            const filename = match?.[1] || `aduan-export-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
+            const filename = match?.[1] || `aduan-export-${formatMalaysiaDateTimeStamp()}.xlsx`;
             const blob = new Blob([response.data], {
                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             });
