@@ -64,7 +64,7 @@ const AJ_OP_CASE_STATUS_OPTIONS = [
     'Other',
 ];
 
-const LOCKED_BASIC_EDIT_CHANNELS = ['portal', 'web', 'whatsapp', 'whatsapp_web'];
+const LOCKED_BASIC_EDIT_CHANNELS = ['portal', 'web', 'whatsapp', 'whatsapp-meta', 'whatsapp-web'];
 const normalizePpaClassification = (value) => {
     const normalized = String(value || '').trim().toUpperCase();
     if (normalized === 'FFA') return 'FNA';
@@ -204,6 +204,7 @@ const ComplaintDetail = () => {
     const [statusInput, setStatusInput] = useState('');
     const [caseTypeMessage, setCaseTypeMessage] = useState('');
     const [assigneeMessage, setAssigneeMessage] = useState('');
+    const [autoNfaFromExpiredKiv, setAutoNfaFromExpiredKiv] = useState(false);
     const [approverStaffId, setApproverStaffId] = useState('');
     const [districtOptions, setDistrictOptions] = useState([]);
     const [basicEditing, setBasicEditing] = useState(false);
@@ -254,6 +255,7 @@ const ComplaintDetail = () => {
         oyds: true,
         seizure: true,
         police_report: true,
+        op: true,
     });
     const [oydUploadDrafts, setOydUploadDrafts] = useState({});
     const [seizureUploadDrafts, setSeizureUploadDrafts] = useState({});
@@ -266,8 +268,8 @@ const ComplaintDetail = () => {
     const isPegawaiRole = ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
     const isPegawaiDaerahRole = role === 'pegawai_daerah';
     const detailTopBoxTitle = 'Aduan';
-    const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase();
-    const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp_web'].includes(complaintChannelNormalized);
+    const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase().replace(/_/g, '-');
+    const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp-web'].includes(complaintChannelNormalized);
     const isBasicEditLockedBySource = LOCKED_BASIC_EDIT_CHANNELS.includes(complaintChannelNormalized);
     const effectiveInformantName = (complaint?.informant_name || '').trim();
     const effectiveInformantIdNumber = (complaint?.informant_identification_number || '').trim();
@@ -533,9 +535,14 @@ const ComplaintDetail = () => {
         return nfaDeadlineAt.getTime() - timeTick;
     }, [nfaDeadlineAt, timeTick]);
 
+    const isWithinAutoNfaMessageWindow = useMemo(() => {
+        if (kivRemainingMs == null || kivRemainingMs > 0) return false;
+        return Math.abs(kivRemainingMs) <= (24 * 60 * 60 * 1000);
+    }, [kivRemainingMs]);
+
     const formatKivCountdown = useCallback((ms) => {
         if (ms == null) return '';
-        if (ms <= 0) return 'Tempoh tamat (auto NFA)';
+        if (ms <= 0) return '';
         const dayMs = 24 * 60 * 60 * 1000;
         const daysLeft = Math.ceil(ms / dayMs);
         return `${daysLeft} hari lagi`;
@@ -552,7 +559,7 @@ const ComplaintDetail = () => {
     }, []);
 
     useEffect(() => {
-        if (!isPegawaiRole || !id) return;
+        if (!id) return;
         if (ajPayload.classification !== 'KIV') return;
         if (kivRemainingMs == null || kivRemainingMs > 0) return;
 
@@ -564,8 +571,18 @@ const ComplaintDetail = () => {
             if (prev.classification !== 'KIV') return prev;
             return { ...prev, classification: 'NFA' };
         });
+        setAutoNfaFromExpiredKiv(true);
         toast.info('Tempoh KIV tamat. Klasifikasi ditukar kepada NFA. Sila klik Simpan.');
-    }, [ajPayload.classification, id, isPegawaiRole, kivRemainingMs, toast]);
+    }, [ajPayload.classification, id, kivRemainingMs, toast]);
+
+    const savedAjClassification = normalizePpaClassification(complaint?.aj_ppa_classification);
+    const isExpiredKivContext = (ajPayload.classification === 'KIV'
+        || (ajPayload.classification === 'NFA' && savedAjClassification === 'KIV'))
+        && kivRemainingMs != null
+        && kivRemainingMs <= 0;
+    const isKivAutoNfa = ajPayload.classification === 'KIV' && isExpiredKivContext;
+    const effectiveAjClassification = isKivAutoNfa ? 'NFA' : ajPayload.classification;
+    const showAutoNfaMessage = isWithinAutoNfaMessageWindow && (autoNfaFromExpiredKiv || isKivAutoNfa);
 
     const saveBasic = () => {
         const currentStage = (complaint?.current_stage || '').toString();
@@ -1082,7 +1099,7 @@ const ComplaintDetail = () => {
 
     const insertArahanTindakanTemplate = () => {
         const classification = normalizePpaClassification(
-            ajPayload.classification || complaint?.aj_ppa_classification || ''
+            effectiveAjClassification || complaint?.aj_ppa_classification || ''
         );
 
         if (!classification) {
@@ -1590,7 +1607,11 @@ const ComplaintDetail = () => {
         setPayloadMessage('');
         axios.post(`${apiUrl}/complaints/${id}/aj`, {
             // Keep fir_no consistent with reference_no (Zoho field is effectively No Aduan).
-            payload: { ...ajPayload, fir_no: complaint?.reference_no || ajPayload.fir_no || '' },
+            payload: {
+                ...ajPayload,
+                classification: effectiveAjClassification,
+                fir_no: complaint?.reference_no || ajPayload.fir_no || '',
+            },
         }, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -1623,8 +1644,10 @@ const ComplaintDetail = () => {
                             setPayloadMessage(successMsg);
                             toast.success(successMsg);
                         })
-                        .catch(() => {
-                            toast.error('Gagal kemaskini maklumat.');
+                        .catch((err) => {
+                            const msg = err?.response?.data?.message || 'Gagal kemaskini maklumat.';
+                            setPayloadMessage(msg);
+                            toast.error(msg);
                         });
                 }
                 return undefined;
@@ -1674,8 +1697,10 @@ const ComplaintDetail = () => {
                             }
                             toast.success('Maklumat telah dikemaskini.');
                         })
-                        .catch(() => {
-                            toast.error('Gagal kemaskini maklumat.');
+                        .catch((err) => {
+                            const msg = err?.response?.data?.message || 'Gagal kemaskini maklumat.';
+                            setPayloadMessage(msg);
+                            toast.error(msg);
                         });
                 }
                 return undefined;
@@ -1948,7 +1973,7 @@ const ComplaintDetail = () => {
         }
         if ((complaint?.case_type || 'AJ') === 'AJ') {
             const missingFields = [];
-            const classification = (ajPayload.classification || '').toString().trim();
+            const classification = (effectiveAjClassification || '').toString().trim();
             const offenseId = (ajPayload.offense_id || '').toString().trim();
             const borang5Statement = (basicDraft.borang5_statement || '').toString().trim();
             const incidentAddress = (basicDraft.address || '').toString().trim();
@@ -3243,21 +3268,26 @@ const ComplaintDetail = () => {
                                             const isKiv = option.value === 'KIV';
                                             const isNfa = option.value === 'NFA';
                                             const kivText = isKiv ? formatKivCountdown(kivRemainingMs) : '';
-                                            const nfaText = isNfa ? formatNfaCountdown(nfaRemainingMs) : '';
-                                            const showTimer = ajPayload.classification === option.value && Boolean(kivText || nfaText);
+                                            const nfaText = isNfa
+                                                ? (showAutoNfaMessage ? 'Tempoh tamat (auto NFA)' : formatNfaCountdown(nfaRemainingMs))
+                                                : '';
+                                            const showTimer = effectiveAjClassification === option.value && Boolean(kivText || nfaText);
                                             const timerText = kivText || nfaText;
                                             const isDanger = (isKiv && (kivRemainingMs ?? 0) <= (8 * 24 * 60 * 60 * 1000))
-                                                || (isNfa && (nfaRemainingMs ?? 1) <= 0);
+                                                || (isNfa && (isExpiredKivContext || (nfaRemainingMs ?? 1) <= 0));
                                             const isWarning = (isKiv && (kivRemainingMs ?? 0) > (8 * 24 * 60 * 60 * 1000) && (kivRemainingMs ?? 0) <= (10 * 24 * 60 * 60 * 1000))
                                                 || (isNfa && (nfaRemainingMs ?? 0) > 0 && (nfaRemainingMs ?? 0) <= (6 * 60 * 60 * 1000));
                                             return (
-                                            <label key={option.value} className={ajPayload.classification === option.value ? 'active' : ''}>
+                                            <label key={option.value} className={effectiveAjClassification === option.value ? 'active' : ''}>
                                                 <input
                                                     type="radio"
                                                     name="aj_classification"
                                                     value={option.value}
-                                                    checked={ajPayload.classification === option.value}
-                                                    onChange={() => setAjPayload((prev) => ({ ...prev, classification: option.value }))}
+                                                    checked={effectiveAjClassification === option.value}
+                                                    onChange={() => {
+                                                        setAutoNfaFromExpiredKiv(false);
+                                                        setAjPayload((prev) => ({ ...prev, classification: option.value }));
+                                                    }}
                                                 />
                                                 <span className="app-classification-option">
                                                     <span>{option.label}</span>
@@ -4228,52 +4258,6 @@ const ComplaintDetail = () => {
                                     )}
                                 </div>
 
-                                <div className="app-form-grid">
-                                <label className="app-form-field app-span-full">
-                                    <span>Kategori OP</span>
-                                    <div className="app-inline-radio-group">
-                                        {AJ_OP_CATEGORY_OPTIONS.map((option) => (
-                                            <label className="app-inline-radio app-inline-radio-compact" key={option}>
-                                                <input
-                                                    type="radio"
-                                                    name="aj_op_category"
-                                                    value={option}
-                                                    checked={ajActionReport.op_category === option}
-                                                    onChange={() => updateActionReportField('op_category', option)}
-                                                />
-                                                <span>{option}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </label>
-
-                                <label className="app-form-field app-span-full">
-                                    <span>Status Kes OP</span>
-                                    <div className="app-inline-radio-group">
-                                        {AJ_OP_CASE_STATUS_OPTIONS.map((option) => (
-                                            <label className="app-inline-radio app-inline-radio-compact" key={option}>
-                                                <input
-                                                    type="radio"
-                                                    name="aj_op_case_status"
-                                                    value={option}
-                                                    checked={ajActionReport.op_case_status === option}
-                                                    onChange={() => updateActionReportField('op_case_status', option)}
-                                                />
-                                                <span>{option}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </label>
-
-                                <label className="app-form-field app-span-full">
-                                    <span>Catatan OP</span>
-                                    <textarea
-                                        rows="4"
-                                        value={ajActionReport.op_notes || ''}
-                                        onChange={(event) => updateActionReportField('op_notes', event.target.value)}
-                                    />
-                                </label>
-
                                 <div className="app-report-sticky app-span-full">
                                     <button className="app-button" type="button" onClick={submitAjActionReport} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
@@ -4302,7 +4286,6 @@ const ComplaintDetail = () => {
                                         Jana Tindakan
                                     </button>
                                 </div>
-                            </div>
                             </div>
                         </div>
                     )}
@@ -4988,6 +4971,65 @@ const ComplaintDetail = () => {
                                                 </div>
                                             )}
                                         </>
+                                    )}
+                                </div>
+                                <div className="app-report-section">
+                                    <button
+                                        className="app-report-toggle"
+                                        type="button"
+                                        onClick={() => toggleReportSection('op')}
+                                        aria-expanded={reportSections.op}
+                                    >
+                                        <h5>BUTIRAN OP</h5>
+                                        <i className={`bi ${reportSections.op ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                                    </button>
+                                    {reportSections.op && (
+                                        <div className="app-form-grid app-report-grid">
+                                            <label className="app-form-field app-span-full">
+                                                <span>Kategori OP</span>
+                                                <div className="app-inline-radio-group">
+                                                    {AJ_OP_CATEGORY_OPTIONS.map((option) => (
+                                                        <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                                            <input
+                                                                type="radio"
+                                                                name="aj_op_category"
+                                                                value={option}
+                                                                checked={ajActionReport.op_category === option}
+                                                                onChange={() => updateActionReportField('op_category', option)}
+                                                            />
+                                                            <span>{option}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </label>
+
+                                            <label className="app-form-field app-span-full">
+                                                <span>Status Kes OP</span>
+                                                <div className="app-inline-radio-group">
+                                                    {AJ_OP_CASE_STATUS_OPTIONS.map((option) => (
+                                                        <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                                            <input
+                                                                type="radio"
+                                                                name="aj_op_case_status"
+                                                                value={option}
+                                                                checked={ajActionReport.op_case_status === option}
+                                                                onChange={() => updateActionReportField('op_case_status', option)}
+                                                            />
+                                                            <span>{option}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </label>
+
+                                            <label className="app-form-field app-span-full">
+                                                <span>Catatan OP</span>
+                                                <textarea
+                                                    rows="4"
+                                                    value={ajActionReport.op_notes || ''}
+                                                    onChange={(event) => updateActionReportField('op_notes', event.target.value)}
+                                                />
+                                            </label>
+                                        </div>
                                     )}
                                 </div>
                                 <div className="app-report-sticky">

@@ -3,6 +3,7 @@ import axios from 'axios';
 import PaginationBar from '../../components/PaginationBar';
 import SortableHeader from '../../components/SortableHeader';
 import { sortRows } from '../../utils/sort';
+import { formatMalaysiaDateTimeStamp } from '../../utils/dateTime';
 
 const AuditTrailList = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
@@ -108,7 +109,7 @@ const AuditTrailList = () => {
             const href = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = href;
-            link.setAttribute('download', `audit-trail-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`);
+            link.setAttribute('download', `audit-trail-${formatMalaysiaDateTimeStamp()}.csv`);
             document.body.appendChild(link);
             link.click();
             link.remove();

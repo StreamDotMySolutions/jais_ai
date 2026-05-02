@@ -2794,7 +2794,12 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $allowedWhenBasicLocked = ['borang5_statement', 'offense_id'];
+        $allowedWhenBasicLocked = [
+            'borang5_statement',
+            'offense_id',
+            'complaint_date',
+            'complaint_time',
+        ];
         $requestKeys = collect($request->keys())
             ->reject(fn ($key) => str_starts_with((string) $key, '_'))
             ->values()
@@ -3161,6 +3166,9 @@ class ComplaintController extends Controller
             'report.police_report_status' => 'nullable|in:ada,tiada',
             'report.police_reports' => 'nullable|array',
             'report.file_no' => 'nullable|string|max:255',
+            'report.op_category' => 'nullable|string|max:255',
+            'report.op_case_status' => 'nullable|string|max:255',
+            'report.op_notes' => 'nullable|string|max:20000',
         ]);
 
         $report = $request->report;
@@ -5037,17 +5045,12 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $rawRecipients = trim((string) env('BORANG5_AUTO_EMAIL_TO', ''));
-        if ($rawRecipients === '') {
+        $recipients = $this->resolveAutoEmailRecipients('BORANG5_AUTO_EMAIL_TO', 'BORANG5_AUTO_EMAIL_CC');
+        if (empty($recipients['to']) && empty($recipients['cc'])) {
             return null;
         }
 
-        $emails = collect(preg_split('/[;,]+/', $rawRecipients))
-            ->map(fn ($email) => trim((string) $email))
-            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->values()
-            ->all();
-        if (empty($emails)) {
+        if (empty($recipients['to'])) {
             return [
                 'sent' => false,
                 'reason' => 'invalid_recipient_config',
@@ -5174,11 +5177,14 @@ class ComplaintController extends Controller
         $pdfFileName = 'BORANG 5 - FIR.pdf';
 
         try {
-            Mail::send([], [], function ($message) use ($emails, $subject, $html, $pdfBinary, $pdfFileName): void {
-                $message->to($emails)
+            Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($recipients['to'])
                     ->subject($subject)
                     ->html($html)
                     ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
+                if (! empty($recipients['cc'])) {
+                    $message->cc($recipients['cc']);
+                }
             });
 
             $complaint->forceFill([
@@ -5187,7 +5193,8 @@ class ComplaintController extends Controller
 
             return [
                 'sent' => true,
-                'to' => $emails,
+                'to' => $recipients['to'],
+                'cc' => $recipients['cc'],
                 'subject' => $subject,
             ];
         } catch (\Throwable $e) {
@@ -5220,17 +5227,12 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $rawRecipients = trim((string) env('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', ''));
-        if ($rawRecipients === '') {
+        $recipients = $this->resolveAutoEmailRecipients('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', 'LAPORAN_TINDAKAN_AUTO_EMAIL_CC');
+        if (empty($recipients['to']) && empty($recipients['cc'])) {
             return null;
         }
 
-        $emails = collect(preg_split('/[;,]+/', $rawRecipients))
-            ->map(fn ($email) => trim((string) $email))
-            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->values()
-            ->all();
-        if (empty($emails)) {
+        if (empty($recipients['to'])) {
             return [
                 'sent' => false,
                 'reason' => 'invalid_recipient_config',
@@ -5324,11 +5326,14 @@ class ComplaintController extends Controller
         $pdfFileName = 'BORANG 5 - KES.pdf';
 
         try {
-            Mail::send([], [], function ($message) use ($emails, $subject, $html, $pdfBinary, $pdfFileName): void {
-                $message->to($emails)
+            Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($recipients['to'])
                     ->subject($subject)
                     ->html($html)
                     ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
+                if (! empty($recipients['cc'])) {
+                    $message->cc($recipients['cc']);
+                }
             });
 
             $complaint->forceFill([
@@ -5337,7 +5342,8 @@ class ComplaintController extends Controller
 
             return [
                 'sent' => true,
-                'to' => $emails,
+                'to' => $recipients['to'],
+                'cc' => $recipients['cc'],
                 'subject' => $subject,
             ];
         } catch (\Throwable $e) {
@@ -5370,29 +5376,8 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $rawRecipients = trim((string) env('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', ''));
-        if ($rawRecipients === '') {
-            return null;
-        }
-
-        $toEmails = collect(preg_split('/[;,]+/', $rawRecipients))
-            ->map(fn ($email) => trim((string) $email))
-            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->values()
-            ->all();
-
-        $ccEmails = collect(preg_split('/[;,]+/', trim((string) env('LAPORAN_TINDAKAN_AUTO_EMAIL_CC', ''))))
-            ->map(fn ($email) => trim((string) $email))
-            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->values()
-            ->all();
-
-        if (count($toEmails) > 1 && empty($ccEmails)) {
-            $ccEmails = array_slice($toEmails, 1);
-            $toEmails = array_slice($toEmails, 0, 1);
-        }
-
-        if (empty($toEmails)) {
+        $recipients = $this->resolveAutoEmailRecipients('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', 'LAPORAN_TINDAKAN_AUTO_EMAIL_CC');
+        if (empty($recipients['to'])) {
             return [
                 'sent' => false,
                 'reason' => 'invalid_recipient_config',
@@ -5472,14 +5457,14 @@ class ComplaintController extends Controller
         $pdfFileName = 'BORANG 5 - KES.pdf';
 
         try {
-            Mail::send([], [], function ($message) use ($toEmails, $ccEmails, $subject, $html, $pdfBinary, $pdfFileName): void {
-                $message->to($toEmails)
+            Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($recipients['to'])
                     ->subject($subject)
                     ->html($html)
                     ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
 
-                if (! empty($ccEmails)) {
-                    $message->cc($ccEmails);
+                if (! empty($recipients['cc'])) {
+                    $message->cc($recipients['cc']);
                 }
             });
 
@@ -5497,8 +5482,8 @@ class ComplaintController extends Controller
 
             return [
                 'sent' => true,
-                'to' => $toEmails,
-                'cc' => $ccEmails,
+                'to' => $recipients['to'],
+                'cc' => $recipients['cc'],
                 'subject' => $subject,
             ];
         } catch (\Throwable $e) {
@@ -5512,6 +5497,37 @@ class ComplaintController extends Controller
                 'reason' => 'send_failed',
             ];
         }
+    }
+
+    private function resolveAutoEmailRecipients(string $toEnvKey, string $ccEnvKey): array
+    {
+        $to = $this->parseEmailEnv((string) env($toEnvKey, ''));
+        $cc = $this->parseEmailEnv((string) env($ccEnvKey, ''));
+
+        if (empty($cc) && count($to) > 1) {
+            $cc = array_slice($to, 1);
+            $to = array_slice($to, 0, 1);
+        }
+
+        if (! empty($cc)) {
+            $toLookup = array_flip(array_map('strtolower', $to));
+            $cc = array_values(array_filter($cc, fn ($email) => ! isset($toLookup[strtolower($email)])));
+        }
+
+        return [
+            'to' => array_values($to),
+            'cc' => array_values($cc),
+        ];
+    }
+
+    private function parseEmailEnv(string $raw): array
+    {
+        return collect(preg_split('/[;,]+/', trim($raw)))
+            ->map(fn ($email) => trim((string) $email))
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique(fn ($email) => strtolower($email))
+            ->values()
+            ->all();
     }
 
     private function resolveStaffOfficePhone(?Staff $staff): string
@@ -6216,8 +6232,8 @@ class ComplaintController extends Controller
 
     private function isBasicOfficerEditLockedByChannel(?string $channel): bool
     {
-        $normalized = strtolower(trim((string) $channel));
-        return in_array($normalized, ['portal', 'web', 'whatsapp-meta', 'whatsapp-web'], true);
+        $normalized = str_replace('_', '-', strtolower(trim((string) $channel)));
+        return in_array($normalized, ['portal', 'web', 'whatsapp', 'whatsapp-meta', 'whatsapp-web'], true);
     }
 
     private function resolveUserDistrictId($user): ?int

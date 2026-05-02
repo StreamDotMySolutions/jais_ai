@@ -22,6 +22,11 @@ const COUNT_OPTIONS = [
 
 const CONSENT_TEXT_VERSION = 'v1';
 
+const formatLocalDateInput = (date = new Date()) => {
+    const pad = (value) => String(value).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
 const escapePdfText = (value = '') => String(value)
     .replace(/\\/g, '\\\\')
     .replace(/\(/g, '\\(')
@@ -105,7 +110,7 @@ function ComplaintForm({
 
         const now = new Date();
         const year = now.getFullYear();
-        const date = now.toISOString().slice(0, 10);
+        const date = formatLocalDateInput(now);
         const time = now.toTimeString().slice(0, 5);
         store.setValue('complaint_year', year);
         store.setValue('complaint_date', date);

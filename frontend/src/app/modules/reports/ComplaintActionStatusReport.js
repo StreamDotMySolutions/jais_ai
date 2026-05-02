@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { formatMalaysiaDateTimeStamp } from '../../utils/dateTime';
 
 const CLASSIFICATION_OPTIONS = ['FNA', 'KIV', 'NFA', 'OP'];
 
@@ -77,7 +78,7 @@ const ComplaintActionStatusReport = ({
             });
             const disposition = response?.headers?.['content-disposition'] || '';
             const match = disposition.match(/filename="?([^"]+)"?/i);
-            const filename = match?.[1] || `aduan-action-status-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
+            const filename = match?.[1] || `aduan-action-status-${formatMalaysiaDateTimeStamp()}.xlsx`;
             const blob = new Blob([response.data], {
                 type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             });

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import ListPageLayout from '../../components/ListPageLayout';
 import PaginationBar from '../../components/PaginationBar';
+import { formatMalaysiaDateStamp } from '../../utils/dateTime';
 
 const downloadBlob = (blob, filename) => {
     const blobUrl = window.URL.createObjectURL(blob);
@@ -75,7 +76,7 @@ const WaranList = () => {
         })
             .then((response) => {
                 const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'text/csv' });
-                downloadBlob(blob, `i-waran-export-${new Date().toISOString().slice(0, 10)}.csv`);
+                downloadBlob(blob, `i-waran-export-${formatMalaysiaDateStamp()}.csv`);
             })
             .catch(() => {
                 setError('Gagal export CSV.');
@@ -101,7 +102,7 @@ const WaranList = () => {
         })
             .then((response) => {
                 const blob = new Blob([response.data], { type: response.headers?.['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                downloadBlob(blob, `i-waran-export-${new Date().toISOString().slice(0, 10)}.xlsx`);
+                downloadBlob(blob, `i-waran-export-${formatMalaysiaDateStamp()}.xlsx`);
             })
             .catch(() => {
                 setError('Gagal export Excel.');
