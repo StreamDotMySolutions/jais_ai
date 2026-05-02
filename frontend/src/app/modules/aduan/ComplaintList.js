@@ -702,9 +702,10 @@ const ComplaintList = ({
         { key: 'row_no', label: 'Bil', sortable: false },
         { key: 'aduan', label: 'Aduan', sortable: false },
         { key: 'lokasi', label: 'Daerah / Kategori', sortable: false },
-        { key: 'status_group', label: 'Status / Tindakan', sortable: false },
+        { key: 'status_group', label: 'Status', sortable: false },
+        { key: 'workflow_action', label: 'Tindakan', sortable: false },
         { key: 'summary', label: 'Butiran Aduan', sortable: false },
-        { key: 'actions', label: 'Tindakan', sortable: false },
+        { key: 'actions', label: 'Aksi', sortable: false },
     ];
 
     const sortAccessors = useMemo(() => ({

@@ -308,13 +308,15 @@ const ComplaintListInternalView = ({
                     <span>Bil</span>
                     <span>Aduan</span>
                     <span>Daerah / Kategori</span>
-                    <span>Status / Tindakan</span>
-                    <span>Butiran Aduan</span>
+                    <span>Status</span>
                     <span>Tindakan</span>
+                    <span>Butiran Aduan</span>
+                    <span>Aksi</span>
                 </div>
                 {Array.from({ length: 6 }, (_, index) => (
                     <div key={`skeleton-row-${index}`} className="app-table-row">
                         <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                        <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
@@ -342,6 +344,7 @@ const ComplaintListInternalView = ({
                     const expandedSections = getExpandedSections(item);
                     const localUserName = (localStorage.getItem('user_name') || '').trim().toLowerCase();
                     const receiverName = (item?.received_by?.name || item?.receivedBy?.name || '').trim();
+                    const approverName = (item?.approver_staff?.name || item?.approverStaff?.name || '').trim();
                     const isLockedByCurrentUser = Boolean(
                         item.current_stage === 'baru'
                         && receiverName
@@ -380,9 +383,6 @@ const ComplaintListInternalView = ({
                                     )}
                                 </span>
                                 <span>
-                                    <span className="app-status-pill">
-                                        {getComplaintStageLabel(item.current_stage || 'baru', userRole)}
-                                    </span>
                                     {(() => {
                                         const ajCurrentStatusDisplay = String(item?.aj_current_status || '').trim() === 'Other'
                                             ? (item?.aj_current_status_other || 'Other')
@@ -408,10 +408,8 @@ const ComplaintListInternalView = ({
                                         const opCategory = item.case_type === 'AJ'
                                             ? String(item.aj_op_category || '').trim()
                                             : '';
-                                        const receiverName = item?.received_by?.name || item?.receivedBy?.name || '';
-                                        const approverName = item?.approver_staff?.name || item?.approverStaff?.name || '';
                                         const classificationAlert = getClassificationAlert ? getClassificationAlert(item) : null;
-                                        const show = Boolean(classificationAlert || ipStatus || prosecutionStatus || opCaseStatus || opCategory || receiverName || approverName);
+                                        const show = Boolean(classificationAlert || ipStatus || prosecutionStatus || opCaseStatus || opCategory);
                                         if (!show) {
                                             return null;
                                         }
@@ -444,19 +442,28 @@ const ComplaintListInternalView = ({
                                                         OP: {opCaseStatus || opCategory}
                                                     </span>
                                                 )}
-                                                {receiverName && (
-                                                    <span className="app-status-meta-line" title={`Penerima Aduan: ${receiverName}`}>
-                                                        Penerima: {receiverName}
-                                                    </span>
-                                                )}
-                                                {approverName && (
-                                                    <span className="app-status-meta-line" title={`Pegawai Pengesah: ${approverName}`}>
-                                                        Pengesah: {approverName}
-                                                    </span>
-                                                )}
                                             </span>
                                         );
                                     })()}
+                                </span>
+                                <span>
+                                    <span className="app-status-pill">
+                                        {getComplaintStageLabel(item.current_stage || 'baru', userRole)}
+                                    </span>
+                                    {(receiverName || approverName) && (
+                                        <span className="app-status-stack">
+                                            {receiverName && (
+                                                <span className="app-status-meta-line" title={`Penerima Aduan: ${receiverName}`}>
+                                                    Penerima: {receiverName}
+                                                </span>
+                                            )}
+                                            {approverName && (
+                                                <span className="app-status-meta-line" title={`Pegawai Pengesah: ${approverName}`}>
+                                                    Pengesah: {approverName}
+                                                </span>
+                                            )}
+                                        </span>
+                                    )}
                                 </span>
                                 <span className="app-summary">
                                     {item.summary || '-'}
