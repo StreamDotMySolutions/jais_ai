@@ -514,6 +514,11 @@ const ComplaintDetail = () => {
         return nfaDeadlineAt.getTime() - timeTick;
     }, [nfaDeadlineAt, timeTick]);
 
+    const isWithinAutoNfaMessageWindow = useMemo(() => {
+        if (kivRemainingMs == null || kivRemainingMs > 0) return false;
+        return Math.abs(kivRemainingMs) <= (24 * 60 * 60 * 1000);
+    }, [kivRemainingMs]);
+
     const formatKivCountdown = useCallback((ms) => {
         if (ms == null) return '';
         if (ms <= 0) return '';
@@ -556,7 +561,7 @@ const ComplaintDetail = () => {
         && kivRemainingMs <= 0;
     const isKivAutoNfa = ajPayload.classification === 'KIV' && isExpiredKivContext;
     const effectiveAjClassification = isKivAutoNfa ? 'NFA' : ajPayload.classification;
-    const showAutoNfaMessage = autoNfaFromExpiredKiv || isKivAutoNfa;
+    const showAutoNfaMessage = isWithinAutoNfaMessageWindow && (autoNfaFromExpiredKiv || isKivAutoNfa);
 
     const saveBasic = () => {
         const currentStage = (complaint?.current_stage || '').toString();

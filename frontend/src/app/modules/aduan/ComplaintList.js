@@ -662,6 +662,7 @@ const ComplaintList = ({
             const dayMs = 24 * 60 * 60 * 1000;
 
             if (remainingMs <= 0) {
+                if (Math.abs(remainingMs) > dayMs) return null;
                 return { text: 'KIV tamat (auto NFA)', tone: 'is-danger', blink: true };
             }
 
