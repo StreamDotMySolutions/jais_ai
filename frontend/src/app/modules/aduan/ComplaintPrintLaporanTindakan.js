@@ -2,12 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 
-const ComplaintPrintLaporanTindakan = () => {
+const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
     const { id } = useParams();
     const apiUrl = process.env.REACT_APP_API_URL;
     const [complaint, setComplaint] = useState(null);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(true);
+    const isCasePrint = source === 'case';
 
     useEffect(() => {
         if (!apiUrl) {
@@ -16,7 +17,7 @@ const ComplaintPrintLaporanTindakan = () => {
             return;
         }
         const token = localStorage.getItem('token');
-        axios.get(`${apiUrl}/complaints/${id}`, {
+        axios.get(`${apiUrl}/${isCasePrint ? 'cases' : 'complaints'}/${id}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
             .then((response) => {
@@ -28,7 +29,7 @@ const ComplaintPrintLaporanTindakan = () => {
             .finally(() => {
                 setIsLoading(false);
             });
-    }, [apiUrl, id]);
+    }, [apiUrl, id, isCasePrint]);
 
     const renderValue = (value) => value || '-';
 
@@ -41,10 +42,14 @@ const ComplaintPrintLaporanTindakan = () => {
     }
 
     if (!complaint) {
-        return <div className="print-loading">Aduan tidak ditemui.</div>;
+        return <div className="print-loading">{isCasePrint ? 'Kes tidak ditemui.' : 'Aduan tidak ditemui.'}</div>;
     }
 
-    const laporanText = complaint?.aj_report_notes || '';
+    const caseSource = isCasePrint ? complaint : (complaint?.primary_case || null);
+    const linkedComplaint = isCasePrint
+        ? ((Array.isArray(caseSource?.complaints) && caseSource.complaints.length) ? caseSource.complaints[0] : null)
+        : complaint;
+    const laporanText = caseSource?.report_notes || linkedComplaint?.aj_report_notes || '';
 
     const pad2 = (value) => String(value ?? '').padStart(2, '0');
 
@@ -86,13 +91,18 @@ const ComplaintPrintLaporanTindakan = () => {
         return `${hh12}.${pad2(mm)} ${isPm ? 'PM' : 'AM'}`;
     };
 
-    const tarikhMasa = complaint?.aj_action_datetime || '';
+    const tarikhMasa = caseSource?.action_datetime || caseSource?.statement_datetime || linkedComplaint?.aj_action_datetime || '';
 
     const noDaftar = (() => {
-        const referenceNo = String(complaint?.reference_no || '').trim();
-        const normalizedDistrict = String(complaint?.district_name || '').trim();
-        const normalizedYear = String(complaint?.complaint_year || '').trim();
-        const dateMonth = String(complaint?.complaint_date || '').slice(5, 7);
+        const caseRegisterNo = String(caseSource?.case_register_no || '').trim();
+        if (caseRegisterNo) {
+            return caseRegisterNo;
+        }
+
+        const referenceNo = String(linkedComplaint?.reference_no || '').trim();
+        const normalizedDistrict = String(linkedComplaint?.district_name || caseSource?.district_name || '').trim();
+        const normalizedYear = String(linkedComplaint?.complaint_year || caseSource?.complaint_year || '').trim();
+        const dateMonth = String(linkedComplaint?.complaint_date || '').slice(5, 7);
 
         // Expected reference format: AJ-Klang / 2026 / 04 / 0006
         const parts = referenceNo.split('/').map((part) => part.trim()).filter(Boolean);
@@ -106,7 +116,7 @@ const ComplaintPrintLaporanTindakan = () => {
         return `KES-${district} / ${year} / ${month} / ${runningNo}`;
     })();
 
-    const arrestStaff = complaint?.aj_arrest_staff || complaint?.ajArrestStaff || null;
+    const arrestStaff = caseSource?.arrest_staff || caseSource?.arrestStaff || linkedComplaint?.aj_arrest_staff || linkedComplaint?.ajArrestStaff || null;
     const officerName = arrestStaff?.name || '';
     const officerIdNo = arrestStaff?.staff_id || arrestStaff?.ic_number || '-';
     const officerJob = arrestStaff?.position || '-';
@@ -119,7 +129,7 @@ const ComplaintPrintLaporanTindakan = () => {
     return (
         <div className="print-page">
             <div className="print-toolbar no-print">
-                <Link className="app-button app-button-ghost" to={`/app/complaints/${id}`}>
+                <Link className="app-button app-button-ghost" to={isCasePrint ? `/app/cases/${id}` : `/app/complaints/${id}`}>
                     Kembali
                 </Link>
                 <button className="app-button" type="button" onClick={() => window.print()}>

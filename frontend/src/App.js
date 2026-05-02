@@ -132,7 +132,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/app/complaints/:id/print/borang-5" element={<ComplaintPrintBorang5 />} />
           <Route path="/app/complaints/:id/print/tindakan-aduan" element={<ComplaintPrintTindakanAduan />} />
-          <Route path="/app/complaints/:id/print/laporan-tindakan" element={<ComplaintPrintLaporanTindakan />} />
+          <Route path="/app/cases/:id/print/laporan-tindakan" element={<ComplaintPrintLaporanTindakan source="case" />} />
           <Route path="/app/complaints/:id/print/ak-siasatan-slip" element={<ComplaintPrintAkSiasatanSlip />} />
           <Route path="/app/i-waran/:id/print" element={<WaranPrint />} />
           <Route path="/app/appointments/popup" element={<AppointmentCalendar isPopup />} />

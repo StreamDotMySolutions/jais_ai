@@ -28,6 +28,20 @@ const formatArrestStatus = (value) => {
     return '-';
 };
 
+const formatOpStatus = (status, category) => {
+    const statusText = String(status || '').trim();
+    const categoryText = String(category || '').trim();
+    if (statusText && categoryText) return `OP: ${statusText} (${categoryText})`;
+    if (statusText) return `OP: ${statusText}`;
+    if (categoryText) return `OP: ${categoryText}`;
+    return '';
+};
+
+const formatExistingComplaintCase = (complaint) => {
+    const caseNo = String(complaint?.case_register_no || '').trim();
+    return caseNo ? `Kes sedia ada: ${caseNo}` : '';
+};
+
 const CaseList = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
@@ -296,6 +310,9 @@ const CaseList = () => {
                                                 <strong>{complaint.reference_no || `Aduan #${complaint.id}`}</strong>
                                                 <span>{complaint.complainant_name || '-'}</span>
                                                 <small>{complaint.district_name || '-'} | {formatDateTime(`${complaint.complaint_date || ''}T${complaint.complaint_time || '00:00:00'}`)}</small>
+                                                {formatExistingComplaintCase(complaint) && (
+                                                    <small className="app-case-linked-case-no">{formatExistingComplaintCase(complaint)}</small>
+                                                )}
                                             </span>
                                         </label>
                                     ))}
@@ -315,6 +332,9 @@ const CaseList = () => {
                                                 <div>
                                                     <strong>{complaint.reference_no || `Aduan #${complaint.id}`}</strong>
                                                     <span>{complaint.complainant_name || '-'}</span>
+                                                    {formatExistingComplaintCase(complaint) && (
+                                                        <small className="app-case-linked-case-no">{formatExistingComplaintCase(complaint)}</small>
+                                                    )}
                                                 </div>
                                                 <button
                                                     type="button"
@@ -385,6 +405,11 @@ const CaseList = () => {
                                 <div className="app-complaint-cell">
                                     <span className="app-status-pill">{item.current_status || '-'}</span>
                                     <span className="app-complaint-cell-meta">{formatArrestStatus(item.arrest_status)}</span>
+                                    {formatOpStatus(item.op_case_status, item.op_category) && (
+                                        <span className="app-complaint-cell-meta app-case-op-status">
+                                            {formatOpStatus(item.op_case_status, item.op_category)}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="app-case-linked-wrap">
                                     <strong>{item.complaints_count || 0} aduan</strong>
@@ -395,7 +420,10 @@ const CaseList = () => {
                                                 type="button"
                                                 className="app-link app-link-button app-case-linked-link"
                                                 onClick={() => navigate(`/app/complaints/${complaint.id}`)}
-                                                title={complaint.reference_no || `Aduan #${complaint.id}`}
+                                                title={[
+                                                    complaint.reference_no || `Aduan #${complaint.id}`,
+                                                    formatExistingComplaintCase(complaint),
+                                                ].filter(Boolean).join(' | ')}
                                             >
                                                 {complaint.reference_no || `Aduan #${complaint.id}`}
                                             </button>

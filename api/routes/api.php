@@ -141,6 +141,39 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('case');
     Route::put('/cases/{case}', [App\Http\Controllers\ComplaintController::class, 'caseUpdate'])
         ->whereNumber('case');
+    Route::post('/cases/{case}/oyds', [App\Http\Controllers\ComplaintController::class, 'createCaseOyd'])
+        ->whereNumber('case');
+    Route::post('/cases/{case}/seizure-items', [App\Http\Controllers\ComplaintController::class, 'createCaseSeizureItem'])
+        ->whereNumber('case');
+    Route::post('/cases/{case}/police-reports', [App\Http\Controllers\ComplaintController::class, 'createCasePoliceReport'])
+        ->whereNumber('case');
+    Route::post('/cases/{case}/oyds/{oyd}/media', [App\Http\Controllers\ComplaintController::class, 'uploadCaseOydMedia'])
+        ->whereNumber('case')
+        ->whereNumber('oyd');
+    Route::post('/cases/{case}/seizure-items/{item}/media', [App\Http\Controllers\ComplaintController::class, 'uploadCaseSeizureItemMedia'])
+        ->whereNumber('case')
+        ->whereNumber('item');
+    Route::post('/cases/{case}/police-reports/{report}/media', [App\Http\Controllers\ComplaintController::class, 'uploadCasePoliceReportMedia'])
+        ->whereNumber('case')
+        ->whereNumber('report');
+    Route::delete('/cases/{case}/oyd-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteCaseOydMedia'])
+        ->whereNumber('case')
+        ->whereNumber('media');
+    Route::delete('/cases/{case}/seizure-item-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteCaseSeizureItemMedia'])
+        ->whereNumber('case')
+        ->whereNumber('media');
+    Route::delete('/cases/{case}/police-report-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteCasePoliceReportMedia'])
+        ->whereNumber('case')
+        ->whereNumber('media');
+    Route::get('/cases/{case}/oyd-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadCaseOydMedia'])
+        ->whereNumber('case')
+        ->whereNumber('media');
+    Route::get('/cases/{case}/seizure-item-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadCaseSeizureItemMedia'])
+        ->whereNumber('case')
+        ->whereNumber('media');
+    Route::get('/cases/{case}/police-report-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadCasePoliceReportMedia'])
+        ->whereNumber('case')
+        ->whereNumber('media');
     Route::get('/appointments', [AppointmentController::class, 'index']);
     Route::get('/appointments/check', [AppointmentController::class, 'check']);
     Route::get('/i-waran', [IwaranWarrantController::class, 'index']);

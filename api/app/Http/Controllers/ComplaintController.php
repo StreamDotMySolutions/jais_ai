@@ -5,7 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller; 
 use Illuminate\Http\Request;
 use App\Models\Appointment;
+use App\Models\CaseOyd;
+use App\Models\CaseOydMedia;
+use App\Models\CasePoliceReport;
+use App\Models\CasePoliceReportMedia;
 use App\Models\CaseRecord;
+use App\Models\CaseSeizureItem;
+use App\Models\CaseSeizureItemMedia;
 use App\Models\Complaint;
 use App\Models\ComplaintAttachment;
 use App\Models\ComplaintOyd;
@@ -98,6 +104,8 @@ class ComplaintController extends Controller
                 'district_name',
                 'ppa_classification',
                 'current_status',
+                'op_category',
+                'op_case_status',
                 'arrest_status',
                 'action_datetime',
                 'created_at',
@@ -111,6 +119,7 @@ class ComplaintController extends Controller
                 $subQuery->select([
                     'complaints.id',
                     'complaints.reference_no',
+                    'complaints.case_register_no',
                     'complaints.case_type',
                     'complaints.district_name',
                     'complaints.complainant_name',
@@ -287,6 +296,9 @@ class ComplaintController extends Controller
             'report_offense_id' => ['nullable', 'integer', 'exists:ref_offenses,id'],
             'arrest_staff_id' => ['nullable', 'integer', 'exists:staff,id'],
             'current_status' => ['nullable', 'string', 'max:255'],
+            'op_category' => ['nullable', 'string', 'max:255'],
+            'op_case_status' => ['nullable', 'string', 'max:255'],
+            'op_notes' => ['nullable', 'string', 'max:20000'],
             'arrest_status' => ['nullable', 'string', 'max:20'],
             'arrest_by' => ['nullable', 'string', 'max:255'],
             'male_count' => ['nullable', 'integer', 'min:0'],
@@ -296,42 +308,331 @@ class ComplaintController extends Controller
             'statement_datetime' => ['nullable', 'date'],
             'court_date' => ['nullable', 'date'],
             'report_notes' => ['nullable', 'string'],
+            'oyds' => ['nullable', 'array'],
+            'oyds.*.id' => ['nullable', 'integer'],
+            'oyds.*.name' => ['nullable', 'string', 'max:255'],
+            'oyds.*.id_number' => ['nullable', 'string', 'max:255'],
+            'oyds.*.investigator_name' => ['nullable', 'string', 'max:255'],
+            'oyds.*.file_no' => ['nullable', 'string', 'max:255'],
             'seizure_status' => ['nullable', 'string', 'max:20'],
             'police_report_status' => ['nullable', 'string', 'max:20'],
             'seizure_items' => ['nullable', 'array'],
+            'seizure_items.*.id' => ['nullable', 'integer'],
             'seizure_items.*.item_no' => ['nullable', 'string', 'max:255'],
             'seizure_items.*.description' => ['nullable', 'string', 'max:2000'],
             'seizure_items.*.storage' => ['nullable', 'string', 'max:1000'],
             'police_reports' => ['nullable', 'array'],
+            'police_reports.*.id' => ['nullable', 'integer'],
             'police_reports.*.report_no' => ['nullable', 'string', 'max:255'],
             'police_reports.*.description' => ['nullable', 'string', 'max:2000'],
             'police_reports.*.station' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $case->update([
-            'file_no' => $this->nullableString($validated['file_no'] ?? null),
-            'report_offense_id' => $validated['report_offense_id'] ?? null,
-            'arrest_staff_id' => $validated['arrest_staff_id'] ?? null,
-            'current_status' => $this->nullableString($validated['current_status'] ?? null),
-            'arrest_status' => $this->nullableString($validated['arrest_status'] ?? null),
-            'arrest_by' => $this->nullableString($validated['arrest_by'] ?? null),
-            'male_count' => $validated['male_count'] ?? null,
-            'female_count' => $validated['female_count'] ?? null,
-            'other_count' => $validated['other_count'] ?? null,
-            'action_datetime' => $validated['action_datetime'] ?? null,
-            'statement_datetime' => $validated['statement_datetime'] ?? null,
-            'court_date' => $validated['court_date'] ?? null,
-            'report_notes' => $this->nullableString($validated['report_notes'] ?? null),
-            'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
-            'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
-            'seizure_items' => $this->normalizeCaseRows($validated['seizure_items'] ?? [], ['item_no', 'description', 'storage']),
-            'police_reports' => $this->normalizeCaseRows($validated['police_reports'] ?? [], ['report_no', 'description', 'station']),
+        DB::transaction(function () use ($case, $validated) {
+            $case->update([
+                'file_no' => $this->nullableString($validated['file_no'] ?? null),
+                'report_offense_id' => $validated['report_offense_id'] ?? null,
+                'arrest_staff_id' => $validated['arrest_staff_id'] ?? null,
+                'current_status' => $this->nullableString($validated['current_status'] ?? null),
+                'op_category' => $this->nullableString($validated['op_category'] ?? null),
+                'op_case_status' => $this->nullableString($validated['op_case_status'] ?? null),
+                'op_notes' => $this->nullableString($validated['op_notes'] ?? null),
+                'arrest_status' => $this->nullableString($validated['arrest_status'] ?? null),
+                'arrest_by' => $this->nullableString($validated['arrest_by'] ?? null),
+                'male_count' => $validated['male_count'] ?? null,
+                'female_count' => $validated['female_count'] ?? null,
+                'other_count' => $validated['other_count'] ?? null,
+                'action_datetime' => $validated['action_datetime'] ?? null,
+                'statement_datetime' => $validated['statement_datetime'] ?? null,
+                'court_date' => $validated['court_date'] ?? null,
+                'report_notes' => $this->nullableString($validated['report_notes'] ?? null),
+                'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
+                'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
+            ]);
+
+            $this->syncCaseChildRows($case, CaseOyd::class, 'oyds', $validated['oyds'] ?? [], ['name', 'id_number', 'investigator_name', 'file_no']);
+            $this->syncCaseChildRows($case, CaseSeizureItem::class, 'seizureItems', $validated['seizure_items'] ?? [], ['item_no', 'description', 'storage']);
+            $this->syncCaseChildRows($case, CasePoliceReport::class, 'policeReports', $validated['police_reports'] ?? [], ['report_no', 'description', 'station']);
+        }, 3);
+
+        $freshCase = $this->loadCaseDetail($case->fresh());
+        $autoLaporanEmailMeta = $this->autoSendLaporanTindakanEmailAfterCaseSave($freshCase);
+
+        $response = [
+            'message' => 'Maklumat kes berjaya dikemaskini.',
+            'data' => $this->loadCaseDetail($case->fresh()),
+        ];
+
+        if ($autoLaporanEmailMeta) {
+            $response['meta'] = [
+                'laporan_tindakan_auto_email' => $autoLaporanEmailMeta,
+            ];
+        }
+
+        return response()->json($response);
+    }
+
+    public function createCaseOyd(Request $request, CaseRecord $case)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $data = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'id_number' => 'nullable|string|max:255',
+            'investigator_name' => 'nullable|string|max:255',
+            'file_no' => 'nullable|string|max:255',
+        ]);
+
+        $oyd = CaseOyd::create([
+            'case_id' => $case->id,
+            'name' => $this->nullableString($data['name'] ?? null),
+            'id_number' => $this->nullableString($data['id_number'] ?? null),
+            'investigator_name' => $this->nullableString($data['investigator_name'] ?? null),
+            'file_no' => $this->nullableString($data['file_no'] ?? null),
         ]);
 
         return response()->json([
-            'message' => 'Maklumat kes berjaya dikemaskini.',
-            'data' => $this->loadCaseDetail($case->fresh()),
+            'message' => 'OYDS kes dicipta.',
+            'data' => $oyd->fresh(['media:id,case_oyd_id,category,file_name,mime,size,created_at']),
+        ], 201);
+    }
+
+    public function createCaseSeizureItem(Request $request, CaseRecord $case)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $data = $request->validate([
+            'item_no' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'storage' => 'nullable|string|max:1000',
         ]);
+
+        $item = CaseSeizureItem::create([
+            'case_id' => $case->id,
+            'item_no' => $this->nullableString($data['item_no'] ?? null),
+            'description' => $this->nullableString($data['description'] ?? null),
+            'storage' => $this->nullableString($data['storage'] ?? null),
+        ]);
+
+        return response()->json([
+            'message' => 'Barang kes dicipta.',
+            'data' => $item->fresh(['media:id,case_seizure_item_id,category,file_name,mime,size,created_at']),
+        ], 201);
+    }
+
+    public function createCasePoliceReport(Request $request, CaseRecord $case)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $data = $request->validate([
+            'report_no' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:2000',
+            'station' => 'nullable|string|max:1000',
+        ]);
+
+        $report = CasePoliceReport::create([
+            'case_id' => $case->id,
+            'report_no' => $this->nullableString($data['report_no'] ?? null),
+            'description' => $this->nullableString($data['description'] ?? null),
+            'station' => $this->nullableString($data['station'] ?? null),
+        ]);
+
+        return response()->json([
+            'message' => 'Report polis dicipta.',
+            'data' => $report->fresh(['media:id,case_police_report_id,category,file_name,mime,size,created_at']),
+        ], 201);
+    }
+
+    public function uploadCaseOydMedia(Request $request, CaseRecord $case, CaseOyd $oyd)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $oyd->case_id !== (int) $case->id) {
+            return response()->json(['message' => 'OYDS tidak sah untuk kes ini.'], 422);
+        }
+
+        $request->validate([
+            'category' => 'nullable|in:ic,bukti,lain_lain',
+            'files' => 'required|array|min:1',
+            'files.*' => 'file|max:51200|mimes:jpg,jpeg,png,webp,pdf',
+        ]);
+
+        $category = $request->input('category', 'lain_lain');
+        $files = $request->file('files', []);
+        $this->storeCaseMediaFiles($files, CaseOydMedia::class, 'case_oyd_id', $oyd->id, "cases/oyds/{$case->id}/{$oyd->id}", $category, $user->id);
+
+        $scanResult = null;
+        $scanMessage = null;
+        if ($category === 'ic') {
+            $firstImage = collect($files)->first(function ($file) {
+                return str_starts_with(strtolower((string) $file->getClientMimeType()), 'image/');
+            });
+            if ($firstImage) {
+                $ocrText = $this->runTesseractOcr($firstImage->getRealPath());
+                if ($ocrText) {
+                    $unsupported = $this->detectUnsupportedDocumentType($ocrText);
+                    if ($unsupported === 'lesen_memandu') {
+                        $scanMessage = 'Lampiran IC dimuat naik, tetapi OCR ditolak: imej dikesan sebagai lesen memandu.';
+                    } else {
+                        $parsed = $this->parseMyKadText($ocrText);
+                        if (($parsed['name'] ?? '') !== '' || ($parsed['id_number'] ?? '') !== '') {
+                            $oyd->update([
+                                'name' => $parsed['name'] ?: ($oyd->name ?: null),
+                                'id_number' => $parsed['id_number'] ?: ($oyd->id_number ?: null),
+                            ]);
+                            $scanResult = [
+                                'name' => $oyd->fresh()->name,
+                                'id_number' => $oyd->fresh()->id_number,
+                            ];
+                            $scanMessage = 'OCR IC berjaya: nama/no. K/P dikemaskini.';
+                        } else {
+                            $scanMessage = 'Lampiran IC dimuat naik, tetapi OCR tidak dapat kesan nama/no. K/P.';
+                        }
+                    }
+                } else {
+                    $scanMessage = 'Lampiran IC dimuat naik, tetapi OCR gagal dijalankan.';
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => 'Lampiran OYDS berjaya dimuat naik.',
+            'media' => $oyd->fresh()->media()->orderByDesc('id')->get([
+                'id', 'case_oyd_id', 'category', 'file_name', 'mime', 'size', 'created_at',
+            ]),
+            'oyd' => $oyd->fresh(['media:id,case_oyd_id,category,file_name,mime,size,created_at']),
+            'scan_message' => $scanMessage,
+            'scan_result' => $scanResult,
+        ]);
+    }
+
+    public function uploadCaseSeizureItemMedia(Request $request, CaseRecord $case, CaseSeizureItem $item)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $item->case_id !== (int) $case->id) {
+            return response()->json(['message' => 'Barang kes tidak sah untuk kes ini.'], 422);
+        }
+
+        $request->validate([
+            'category' => 'nullable|in:ic,bukti,lain_lain',
+            'files' => 'required|array|min:1',
+            'files.*' => 'file|max:51200|mimes:jpg,jpeg,png,webp,pdf',
+        ]);
+
+        $this->storeCaseMediaFiles(
+            $request->file('files', []),
+            CaseSeizureItemMedia::class,
+            'case_seizure_item_id',
+            $item->id,
+            "cases/seizure-items/{$case->id}/{$item->id}",
+            $request->input('category', 'lain_lain'),
+            $user->id
+        );
+
+        return response()->json([
+            'message' => 'Lampiran Barang Kes berjaya dimuat naik.',
+            'media' => $item->fresh()->media()->orderByDesc('id')->get([
+                'id', 'case_seizure_item_id', 'category', 'file_name', 'mime', 'size', 'created_at',
+            ]),
+            'item' => $item->fresh(['media:id,case_seizure_item_id,category,file_name,mime,size,created_at']),
+        ]);
+    }
+
+    public function uploadCasePoliceReportMedia(Request $request, CaseRecord $case, CasePoliceReport $report)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $report->case_id !== (int) $case->id) {
+            return response()->json(['message' => 'Report polis tidak sah untuk kes ini.'], 422);
+        }
+
+        $request->validate([
+            'category' => 'nullable|in:ic,bukti,lain_lain',
+            'files' => 'required|array|min:1',
+            'files.*' => 'file|max:51200|mimes:jpg,jpeg,png,webp,pdf',
+        ]);
+
+        $this->storeCaseMediaFiles(
+            $request->file('files', []),
+            CasePoliceReportMedia::class,
+            'case_police_report_id',
+            $report->id,
+            "cases/police-reports/{$case->id}/{$report->id}",
+            $request->input('category', 'lain_lain'),
+            $user->id
+        );
+
+        return response()->json([
+            'message' => 'Lampiran Report Polis berjaya dimuat naik.',
+            'media' => $report->fresh()->media()->orderByDesc('id')->get([
+                'id', 'case_police_report_id', 'category', 'file_name', 'mime', 'size', 'created_at',
+            ]),
+            'report' => $report->fresh(['media:id,case_police_report_id,category,file_name,mime,size,created_at']),
+        ]);
+    }
+
+    public function deleteCaseOydMedia(Request $request, CaseRecord $case, CaseOydMedia $media)
+    {
+        return $this->deleteCaseMedia($request, $case, $media, CaseOyd::class, 'case_oyd_id', 'Lampiran OYDS dipadam.');
+    }
+
+    public function deleteCaseSeizureItemMedia(Request $request, CaseRecord $case, CaseSeizureItemMedia $media)
+    {
+        return $this->deleteCaseMedia($request, $case, $media, CaseSeizureItem::class, 'case_seizure_item_id', 'Lampiran Barang Kes dipadam.');
+    }
+
+    public function deleteCasePoliceReportMedia(Request $request, CaseRecord $case, CasePoliceReportMedia $media)
+    {
+        return $this->deleteCaseMedia($request, $case, $media, CasePoliceReport::class, 'case_police_report_id', 'Lampiran Report Polis dipadam.');
+    }
+
+    public function downloadCaseOydMedia(Request $request, CaseRecord $case, CaseOydMedia $media)
+    {
+        return $this->downloadCaseMedia($request, $case, $media, CaseOyd::class, 'case_oyd_id');
+    }
+
+    public function downloadCaseSeizureItemMedia(Request $request, CaseRecord $case, CaseSeizureItemMedia $media)
+    {
+        return $this->downloadCaseMedia($request, $case, $media, CaseSeizureItem::class, 'case_seizure_item_id');
+    }
+
+    public function downloadCasePoliceReportMedia(Request $request, CaseRecord $case, CasePoliceReportMedia $media)
+    {
+        return $this->downloadCaseMedia($request, $case, $media, CasePoliceReport::class, 'case_police_report_id');
     }
 
     public function pendingApprovals(Request $request)
@@ -2847,8 +3148,14 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        return response()->json([
+            'message' => 'Laporan Tindakan kini disimpan melalui modul KES. Sila gunakan endpoint PUT /cases/{id}.',
+        ], 410);
+
         $request->validate([
             'report' => 'required|array',
+            'report.case_id' => 'nullable|integer|exists:cases,id',
+            'report.case_register_no' => 'nullable|string|max:255',
             'report.oyds' => 'nullable|array',
             'report.seizure_items' => 'nullable|array',
             'report.police_report_status' => 'nullable|in:ada,tiada',
@@ -2883,12 +3190,41 @@ class ComplaintController extends Controller
         }
 
         $primaryCase = null;
-        $effectiveCaseRegisterNo = trim((string) ($complaint->case_register_no ?? ''));
+        $submittedCaseId = (int) ($report['case_id'] ?? 0);
+        $submittedCaseRegisterNo = trim((string) ($report['case_register_no'] ?? ''));
+        $targetCase = null;
+        if ($submittedCaseId > 0) {
+            $targetCase = CaseRecord::query()->find($submittedCaseId);
+            if (! $targetCase || ! $complaint->cases()->where('cases.id', $targetCase->id)->exists()) {
+                return response()->json(['message' => 'Kes yang dipilih tidak dipautkan pada aduan ini.'], 422);
+            }
+            if (! $this->canViewCaseRecord($targetCase, $user)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+        }
+
+        $effectiveCaseRegisterNo = trim((string) ($targetCase?->case_register_no ?? ''));
+        if ($effectiveCaseRegisterNo === '') {
+            $effectiveCaseRegisterNo = $submittedCaseRegisterNo;
+        }
+        if ($effectiveCaseRegisterNo === '') {
+            $effectiveCaseRegisterNo = trim((string) ($complaint->case_register_no ?? ''));
+        }
         if ($effectiveCaseRegisterNo === '') {
             $effectiveCaseRegisterNo = $this->generateCaseRegisterNo($complaint);
         }
 
-        DB::transaction(function () use ($complaint, $report, $incomingPoliceReports, $isNoArrest, $hasReportNotes, $isDispatchedToDistrict, $effectiveCaseRegisterNo, &$primaryCase) {
+        $duplicateCase = CaseRecord::query()
+            ->where('case_register_no', $effectiveCaseRegisterNo)
+            ->when($targetCase, fn ($query) => $query->where('id', '!=', $targetCase->id))
+            ->first();
+        if ($duplicateCase) {
+            return response()->json([
+                'message' => 'No. daftar kes ini sudah digunakan oleh kes lain: ' . $effectiveCaseRegisterNo,
+            ], 422);
+        }
+
+        DB::transaction(function () use ($complaint, $report, $incomingPoliceReports, $isNoArrest, $hasReportNotes, $isDispatchedToDistrict, $effectiveCaseRegisterNo, $targetCase, &$primaryCase) {
             $complaint->update([
                 'aj_arrest_status' => $report['arrest_status'] ?? null,
                 'aj_male_count' => $isNoArrest ? null : ($report['male_count'] !== '' ? $report['male_count'] : null),
@@ -2912,9 +3248,14 @@ class ComplaintController extends Controller
                 'aj_police_report_status' => $report['police_report_status'] ?? null,
             ]);
 
-            $primaryCase = $this->findOrCreatePrimaryCase($complaint, [
-                'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : null,
-            ]);
+            if ($targetCase) {
+                $this->setPrimaryCase($complaint, $targetCase->id);
+                $primaryCase = $targetCase;
+            } else {
+                $primaryCase = $this->findOrCreatePrimaryCase($complaint, [
+                    'case_register_no' => $effectiveCaseRegisterNo !== '' ? $effectiveCaseRegisterNo : null,
+                ]);
+            }
 
             $this->syncPrimaryCaseFromAjReport($primaryCase, $complaint, $report, $effectiveCaseRegisterNo, $isNoArrest);
 
@@ -4325,7 +4666,16 @@ class ComplaintController extends Controller
     private function findPrimaryCase(Complaint $complaint): ?CaseRecord
     {
         return $complaint->cases()
-            ->with(['district:id,name', 'directiveStaff:id,name,staff_id', 'handoverStaff:id,name,staff_id', 'arrestStaff:id,name,staff_id'])
+            ->with([
+                'district:id,name',
+                'directiveStaff:id,name,staff_id',
+                'handoverStaff:id,name,staff_id',
+                'arrestStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+                'arrestStaff.office:id,name,code,office_type,district_id,phone,address',
+                'oyds.media:id,case_oyd_id,category,file_name,mime,size,created_at',
+                'seizureItems.media:id,case_seizure_item_id,category,file_name,mime,size,created_at',
+                'policeReports.media:id,case_police_report_id,category,file_name,mime,size,created_at',
+            ])
             ->orderByPivot('is_primary', 'desc')
             ->orderBy('cases.id')
             ->first();
@@ -4368,7 +4718,11 @@ class ComplaintController extends Controller
 
     private function createAdditionalCaseForComplaint(Complaint $complaint, array $overrides = []): CaseRecord
     {
-        $payload = $this->buildCasePayloadFromComplaint($complaint, true, $overrides);
+        $payload = $this->buildCasePayloadFromComplaint(
+            $complaint,
+            true,
+            array_merge($this->blankAdditionalCaseFields(), $overrides)
+        );
         $case = CaseRecord::create($payload);
 
         $complaint->cases()->attach($case->id, [
@@ -4381,6 +4735,47 @@ class ComplaintController extends Controller
         $this->setPrimaryCase($complaint, $case->id);
 
         return $case->fresh();
+    }
+
+    private function blankAdditionalCaseFields(): array
+    {
+        return [
+            'file_no' => null,
+            'supervisor_staff_id' => null,
+            'directive_staff_id' => null,
+            'handover_staff_id' => null,
+            'arrest_staff_id' => null,
+            'prosecutor_staff_id' => null,
+            'report_offense_id' => null,
+            'mahkamah_id' => null,
+            'ppa_classification' => null,
+            'ip_status' => null,
+            'current_status' => null,
+            'current_status_other' => null,
+            'op_category' => null,
+            'op_case_status' => null,
+            'op_notes' => null,
+            'prosecution_status' => null,
+            'arrest_status' => null,
+            'arrest_by' => null,
+            'male_count' => null,
+            'female_count' => null,
+            'other_count' => null,
+            'directive_at' => null,
+            'handover_at' => null,
+            'action_datetime' => null,
+            'statement_datetime' => null,
+            'court_date' => null,
+            'directive_notes' => null,
+            'report_notes' => null,
+            'investigation_notes' => null,
+            'prosecution_notes' => null,
+            'seizure_status' => null,
+            'police_report_status' => null,
+            'fine' => null,
+            'fir_no' => null,
+            'charge_recommendations' => null,
+        ];
     }
 
     private function setPrimaryCase(Complaint $complaint, int $caseId): void
@@ -4958,6 +5353,167 @@ class ComplaintController extends Controller
         }
     }
 
+    private function autoSendLaporanTindakanEmailAfterCaseSave(CaseRecord $case): ?array
+    {
+        if (strtoupper((string) ($case->case_type ?: 'AJ')) !== 'AJ') {
+            return null;
+        }
+
+        if (! empty($case->laporan_tindakan_auto_emailed_at)) {
+            return [
+                'sent' => false,
+                'reason' => 'already_sent',
+            ];
+        }
+
+        if (trim((string) ($case->report_notes ?? '')) === '') {
+            return null;
+        }
+
+        $rawRecipients = trim((string) env('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', ''));
+        if ($rawRecipients === '') {
+            return null;
+        }
+
+        $toEmails = collect(preg_split('/[;,]+/', $rawRecipients))
+            ->map(fn ($email) => trim((string) $email))
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->values()
+            ->all();
+
+        $ccEmails = collect(preg_split('/[;,]+/', trim((string) env('LAPORAN_TINDAKAN_AUTO_EMAIL_CC', ''))))
+            ->map(fn ($email) => trim((string) $email))
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->values()
+            ->all();
+
+        if (count($toEmails) > 1 && empty($ccEmails)) {
+            $ccEmails = array_slice($toEmails, 1);
+            $toEmails = array_slice($toEmails, 0, 1);
+        }
+
+        if (empty($toEmails)) {
+            return [
+                'sent' => false,
+                'reason' => 'invalid_recipient_config',
+            ];
+        }
+
+        $case->loadMissing([
+            'arrestStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'arrestStaff.office:id,name,code,office_type,district_id,phone,address',
+            'complaints:id,reference_no,district_name,complaint_date,complaint_time,laporan_tindakan_auto_emailed_at',
+        ]);
+
+        $formatDateDmyDash = static function ($value): string {
+            if (! $value) return '-';
+            try {
+                return Carbon::parse($value)->format('d-m-Y');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+        $formatTime12hDot = static function ($value): string {
+            if (! $value) return '-';
+            try {
+                return Carbon::parse($value)->format('g.i A');
+            } catch (\Throwable) {
+                return (string) $value;
+            }
+        };
+
+        $primaryComplaint = $case->complaints->first();
+        $tarikhMasa = $case->action_datetime
+            ?: $case->statement_datetime
+            ?: $primaryComplaint?->complaint_date;
+        $reportDate = $formatDateDmyDash($tarikhMasa);
+        $reportTime = $formatTime12hDot($tarikhMasa);
+
+        $officer = $case->arrestStaff;
+        $officerName = $officer?->name ?: '-';
+        $officerIdNo = $officer?->staff_id ?: $officer?->ic_number ?: '-';
+        $officerJob = $officer?->position ?: '-';
+        $officerPhone = $this->resolveStaffOfficePhone($officer);
+        $officerAddress = $this->resolveStaffOfficeAddress($officer);
+        $reportParagraph = strtoupper(trim((string) ($case->report_notes ?? '')));
+        $noDaftar = trim((string) ($case->case_register_no ?? '')) ?: '-';
+
+        $arrestStatusLabel = ($case->arrest_status === 'ada') ? 'Ada Tangkapan' : 'Tiada Tangkapan';
+        $subjectReference = preg_replace('/\s*\/\s*/', '/', (string) ($case->case_register_no ?: ('Kes #' . $case->id)));
+        $subject = 'TINDAKAN (' . $arrestStatusLabel . ') : KES - ' . $subjectReference;
+        $bodyPlainText = "Assalamualaikum\n\n"
+            . "Laporan Tindakan bagi daerah " . ($case->district_name ?: '-') . " telah diperolehi.\n\n"
+            . "Sila muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail KES.\n\n"
+            . "Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan\n\n"
+            . "Terima kasih.";
+        $highlightLine = 'Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan';
+        $escapedBody = nl2br(e($bodyPlainText));
+        $escapedBody = str_replace(
+            e($highlightLine),
+            '<strong>' . e($highlightLine) . '</strong>',
+            $escapedBody
+        );
+        $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
+            . $escapedBody
+            . '</div>';
+
+        $pdfBinary = Pdf::loadView('pdf.complaints.laporan-tindakan', [
+            'noDaftar' => (string) ($noDaftar ?: '-'),
+            'reportDate' => (string) ($reportDate ?: '-'),
+            'reportTime' => (string) ($reportTime ?: '-'),
+            'officerName' => (string) ($officerName ?: '-'),
+            'officerIdNo' => (string) ($officerIdNo ?: '-'),
+            'officerJob' => (string) ($officerJob ?: '-'),
+            'officerPhone' => (string) ($officerPhone ?: '-'),
+            'officerAddress' => (string) ($officerAddress ?: '-'),
+            'reportParagraph' => (string) ($reportParagraph !== '' ? $reportParagraph : 'LAPORAN MASIH BELUM DIISI'),
+        ])->setPaper('a4', 'portrait')->output();
+
+        $pdfFileName = 'BORANG 5 - KES.pdf';
+
+        try {
+            Mail::send([], [], function ($message) use ($toEmails, $ccEmails, $subject, $html, $pdfBinary, $pdfFileName): void {
+                $message->to($toEmails)
+                    ->subject($subject)
+                    ->html($html)
+                    ->attachData($pdfBinary, $pdfFileName, ['mime' => 'application/pdf']);
+
+                if (! empty($ccEmails)) {
+                    $message->cc($ccEmails);
+                }
+            });
+
+            $case->forceFill([
+                'laporan_tindakan_auto_emailed_at' => now(),
+            ])->save();
+
+            $complaintIds = $case->complaints->pluck('id')->filter()->values()->all();
+            if (! empty($complaintIds)) {
+                Complaint::query()
+                    ->whereIn('id', $complaintIds)
+                    ->whereNull('laporan_tindakan_auto_emailed_at')
+                    ->update(['laporan_tindakan_auto_emailed_at' => now()]);
+            }
+
+            return [
+                'sent' => true,
+                'to' => $toEmails,
+                'cc' => $ccEmails,
+                'subject' => $subject,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Auto Laporan Tindakan case email failed', [
+                'case_id' => $case->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'sent' => false,
+                'reason' => 'send_failed',
+            ];
+        }
+    }
+
     private function resolveStaffOfficePhone(?Staff $staff): string
     {
         if (! $staff) {
@@ -5496,10 +6052,14 @@ class ComplaintController extends Controller
             'handoverStaff:id,name,staff_id',
             'arrestStaff:id,name,staff_id',
             'prosecutorStaff:id,name,staff_id',
+            'oyds.media:id,case_oyd_id,category,file_name,stored_name,path,disk,mime,size,created_at',
+            'seizureItems.media:id,case_seizure_item_id,category,file_name,stored_name,path,disk,mime,size,created_at',
+            'policeReports.media:id,case_police_report_id,category,file_name,stored_name,path,disk,mime,size,created_at',
             'complaints' => function ($query) {
                 $query->select([
                     'complaints.id',
                     'complaints.reference_no',
+                    'complaints.case_register_no',
                     'complaints.case_type',
                     'complaints.district_name',
                     'complaints.complainant_name',
@@ -5517,16 +6077,134 @@ class ComplaintController extends Controller
         return collect($rows)
             ->map(function ($row) use ($fields) {
                 $next = [];
+                if (! empty($row['id'])) {
+                    $next['id'] = (int) $row['id'];
+                }
                 foreach ($fields as $field) {
                     $next[$field] = trim((string) ($row[$field] ?? ''));
                 }
                 return $next;
             })
             ->filter(function ($row) {
-                return collect($row)->contains(fn ($value) => trim((string) $value) !== '');
+                return collect($row)
+                    ->except('id')
+                    ->contains(fn ($value) => trim((string) $value) !== '');
             })
             ->values()
             ->all();
+    }
+
+    private function syncCaseChildRows(CaseRecord $case, string $modelClass, string $relationName, array $rows, array $fields): void
+    {
+        $normalizedRows = $this->normalizeCaseRows($rows, $fields);
+        $existingRows = $case->{$relationName}()
+            ->with('media')
+            ->get()
+            ->keyBy('id');
+        $incomingIds = collect($normalizedRows)
+            ->pluck('id')
+            ->filter()
+            ->map(fn ($value) => (int) $value)
+            ->all();
+
+        foreach ($existingRows as $existingRow) {
+            if (! in_array((int) $existingRow->id, $incomingIds, true)) {
+                foreach ($existingRow->media as $media) {
+                    if (! empty($media->path)) {
+                        Storage::disk($media->disk ?: 'local')->delete($media->path);
+                    }
+                    $media->delete();
+                }
+                $existingRow->delete();
+            }
+        }
+
+        foreach ($normalizedRows as $row) {
+            $rowId = (int) ($row['id'] ?? 0);
+            $payload = [];
+            foreach ($fields as $field) {
+                $payload[$field] = $this->nullableString($row[$field] ?? null);
+            }
+
+            if ($rowId > 0 && $existingRows->has($rowId)) {
+                $existingRows->get($rowId)->update($payload);
+                continue;
+            }
+
+            $payload['case_id'] = $case->id;
+            $modelClass::create($payload);
+        }
+    }
+
+    private function storeCaseMediaFiles(array $files, string $mediaClass, string $foreignKey, int $parentId, string $folder, string $category, int $uploadedByUserId): void
+    {
+        $disk = 'local';
+
+        foreach ($files as $file) {
+            $storedName = Str::uuid()->toString() . '.' . $file->getClientOriginalExtension();
+            $path = $file->storeAs($folder, $storedName, $disk);
+
+            $mediaClass::create([
+                $foreignKey => $parentId,
+                'category' => $category,
+                'file_name' => $file->getClientOriginalName(),
+                'stored_name' => $storedName,
+                'path' => $path,
+                'disk' => $disk,
+                'mime' => $file->getClientMimeType(),
+                'size' => $file->getSize(),
+                'uploaded_by_user_id' => $uploadedByUserId,
+            ]);
+        }
+    }
+
+    private function deleteCaseMedia(Request $request, CaseRecord $case, $media, string $parentClass, string $foreignKey, string $message)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $parent = $parentClass::find($media->{$foreignKey});
+        if (! $parent || (int) $parent->case_id !== (int) $case->id) {
+            return response()->json(['message' => 'Lampiran tidak sah untuk kes ini.'], 422);
+        }
+
+        if ($media->path) {
+            Storage::disk($media->disk ?: 'local')->delete($media->path);
+        }
+        $media->delete();
+
+        return response()->json(['message' => $message]);
+    }
+
+    private function downloadCaseMedia(Request $request, CaseRecord $case, $media, string $parentClass, string $foreignKey)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $parent = $parentClass::find($media->{$foreignKey});
+        if (! $parent || (int) $parent->case_id !== (int) $case->id) {
+            return response()->json(['message' => 'Lampiran tidak sah untuk kes ini.'], 422);
+        }
+        if (! $media->path) {
+            return response()->json(['message' => 'Fail lampiran tidak ditemui.'], 404);
+        }
+
+        $disk = $media->disk ?: 'local';
+        if (! Storage::disk($disk)->exists($media->path)) {
+            return response()->json(['message' => 'Fail lampiran tidak ditemui.'], 404);
+        }
+
+        return Storage::disk($disk)->download($media->path, $media->file_name);
     }
 
     private function nullableString($value): ?string

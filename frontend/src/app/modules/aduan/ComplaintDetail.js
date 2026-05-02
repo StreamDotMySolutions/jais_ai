@@ -273,7 +273,13 @@ const ComplaintDetail = () => {
     const effectiveInformantIdNumber = (complaint?.informant_identification_number || '').trim();
     const effectiveInformantContactNumber = (complaint?.informant_contact_number || '').trim();
     const canEditBasicComplaint = isPegawaiRole && !isBasicEditLockedBySource;
-    const isArrestStatusLocked = Boolean(complaint?.laporan_tindakan_auto_emailed_at);
+    const arrestStatusLockSource = primaryCase
+        ? primaryCase.arrest_status
+        : complaint?.aj_arrest_status;
+    const isArrestStatusLocked = Boolean(
+        complaint?.laporan_tindakan_auto_emailed_at
+        && String(arrestStatusLockSource || '').trim()
+    );
     const autoClassificationGuardRef = useRef({});
     const suppressUnloadReleaseRef = useRef(false);
     const autoPickupGuardRef = useRef({});
@@ -1707,6 +1713,7 @@ const ComplaintDetail = () => {
         axios.post(`${apiUrl}/complaints/${id}/aj-report`, {
             report: {
                 ...ajReport,
+                case_id: primaryCase?.id || null,
                 case_register_no: primaryCase?.case_register_no || complaint?.case_register_no || buildCaseRegisterNoFromComplaint(complaint),
             },
         }, {
@@ -1731,7 +1738,7 @@ const ComplaintDetail = () => {
             });
     };
 
-    const openAjCase = ({ openModal = false } = {}) => {
+    const openAjCase = ({ openCaseDetail = false } = {}) => {
         if (!apiUrl || !complaint) {
             return;
         }
@@ -1743,8 +1750,9 @@ const ComplaintDetail = () => {
                 if (updated) {
                     setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
                 }
-                if (openModal) {
-                    setIsAjReportModalOpen(true);
+                const targetCase = response?.data?.meta?.primary_case || updated?.primary_case;
+                if (openCaseDetail && targetCase?.id) {
+                    navigate(`/app/cases/${targetCase.id}`);
                 }
                 const msg = response?.data?.message || 'Kes berjaya dibuka.';
                 toast.success(msg);
@@ -1754,7 +1762,7 @@ const ComplaintDetail = () => {
             });
     };
 
-    const createAdditionalAjCase = ({ openModal = false } = {}) => {
+    const createAdditionalAjCase = ({ openCaseDetail = false } = {}) => {
         if (!apiUrl || !complaint) {
             return;
         }
@@ -1766,8 +1774,9 @@ const ComplaintDetail = () => {
                 if (updated) {
                     setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
                 }
-                if (openModal) {
-                    setIsAjReportModalOpen(true);
+                const targetCase = response?.data?.meta?.primary_case || updated?.primary_case;
+                if (openCaseDetail && targetCase?.id) {
+                    navigate(`/app/cases/${targetCase.id}`);
                 }
                 toast.success(response?.data?.message || 'Kes baharu berjaya ditambah.');
             })
@@ -1776,10 +1785,10 @@ const ComplaintDetail = () => {
             });
     };
 
-    const activateAjCase = (caseId, { openModal = false } = {}) => {
+    const activateAjCase = (caseId, { openCaseDetail = false } = {}) => {
         if (!apiUrl || !complaint || !caseId || Number(primaryCase?.id) === Number(caseId)) {
-            if (openModal && Number(primaryCase?.id) === Number(caseId)) {
-                setIsAjReportModalOpen(true);
+            if (openCaseDetail && caseId) {
+                navigate(`/app/cases/${caseId}`);
             }
             return;
         }
@@ -1791,8 +1800,8 @@ const ComplaintDetail = () => {
                 if (updated) {
                     setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
                 }
-                if (openModal) {
-                    setIsAjReportModalOpen(true);
+                if (openCaseDetail) {
+                    navigate(`/app/cases/${caseId}`);
                 }
                 toast.success(response?.data?.message || 'Kes berjaya dipilih.');
             })
@@ -1803,10 +1812,10 @@ const ComplaintDetail = () => {
 
     const openAjReportModalForNewCase = () => {
         if (primaryCase?.id) {
-            createAdditionalAjCase({ openModal: true });
+            createAdditionalAjCase({ openCaseDetail: true });
             return;
         }
-        openAjCase({ openModal: true });
+        openAjCase({ openCaseDetail: true });
     };
 
     const openAjReportModalForCase = (caseId) => {
@@ -1814,10 +1823,10 @@ const ComplaintDetail = () => {
             return;
         }
         if (Number(primaryCase?.id) === Number(caseId)) {
-            setIsAjReportModalOpen(true);
+            navigate(`/app/cases/${caseId}`);
             return;
         }
-        activateAjCase(caseId, { openModal: true });
+        activateAjCase(caseId, { openCaseDetail: true });
     };
 
     useEffect(() => {
@@ -1846,7 +1855,7 @@ const ComplaintDetail = () => {
             setActiveStep(foundIndex);
         }
         openAjReportModalForCase(caseId);
-    }, [complaint, id, location.search, primaryCase?.id]);
+    }, [complaint, id, location.search, navigate, primaryCase?.id]);
 
     const searchExistingCases = () => {
         if (!apiUrl || !complaint) {
@@ -2077,11 +2086,6 @@ const ComplaintDetail = () => {
     const isAduanBoxLocked = aduanLockedStages.includes(currentStage);
     const isSaveDisabled = isAwaitingApproval;
     const saveDisabledTitle = isSaveDisabled ? 'Tidak boleh simpan semasa menunggu tindakan pengesah.' : undefined;
-    const hasSavedAjReportNotes = String(primaryCase?.report_notes || complaint?.aj_report_notes || '').trim() !== '';
-    const isLaporanTindakanPrintDisabled = isSaveDisabled || !hasSavedAjReportNotes;
-    const laporanTindakanPrintDisabledTitle = isSaveDisabled
-        ? saveDisabledTitle
-        : (!hasSavedAjReportNotes ? 'Sila isi dan simpan medan Laporan dahulu sebelum cetak Laporan Tindakan.' : undefined);
     const aduanBoxDisabledTitle = isAduanBoxLocked
         ? (currentCaseType === 'AK'
             ? 'Tidak boleh dikemaskini apabila status aduan Menunggu tindakan pengesah atau Dihantar ke Daerah.'
@@ -4358,7 +4362,7 @@ const ComplaintDetail = () => {
                                                                         type="button"
                                                                         className="app-icon-button"
                                                                         onClick={() => openAjReportModalForCase(row.id)}
-                                                                        title="Edit laporan tindakan"
+                                                                        title="Buka form kes"
                                                                     >
                                                                         <i className="bi bi-pencil-square"></i>
                                                                     </button>
@@ -4998,20 +5002,6 @@ const ComplaintDetail = () => {
                                     )}
                                     <button className="app-button" type="button" onClick={submitAjReport} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan Laporan
-                                    </button>
-                                    <button
-                                        className="app-button app-button-ghost"
-                                        type="button"
-                                        disabled={isLaporanTindakanPrintDisabled}
-                                        title={laporanTindakanPrintDisabledTitle}
-                                        onClick={() => window.open(
-                                            `/app/complaints/${id}/print/laporan-tindakan`,
-                                            'laporanTindakan',
-                                            'width=980,height=720,scrollbars=yes,resizable=yes'
-                                        )}
-                                    >
-                                        <i className="bi bi-printer"></i>
-                                        Laporan Tindakan
                                     </button>
                                 </div>
                                             </div>

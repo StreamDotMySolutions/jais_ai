@@ -4,10 +4,30 @@ import { useNavigate, useParams } from 'react-router-dom';
 import SharedOffenseSelect from '../../components/SharedOffenseSelect';
 import SharedStaffSelect from '../../components/SharedStaffSelect';
 import SharedInlineAlert from '../../components/SharedInlineAlert';
+import OydAttachmentSection from '../../components/OydAttachmentSection';
+import SeizureAttachmentSection from '../../components/SeizureAttachmentSection';
 import { useToast } from '../../components/SharedToastProvider';
 
 const emptySeizureItem = { item_no: '', description: '', storage: '' };
 const emptyPoliceReport = { report_no: '', description: '', station: '' };
+const emptyOyd = { name: '', id_number: '', investigator_name: '', file_no: '' };
+
+const CASE_OP_CATEGORY_OPTIONS = [
+    'PP Unit Gerakan',
+    'PP Unit Perundangan & Kesalahan',
+    'Other',
+];
+
+const CASE_OP_STATUS_OPTIONS = [
+    'Siasatan Pegawai Penyiasat',
+    'Dalam pemantauan / siasatan',
+    'Selesai - Tangkapan dan Proses biasa',
+    'Selesai - Minit KPP untuk ditutup',
+    'Selesai - Dipanjangkan aduan ke Bahagian lain',
+    'Selesai - Tiada bidangkuasa',
+    'Selesai - Tiada alasan mencukupi untuk bertindak',
+    'Other',
+];
 
 const formatDateTime = (value) => {
     if (!value) return '-';
@@ -32,6 +52,23 @@ const normalizeDateTimeLocal = (value) => {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
+const getLinkedComplaintCaseLabel = (complaint, caseRecord) => {
+    const complaintCaseNo = String(complaint?.case_register_no || '').trim();
+    if (!complaintCaseNo) return '';
+    const currentCaseNo = String(caseRecord?.case_register_no || '').trim();
+    return complaintCaseNo === currentCaseNo
+        ? `No Kes: ${complaintCaseNo}`
+        : `Kes sedia ada: ${complaintCaseNo}`;
+};
+
+const getOtherCaseComplaints = (caseRecord) => {
+    const currentCaseNo = String(caseRecord?.case_register_no || '').trim();
+    return (Array.isArray(caseRecord?.complaints) ? caseRecord.complaints : []).filter((complaint) => {
+        const complaintCaseNo = String(complaint?.case_register_no || '').trim();
+        return complaintCaseNo && complaintCaseNo !== currentCaseNo;
+    });
+};
+
 const CaseDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -44,6 +81,9 @@ const CaseDetail = () => {
         report_offense_id: '',
         arrest_staff_id: '',
         current_status: '',
+        op_category: '',
+        op_case_status: '',
+        op_notes: '',
         arrest_status: '',
         arrest_by: '',
         male_count: '',
@@ -53,6 +93,7 @@ const CaseDetail = () => {
         statement_datetime: '',
         court_date: '',
         report_notes: '',
+        oyds: [emptyOyd],
         seizure_status: '',
         seizure_items: [emptySeizureItem],
         police_report_status: '',
@@ -64,6 +105,7 @@ const CaseDetail = () => {
     const [error, setError] = useState('');
 
     const headers = useMemo(() => (token ? { Authorization: `Bearer ${token}` } : undefined), [token]);
+    const otherCaseComplaints = useMemo(() => getOtherCaseComplaints(caseRecord), [caseRecord]);
 
     const hydrateForm = (data) => {
         setForm({
@@ -71,6 +113,9 @@ const CaseDetail = () => {
             report_offense_id: data?.report_offense_id ? String(data.report_offense_id) : '',
             arrest_staff_id: data?.arrest_staff_id ? String(data.arrest_staff_id) : '',
             current_status: data?.current_status || '',
+            op_category: data?.op_category || '',
+            op_case_status: data?.op_case_status || '',
+            op_notes: data?.op_notes || '',
             arrest_status: data?.arrest_status || '',
             arrest_by: data?.arrest_by || '',
             male_count: data?.male_count ?? '',
@@ -80,6 +125,7 @@ const CaseDetail = () => {
             statement_datetime: normalizeDateTimeLocal(data?.statement_datetime),
             court_date: data?.court_date || '',
             report_notes: data?.report_notes || '',
+            oyds: Array.isArray(data?.oyds) && data.oyds.length ? data.oyds : [emptyOyd],
             seizure_status: data?.seizure_status || '',
             seizure_items: Array.isArray(data?.seizure_items) && data.seizure_items.length ? data.seizure_items : [emptySeizureItem],
             police_report_status: data?.police_report_status || '',
@@ -121,6 +167,14 @@ const CaseDetail = () => {
         });
     };
 
+    const mergeArrayRow = (field, index, patch) => {
+        setForm((prev) => {
+            const rows = [...(prev[field] || [])];
+            rows[index] = { ...rows[index], ...patch };
+            return { ...prev, [field]: rows };
+        });
+    };
+
     const addArrayRow = (field, emptyRow) => {
         setForm((prev) => ({ ...prev, [field]: [...(prev[field] || []), { ...emptyRow }] }));
     };
@@ -146,7 +200,10 @@ const CaseDetail = () => {
                 const data = response?.data?.data;
                 setCaseRecord(data);
                 hydrateForm(data);
-                const msg = response?.data?.message || 'Maklumat kes berjaya dikemaskini.';
+                const autoEmailSent = Boolean(response?.data?.meta?.laporan_tindakan_auto_email?.sent);
+                const msg = autoEmailSent
+                    ? 'Maklumat kes berjaya dikemaskini dan emel Laporan Tindakan berjaya dihantar.'
+                    : (response?.data?.message || 'Maklumat kes berjaya dikemaskini.');
                 setMessage(msg);
                 toast.success(msg);
             })
@@ -156,6 +213,34 @@ const CaseDetail = () => {
                 setError(firstError || err?.response?.data?.message || 'Gagal simpan kes.');
             })
             .finally(() => setIsSaving(false));
+    };
+
+    const ensureChildRow = async (field, index, endpoint, payloadKeys) => {
+        const row = form[field]?.[index] || {};
+        if (row.id) return row.id;
+
+        const payload = {};
+        payloadKeys.forEach((key) => {
+            payload[key] = row[key] || '';
+        });
+
+        const response = await axios.post(`${apiUrl}/cases/${id}/${endpoint}`, payload, { headers });
+        const created = response?.data?.data || {};
+        if (created?.id) {
+            mergeArrayRow(field, index, created);
+            return created.id;
+        }
+        return null;
+    };
+
+    const updateRowAttachments = (field, index, updater) => {
+        setForm((prev) => {
+            const rows = [...(prev[field] || [])];
+            const current = Array.isArray(rows[index]?.media) ? rows[index].media : [];
+            const media = typeof updater === 'function' ? updater(current) : updater;
+            rows[index] = { ...rows[index], media };
+            return { ...prev, [field]: rows };
+        });
     };
 
     if (isLoading) {
@@ -179,14 +264,26 @@ const CaseDetail = () => {
                         <i className="bi bi-arrow-left"></i>
                         Senarai Kes
                     </button>
-                    <button type="button" className="app-button" onClick={saveCase} disabled={isSaving}>
-                        {isSaving ? 'Menyimpan...' : 'Simpan Kes'}
-                    </button>
                 </div>
             </div>
 
             {message && <SharedInlineAlert type="success" message={message} dismissible onClose={() => setMessage('')} />}
             {error && <SharedInlineAlert type="error" message={error} dismissible onClose={() => setError('')} />}
+            {otherCaseComplaints.length > 0 && (
+                <SharedInlineAlert type="warning">
+                    <div className="app-case-existing-alert">
+                        <strong>Aduan berkaitan mempunyai kes sedia ada.</strong>
+                        <span>Form ini hanya memaparkan dan menyimpan maklumat untuk {caseRecord?.case_register_no || `KES #${id}`}. Maklumat tindakan daripada kes sedia ada tidak ditarik semula secara automatik.</span>
+                        <div className="app-case-existing-alert-list">
+                            {otherCaseComplaints.map((complaint) => (
+                                <span key={`case-existing-alert-${complaint.id}`}>
+                                    {complaint.reference_no || `Aduan #${complaint.id}`} - {complaint.case_register_no}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                </SharedInlineAlert>
+            )}
 
             <div className="app-case-detail-grid">
                 <div className="app-report-stack">
@@ -314,6 +411,7 @@ const CaseDetail = () => {
                             </label>
                         </div>
                     </section>
+
                 </div>
                 <aside className="app-card app-case-detail-card">
                     <h4>Aduan Berkaitan</h4>
@@ -328,11 +426,81 @@ const CaseDetail = () => {
                                 <strong>{complaint.reference_no || `Aduan #${complaint.id}`}</strong>
                                 <span>{complaint.complainant_name || '-'}</span>
                                 <small>{formatDateTime(`${complaint.complaint_date || ''}T${complaint.complaint_time || '00:00:00'}`)}</small>
+                                {getLinkedComplaintCaseLabel(complaint, caseRecord) && (
+                                    <small className="app-case-linked-case-no">
+                                        {getLinkedComplaintCaseLabel(complaint, caseRecord)}
+                                    </small>
+                                )}
                             </button>
                         ))}
                     </div>
                 </aside>
             </div>
+
+            <section className="app-report-section">
+                <div className="app-report-toggle app-case-report-title">
+                    <h5>MAKLUMAT OYDS</h5>
+                </div>
+                <div className="app-inline-section">
+                    <div className="app-inline-header">
+                        <h5>Orang Yang Disyaki</h5>
+                        <button type="button" className="app-button app-button-ghost" onClick={() => addArrayRow('oyds', emptyOyd)}>
+                            + Tambah OYDS
+                        </button>
+                    </div>
+                    <div className="app-oyds-table-wrap app-case-oyds-box">
+                        {form.oyds.map((row, index) => (
+                            <div className="app-case-oyd-card" key={`case-oyd-${index}`}>
+                                <div className="app-case-oyd-fields">
+                                    <label className="app-case-oyd-field">
+                                        <span>Nama OYDS</span>
+                                        <input value={row.name || ''} onChange={(event) => updateArrayRow('oyds', index, 'name', event.target.value)} />
+                                    </label>
+                                    <label className="app-case-oyd-field">
+                                        <span>No. K/P atau Passport</span>
+                                        <input value={row.id_number || ''} onChange={(event) => updateArrayRow('oyds', index, 'id_number', event.target.value)} />
+                                    </label>
+                                    <label className="app-case-oyd-field">
+                                        <span>Nama Pegawai Penyiasat</span>
+                                        <input value={row.investigator_name || ''} onChange={(event) => updateArrayRow('oyds', index, 'investigator_name', event.target.value)} />
+                                    </label>
+                                    <label className="app-case-oyd-field app-case-oyd-file-field">
+                                        <span>No. Fail</span>
+                                        <input value={row.file_no || ''} onChange={(event) => updateArrayRow('oyds', index, 'file_no', event.target.value)} />
+                                    </label>
+                                    <div className="app-case-oyd-remove">
+                                        <button type="button" className="app-icon-button" onClick={() => removeArrayRow('oyds', index, emptyOyd)} title="Buang">
+                                            <i className="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="app-case-oyd-attachments">
+                                    <span>Lampiran</span>
+                                    <OydAttachmentSection
+                                        compact
+                                        apiUrl={apiUrl}
+                                        token={token}
+                                        basePath={`${apiUrl}/cases/${id}`}
+                                        recordId={row.id || null}
+                                        attachments={row.media || []}
+                                        category={row.attachment_category || 'ic'}
+                                        onCategoryChange={(value) => updateArrayRow('oyds', index, 'attachment_category', value)}
+                                        onAttachmentsChange={(updater) => updateRowAttachments('oyds', index, updater)}
+                                        onBeforeUpload={() => ensureChildRow('oyds', index, 'oyds', ['name', 'id_number', 'investigator_name', 'file_no'])}
+                                        onOydScanned={(scanResult) => {
+                                            if (!scanResult) return;
+                                            mergeArrayRow('oyds', index, {
+                                                name: scanResult.name || row.name || '',
+                                                id_number: scanResult.id_number || row.id_number || '',
+                                            });
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
 
             <section className="app-report-section">
                 <div className="app-report-toggle app-case-report-title">
@@ -373,14 +541,15 @@ const CaseDetail = () => {
                             </button>
                         </div>
                         <div className="app-oyds-table-wrap app-seizure-table-wrap">
-                            <div className="app-seizure-table-head app-case-seizure-head-no-attachment">
+                            <div className="app-seizure-table-head">
                                 <div>No. Barang</div>
                                 <div>Maklumat Barang</div>
                                 <div>Stor Simpanan</div>
+                                <div>Lampiran</div>
                                 <div></div>
                             </div>
                             {form.seizure_items.map((row, index) => (
-                                <div className="app-seizure-table-row app-case-seizure-row-no-attachment" key={`case-seizure-${index}`}>
+                                <div className="app-seizure-table-row" key={`case-seizure-${index}`}>
                                     <div className="app-seizure-table-cell">
                                         <input value={row.item_no || ''} onChange={(event) => updateArrayRow('seizure_items', index, 'item_no', event.target.value)} />
                                     </div>
@@ -389,6 +558,20 @@ const CaseDetail = () => {
                                     </div>
                                     <div className="app-seizure-table-cell">
                                         <input value={row.storage || ''} onChange={(event) => updateArrayRow('seizure_items', index, 'storage', event.target.value)} />
+                                    </div>
+                                    <div className="app-seizure-table-cell app-seizure-table-cell-attachment">
+                                        <SeizureAttachmentSection
+                                            compact
+                                            apiUrl={apiUrl}
+                                            token={token}
+                                            basePath={`${apiUrl}/cases/${id}`}
+                                            recordId={row.id || null}
+                                            attachments={row.media || []}
+                                            category={row.attachment_category || 'bukti'}
+                                            onCategoryChange={(value) => updateArrayRow('seizure_items', index, 'attachment_category', value)}
+                                            onAttachmentsChange={(updater) => updateRowAttachments('seizure_items', index, updater)}
+                                            onBeforeUpload={() => ensureChildRow('seizure_items', index, 'seizure-items', ['item_no', 'description', 'storage'])}
+                                        />
                                     </div>
                                     <div className="app-seizure-table-cell app-seizure-table-cell-action">
                                         <button type="button" className="app-icon-button" onClick={() => removeArrayRow('seizure_items', index, emptySeizureItem)} title="Buang">
@@ -441,14 +624,15 @@ const CaseDetail = () => {
                             </button>
                         </div>
                         <div className="app-oyds-table-wrap app-seizure-table-wrap">
-                            <div className="app-seizure-table-head app-case-seizure-head-no-attachment">
+                            <div className="app-seizure-table-head">
                                 <div>No. Report</div>
                                 <div>Maklumat Report</div>
                                 <div>Balai Polis</div>
+                                <div>Lampiran</div>
                                 <div></div>
                             </div>
                             {form.police_reports.map((row, index) => (
-                                <div className="app-seizure-table-row app-case-seizure-row-no-attachment" key={`case-police-${index}`}>
+                                <div className="app-seizure-table-row" key={`case-police-${index}`}>
                                     <div className="app-seizure-table-cell">
                                         <input value={row.report_no || ''} onChange={(event) => updateArrayRow('police_reports', index, 'report_no', event.target.value)} />
                                     </div>
@@ -457,6 +641,21 @@ const CaseDetail = () => {
                                     </div>
                                     <div className="app-seizure-table-cell">
                                         <input value={row.station || ''} onChange={(event) => updateArrayRow('police_reports', index, 'station', event.target.value)} />
+                                    </div>
+                                    <div className="app-seizure-table-cell app-seizure-table-cell-attachment">
+                                        <SeizureAttachmentSection
+                                            compact
+                                            mode="police_report"
+                                            apiUrl={apiUrl}
+                                            token={token}
+                                            basePath={`${apiUrl}/cases/${id}`}
+                                            recordId={row.id || null}
+                                            attachments={row.media || []}
+                                            category={row.attachment_category || 'bukti'}
+                                            onCategoryChange={(value) => updateArrayRow('police_reports', index, 'attachment_category', value)}
+                                            onAttachmentsChange={(updater) => updateRowAttachments('police_reports', index, updater)}
+                                            onBeforeUpload={() => ensureChildRow('police_reports', index, 'police-reports', ['report_no', 'description', 'station'])}
+                                        />
                                     </div>
                                     <div className="app-seizure-table-cell app-seizure-table-cell-action">
                                         <button type="button" className="app-icon-button" onClick={() => removeArrayRow('police_reports', index, emptyPoliceReport)} title="Buang">
@@ -469,6 +668,76 @@ const CaseDetail = () => {
                     </div>
                 )}
             </section>
+
+            <section className="app-report-section">
+                <div className="app-report-toggle app-case-report-title">
+                    <h5>STATUS OP</h5>
+                </div>
+                <div className="app-form-grid">
+                    <label className="app-form-field app-span-full">
+                        <span>Kategori OP</span>
+                        <div className="app-inline-radio-group">
+                            {CASE_OP_CATEGORY_OPTIONS.map((option) => (
+                                <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                    <input
+                                        type="radio"
+                                        name="case_op_category"
+                                        value={option}
+                                        checked={form.op_category === option}
+                                        onChange={() => updateField('op_category', option)}
+                                    />
+                                    <span>{option}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </label>
+
+                    <label className="app-form-field app-span-full">
+                        <span>Status Kes OP</span>
+                        <div className="app-inline-radio-group">
+                            {CASE_OP_STATUS_OPTIONS.map((option) => (
+                                <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                    <input
+                                        type="radio"
+                                        name="case_op_status"
+                                        value={option}
+                                        checked={form.op_case_status === option}
+                                        onChange={() => updateField('op_case_status', option)}
+                                    />
+                                    <span>{option}</span>
+                                </label>
+                            ))}
+                        </div>
+                    </label>
+
+                    <label className="app-form-field app-span-full">
+                        <span>Catatan OP</span>
+                        <textarea
+                            rows="4"
+                            value={form.op_notes || ''}
+                            onChange={(event) => updateField('op_notes', event.target.value)}
+                        />
+                    </label>
+                </div>
+            </section>
+
+            <div className="app-report-sticky app-case-sticky-actions">
+                <button type="button" className="app-button" onClick={saveCase} disabled={isSaving}>
+                    {isSaving ? 'Menyimpan...' : 'Simpan Kes'}
+                </button>
+                <button
+                    type="button"
+                    className="app-button app-button-ghost"
+                    onClick={() => window.open(
+                        `/app/cases/${id}/print/laporan-tindakan`,
+                        'laporanTindakanKes',
+                        'width=980,height=720,scrollbars=yes,resizable=yes'
+                    )}
+                >
+                    <i className="bi bi-printer"></i>
+                    Laporan Tindakan
+                </button>
+            </div>
         </div>
     );
 };

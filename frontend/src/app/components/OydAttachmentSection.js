@@ -10,6 +10,7 @@ const OydAttachmentSection = ({
     apiUrl,
     token,
     complaintId,
+    basePath,
     recordId,
     onBeforeUpload,
     attachments = [],
@@ -58,9 +59,10 @@ const OydAttachmentSection = ({
         });
     };
 
-    const uploadUrl = (targetRecordId) => `${apiUrl}/complaints/${complaintId}/oyds/${targetRecordId}/media`;
-    const deleteUrl = (attachmentId) => `${apiUrl}/complaints/${complaintId}/oyd-media/${attachmentId}`;
-    const downloadUrl = (attachment) => `${apiUrl}/complaints/${complaintId}/oyd-media/${attachment?.id}/download`;
+    const routeBasePath = basePath || `${apiUrl}/complaints/${complaintId}`;
+    const uploadUrl = (targetRecordId) => `${routeBasePath}/oyds/${targetRecordId}/media`;
+    const deleteUrl = (attachmentId) => `${routeBasePath}/oyd-media/${attachmentId}`;
+    const downloadUrl = (attachment) => `${routeBasePath}/oyd-media/${attachment?.id}/download`;
 
     const openPreview = (file) => {
         if (!apiUrl || !file?.id) return;

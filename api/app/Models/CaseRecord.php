@@ -23,10 +23,9 @@ class CaseRecord extends Model
         'statement_datetime' => 'datetime:Y-m-d H:i',
         'opened_at' => 'datetime:Y-m-d H:i',
         'closed_at' => 'datetime:Y-m-d H:i',
+        'laporan_tindakan_auto_emailed_at' => 'datetime:Y-m-d H:i',
         'court_date' => 'date:Y-m-d',
         'charge_recommendations' => 'array',
-        'seizure_items' => 'array',
-        'police_reports' => 'array',
     ];
 
     public function complaints(): BelongsToMany
@@ -64,5 +63,20 @@ class CaseRecord extends Model
     public function prosecutorStaff(): BelongsTo
     {
         return $this->belongsTo(Staff::class, 'prosecutor_staff_id');
+    }
+
+    public function oyds()
+    {
+        return $this->hasMany(CaseOyd::class, 'case_id')->orderBy('id');
+    }
+
+    public function seizureItems()
+    {
+        return $this->hasMany(CaseSeizureItem::class, 'case_id')->orderBy('id');
+    }
+
+    public function policeReports()
+    {
+        return $this->hasMany(CasePoliceReport::class, 'case_id')->orderBy('id');
     }
 }

@@ -11,6 +11,7 @@ const SeizureAttachmentSection = ({
     apiUrl,
     token,
     complaintId,
+    basePath,
     recordId,
     onBeforeUpload,
     attachments = [],
@@ -78,15 +79,16 @@ const SeizureAttachmentSection = ({
         });
     };
 
+    const routeBasePath = basePath || `${apiUrl}/complaints/${complaintId}`;
     const uploadUrl = (targetRecordId) => modeKey === 'police_report'
-        ? `${apiUrl}/complaints/${complaintId}/police-reports/${targetRecordId}/media`
-        : `${apiUrl}/complaints/${complaintId}/seizure-items/${targetRecordId}/media`;
+        ? `${routeBasePath}/police-reports/${targetRecordId}/media`
+        : `${routeBasePath}/seizure-items/${targetRecordId}/media`;
     const deleteUrl = (attachmentId) => modeKey === 'police_report'
-        ? `${apiUrl}/complaints/${complaintId}/police-report-media/${attachmentId}`
-        : `${apiUrl}/complaints/${complaintId}/seizure-item-media/${attachmentId}`;
+        ? `${routeBasePath}/police-report-media/${attachmentId}`
+        : `${routeBasePath}/seizure-item-media/${attachmentId}`;
     const downloadUrl = (attachment) => modeKey === 'police_report'
-        ? `${apiUrl}/complaints/${complaintId}/police-report-media/${attachment?.id}/download`
-        : `${apiUrl}/complaints/${complaintId}/seizure-item-media/${attachment?.id}/download`;
+        ? `${routeBasePath}/police-report-media/${attachment?.id}/download`
+        : `${routeBasePath}/seizure-item-media/${attachment?.id}/download`;
 
     const openPreview = (file) => {
         if (!apiUrl || !file?.id) return;

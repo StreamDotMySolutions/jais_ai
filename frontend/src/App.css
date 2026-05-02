@@ -5845,6 +5845,11 @@ body {
   white-space: normal;
 }
 
+.app-case-op-status {
+  color: #7c4a03;
+  font-weight: 600;
+}
+
 .app-case-linked-wrap {
   display: grid;
   gap: 0.28rem;
@@ -5993,26 +5998,48 @@ body {
 
 .app-case-detail {
   display: grid;
-  gap: 1rem;
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+}
+
+.app-case-detail .app-complaints-header {
+  align-items: flex-start;
+  margin-bottom: 0.2rem;
+}
+
+.app-case-detail .app-eyebrow {
+  font-size: 0.68rem;
+  letter-spacing: 0.26em;
+}
+
+.app-case-detail .app-complaints-header h3 {
+  margin: 0.25rem 0 0.25rem;
+  font-size: clamp(1.05rem, 1.35vw, 1.35rem);
+  line-height: 1.2;
+  font-weight: 650;
+}
+
+.app-case-detail .app-complaints-header p {
+  font-size: 0.88rem;
 }
 
 .app-case-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.34fr);
-  gap: 1rem;
+  gap: 0.85rem;
   align-items: start;
 }
 
 .app-case-detail-card {
-  padding: 1rem;
+  padding: 0.85rem;
   display: grid;
-  gap: 0.9rem;
+  gap: 0.7rem;
 }
 
 .app-case-detail-card h4 {
   margin: 0;
   color: #173225;
-  font-size: 0.98rem;
+  font-size: 0.9rem;
 }
 
 .app-case-linked-detail-list {
@@ -6022,18 +6049,38 @@ body {
 
 .app-case-linked-detail-item {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.16rem;
   text-align: left;
   border: 1px solid #e2ebe5;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
-  padding: 0.65rem;
+  padding: 0.55rem 0.6rem;
   color: #173225;
+}
+
+.app-case-linked-detail-item strong {
+  font-size: 0.9rem;
 }
 
 .app-case-linked-detail-item span,
 .app-case-linked-detail-item small {
   color: #607268;
+  font-size: 0.76rem;
+}
+
+.app-case-linked-case-no {
+  color: #7c4a03 !important;
+  font-weight: 700;
+}
+
+.app-case-existing-alert {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.app-case-existing-alert-list {
+  display: grid;
+  gap: 0.18rem;
   font-size: 0.82rem;
 }
 
@@ -6050,9 +6097,263 @@ body {
   padding-bottom: 0;
 }
 
+.app-case-detail .app-report-section {
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  gap: 0.75rem;
+}
+
+.app-case-detail .app-report-section h5,
+.app-case-detail .app-inline-header h5 {
+  font-size: 0.78rem;
+  letter-spacing: 0.055em;
+}
+
+.app-case-detail .app-form-grid {
+  gap: 0.7rem 0.85rem;
+}
+
+.app-case-detail .app-form-field {
+  gap: 0.28rem;
+}
+
+.app-case-detail .app-form-field span,
+.app-case-detail .app-form-field > label,
+.app-case-detail .app-tangkapan-grid > span {
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.app-case-detail .app-form-field input,
+.app-case-detail .app-form-field select,
+.app-case-detail .app-form-field textarea,
+.app-case-detail .app-search-select-trigger {
+  min-height: 36px;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  font-size: 0.86rem;
+}
+
+.app-case-detail .app-form-field textarea {
+  min-height: 96px;
+}
+
+.app-case-detail .app-radio-cards {
+  gap: 0.55rem;
+}
+
+.app-case-detail .app-radio-cards label {
+  min-height: 38px;
+  padding: 0.5rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  box-shadow: none;
+}
+
+.app-case-detail .app-inline-radio-group {
+  gap: 0.45rem 0.7rem;
+}
+
+.app-case-detail .app-inline-radio {
+  font-size: 0.84rem;
+}
+
+.app-case-detail .app-tangkapan-fields {
+  gap: 0.5rem;
+}
+
+.app-case-detail .app-tangkapan-fields label {
+  gap: 0.25rem;
+}
+
+.app-case-detail .app-tangkapan-fields small {
+  font-size: 0.72rem;
+}
+
+.app-case-detail .app-inline-section {
+  margin-top: 0.5rem;
+  gap: 0.6rem;
+}
+
+.app-case-detail .app-inline-header {
+  gap: 0.75rem;
+}
+
+.app-case-detail .app-inline-header .app-button {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.82rem;
+}
+
+.app-case-detail .app-oyds-table-head > div,
+.app-case-detail .app-seizure-table-head > div {
+  padding: 0.48rem 0.55rem;
+  font-size: 0.78rem;
+}
+
+.app-case-detail .app-oyds-table-cell,
+.app-case-detail .app-seizure-table-cell {
+  padding: 0.45rem 0.5rem;
+  min-width: 0;
+}
+
+.app-case-detail .app-oyds-table-cell > input,
+.app-case-detail .app-seizure-table-cell > input {
+  padding: 0.42rem 0.55rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.app-case-sticky-actions {
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  box-shadow: 0 -10px 24px rgba(23, 50, 37, 0.08);
+}
+
+.app-case-sticky-actions .app-button {
+  min-height: 38px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+}
+
 .app-case-seizure-head-no-attachment,
 .app-case-seizure-row-no-attachment {
   grid-template-columns: minmax(120px, 0.7fr) minmax(240px, 1.4fr) minmax(180px, 1fr) 52px;
+}
+
+.app-case-oyds-head,
+.app-case-oyds-row {
+  grid-template-columns: minmax(180px, 1.15fr) minmax(150px, 0.85fr) minmax(180px, 1fr) minmax(130px, 0.75fr) 52px;
+}
+
+.app-case-oyds-head-with-attachment,
+.app-case-oyds-row-with-attachment {
+  grid-template-columns: minmax(145px, 1fr) minmax(125px, 0.85fr) minmax(145px, 0.95fr) minmax(82px, 0.42fr) minmax(190px, 0.95fr) 40px;
+}
+
+.app-case-oyds-box {
+  display: grid;
+  gap: 0.65rem;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+}
+
+.app-case-oyd-card {
+  border: 1px solid #d9e4dd;
+  border-radius: 10px;
+  background: #fbfdfb;
+  overflow: hidden;
+}
+
+.app-case-oyd-fields {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(130px, 0.85fr) minmax(150px, 1fr) minmax(90px, 0.5fr) 42px;
+  gap: 0;
+  align-items: stretch;
+}
+
+.app-case-oyd-field {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border-right: 1px solid #e3ebe6;
+  min-width: 0;
+}
+
+.app-case-oyd-field span,
+.app-case-oyd-attachments > span {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #1f3328;
+}
+
+.app-case-oyd-field input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #e3ebe6;
+  border-radius: 8px;
+  padding: 0.42rem 0.55rem;
+  font-size: 0.82rem;
+  background: #ffffff;
+}
+
+.app-case-oyd-remove {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  padding: 0.55rem 0.45rem;
+  background: #f7fbf8;
+}
+
+.app-case-oyd-attachments {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 0.6rem;
+  align-items: center;
+  padding: 0.55rem;
+  border-top: 1px solid #e3ebe6;
+  background: #f7fbf8;
+}
+
+.app-case-oyd-attachments > span {
+  align-self: start;
+  padding-top: 0.28rem;
+}
+
+.app-case-detail .app-oyds-table-wrap,
+.app-case-detail .app-seizure-table-wrap {
+  overflow-x: visible;
+  overflow-y: visible;
+}
+
+.app-case-detail .app-oyds-upload-compact-wrap,
+.app-case-detail .app-oyds-strip-row,
+.app-case-detail .app-oyds-strip-row .app-oyds-attachment-strip {
+  min-width: 0;
+}
+
+.app-case-detail .app-oyds-upload-trigger {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 0.65rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.app-case-detail .app-oyds-attachment-section.is-compact .app-oyds-attachment-pill {
+  max-width: 160px;
+}
+
+.app-case-detail .app-oyds-attachment-section.is-compact .app-oyds-attachment-pill-name {
+  max-width: 84px;
+}
+
+@media (max-width: 1200px) {
+  .app-case-oyd-fields {
+    grid-template-columns: minmax(150px, 1fr) minmax(130px, 0.85fr) minmax(150px, 1fr) 42px;
+  }
+
+  .app-case-oyd-file-field {
+    grid-column: 1 / 2;
+  }
+}
+
+@media (max-width: 900px) {
+  .app-case-oyd-fields,
+  .app-case-oyd-attachments {
+    grid-template-columns: 1fr;
+  }
+
+  .app-case-oyd-field {
+    border-right: none;
+    border-bottom: 1px solid #e3ebe6;
+  }
+
+  .app-case-oyd-remove {
+    justify-content: flex-end;
+  }
 }
 
 @media (max-width: 900px) {
