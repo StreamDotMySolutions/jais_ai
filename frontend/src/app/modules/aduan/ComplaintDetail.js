@@ -203,6 +203,7 @@ const ComplaintDetail = () => {
     const [statusInput, setStatusInput] = useState('');
     const [caseTypeMessage, setCaseTypeMessage] = useState('');
     const [assigneeMessage, setAssigneeMessage] = useState('');
+    const [autoNfaFromExpiredKiv, setAutoNfaFromExpiredKiv] = useState(false);
     const [approverStaffId, setApproverStaffId] = useState('');
     const [districtOptions, setDistrictOptions] = useState([]);
     const [basicEditing, setBasicEditing] = useState(false);
@@ -515,7 +516,7 @@ const ComplaintDetail = () => {
 
     const formatKivCountdown = useCallback((ms) => {
         if (ms == null) return '';
-        if (ms <= 0) return 'Tempoh tamat (auto NFA)';
+        if (ms <= 0) return '';
         const dayMs = 24 * 60 * 60 * 1000;
         const daysLeft = Math.ceil(ms / dayMs);
         return `${daysLeft} hari lagi`;
@@ -532,7 +533,7 @@ const ComplaintDetail = () => {
     }, []);
 
     useEffect(() => {
-        if (!isPegawaiRole || !id) return;
+        if (!id) return;
         if (ajPayload.classification !== 'KIV') return;
         if (kivRemainingMs == null || kivRemainingMs > 0) return;
 
@@ -544,8 +545,18 @@ const ComplaintDetail = () => {
             if (prev.classification !== 'KIV') return prev;
             return { ...prev, classification: 'NFA' };
         });
+        setAutoNfaFromExpiredKiv(true);
         toast.info('Tempoh KIV tamat. Klasifikasi ditukar kepada NFA. Sila klik Simpan.');
-    }, [ajPayload.classification, id, isPegawaiRole, kivRemainingMs, toast]);
+    }, [ajPayload.classification, id, kivRemainingMs, toast]);
+
+    const savedAjClassification = normalizePpaClassification(complaint?.aj_ppa_classification);
+    const isExpiredKivContext = (ajPayload.classification === 'KIV'
+        || (ajPayload.classification === 'NFA' && savedAjClassification === 'KIV'))
+        && kivRemainingMs != null
+        && kivRemainingMs <= 0;
+    const isKivAutoNfa = ajPayload.classification === 'KIV' && isExpiredKivContext;
+    const effectiveAjClassification = isKivAutoNfa ? 'NFA' : ajPayload.classification;
+    const showAutoNfaMessage = autoNfaFromExpiredKiv || isKivAutoNfa;
 
     const saveBasic = () => {
         const currentStage = (complaint?.current_stage || '').toString();
@@ -1049,7 +1060,7 @@ const ComplaintDetail = () => {
 
     const insertArahanTindakanTemplate = () => {
         const classification = normalizePpaClassification(
-            ajPayload.classification || complaint?.aj_ppa_classification || ''
+            effectiveAjClassification || complaint?.aj_ppa_classification || ''
         );
 
         if (!classification) {
@@ -1557,7 +1568,11 @@ const ComplaintDetail = () => {
         setPayloadMessage('');
         axios.post(`${apiUrl}/complaints/${id}/aj`, {
             // Keep fir_no consistent with reference_no (Zoho field is effectively No Aduan).
-            payload: { ...ajPayload, fir_no: complaint?.reference_no || ajPayload.fir_no || '' },
+            payload: {
+                ...ajPayload,
+                classification: effectiveAjClassification,
+                fir_no: complaint?.reference_no || ajPayload.fir_no || '',
+            },
         }, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -1755,7 +1770,7 @@ const ComplaintDetail = () => {
         }
         if ((complaint?.case_type || 'AJ') === 'AJ') {
             const missingFields = [];
-            const classification = (ajPayload.classification || '').toString().trim();
+            const classification = (effectiveAjClassification || '').toString().trim();
             const offenseId = (ajPayload.offense_id || '').toString().trim();
             const borang5Statement = (basicDraft.borang5_statement || '').toString().trim();
             const incidentAddress = (basicDraft.address || '').toString().trim();
@@ -3052,21 +3067,26 @@ const ComplaintDetail = () => {
                                             const isKiv = option.value === 'KIV';
                                             const isNfa = option.value === 'NFA';
                                             const kivText = isKiv ? formatKivCountdown(kivRemainingMs) : '';
-                                            const nfaText = isNfa ? formatNfaCountdown(nfaRemainingMs) : '';
-                                            const showTimer = ajPayload.classification === option.value && Boolean(kivText || nfaText);
+                                            const nfaText = isNfa
+                                                ? (showAutoNfaMessage ? 'Tempoh tamat (auto NFA)' : formatNfaCountdown(nfaRemainingMs))
+                                                : '';
+                                            const showTimer = effectiveAjClassification === option.value && Boolean(kivText || nfaText);
                                             const timerText = kivText || nfaText;
                                             const isDanger = (isKiv && (kivRemainingMs ?? 0) <= (8 * 24 * 60 * 60 * 1000))
-                                                || (isNfa && (nfaRemainingMs ?? 1) <= 0);
+                                                || (isNfa && (isExpiredKivContext || (nfaRemainingMs ?? 1) <= 0));
                                             const isWarning = (isKiv && (kivRemainingMs ?? 0) > (8 * 24 * 60 * 60 * 1000) && (kivRemainingMs ?? 0) <= (10 * 24 * 60 * 60 * 1000))
                                                 || (isNfa && (nfaRemainingMs ?? 0) > 0 && (nfaRemainingMs ?? 0) <= (6 * 60 * 60 * 1000));
                                             return (
-                                            <label key={option.value} className={ajPayload.classification === option.value ? 'active' : ''}>
+                                            <label key={option.value} className={effectiveAjClassification === option.value ? 'active' : ''}>
                                                 <input
                                                     type="radio"
                                                     name="aj_classification"
                                                     value={option.value}
-                                                    checked={ajPayload.classification === option.value}
-                                                    onChange={() => setAjPayload((prev) => ({ ...prev, classification: option.value }))}
+                                                    checked={effectiveAjClassification === option.value}
+                                                    onChange={() => {
+                                                        setAutoNfaFromExpiredKiv(false);
+                                                        setAjPayload((prev) => ({ ...prev, classification: option.value }));
+                                                    }}
                                                 />
                                                 <span className="app-classification-option">
                                                     <span>{option.label}</span>
