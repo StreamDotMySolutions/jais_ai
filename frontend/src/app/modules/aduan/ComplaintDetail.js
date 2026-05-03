@@ -243,10 +243,6 @@ const ComplaintDetail = () => {
     });
     const primaryCase = complaint?.primary_case || null;
     const complaintCases = Array.isArray(complaint?.cases) ? complaint.cases : [];
-    const [isAttachCaseOpen, setIsAttachCaseOpen] = useState(false);
-    const [caseSearchKeyword, setCaseSearchKeyword] = useState('');
-    const [caseSearchResults, setCaseSearchResults] = useState([]);
-    const [isCaseSearchLoading, setIsCaseSearchLoading] = useState(false);
     const [reportSections, setReportSections] = useState({
         issuer: true,
         arrest: true,
@@ -1488,7 +1484,7 @@ const ComplaintDetail = () => {
             runningNo = match[1];
         }
 
-        return `KES-${district} / ${year || '-'} / ${month || '-'} / ${runningNo || '-'}`;
+        return `KES-${district}/${year || '-'}/${month || '-'}/${runningNo || '-'}`;
     };
 
     const submitApproval = () => {
@@ -1881,53 +1877,6 @@ const ComplaintDetail = () => {
         }
         openAjReportModalForCase(caseId);
     }, [complaint, id, location.search, navigate, primaryCase?.id]);
-
-    const searchExistingCases = () => {
-        if (!apiUrl || !complaint) {
-            return;
-        }
-        setIsCaseSearchLoading(true);
-        axios.get(`${apiUrl}/cases`, {
-            params: {
-                case_type: complaint.case_type || 'AJ',
-                keyword: caseSearchKeyword || undefined,
-                exclude_complaint_id: complaint.id,
-                limit: 12,
-            },
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then((response) => {
-                setCaseSearchResults(Array.isArray(response?.data?.data) ? response.data.data : []);
-            })
-            .catch((err) => {
-                toast.error(err?.response?.data?.message || 'Gagal mencari kes sedia ada.');
-            })
-            .finally(() => {
-                setIsCaseSearchLoading(false);
-            });
-    };
-
-    const attachExistingAjCase = (caseId) => {
-        if (!apiUrl || !complaint || !caseId) {
-            return;
-        }
-        axios.post(`${apiUrl}/complaints/${id}/cases/${caseId}/attach`, {}, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then((response) => {
-                const updated = response?.data?.data;
-                if (updated) {
-                    setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
-                }
-                setIsAttachCaseOpen(false);
-                setCaseSearchResults([]);
-                setCaseSearchKeyword('');
-                toast.success(response?.data?.message || 'Kes sedia ada berjaya dipautkan.');
-            })
-            .catch((err) => {
-                toast.error(err?.response?.data?.message || 'Gagal memaut kes sedia ada.');
-            });
-    };
 
     const submitAjActionReport = () => {
         if (!apiUrl) {
@@ -4300,17 +4249,6 @@ const ComplaintDetail = () => {
                                                 <i className="bi bi-plus-lg"></i>
                                                 Tambah Kes
                                             </button>
-                                            <button
-                                                className="app-button app-button-ghost"
-                                                type="button"
-                                                onClick={() => {
-                                                    setIsAttachCaseOpen(true);
-                                                    setCaseSearchResults([]);
-                                                    setCaseSearchKeyword('');
-                                                }}
-                                            >
-                                                Paut ke Kes Sedia Ada
-                                            </button>
                                         </div>
                                         <div className="app-case-table-wrap">
                                             <div className="app-case-table-header">
@@ -4362,75 +4300,6 @@ const ComplaintDetail = () => {
                                         </div>
                                     </div>
                                 </div>
-                                {isAttachCaseOpen && (
-                                    <div className="app-modal">
-                                        <div
-                                            className="app-modal-backdrop"
-                                            onClick={() => {
-                                                setIsAttachCaseOpen(false);
-                                                setCaseSearchResults([]);
-                                                setCaseSearchKeyword('');
-                                            }}
-                                        ></div>
-                                        <div className="app-modal-content">
-                                            <div className="app-modal-header">
-                                                <div>
-                                                    <h4>Paut ke Kes Sedia Ada</h4>
-                                                    <p>Cari dan pilih kes yang hendak dipautkan kepada aduan ini.</p>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    className="app-modal-close"
-                                                    onClick={() => {
-                                                        setIsAttachCaseOpen(false);
-                                                        setCaseSearchResults([]);
-                                                        setCaseSearchKeyword('');
-                                                    }}
-                                                >
-                                                    <i className="bi bi-x-lg"></i>
-                                                </button>
-                                            </div>
-                                            <div className="app-modal-body">
-                                                <div style={{ display: 'flex', gap: '.6rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                                                    <input
-                                                        type="text"
-                                                        className="form-control"
-                                                        style={{ maxWidth: '320px' }}
-                                                        value={caseSearchKeyword}
-                                                        onChange={(event) => setCaseSearchKeyword(event.target.value)}
-                                                        placeholder="Cari No. Daftar Kes / Nombor Fail"
-                                                    />
-                                                    <button className="app-button app-button-ghost" type="button" onClick={searchExistingCases} disabled={isCaseSearchLoading}>
-                                                        {isCaseSearchLoading ? 'Mencari...' : 'Cari Kes'}
-                                                    </button>
-                                                </div>
-                                                {caseSearchResults.length > 0 && (
-                                                    <div style={{ display: 'grid', gap: '.5rem' }}>
-                                                        {caseSearchResults.map((row) => (
-                                                            <button
-                                                                key={`search-case-${row.id}`}
-                                                                type="button"
-                                                                className="app-card-link"
-                                                                style={{ textAlign: 'left', padding: '.8rem 1rem' }}
-                                                                onClick={() => attachExistingAjCase(row.id)}
-                                                            >
-                                                                <strong>{row.case_register_no || `Kes #${row.id}`}</strong>
-                                                                <div className="app-compact-meta">
-                                                                    <span>{row.file_no || 'Tiada nombor fail'}</span>
-                                                                    <span>{row.district_name || '-'}</span>
-                                                                    <span>{row.current_status || '-'}</span>
-                                                                </div>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                                {!isCaseSearchLoading && caseSearchResults.length === 0 && (
-                                                    <small className="app-hint">Cari nombor kes yang hendak dipautkan pada aduan ini.</small>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
                                 {isAjReportModalOpen && primaryCase && (
                                     <div className="app-modal">
                                         <div className="app-modal-backdrop" onClick={() => setIsAjReportModalOpen(false)}></div>

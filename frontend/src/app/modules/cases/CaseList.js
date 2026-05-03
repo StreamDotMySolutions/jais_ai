@@ -395,7 +395,9 @@ const CaseList = () => {
                                     >
                                         {item.case_register_no || `KES #${item.id}`}
                                     </button>
-                                    <span className="app-complaint-cell-meta">{item.file_no || 'Tiada nombor fail'}</span>
+                                    {item.file_no && (
+                                        <span className="app-complaint-cell-meta">{item.file_no}</span>
+                                    )}
                                     <span className="app-complaint-cell-meta">{formatDateTime(item.created_at)}</span>
                                 </div>
                                 <div className="app-complaint-cell">
@@ -433,11 +435,12 @@ const CaseList = () => {
                                 <div className="app-case-table-actions">
                                     <button
                                         type="button"
-                                        className="app-button app-button-ghost app-case-open-button"
+                                        className="app-icon-button"
                                         onClick={() => navigate(`/app/cases/${item.id}`)}
+                                        aria-label="Papar Kes"
+                                        title="Papar Kes"
                                     >
-                                        <i className="bi bi-box-arrow-up-right"></i>
-                                        Buka Kes
+                                        <i className="bi bi-pencil-square"></i>
                                     </button>
                                 </div>
                             </div>

@@ -4989,7 +4989,7 @@ class ComplaintController extends Controller
         $month = $month !== '' ? $month : '-';
         $runningNo = $runningNo !== '' ? $runningNo : '-';
 
-        return "KES-{$district} / {$year} / {$month} / {$runningNo}";
+        return "KES-{$district}/{$year}/{$month}/{$runningNo}";
     }
 
     private function buildBorang5Narrative(string $rawText, string $incidentAddress): string
@@ -6063,11 +6063,16 @@ class ComplaintController extends Controller
     {
         return $case->load([
             'district:id,name',
-            'supervisorStaff:id,name,staff_id',
-            'directiveStaff:id,name,staff_id',
-            'handoverStaff:id,name,staff_id',
-            'arrestStaff:id,name,staff_id',
-            'prosecutorStaff:id,name,staff_id',
+            'supervisorStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'supervisorStaff.office:id,name,code,office_type,district_id,phone,address',
+            'directiveStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'directiveStaff.office:id,name,code,office_type,district_id,phone,address',
+            'handoverStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'handoverStaff.office:id,name,code,office_type,district_id,phone,address',
+            'arrestStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'arrestStaff.office:id,name,code,office_type,district_id,phone,address',
+            'prosecutorStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'prosecutorStaff.office:id,name,code,office_type,district_id,phone,address',
             'oyds.media:id,case_oyd_id,category,file_name,stored_name,path,disk,mime,size,created_at',
             'seizureItems.media:id,case_seizure_item_id,category,file_name,stored_name,path,disk,mime,size,created_at',
             'policeReports.media:id,case_police_report_id,category,file_name,stored_name,path,disk,mime,size,created_at',

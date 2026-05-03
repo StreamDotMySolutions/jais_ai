@@ -113,12 +113,12 @@ const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
         const runningNo = parts[3] || '-';
         const district = parsedDistrict || normalizedDistrict || '-';
 
-        return `KES-${district} / ${year} / ${month} / ${runningNo}`;
+        return `KES-${district}/${year}/${month}/${runningNo}`;
     })();
 
     const arrestStaff = caseSource?.arrest_staff || caseSource?.arrestStaff || linkedComplaint?.aj_arrest_staff || linkedComplaint?.ajArrestStaff || null;
     const officerName = arrestStaff?.name || '';
-    const officerIdNo = arrestStaff?.staff_id || arrestStaff?.ic_number || '-';
+    const officerIdNo = arrestStaff?.ic_number || arrestStaff?.staff_id || '-';
     const officerJob = arrestStaff?.position || '-';
     const officerPhone = arrestStaff?.office?.phone || arrestStaff?.no_tel_pejabat || arrestStaff?.phone || '-';
     const officerAddress = arrestStaff?.office?.address || arrestStaff?.office_address || arrestStaff?.address || arrestStaff?.department || '-';

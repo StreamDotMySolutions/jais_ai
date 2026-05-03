@@ -96,6 +96,8 @@ return new class extends Migration
                     'case_register_no',
                     'aj_file_no',
                     'complaint_year',
+                    'complaint_date',
+                    'complaint_time',
                     'district_id',
                     'district_name',
                     'aj_supervisor_staff_id',
@@ -138,14 +140,18 @@ return new class extends Migration
                 ->where('case_type', 'AJ')
                 ->whereNotNull('case_register_no')
                 ->where('case_register_no', '!=', '')
+                ->orderBy('complaint_date')
+                ->orderBy('complaint_time')
                 ->orderBy('id')
                 ->get();
 
+            $runningNumbers = [];
             foreach ($complaints as $complaint) {
-                $caseRegisterNo = trim((string) $complaint->case_register_no);
+                $caseRegisterNo = $this->generateMigratedCaseRegisterNo($complaint, $runningNumbers);
                 if ($caseRegisterNo === '') {
                     continue;
                 }
+                $complaint->case_register_no = $caseRegisterNo;
 
                 $incoming = $this->buildCasePayload($complaint);
                 $existing = DB::table('cases')->where('case_register_no', $caseRegisterNo)->first();
@@ -167,8 +173,47 @@ return new class extends Migration
                     'created_at' => $complaint->created_at ?: now(),
                     'updated_at' => now(),
                 ]);
+
+                DB::table('complaints')
+                    ->where('id', (int) $complaint->id)
+                    ->update([
+                        'case_register_no' => $caseRegisterNo,
+                        'updated_at' => $complaint->updated_at ?: now(),
+                    ]);
             }
         }, 3);
+    }
+
+    private function generateMigratedCaseRegisterNo(object $complaint, array &$runningNumbers): string
+    {
+        $caseType = strtoupper(trim((string) ($complaint->case_type ?: 'AJ')));
+        $year = (int) ($complaint->complaint_year ?: 0);
+        $month = '';
+
+        $date = trim((string) ($complaint->complaint_date ?? ''));
+        if ($date !== '') {
+            $parts = explode('-', $date);
+            if (count($parts) >= 2) {
+                $year = $year > 0 ? $year : (int) $parts[0];
+                $month = str_pad((string) ((int) $parts[1]), 2, '0', STR_PAD_LEFT);
+            }
+        }
+
+        if ($year <= 0) {
+            $year = (int) date('Y');
+        }
+        if ($month === '') {
+            $month = '01';
+        }
+
+        $district = trim((string) ($complaint->district_name ?? ''));
+        $district = $district !== '' ? preg_replace('/\s+/', ' ', $district) : 'Tidak Diketahui';
+        $district = str_replace('/', '-', $district);
+
+        $key = $caseType . '|' . $year;
+        $runningNumbers[$key] = ($runningNumbers[$key] ?? 0) + 1;
+
+        return sprintf('KES-%s/%d/%s/%04d', $district, $year, $month, $runningNumbers[$key]);
     }
 
     private function buildCasePayload(object $complaint): array

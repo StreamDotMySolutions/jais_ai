@@ -54,11 +54,10 @@ const normalizeDateTimeLocal = (value) => {
 
 const getLinkedComplaintCaseLabel = (complaint, caseRecord) => {
     const complaintCaseNo = String(complaint?.case_register_no || '').trim();
-    if (!complaintCaseNo) return '';
     const currentCaseNo = String(caseRecord?.case_register_no || '').trim();
-    return complaintCaseNo === currentCaseNo
-        ? `No Kes: ${complaintCaseNo}`
-        : `Kes sedia ada: ${complaintCaseNo}`;
+    if (currentCaseNo) return `No Kes: ${currentCaseNo}`;
+    if (complaintCaseNo) return `No Kes: ${complaintCaseNo}`;
+    return '';
 };
 
 const getOtherCaseComplaints = (caseRecord) => {
@@ -103,9 +102,18 @@ const CaseDetail = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [isLinkPanelOpen, setIsLinkPanelOpen] = useState(false);
+    const [complaintKeyword, setComplaintKeyword] = useState('');
+    const [complaintResults, setComplaintResults] = useState([]);
+    const [isComplaintSearchLoading, setIsComplaintSearchLoading] = useState(false);
+    const [isLinkingComplaint, setIsLinkingComplaint] = useState(false);
+    const [linkError, setLinkError] = useState('');
 
     const headers = useMemo(() => (token ? { Authorization: `Bearer ${token}` } : undefined), [token]);
     const otherCaseComplaints = useMemo(() => getOtherCaseComplaints(caseRecord), [caseRecord]);
+    const linkedComplaintIds = useMemo(() => new Set(
+        (Array.isArray(caseRecord?.complaints) ? caseRecord.complaints : []).map((complaint) => Number(complaint.id))
+    ), [caseRecord]);
 
     const hydrateForm = (data) => {
         setForm({
@@ -154,6 +162,63 @@ const CaseDetail = () => {
     useEffect(() => {
         loadCase();
     }, [apiUrl, id]);
+
+    useEffect(() => {
+        if (!isLinkPanelOpen || !caseRecord) {
+            return undefined;
+        }
+        const timer = setTimeout(() => {
+            if (!apiUrl) {
+                setLinkError('API URL tidak diset.');
+                return;
+            }
+
+            setIsComplaintSearchLoading(true);
+            setLinkError('');
+            axios.get(`${apiUrl}/complaints`, {
+                headers,
+                params: {
+                    case_type: caseRecord?.case_type || 'AJ',
+                    keyword: complaintKeyword.trim() || undefined,
+                    per_page: 12,
+                },
+            })
+                .then((response) => {
+                    setComplaintResults(Array.isArray(response?.data?.data) ? response.data.data : []);
+                })
+                .catch((err) => {
+                    setLinkError(err?.response?.data?.message || 'Gagal mencari aduan.');
+                })
+                .finally(() => {
+                    setIsComplaintSearchLoading(false);
+                });
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [apiUrl, headers, isLinkPanelOpen, complaintKeyword, caseRecord]);
+
+    const linkComplaintToCase = (complaintId) => {
+        if (!apiUrl || !complaintId || isLinkingComplaint) {
+            return;
+        }
+
+        setIsLinkingComplaint(true);
+        setLinkError('');
+        axios.post(`${apiUrl}/complaints/${complaintId}/cases/${id}/attach`, {}, { headers })
+            .then((response) => {
+                const msg = response?.data?.message || 'Aduan berjaya dipautkan ke kes ini.';
+                setMessage(msg);
+                toast.success(msg);
+                setComplaintResults([]);
+                setComplaintKeyword('');
+                loadCase();
+            })
+            .catch((err) => {
+                setLinkError(err?.response?.data?.message || 'Gagal memaut aduan ke kes ini.');
+            })
+            .finally(() => {
+                setIsLinkingComplaint(false);
+            });
+    };
 
     const updateField = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }));
@@ -252,18 +317,29 @@ const CaseDetail = () => {
     }
 
     return (
-        <div className="app-case-detail">
-            <div className="app-complaints-header">
-                <div>
-                    <span className="app-eyebrow">Pengurusan Kes</span>
-                    <h3>{caseRecord?.case_register_no || `KES #${id}`}</h3>
-                    <p>{caseRecord?.district_name || '-'} | {caseRecord?.case_type === 'AJ' ? 'Aduan Jenayah (AJ)' : '-'}</p>
-                </div>
-                <div className="app-complaints-actions">
-                    <button type="button" className="app-button app-button-ghost" onClick={() => navigate('/app/cases')}>
+        <div className="app-detail app-case-detail">
+            <div className="app-detail-header">
+                <div className="app-detail-header-block">
+                    <button
+                        type="button"
+                        className="app-back app-back-button"
+                        onClick={() => navigate('/app/cases')}
+                    >
                         <i className="bi bi-arrow-left"></i>
-                        Senarai Kes
+                        Kembali ke Senarai
                     </button>
+                    <span className="app-detail-kicker">No Kes</span>
+                    <div className="app-detail-number">
+                        <div className="app-detail-number-main">
+                            <h6>{caseRecord?.case_register_no || `KES #${id}`}</h6>
+                            <div className="app-detail-status-row">
+                                <span className="app-detail-status-label">Daerah :</span>
+                                <span className="app-status-pill">
+                                    {caseRecord?.district_name || '-'} | {caseRecord?.case_type === 'AJ' ? 'Aduan Jenayah (AJ)' : '-'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -284,6 +360,134 @@ const CaseDetail = () => {
                     </div>
                 </SharedInlineAlert>
             )}
+
+            <section className="app-card app-case-related-card">
+                <div className="app-case-related-head">
+                    <h4>Aduan Berkaitan</h4>
+                    <button
+                        type="button"
+                        className="app-button app-button-ghost app-button-sm"
+                        onClick={() => {
+                            setIsLinkPanelOpen((prev) => !prev);
+                            setLinkError('');
+                        }}
+                    >
+                        <i className={`bi ${isLinkPanelOpen ? 'bi-x-lg' : 'bi-link-45deg'}`}></i>
+                        {isLinkPanelOpen ? 'Tutup' : 'Paut Aduan'}
+                    </button>
+                </div>
+                {isLinkPanelOpen && (
+                    <div className="app-case-link-panel">
+                        <div className="app-case-link-panel-head">
+                            <strong>Paut aduan ke kes ini</strong>
+                            <button
+                                type="button"
+                                className="app-icon-button"
+                                aria-label="Tutup paut aduan"
+                                title="Tutup"
+                                onClick={() => {
+                                    setIsLinkPanelOpen(false);
+                                    setComplaintKeyword('');
+                                    setComplaintResults([]);
+                                    setLinkError('');
+                                }}
+                            >
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        {linkError && <div className="app-form-error">{linkError}</div>}
+                        <div className="app-filter-input app-case-link-search">
+                            <i className="bi bi-search app-filter-input-icon" aria-hidden="true"></i>
+                            <input
+                                type="text"
+                                className="app-filter-keyword-input"
+                                value={complaintKeyword}
+                                onChange={(event) => setComplaintKeyword(event.target.value)}
+                                placeholder="Cari no aduan, nama pengadu atau daerah"
+                            />
+                            {complaintKeyword && (
+                                <button
+                                    type="button"
+                                    className="app-search-clear"
+                                    aria-label="Kosongkan carian aduan"
+                                    onClick={() => setComplaintKeyword('')}
+                                >
+                                    <i className="bi bi-x-lg"></i>
+                                </button>
+                            )}
+                        </div>
+                        <div className="app-case-link-results">
+                            {isComplaintSearchLoading && <div className="app-empty">Mencari aduan...</div>}
+                            {!isComplaintSearchLoading && complaintResults.length === 0 && (
+                                <div className="app-empty">Tiada aduan dijumpai.</div>
+                            )}
+                            {!isComplaintSearchLoading && complaintResults.map((complaint) => {
+                                const isLinked = linkedComplaintIds.has(Number(complaint.id));
+                                return (
+                                    <div className="app-case-link-result" key={`case-link-complaint-${complaint.id}`}>
+                                        <div>
+                                            <strong>{complaint.reference_no || `Aduan #${complaint.id}`}</strong>
+                                            <span>{complaint.complainant_name || '-'}</span>
+                                            <small>{complaint.district_name || '-'} | {formatDateTime(`${complaint.complaint_date || ''}T${complaint.complaint_time || '00:00:00'}`)}</small>
+                                            {complaint.case_register_no && (
+                                                <small className="app-case-linked-case-no">Kes sedia ada: {complaint.case_register_no}</small>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="app-button app-button-ghost app-button-sm"
+                                            onClick={() => linkComplaintToCase(complaint.id)}
+                                            disabled={isLinked || isLinkingComplaint}
+                                        >
+                                            {isLinked ? 'Sudah Dipaut' : 'Paut'}
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+                <div className="app-case-linked-detail-list">
+                    {(caseRecord?.complaints || []).map((complaint) => (
+                        <div
+                            role="button"
+                            tabIndex={0}
+                            className="app-case-linked-detail-item"
+                            key={`case-detail-complaint-${complaint.id}`}
+                            onClick={() => navigate(`/app/complaints/${complaint.id}`)}
+                            onKeyDown={(event) => {
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    navigate(`/app/complaints/${complaint.id}`);
+                                }
+                            }}
+                        >
+                            <strong className="app-case-linked-reference app-link app-link-button app-complaint-cell-link">
+                                <span>{complaint.reference_no || `Aduan #${complaint.id}`}</span>
+                                <button
+                                    type="button"
+                                    className="app-case-linked-new-tab"
+                                    aria-label="Buka aduan dalam tab baru"
+                                    title="Buka tab baru"
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        window.open(`/app/complaints/${complaint.id}`, '_blank', 'noopener,noreferrer');
+                                    }}
+                                >
+                                    <i className="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                                </button>
+                            </strong>
+                            <span>{complaint.complainant_name || '-'}</span>
+                            <small>{formatDateTime(`${complaint.complaint_date || ''}T${complaint.complaint_time || '00:00:00'}`)}</small>
+                            {getLinkedComplaintCaseLabel(complaint, caseRecord) && (
+                                <small className="app-case-linked-case-no">
+                                    {getLinkedComplaintCaseLabel(complaint, caseRecord)}
+                                </small>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </section>
 
             <div className="app-case-detail-grid">
                 <div className="app-report-stack">
@@ -328,7 +532,7 @@ const CaseDetail = () => {
                                 <input value={form.file_no} onChange={(event) => updateField('file_no', event.target.value)} />
                             </label>
 
-                            <div className="app-arrest-row app-arrest-row-5 app-span-full">
+                            <div className="app-arrest-row app-case-datetime-row app-span-full">
                                 <div className="app-form-field">
                                     <span>Kesalahan</span>
                                     <SharedOffenseSelect
@@ -413,28 +617,6 @@ const CaseDetail = () => {
                     </section>
 
                 </div>
-                <aside className="app-card app-case-detail-card">
-                    <h4>Aduan Berkaitan</h4>
-                    <div className="app-case-linked-detail-list">
-                        {(caseRecord?.complaints || []).map((complaint) => (
-                            <button
-                                type="button"
-                                className="app-case-linked-detail-item"
-                                key={`case-detail-complaint-${complaint.id}`}
-                                onClick={() => navigate(`/app/complaints/${complaint.id}`)}
-                            >
-                                <strong>{complaint.reference_no || `Aduan #${complaint.id}`}</strong>
-                                <span>{complaint.complainant_name || '-'}</span>
-                                <small>{formatDateTime(`${complaint.complaint_date || ''}T${complaint.complaint_time || '00:00:00'}`)}</small>
-                                {getLinkedComplaintCaseLabel(complaint, caseRecord) && (
-                                    <small className="app-case-linked-case-no">
-                                        {getLinkedComplaintCaseLabel(complaint, caseRecord)}
-                                    </small>
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                </aside>
             </div>
 
             <section className="app-report-section">
