@@ -10530,6 +10530,39 @@ body {
 }
 
 @media (max-width: 640px) {
+  .app-aduan-list .app-list-tabs-row {
+    display: block;
+    margin: 0 -0.45rem 0.55rem;
+    padding: 0 0.45rem 0.15rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-bottom: 1px solid #e2e8f0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .app-aduan-list .app-list-tabs {
+    display: inline-flex;
+    width: max-content;
+    gap: 0.18rem;
+    align-items: flex-end;
+  }
+
+  .app-aduan-list .app-list-tab {
+    min-height: 38px;
+    padding: 0.38rem 0.62rem;
+    border-top-left-radius: 9px;
+    border-top-right-radius: 9px;
+    font-size: 0.82rem;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .app-aduan-list .app-list-tabs-add-btn {
+    margin: 0.45rem 0 0;
+    width: 100%;
+    justify-content: center;
+  }
+
   .app-aduan-list .app-table-expanded-kv-row {
     grid-template-columns: 1fr;
     gap: 0.2rem;
