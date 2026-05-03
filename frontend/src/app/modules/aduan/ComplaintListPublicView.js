@@ -7,6 +7,7 @@ const ComplaintListPublicView = ({
     complaints,
     sortedComplaints,
     setSelectedComplaint,
+    navigate,
     getPublicComplaintStageLabel,
     pickupMessage,
     actionMessage,
@@ -32,7 +33,7 @@ const ComplaintListPublicView = ({
                             <button
                                 type="button"
                                 className="app-link app-link-button app-public-ref"
-                                onClick={() => setSelectedComplaint(item)}
+                                onClick={() => navigate(`/app/complaints/${item.id}`)}
                             >
                                 {item.reference_no || '-'}
                             </button>
@@ -47,6 +48,10 @@ const ComplaintListPublicView = ({
                         </div>
                         <p className="app-public-card-summary">{item.summary || '-'}</p>
                         <div className="app-public-card-actions">
+                            {/*
+                              Drawer preview flow is kept for future reference.
+                              No. aduan now opens the full complaint detail page directly.
+                            */}
                             <button
                                 type="button"
                                 className="app-button app-button-ghost"

@@ -940,6 +940,7 @@ const ComplaintList = ({
                                 complaints={complaints}
                                 sortedComplaints={sortedComplaints}
                                 setSelectedComplaint={setSelectedComplaint}
+                                navigate={navigate}
                                 getPublicComplaintStageLabel={getPublicComplaintStageLabel}
                                 pickupMessage={pickupMessage}
                                 actionMessage={actionMessage}

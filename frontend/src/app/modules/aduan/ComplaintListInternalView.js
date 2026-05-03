@@ -238,6 +238,11 @@ const ComplaintListInternalView = ({
     toggleExpandedComplaint,
 }) => (
     <>
+        {/*
+          Drawer preview flow is intentionally kept for reference/future reuse.
+          Current UX: clicking the complaint reference number navigates directly
+          to /app/complaints/:id instead of opening the drawer.
+        */}
         {showCaseTabs && (
             <div className="app-list-tabs-row">
                 <div className="app-list-tabs">
@@ -367,7 +372,7 @@ const ComplaintListInternalView = ({
                                     <button
                                         type="button"
                                         className="app-link app-link-button app-complaint-cell-link"
-                                        onClick={() => setSelectedComplaint(item)}
+                                        onClick={() => navigate(`/app/complaints/${item.id}`)}
                                     >
                                         {item.reference_no || '-'}
                                     </button>
