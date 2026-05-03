@@ -140,6 +140,7 @@ function App() {
             <Route path="/app/dashboard" element={<DashboardByRole />} />
             <Route path="/app/appointments" element={<AppointmentCalendar />} />
             <Route path="/app/cases" element={<CaseList />} />
+            <Route path="/app/cases/new" element={<CaseDetail />} />
             <Route path="/app/cases/:id" element={<CaseDetail />} />
             <Route
               path="/app/complaints"

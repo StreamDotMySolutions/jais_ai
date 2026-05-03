@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import SharedOffenseSelect from '../../components/SharedOffenseSelect';
 import SharedStaffSelect from '../../components/SharedStaffSelect';
 import SharedInlineAlert from '../../components/SharedInlineAlert';
@@ -70,10 +70,16 @@ const getOtherCaseComplaints = (caseRecord) => {
 
 const CaseDetail = () => {
     const { id } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
     const toast = useToast();
+    const isDraft = !id || id === 'new';
+    const draftComplaintId = useMemo(() => {
+        const params = new URLSearchParams(location.search || '');
+        return params.get('complaint_id') || '';
+    }, [location.search]);
     const [caseRecord, setCaseRecord] = useState(null);
     const [form, setForm] = useState({
         file_no: '',
@@ -147,6 +153,42 @@ const CaseDetail = () => {
             setIsLoading(false);
             return;
         }
+
+        if (isDraft) {
+            if (!draftComplaintId) {
+                setError('Aduan tidak dipilih untuk kes baharu.');
+                setIsLoading(false);
+                return;
+            }
+            setIsLoading(true);
+            axios.get(`${apiUrl}/complaints/${draftComplaintId}`, { headers })
+                .then((response) => {
+                    const complaint = response?.data?.data || null;
+                    if (!complaint) {
+                        setError('Aduan tidak dijumpai.');
+                        return;
+                    }
+                    const draftCase = {
+                        id: null,
+                        case_type: complaint.case_type || 'AJ',
+                        case_register_no: '',
+                        district_id: complaint.district_id || null,
+                        district_name: complaint.district_name || '',
+                        complaints: [complaint],
+                        oyds: [emptyOyd],
+                        seizure_items: [emptySeizureItem],
+                        police_reports: [emptyPoliceReport],
+                        report_offense_id: complaint.aj_report_offense_id || complaint.aj_offense_id || complaint.offense_id || '',
+                    };
+                    setCaseRecord(draftCase);
+                    hydrateForm(draftCase);
+                    setError('');
+                })
+                .catch((err) => setError(err?.response?.data?.message || 'Gagal memuatkan aduan untuk kes baharu.'))
+                .finally(() => setIsLoading(false));
+            return;
+        }
+
         setIsLoading(true);
         axios.get(`${apiUrl}/cases/${id}`, { headers })
             .then((response) => {
@@ -161,7 +203,7 @@ const CaseDetail = () => {
 
     useEffect(() => {
         loadCase();
-    }, [apiUrl, id]);
+    }, [apiUrl, id, draftComplaintId]);
 
     useEffect(() => {
         if (!isLinkPanelOpen || !caseRecord) {
@@ -197,7 +239,7 @@ const CaseDetail = () => {
     }, [apiUrl, headers, isLinkPanelOpen, complaintKeyword, caseRecord]);
 
     const linkComplaintToCase = (complaintId) => {
-        if (!apiUrl || !complaintId || isLinkingComplaint) {
+        if (!apiUrl || !complaintId || isLinkingComplaint || isDraft) {
             return;
         }
 
@@ -256,21 +298,31 @@ const CaseDetail = () => {
         setIsSaving(true);
         setMessage('');
         setError('');
-        axios.put(`${apiUrl}/cases/${id}`, {
+        const payload = {
             ...form,
             report_offense_id: form.report_offense_id || null,
             arrest_staff_id: form.arrest_staff_id || null,
-        }, { headers })
+        };
+        const request = isDraft
+            ? axios.post(`${apiUrl}/complaints/${draftComplaintId}/cases`, payload, { headers })
+            : axios.put(`${apiUrl}/cases/${id}`, payload, { headers });
+
+        request
             .then((response) => {
-                const data = response?.data?.data;
+                const data = isDraft
+                    ? (response?.data?.meta?.primary_case || response?.data?.data?.primary_case)
+                    : response?.data?.data;
                 setCaseRecord(data);
                 hydrateForm(data);
                 const autoEmailSent = Boolean(response?.data?.meta?.laporan_tindakan_auto_email?.sent);
                 const msg = autoEmailSent
-                    ? 'Maklumat kes berjaya dikemaskini dan emel Laporan Tindakan berjaya dihantar.'
-                    : (response?.data?.message || 'Maklumat kes berjaya dikemaskini.');
+                    ? 'Maklumat kes berjaya disimpan dan emel Laporan Tindakan berjaya dihantar.'
+                    : (response?.data?.message || (isDraft ? 'Kes baharu berjaya disimpan.' : 'Maklumat kes berjaya dikemaskini.'));
                 setMessage(msg);
                 toast.success(msg);
+                if (isDraft && data?.id) {
+                    navigate(`/app/cases/${data.id}`, { replace: true });
+                }
             })
             .catch((err) => {
                 const errors = err?.response?.data?.errors;
@@ -281,6 +333,10 @@ const CaseDetail = () => {
     };
 
     const ensureChildRow = async (field, index, endpoint, payloadKeys) => {
+        if (isDraft) {
+            toast.error('Simpan kes dahulu sebelum muat naik lampiran.');
+            return null;
+        }
         const row = form[field]?.[index] || {};
         if (row.id) return row.id;
 
@@ -323,15 +379,15 @@ const CaseDetail = () => {
                     <button
                         type="button"
                         className="app-back app-back-button"
-                        onClick={() => navigate('/app/cases')}
+                        onClick={() => navigate(isDraft && draftComplaintId ? `/app/complaints/${draftComplaintId}` : '/app/cases')}
                     >
                         <i className="bi bi-arrow-left"></i>
-                        Kembali ke Senarai
+                        {isDraft ? 'Kembali ke Aduan' : 'Kembali ke Senarai'}
                     </button>
                     <span className="app-detail-kicker">No Kes</span>
                     <div className="app-detail-number">
                         <div className="app-detail-number-main">
-                            <h6>{caseRecord?.case_register_no || `KES #${id}`}</h6>
+                            <h6>{isDraft ? 'Kes Baharu (Belum Disimpan)' : (caseRecord?.case_register_no || `KES #${id}`)}</h6>
                             <div className="app-detail-status-row">
                                 <span className="app-detail-status-label">Daerah :</span>
                                 <span className="app-status-pill">
@@ -345,6 +401,12 @@ const CaseDetail = () => {
 
             {message && <SharedInlineAlert type="success" message={message} dismissible onClose={() => setMessage('')} />}
             {error && <SharedInlineAlert type="error" message={error} dismissible onClose={() => setError('')} />}
+            {isDraft && (
+                <SharedInlineAlert
+                    type="info"
+                    message="No. daftar kes hanya akan dijana selepas Simpan Kes. Jika keluar tanpa simpan, tiada rekod kes akan dibuat."
+                />
+            )}
             {otherCaseComplaints.length > 0 && (
                 <SharedInlineAlert type="warning">
                     <div className="app-case-existing-alert">
@@ -364,17 +426,19 @@ const CaseDetail = () => {
             <section className="app-card app-case-related-card">
                 <div className="app-case-related-head">
                     <h4>Aduan Berkaitan</h4>
-                    <button
-                        type="button"
-                        className="app-button app-button-ghost app-button-sm"
-                        onClick={() => {
-                            setIsLinkPanelOpen((prev) => !prev);
-                            setLinkError('');
-                        }}
-                    >
-                        <i className={`bi ${isLinkPanelOpen ? 'bi-x-lg' : 'bi-link-45deg'}`}></i>
-                        {isLinkPanelOpen ? 'Tutup' : 'Paut Aduan'}
-                    </button>
+                    {!isDraft && (
+                        <button
+                            type="button"
+                            className="app-button app-button-ghost app-button-sm"
+                            onClick={() => {
+                                setIsLinkPanelOpen((prev) => !prev);
+                                setLinkError('');
+                            }}
+                        >
+                            <i className={`bi ${isLinkPanelOpen ? 'bi-x-lg' : 'bi-link-45deg'}`}></i>
+                            {isLinkPanelOpen ? 'Tutup' : 'Paut Aduan'}
+                        </button>
+                    )}
                 </div>
                 {isLinkPanelOpen && (
                     <div className="app-case-link-panel">
@@ -524,7 +588,7 @@ const CaseDetail = () => {
 
                             <label className="app-form-field">
                                 <span>No. Daftar Kes</span>
-                                <input value={caseRecord?.case_register_no || ''} readOnly disabled />
+                                <input value={isDraft ? 'Akan dijana selepas simpan' : (caseRecord?.case_register_no || '')} readOnly disabled />
                             </label>
 
                             <label className="app-form-field">
@@ -905,20 +969,22 @@ const CaseDetail = () => {
 
             <div className="app-report-sticky app-case-sticky-actions">
                 <button type="button" className="app-button" onClick={saveCase} disabled={isSaving}>
-                    {isSaving ? 'Menyimpan...' : 'Simpan Kes'}
+                    {isSaving ? 'Menyimpan...' : (isDraft ? 'Simpan Kes & Jana No Kes' : 'Simpan Kes')}
                 </button>
-                <button
-                    type="button"
-                    className="app-button app-button-ghost"
-                    onClick={() => window.open(
-                        `/app/cases/${id}/print/laporan-tindakan`,
-                        'laporanTindakanKes',
-                        'width=980,height=720,scrollbars=yes,resizable=yes'
-                    )}
-                >
-                    <i className="bi bi-printer"></i>
-                    Laporan Tindakan
-                </button>
+                {!isDraft && (
+                    <button
+                        type="button"
+                        className="app-button app-button-ghost"
+                        onClick={() => window.open(
+                            `/app/cases/${id}/print/laporan-tindakan`,
+                            'laporanTindakanKes',
+                            'width=980,height=720,scrollbars=yes,resizable=yes'
+                        )}
+                    >
+                        <i className="bi bi-printer"></i>
+                        Laporan Tindakan
+                    </button>
+                )}
             </div>
         </div>
     );

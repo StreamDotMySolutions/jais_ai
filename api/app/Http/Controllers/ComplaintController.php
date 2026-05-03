@@ -2127,19 +2127,89 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'Hanya aduan AJ boleh dibuka sebagai kes.'], 422);
         }
 
-        $case = DB::transaction(function () use ($complaint) {
-            return $this->createAdditionalCaseForComplaint($complaint);
+        $validated = $request->validate([
+            'file_no' => ['nullable', 'string', 'max:255'],
+            'report_offense_id' => ['nullable', 'integer', 'exists:ref_offenses,id'],
+            'arrest_staff_id' => ['nullable', 'integer', 'exists:staff,id'],
+            'current_status' => ['nullable', 'string', 'max:255'],
+            'op_category' => ['nullable', 'string', 'max:255'],
+            'op_case_status' => ['nullable', 'string', 'max:255'],
+            'op_notes' => ['nullable', 'string', 'max:20000'],
+            'arrest_status' => ['nullable', 'string', 'max:20'],
+            'arrest_by' => ['nullable', 'string', 'max:255'],
+            'male_count' => ['nullable', 'integer', 'min:0'],
+            'female_count' => ['nullable', 'integer', 'min:0'],
+            'other_count' => ['nullable', 'integer', 'min:0'],
+            'action_datetime' => ['nullable', 'date'],
+            'statement_datetime' => ['nullable', 'date'],
+            'court_date' => ['nullable', 'date'],
+            'report_notes' => ['nullable', 'string'],
+            'oyds' => ['nullable', 'array'],
+            'oyds.*.id' => ['nullable', 'integer'],
+            'oyds.*.name' => ['nullable', 'string', 'max:255'],
+            'oyds.*.id_number' => ['nullable', 'string', 'max:255'],
+            'oyds.*.investigator_name' => ['nullable', 'string', 'max:255'],
+            'oyds.*.file_no' => ['nullable', 'string', 'max:255'],
+            'seizure_status' => ['nullable', 'string', 'max:20'],
+            'police_report_status' => ['nullable', 'string', 'max:20'],
+            'seizure_items' => ['nullable', 'array'],
+            'seizure_items.*.id' => ['nullable', 'integer'],
+            'seizure_items.*.item_no' => ['nullable', 'string', 'max:255'],
+            'seizure_items.*.description' => ['nullable', 'string', 'max:2000'],
+            'seizure_items.*.storage' => ['nullable', 'string', 'max:1000'],
+            'police_reports' => ['nullable', 'array'],
+            'police_reports.*.id' => ['nullable', 'integer'],
+            'police_reports.*.report_no' => ['nullable', 'string', 'max:255'],
+            'police_reports.*.description' => ['nullable', 'string', 'max:2000'],
+            'police_reports.*.station' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $case = DB::transaction(function () use ($complaint, $validated) {
+            $case = $this->createAdditionalCaseForComplaint($complaint, [
+                'file_no' => $this->nullableString($validated['file_no'] ?? null),
+                'report_offense_id' => $validated['report_offense_id'] ?? null,
+                'arrest_staff_id' => $validated['arrest_staff_id'] ?? null,
+                'current_status' => $this->nullableString($validated['current_status'] ?? null),
+                'op_category' => $this->nullableString($validated['op_category'] ?? null),
+                'op_case_status' => $this->nullableString($validated['op_case_status'] ?? null),
+                'op_notes' => $this->nullableString($validated['op_notes'] ?? null),
+                'arrest_status' => $this->nullableString($validated['arrest_status'] ?? null),
+                'arrest_by' => $this->nullableString($validated['arrest_by'] ?? null),
+                'male_count' => $validated['male_count'] ?? null,
+                'female_count' => $validated['female_count'] ?? null,
+                'other_count' => $validated['other_count'] ?? null,
+                'action_datetime' => $validated['action_datetime'] ?? null,
+                'statement_datetime' => $validated['statement_datetime'] ?? null,
+                'court_date' => $validated['court_date'] ?? null,
+                'report_notes' => $this->nullableString($validated['report_notes'] ?? null),
+                'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
+                'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
+            ]);
+
+            $this->syncCaseChildRows($case, CaseOyd::class, 'oyds', $validated['oyds'] ?? [], ['name', 'id_number', 'investigator_name', 'file_no']);
+            $this->syncCaseChildRows($case, CaseSeizureItem::class, 'seizureItems', $validated['seizure_items'] ?? [], ['item_no', 'description', 'storage']);
+            $this->syncCaseChildRows($case, CasePoliceReport::class, 'policeReports', $validated['police_reports'] ?? [], ['report_no', 'description', 'station']);
+
+            return $case->fresh();
         }, 3);
 
         $freshComplaint = $this->reloadComplaintWithCases($complaint);
+        $freshCase = $this->loadCaseDetail($case);
+        $autoLaporanEmailMeta = $this->autoSendLaporanTindakanEmailAfterCaseSave($freshCase);
 
-        return response()->json([
+        $response = [
             'message' => 'Kes baharu berjaya ditambah.',
             'data' => $freshComplaint,
             'meta' => [
-                'primary_case' => $case,
+                'primary_case' => $freshCase,
             ],
-        ]);
+        ];
+
+        if ($autoLaporanEmailMeta) {
+            $response['meta']['laporan_tindakan_auto_email'] = $autoLaporanEmailMeta;
+        }
+
+        return response()->json($response);
     }
 
     public function activateCase(Request $request, Complaint $complaint, CaseRecord $case)
@@ -4741,6 +4811,12 @@ class ComplaintController extends Controller
         ]);
 
         $this->setPrimaryCase($complaint, $case->id);
+
+        if (! trim((string) ($complaint->case_register_no ?? '')) && ! empty($payload['case_register_no'])) {
+            $complaint->update([
+                'case_register_no' => $payload['case_register_no'],
+            ]);
+        }
 
         return $case->fresh();
     }

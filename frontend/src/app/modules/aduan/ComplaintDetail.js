@@ -1759,53 +1759,6 @@ const ComplaintDetail = () => {
             });
     };
 
-    const openAjCase = ({ openCaseDetail = false } = {}) => {
-        if (!apiUrl || !complaint) {
-            return;
-        }
-        axios.post(`${apiUrl}/complaints/${id}/open-case`, {}, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then((response) => {
-                const updated = response?.data?.data;
-                if (updated) {
-                    setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
-                }
-                const targetCase = response?.data?.meta?.primary_case || updated?.primary_case;
-                if (openCaseDetail && targetCase?.id) {
-                    navigate(`/app/cases/${targetCase.id}`);
-                }
-                const msg = response?.data?.message || 'Kes berjaya dibuka.';
-                toast.success(msg);
-            })
-            .catch((err) => {
-                toast.error(err?.response?.data?.message || 'Gagal membuka kes.');
-            });
-    };
-
-    const createAdditionalAjCase = ({ openCaseDetail = false } = {}) => {
-        if (!apiUrl || !complaint) {
-            return;
-        }
-        axios.post(`${apiUrl}/complaints/${id}/cases`, {}, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        })
-            .then((response) => {
-                const updated = response?.data?.data;
-                if (updated) {
-                    setComplaint((prev) => prev ? { ...prev, ...updated } : updated);
-                }
-                const targetCase = response?.data?.meta?.primary_case || updated?.primary_case;
-                if (openCaseDetail && targetCase?.id) {
-                    navigate(`/app/cases/${targetCase.id}`);
-                }
-                toast.success(response?.data?.message || 'Kes baharu berjaya ditambah.');
-            })
-            .catch((err) => {
-                toast.error(err?.response?.data?.message || 'Gagal menambah kes baharu.');
-            });
-    };
-
     const activateAjCase = (caseId, { openCaseDetail = false } = {}) => {
         if (!apiUrl || !complaint || !caseId || Number(primaryCase?.id) === Number(caseId)) {
             if (openCaseDetail && caseId) {
@@ -1832,11 +1785,7 @@ const ComplaintDetail = () => {
     };
 
     const openAjReportModalForNewCase = () => {
-        if (primaryCase?.id) {
-            createAdditionalAjCase({ openCaseDetail: true });
-            return;
-        }
-        openAjCase({ openCaseDetail: true });
+        navigate(`/app/cases/new?complaint_id=${id}`);
     };
 
     const openAjReportModalForCase = (caseId) => {
