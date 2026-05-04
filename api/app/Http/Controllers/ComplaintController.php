@@ -4511,6 +4511,7 @@ class ComplaintController extends Controller
 
         $channel = (string) ($request->channel ?? 'web');
         $channelNormalized = strtolower(trim($channel));
+        $isPhysicalInformantChannel = in_array(str_replace('_', '-', $channelNormalized), ['walkin', 'walk-in', 'kaunter'], true);
         // Public intake channels (no Borang 5 required).
         $isPublicChannel = in_array($channelNormalized, ['portal', 'web'], true);
         // Keep summary as string (can be empty for officer intake).
@@ -4567,9 +4568,9 @@ class ComplaintController extends Controller
             'complainant_name' => $request->complainant_name,
             'identification_number'    => $request->identification_number,
             'contact_number'    => $request->contact_number,
-            'informant_name' => $request->informant_name,
-            'informant_identification_number' => $request->informant_identification_number,
-            'informant_contact_number' => $request->informant_contact_number,
+            'informant_name' => $request->informant_name ?: ($isPhysicalInformantChannel ? $request->complainant_name : null),
+            'informant_identification_number' => $request->informant_identification_number ?: ($isPhysicalInformantChannel ? $request->identification_number : null),
+            'informant_contact_number' => $request->informant_contact_number ?: ($isPhysicalInformantChannel ? $request->contact_number : null),
             'complainant_occupation' => $request->complainant_occupation,
             'address'    => $request->address,
             'district_id' => $district?->id,
