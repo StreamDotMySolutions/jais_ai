@@ -941,9 +941,30 @@ class IwaranWarrantController extends Controller
         ]);
     }
 
-    public function show(IwaranWarrant $iwaranWarrant): JsonResponse
+    public function show(Request $request, IwaranWarrant $iwaranWarrant): JsonResponse
     {
-        $iwaranWarrant->load([
+        if ($request->query('only') === 'attachments') {
+            $iwaranWarrant->load(['attachments']);
+            $attachments = $iwaranWarrant->attachments->map(function (IwaranWaranAttachment $attachment) {
+                return [
+                    'id' => $attachment->id,
+                    'file_name' => $attachment->file_name,
+                    'mime' => $attachment->mime,
+                    'size' => $attachment->size,
+                    'created_at' => $attachment->created_at,
+                    'download_url' => route('iwaran.attachments.download', ['attachment' => $attachment->id]),
+                ];
+            });
+
+            return response()->json([
+                'message' => 'Lampiran waran',
+                'data' => [
+                    'attachments' => $attachments,
+                ],
+            ]);
+        }
+
+        $relations = [
             'daerah:id,name',
             'mahkamah:id,nama',
             'pendaftar:id,name',
@@ -951,19 +972,27 @@ class IwaranWarrantController extends Controller
             'jenisKesMal:id,nama',
             'jenisKesJenayah:id,nama',
             'hasilPerlaksanaan:id,nama',
-            'attachments',
-        ]);
+        ];
 
-        $attachments = $iwaranWarrant->attachments->map(function (IwaranWaranAttachment $attachment) {
-            return [
-                'id' => $attachment->id,
-                'file_name' => $attachment->file_name,
-                'mime' => $attachment->mime,
-                'size' => $attachment->size,
-                'created_at' => $attachment->created_at,
-                'download_url' => route('iwaran.attachments.download', ['attachment' => $attachment->id]),
-            ];
-        });
+        if (! $request->boolean('lightweight')) {
+            $relations[] = 'attachments';
+        }
+
+        $iwaranWarrant->load($relations);
+
+        $attachments = collect();
+        if ($iwaranWarrant->relationLoaded('attachments')) {
+            $attachments = $iwaranWarrant->attachments->map(function (IwaranWaranAttachment $attachment) {
+                return [
+                    'id' => $attachment->id,
+                    'file_name' => $attachment->file_name,
+                    'mime' => $attachment->mime,
+                    'size' => $attachment->size,
+                    'created_at' => $attachment->created_at,
+                    'download_url' => route('iwaran.attachments.download', ['attachment' => $attachment->id]),
+                ];
+            });
+        }
 
         return response()->json([
             'message' => 'Maklumat waran',

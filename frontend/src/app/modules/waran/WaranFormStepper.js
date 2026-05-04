@@ -141,6 +141,32 @@ const flattenApiValidationErrors = (errors = {}) => (
     }, {})
 );
 
+const WaranFormSkeleton = () => (
+    <div className="app-waran-form-skeleton" aria-label="Memuatkan waran">
+        <div className="app-waran-skeleton-stepper">
+            <span className="app-skeleton-pill"></span>
+            <span className="app-skeleton-pill"></span>
+        </div>
+        {[1, 2, 3].map((section) => (
+            <div className="app-waran-skeleton-section" key={section}>
+                <div className="app-skeleton-line app-skeleton-line--md"></div>
+                <div className="app-waran-skeleton-grid">
+                    {Array.from({ length: section === 1 ? 6 : 4 }).map((_, index) => (
+                        <div className={`app-waran-skeleton-field ${index === 0 && section === 1 ? 'span-2' : ''}`} key={index}>
+                            <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                            <span className="app-waran-skeleton-input"></span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        ))}
+        <div className="app-waran-skeleton-actions">
+            <span className="app-skeleton-pill"></span>
+            <span className="app-skeleton-pill"></span>
+        </div>
+    </div>
+);
+
 const WaranFormStepper = ({ mode = 'create' }) => {
     const toast = useToast();
     const [step, setStep] = useState(1);
@@ -241,6 +267,27 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         }))
     ), [jenisKesJenayahOptions]);
 
+    const mahkamahSearchOptions = useMemo(() => {
+        const options = (mahkamahOptions || []).map((item) => {
+            const districtName = item?.daerah?.name || item?.district?.name || item?.daerah_name || item?.district_name || '';
+            const name = String(item?.nama || '').trim();
+            return {
+                value: String(item.id),
+                label: districtName ? { text: name, district: districtName } : name,
+                searchLabel: `${name} ${districtName}`.trim(),
+            };
+        });
+
+        return [
+            ...options,
+            {
+                value: ADD_MAHKAMAH_OPTION,
+                label: '+ Tambah Mahkamah',
+                searchLabel: 'tambah mahkamah add new',
+            },
+        ];
+    }, [mahkamahOptions]);
+
     const updateField = (field) => (event) => {
         setValidationErrors((prev) => {
             if (!prev || !prev[field]) {
@@ -300,13 +347,13 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         }));
     };
 
-    const onMahkamahSelectChange = (event) => {
-        const value = String(event?.target?.value || '');
+    const onMahkamahSelectChange = (input) => {
+        const value = readInputValue(input);
         if (value === ADD_MAHKAMAH_OPTION) {
             openMahkamahModal();
             return;
         }
-        updateField('mahkamah_id')(event);
+        updateFieldValue('mahkamah_id')(value);
     };
 
     const updateJenisKesMal = (input) => {
@@ -370,36 +417,41 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         if (!apiUrl) {
             return;
         }
-        axios.get(`${apiUrl}/districts`)
-            .then((response) => {
-                setDistrictOptions(response?.data?.data || []);
-            })
-            .catch(() => setDistrictOptions([]));
+        const delayMs = isEdit ? 150 : 0;
+        const timer = window.setTimeout(() => {
+            axios.get(`${apiUrl}/districts`)
+                .then((response) => {
+                    setDistrictOptions(response?.data?.data || []);
+                })
+                .catch(() => setDistrictOptions([]));
 
-        axios.get(`${apiUrl}/references/iwaran-jenis-kes`, { params: { kategori: 'mal' } })
-            .then((response) => {
-                setJenisKesMalOptions(response?.data?.data || []);
-            })
-            .catch(() => setJenisKesMalOptions([]));
+            axios.get(`${apiUrl}/references/iwaran-jenis-kes`, { params: { kategori: 'mal' } })
+                .then((response) => {
+                    setJenisKesMalOptions(response?.data?.data || []);
+                })
+                .catch(() => setJenisKesMalOptions([]));
 
-        axios.get(`${apiUrl}/references/iwaran-jenis-kes`, { params: { kategori: 'jenayah' } })
-            .then((response) => {
-                setJenisKesJenayahOptions(response?.data?.data || []);
-            })
-            .catch(() => setJenisKesJenayahOptions([]));
+            axios.get(`${apiUrl}/references/iwaran-jenis-kes`, { params: { kategori: 'jenayah' } })
+                .then((response) => {
+                    setJenisKesJenayahOptions(response?.data?.data || []);
+                })
+                .catch(() => setJenisKesJenayahOptions([]));
 
-        axios.get(`${apiUrl}/references/iwaran-hasil`)
-            .then((response) => {
-                setHasilOptions(response?.data?.data || []);
-            })
-            .catch(() => setHasilOptions([]));
+            axios.get(`${apiUrl}/references/iwaran-hasil`)
+                .then((response) => {
+                    setHasilOptions(response?.data?.data || []);
+                })
+                .catch(() => setHasilOptions([]));
 
-        axios.get(`${apiUrl}/references/mahkamah`)
-            .then((response) => {
-                setMahkamahOptions(response?.data?.data || []);
-            })
-            .catch(() => setMahkamahOptions([]));
-    }, [apiUrl, token]);
+            axios.get(`${apiUrl}/references/mahkamah`)
+                .then((response) => {
+                    setMahkamahOptions(response?.data?.data || []);
+                })
+                .catch(() => setMahkamahOptions([]));
+        }, delayMs);
+
+        return () => window.clearTimeout(timer);
+    }, [apiUrl, isEdit, token]);
 
     const saveNewMahkamah = () => {
         if (!apiUrl || savingMahkamah) {
@@ -500,6 +552,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         }
         setIsLoading(true);
         axios.get(`${apiUrl}/i-waran/${id}`, {
+            params: { lightweight: 1 },
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
             .then((response) => {
@@ -540,7 +593,17 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     laporan_2: '',
                     catatan_pelaksana: data.catatan_pelaksana || '',
                 }));
-                setAttachments(Array.isArray(data.attachments) ? data.attachments : []);
+                setAttachments([]);
+                axios.get(`${apiUrl}/i-waran/${id}`, {
+                    params: { only: 'attachments' },
+                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                })
+                    .then((attachmentResponse) => {
+                        setAttachments(Array.isArray(attachmentResponse?.data?.data?.attachments)
+                            ? attachmentResponse.data.data.attachments
+                            : []);
+                    })
+                    .catch(() => setAttachments([]));
             })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal memuatkan waran.');
@@ -656,6 +719,21 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             .finally(() => setSaving(false));
     };
 
+    const openWaranPrintPopup = () => {
+        if (!id) {
+            return;
+        }
+        const url = `/app/i-waran/${id}/print`;
+        const popup = window.open(
+            url,
+            'laporanPelaksanaanWaran',
+            'width=980,height=720,scrollbars=yes,resizable=yes'
+        );
+        if (!popup) {
+            navigate(url);
+        }
+    };
+
     return (
         <div className="app-waran">
             <div className="app-waran-header">
@@ -671,36 +749,39 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             </div>
 
             <div className="app-card app-waran-section">
-                {isLoading && <div className="app-empty">Memuatkan waran...</div>}
-                {error && !isLoading && (
-                    <InlineAlert type="error" message={error} dismissible onClose={() => setError('')} />
-                )}
-                {!isLoading && message && showMessage && (
-                    <InlineAlert
-                        type="success"
-                        message={message}
-                        dismissible
-                        onClose={() => setShowMessage(false)}
-                    />
-                )}
-                <div className="app-stepper">
-                    <button
-                        type="button"
-                        className={`app-step ${step === 1 ? 'active' : ''}`}
-                        onClick={() => setStep(1)}
-                    >
-                        <span className="app-step-number">1</span>
-                        Pendaftar Waran
-                    </button>
-                    <button
-                        type="button"
-                        className={`app-step ${step === 2 ? 'active' : ''}`}
-                        onClick={() => setStep(2)}
-                    >
-                        <span className="app-step-number">2</span>
-                        Pelaksana Waran
-                    </button>
-                </div>
+                {isLoading ? (
+                    <WaranFormSkeleton />
+                ) : (
+                    <>
+                        {error && (
+                            <InlineAlert type="error" message={error} dismissible onClose={() => setError('')} />
+                        )}
+                        {message && showMessage && (
+                            <InlineAlert
+                                type="success"
+                                message={message}
+                                dismissible
+                                onClose={() => setShowMessage(false)}
+                            />
+                        )}
+                        <div className="app-stepper">
+                            <button
+                                type="button"
+                                className={`app-step ${step === 1 ? 'active' : ''}`}
+                                onClick={() => setStep(1)}
+                            >
+                                <span className="app-step-number">1</span>
+                                Pendaftar Waran
+                            </button>
+                            <button
+                                type="button"
+                                className={`app-step ${step === 2 ? 'active' : ''}`}
+                                onClick={() => setStep(2)}
+                            >
+                                <span className="app-step-number">2</span>
+                                Pelaksana Waran
+                            </button>
+                        </div>
 
                 {step === 1 && (
                     <div className="app-step-body app-step-body-sticky">
@@ -832,13 +913,13 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 )}
                                 <div className="app-form-field">
                                     <label>Mahkamah *</label>
-                                    <select className={validationErrors.mahkamah_id ? 'app-input-error' : ''} value={formData.mahkamah_id} onChange={onMahkamahSelectChange}>
-                                        <option value="">Pilih mahkamah</option>
-                                        {mahkamahOptions.map((item) => (
-                                            <option key={item.id} value={item.id}>{item.nama}</option>
-                                        ))}
-                                        <option value={ADD_MAHKAMAH_OPTION}>+ Tambah Mahkamah</option>
-                                    </select>
+                                    <SearchSelect
+                                        value={formData.mahkamah_id}
+                                        options={mahkamahSearchOptions}
+                                        placeholder="Pilih mahkamah"
+                                        searchPlaceholder="Cari mahkamah..."
+                                        onChange={onMahkamahSelectChange}
+                                    />
                                     {validationErrors.mahkamah_id && (
                                         <small className="app-inline-note app-inline-note-error">{validationErrors.mahkamah_id}</small>
                                     )}
@@ -962,9 +1043,9 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                             )}
                         </div>
 
-                        <div className="app-form-actions app-actions-sticky">
+                        <div className="app-form-actions app-actions-sticky app-waran-step-actions">
                             <button type="button" className="app-button" onClick={handleSubmit} disabled={saving}>
-                                {saving ? 'Menyimpan...' : (isEdit ? 'Kemaskini' : 'Simpan')}
+                                {saving ? 'Menyimpan...' : 'Simpan'}
                             </button>
                             <button
                                 type="button"
@@ -1136,15 +1217,27 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                             )}
                         </div>
 
-                        <div className="app-form-actions app-actions-sticky">
+                        <div className="app-form-actions app-actions-sticky app-waran-step-actions">
                             <button type="button" className="app-button" onClick={handleSubmit} disabled={saving}>
-                                {saving ? 'Menyimpan...' : (isEdit ? 'Kemaskini' : 'Simpan')}
+                                {saving ? 'Menyimpan...' : 'Simpan'}
                             </button>
+                            {isEdit && (
+                                <button
+                                    type="button"
+                                    className="app-button app-button-ghost"
+                                    onClick={openWaranPrintPopup}
+                                >
+                                    <i className="bi bi-printer"></i>
+                                    Laporan Pelaksanaan Waran
+                                </button>
+                            )}
                             <button type="button" className="app-button app-button-ghost" onClick={() => setStep(1)}>
                                 Kembali
                             </button>
                         </div>
                     </div>
+                )}
+                    </>
                 )}
             </div>
             {isMahkamahModalOpen && (

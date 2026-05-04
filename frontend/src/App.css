@@ -7884,8 +7884,8 @@ body {
 
 .app-waran-report-table {
   display: grid;
-  grid-template-columns: 4.9cm minmax(0, 1fr);
-  gap: 0.26cm 0.78cm;
+  grid-template-columns: 6.2cm minmax(0, 1fr);
+  gap: 0.26cm 0.5cm;
 }
 
 .app-waran-report-table .k {
@@ -8070,6 +8070,51 @@ body {
 .app-waran-section {
   display: grid;
   gap: 1.5rem;
+}
+
+.app-waran-form-skeleton {
+  display: grid;
+  gap: 1rem;
+}
+
+.app-waran-skeleton-stepper,
+.app-waran-skeleton-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.app-waran-skeleton-section {
+  border: 1px solid #e3ebe7;
+  border-radius: 16px;
+  padding: 1rem;
+  background: #ffffff;
+  display: grid;
+  gap: 1rem;
+}
+
+.app-waran-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.app-waran-skeleton-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.app-waran-skeleton-field.span-2 {
+  grid-column: span 2;
+}
+
+.app-waran-skeleton-input {
+  display: block;
+  height: 42px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, rgba(15, 43, 31, 0.08), rgba(15, 43, 31, 0.18), rgba(15, 43, 31, 0.08));
+  background-size: 180% 100%;
+  animation: shimmer 1.4s ease infinite;
 }
 
 .app-section-header {
@@ -8499,6 +8544,11 @@ body {
   padding-bottom: 0.9rem;
 }
 
+.app-waran-step-actions {
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 1100px) {
   .app-waran-layout {
     grid-template-columns: 1fr;
@@ -8513,6 +8563,10 @@ body {
   }
 
   .app-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-waran-skeleton-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -8532,6 +8586,14 @@ body {
   }
 
   .app-form-field.span-2 {
+    grid-column: span 1;
+  }
+
+  .app-waran-skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-waran-skeleton-field.span-2 {
     grid-column: span 1;
   }
 
