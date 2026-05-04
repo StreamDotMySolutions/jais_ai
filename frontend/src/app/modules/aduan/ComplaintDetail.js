@@ -2015,8 +2015,10 @@ const ComplaintDetail = () => {
             : 'Tidak boleh dikemaskini apabila status aduan Menunggu tindakan pengesah, Disahkan atau Dihantar ke Daerah.')
         : undefined;
     const canEditAduanBox = canEditBasicComplaint && !isAduanBoxLocked;
-    const approverName = (complaint?.approverStaff?.name || '').trim().toLowerCase();
-    const approverDisplayName = (complaint?.approverStaff?.name || '').trim() || '-';
+    const receiverDisplayName = (complaint?.received_by?.name || complaint?.receivedBy?.name || '').trim();
+    const approverRelationName = (complaint?.approver_staff?.name || complaint?.approverStaff?.name || '').trim();
+    const approverName = approverRelationName.toLowerCase();
+    const approverDisplayName = approverRelationName || (currentCaseType === 'AK' ? receiverDisplayName : '') || '-';
     const canApprove = Boolean(
         !complaint?.approver_confirmed_at
         && (
@@ -3027,7 +3029,7 @@ const ComplaintDetail = () => {
                         {!isPublicRole && (
                             <div className="app-detail-meta">
                                 <span>Penerima Aduan:</span>
-                                <strong>{complaint.received_by?.name || '-'}</strong>
+                                <strong>{receiverDisplayName || '-'}</strong>
                             </div>
                         )}
                     </div>
@@ -3316,7 +3318,7 @@ const ComplaintDetail = () => {
                                             <div className="app-approver-row">
                                                 <span>Penerima Aduan</span>
                                                 <span>:</span>
-                                                <strong>{complaint.received_by?.name || '-'}</strong>
+                                                <strong>{receiverDisplayName || '-'}</strong>
                                             </div>
                                             <div className="app-approver-row">
                                                 <span>Tarikh Terima</span>
@@ -3446,7 +3448,7 @@ const ComplaintDetail = () => {
                                             <div className="app-approver-row">
                                                 <span>Penerima Aduan</span>
                                                 <span>:</span>
-                                                <strong>{complaint.received_by?.name || '-'}</strong>
+                                                <strong>{receiverDisplayName || '-'}</strong>
                                             </div>
                                             <div className="app-approver-row">
                                                 <span>Tarikh Terima</span>
