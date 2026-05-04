@@ -361,6 +361,7 @@ const ComplaintListInternalView = ({
                         && receiverName
                         && (!localUserName || receiverName.toLowerCase() !== localUserName)
                     );
+                    const canDeleteItem = canDelete && item.current_stage === 'baru' && !isLockedByOtherUser;
 
                     return (
                         <React.Fragment key={item.id}>
@@ -519,7 +520,7 @@ const ComplaintListInternalView = ({
                                                 </a>
                                             </>
                                         )}
-                                        {canDelete && item.current_stage === 'baru' && (
+                                        {canDeleteItem && (
                                             <button
                                                 type="button"
                                                 className="app-icon-button app-icon-button-danger"
