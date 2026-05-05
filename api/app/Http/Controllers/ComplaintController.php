@@ -5102,11 +5102,26 @@ class ComplaintController extends Controller
 
     private function autoSendBorang5EmailAfterMandatorySave(Complaint $complaint): ?array
     {
+        Log::info('Auto Borang 5 email check started', [
+            'complaint_id' => $complaint->id,
+            'reference_no' => $complaint->reference_no,
+            'case_type' => $complaint->case_type,
+            'already_emailed_at' => $complaint->borang5_auto_emailed_at,
+        ]);
+
         if (strtoupper((string) ($complaint->case_type ?: 'AJ')) !== 'AJ') {
+            Log::info('Auto Borang 5 email skipped: unsupported case type', [
+                'complaint_id' => $complaint->id,
+                'case_type' => $complaint->case_type,
+            ]);
             return null;
         }
 
         if (! empty($complaint->borang5_auto_emailed_at)) {
+            Log::info('Auto Borang 5 email skipped: already sent', [
+                'complaint_id' => $complaint->id,
+                'borang5_auto_emailed_at' => $complaint->borang5_auto_emailed_at,
+            ]);
             return [
                 'sent' => false,
                 'reason' => 'already_sent',
@@ -5119,15 +5134,31 @@ class ComplaintController extends Controller
             && ! empty($complaint->aj_offense_id)
             && trim((string) ($complaint->borang5_statement ?? '')) !== '';
         if (! $hasMandatory) {
+            Log::info('Auto Borang 5 email skipped: mandatory data incomplete', [
+                'complaint_id' => $complaint->id,
+                'classification' => $classification,
+                'has_offense_id' => ! empty($complaint->aj_offense_id),
+                'has_borang5_statement' => trim((string) ($complaint->borang5_statement ?? '')) !== '',
+            ]);
             return null;
         }
 
         $recipients = $this->resolveAutoEmailRecipients('BORANG5_AUTO_EMAIL_TO', 'BORANG5_AUTO_EMAIL_CC');
         if (empty($recipients['to']) && empty($recipients['cc'])) {
+            Log::warning('Auto Borang 5 email skipped: recipient config empty', [
+                'complaint_id' => $complaint->id,
+                'to_env_key' => 'BORANG5_AUTO_EMAIL_TO',
+                'cc_env_key' => 'BORANG5_AUTO_EMAIL_CC',
+            ]);
             return null;
         }
 
         if (empty($recipients['to'])) {
+            Log::warning('Auto Borang 5 email skipped: primary recipient missing', [
+                'complaint_id' => $complaint->id,
+                'to_count' => count($recipients['to']),
+                'cc_count' => count($recipients['cc']),
+            ]);
             return [
                 'sent' => false,
                 'reason' => 'invalid_recipient_config',
@@ -5254,6 +5285,14 @@ class ComplaintController extends Controller
         $pdfFileName = 'BORANG 5 - FIR.pdf';
 
         try {
+            Log::info('Auto Borang 5 email sending', [
+                'complaint_id' => $complaint->id,
+                'reference_no' => $complaint->reference_no,
+                'classification' => $classification,
+                'to_count' => count($recipients['to']),
+                'cc_count' => count($recipients['cc']),
+            ]);
+
             Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
                 $message->to($recipients['to'])
                     ->subject($subject)
@@ -5267,6 +5306,14 @@ class ComplaintController extends Controller
             $complaint->forceFill([
                 'borang5_auto_emailed_at' => now(),
             ])->save();
+
+            Log::info('Auto Borang 5 email sent', [
+                'complaint_id' => $complaint->id,
+                'reference_no' => $complaint->reference_no,
+                'to_count' => count($recipients['to']),
+                'cc_count' => count($recipients['cc']),
+                'subject' => $subject,
+            ]);
 
             return [
                 'sent' => true,
@@ -5289,11 +5336,26 @@ class ComplaintController extends Controller
 
     private function autoSendLaporanTindakanEmailAfterSave(Complaint $complaint): ?array
     {
+        Log::info('Auto Laporan Tindakan email check started', [
+            'complaint_id' => $complaint->id,
+            'reference_no' => $complaint->reference_no,
+            'case_type' => $complaint->case_type,
+            'already_emailed_at' => $complaint->laporan_tindakan_auto_emailed_at,
+        ]);
+
         if (strtoupper((string) ($complaint->case_type ?: 'AJ')) !== 'AJ') {
+            Log::info('Auto Laporan Tindakan email skipped: unsupported case type', [
+                'complaint_id' => $complaint->id,
+                'case_type' => $complaint->case_type,
+            ]);
             return null;
         }
 
         if (! empty($complaint->laporan_tindakan_auto_emailed_at)) {
+            Log::info('Auto Laporan Tindakan email skipped: already sent', [
+                'complaint_id' => $complaint->id,
+                'laporan_tindakan_auto_emailed_at' => $complaint->laporan_tindakan_auto_emailed_at,
+            ]);
             return [
                 'sent' => false,
                 'reason' => 'already_sent',
@@ -5301,15 +5363,28 @@ class ComplaintController extends Controller
         }
 
         if (trim((string) ($complaint->aj_report_notes ?? '')) === '') {
+            Log::info('Auto Laporan Tindakan email skipped: report notes empty', [
+                'complaint_id' => $complaint->id,
+            ]);
             return null;
         }
 
         $recipients = $this->resolveAutoEmailRecipients('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', 'LAPORAN_TINDAKAN_AUTO_EMAIL_CC');
         if (empty($recipients['to']) && empty($recipients['cc'])) {
+            Log::warning('Auto Laporan Tindakan email skipped: recipient config empty', [
+                'complaint_id' => $complaint->id,
+                'to_env_key' => 'LAPORAN_TINDAKAN_AUTO_EMAIL_TO',
+                'cc_env_key' => 'LAPORAN_TINDAKAN_AUTO_EMAIL_CC',
+            ]);
             return null;
         }
 
         if (empty($recipients['to'])) {
+            Log::warning('Auto Laporan Tindakan email skipped: primary recipient missing', [
+                'complaint_id' => $complaint->id,
+                'to_count' => count($recipients['to']),
+                'cc_count' => count($recipients['cc']),
+            ]);
             return [
                 'sent' => false,
                 'reason' => 'invalid_recipient_config',
@@ -5403,6 +5478,13 @@ class ComplaintController extends Controller
         $pdfFileName = 'BORANG 5 - KES.pdf';
 
         try {
+            Log::info('Auto Laporan Tindakan email sending', [
+                'complaint_id' => $complaint->id,
+                'reference_no' => $complaint->reference_no,
+                'to_count' => count($recipients['to']),
+                'cc_count' => count($recipients['cc']),
+            ]);
+
             Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
                 $message->to($recipients['to'])
                     ->subject($subject)
@@ -5416,6 +5498,14 @@ class ComplaintController extends Controller
             $complaint->forceFill([
                 'laporan_tindakan_auto_emailed_at' => now(),
             ])->save();
+
+            Log::info('Auto Laporan Tindakan email sent', [
+                'complaint_id' => $complaint->id,
+                'reference_no' => $complaint->reference_no,
+                'to_count' => count($recipients['to']),
+                'cc_count' => count($recipients['cc']),
+                'subject' => $subject,
+            ]);
 
             return [
                 'sent' => true,
@@ -5438,11 +5528,26 @@ class ComplaintController extends Controller
 
     private function autoSendLaporanTindakanEmailAfterCaseSave(CaseRecord $case): ?array
     {
+        Log::info('Auto Laporan Tindakan case email check started', [
+            'case_id' => $case->id,
+            'case_register_no' => $case->case_register_no,
+            'case_type' => $case->case_type,
+            'already_emailed_at' => $case->laporan_tindakan_auto_emailed_at,
+        ]);
+
         if (strtoupper((string) ($case->case_type ?: 'AJ')) !== 'AJ') {
+            Log::info('Auto Laporan Tindakan case email skipped: unsupported case type', [
+                'case_id' => $case->id,
+                'case_type' => $case->case_type,
+            ]);
             return null;
         }
 
         if (! empty($case->laporan_tindakan_auto_emailed_at)) {
+            Log::info('Auto Laporan Tindakan case email skipped: already sent', [
+                'case_id' => $case->id,
+                'laporan_tindakan_auto_emailed_at' => $case->laporan_tindakan_auto_emailed_at,
+            ]);
             return [
                 'sent' => false,
                 'reason' => 'already_sent',
@@ -5450,11 +5555,19 @@ class ComplaintController extends Controller
         }
 
         if (trim((string) ($case->report_notes ?? '')) === '') {
+            Log::info('Auto Laporan Tindakan case email skipped: report notes empty', [
+                'case_id' => $case->id,
+            ]);
             return null;
         }
 
         $recipients = $this->resolveAutoEmailRecipients('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', 'LAPORAN_TINDAKAN_AUTO_EMAIL_CC');
         if (empty($recipients['to'])) {
+            Log::warning('Auto Laporan Tindakan case email skipped: primary recipient missing', [
+                'case_id' => $case->id,
+                'to_count' => count($recipients['to']),
+                'cc_count' => count($recipients['cc']),
+            ]);
             return [
                 'sent' => false,
                 'reason' => 'invalid_recipient_config',
@@ -5534,6 +5647,13 @@ class ComplaintController extends Controller
         $pdfFileName = 'BORANG 5 - KES.pdf';
 
         try {
+            Log::info('Auto Laporan Tindakan case email sending', [
+                'case_id' => $case->id,
+                'case_register_no' => $case->case_register_no,
+                'to_count' => count($recipients['to']),
+                'cc_count' => count($recipients['cc']),
+            ]);
+
             Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
                 $message->to($recipients['to'])
                     ->subject($subject)
@@ -5556,6 +5676,14 @@ class ComplaintController extends Controller
                     ->whereNull('laporan_tindakan_auto_emailed_at')
                     ->update(['laporan_tindakan_auto_emailed_at' => now()]);
             }
+
+            Log::info('Auto Laporan Tindakan case email sent', [
+                'case_id' => $case->id,
+                'case_register_no' => $case->case_register_no,
+                'to_count' => count($recipients['to']),
+                'cc_count' => count($recipients['cc']),
+                'subject' => $subject,
+            ]);
 
             return [
                 'sent' => true,
