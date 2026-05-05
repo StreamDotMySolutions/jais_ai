@@ -88,8 +88,9 @@
 
         .body-text {
             line-height: 1.6;
-            text-align: justify;
+            text-align: left;
             white-space: pre-wrap;
+            word-break: break-word;
         }
 
         .sign-row {
