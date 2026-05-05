@@ -5143,12 +5143,12 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $recipients = $this->resolveAutoEmailRecipients('BORANG5_AUTO_EMAIL_TO', 'BORANG5_AUTO_EMAIL_CC');
+        $recipients = $this->resolveAutoEmailRecipients('mail.auto_recipients.borang5.to', 'mail.auto_recipients.borang5.cc');
         if (empty($recipients['to']) && empty($recipients['cc'])) {
             Log::warning('Auto Borang 5 email skipped: recipient config empty', [
                 'complaint_id' => $complaint->id,
-                'to_env_key' => 'BORANG5_AUTO_EMAIL_TO',
-                'cc_env_key' => 'BORANG5_AUTO_EMAIL_CC',
+                'to_config_key' => 'mail.auto_recipients.borang5.to',
+                'cc_config_key' => 'mail.auto_recipients.borang5.cc',
             ]);
             return null;
         }
@@ -5369,12 +5369,12 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $recipients = $this->resolveAutoEmailRecipients('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', 'LAPORAN_TINDAKAN_AUTO_EMAIL_CC');
+        $recipients = $this->resolveAutoEmailRecipients('mail.auto_recipients.laporan_tindakan.to', 'mail.auto_recipients.laporan_tindakan.cc');
         if (empty($recipients['to']) && empty($recipients['cc'])) {
             Log::warning('Auto Laporan Tindakan email skipped: recipient config empty', [
                 'complaint_id' => $complaint->id,
-                'to_env_key' => 'LAPORAN_TINDAKAN_AUTO_EMAIL_TO',
-                'cc_env_key' => 'LAPORAN_TINDAKAN_AUTO_EMAIL_CC',
+                'to_config_key' => 'mail.auto_recipients.laporan_tindakan.to',
+                'cc_config_key' => 'mail.auto_recipients.laporan_tindakan.cc',
             ]);
             return null;
         }
@@ -5561,7 +5561,7 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $recipients = $this->resolveAutoEmailRecipients('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', 'LAPORAN_TINDAKAN_AUTO_EMAIL_CC');
+        $recipients = $this->resolveAutoEmailRecipients('mail.auto_recipients.laporan_tindakan.to', 'mail.auto_recipients.laporan_tindakan.cc');
         if (empty($recipients['to'])) {
             Log::warning('Auto Laporan Tindakan case email skipped: primary recipient missing', [
                 'case_id' => $case->id,
@@ -5704,10 +5704,10 @@ class ComplaintController extends Controller
         }
     }
 
-    private function resolveAutoEmailRecipients(string $toEnvKey, string $ccEnvKey): array
+    private function resolveAutoEmailRecipients(string $toConfigKey, string $ccConfigKey): array
     {
-        $to = $this->parseEmailEnv((string) env($toEnvKey, ''));
-        $cc = $this->parseEmailEnv((string) env($ccEnvKey, ''));
+        $to = $this->parseEmailEnv((string) config($toConfigKey, ''));
+        $cc = $this->parseEmailEnv((string) config($ccConfigKey, ''));
 
         if (empty($cc) && count($to) > 1) {
             $cc = array_slice($to, 1);

@@ -112,6 +112,17 @@ return [
         'name' => env('MAIL_FROM_NAME', 'Example'),
     ],
 
+    'auto_recipients' => [
+        'borang5' => [
+            'to' => env('BORANG5_AUTO_EMAIL_TO', ''),
+            'cc' => env('BORANG5_AUTO_EMAIL_CC', ''),
+        ],
+        'laporan_tindakan' => [
+            'to' => env('LAPORAN_TINDAKAN_AUTO_EMAIL_TO', ''),
+            'cc' => env('LAPORAN_TINDAKAN_AUTO_EMAIL_CC', ''),
+        ],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Markdown Mail Settings
