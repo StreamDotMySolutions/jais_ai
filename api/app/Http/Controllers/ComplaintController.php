@@ -5071,7 +5071,17 @@ class ComplaintController extends Controller
 
     private function buildBorang5Narrative(string $rawText, string $incidentAddress): string
     {
-        $text = trim($rawText);
+        $normalizeLines = static function (string $value): string {
+            $lines = preg_split("/\r\n|\n|\r/", $value);
+            $lines = array_map(static function ($line): string {
+                $line = preg_replace('/[ \t]+/u', ' ', (string) $line);
+                return trim((string) $line);
+            }, $lines ?: []);
+
+            return trim(implode("\n", $lines));
+        };
+
+        $text = $normalizeLines($rawText);
         $address = trim($incidentAddress);
 
         if ($text === '') {
