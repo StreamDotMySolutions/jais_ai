@@ -8240,6 +8240,12 @@ body {
   font-size: 0.85rem;
 }
 
+.app-radio-card.app-radio-card-tall {
+  min-height: 46px;
+  padding: 0.7rem 0.9rem;
+  align-items: center;
+}
+
 .app-waran .app-stepper {
   display: flex;
   gap: 0.8rem;
@@ -10747,6 +10753,14 @@ body {
   font-weight: 600;
   line-height: 1.1;
   min-height: 34px;
+}
+
+.app-aduan-detail .app-radio-card.app-radio-card-tall,
+.app-case-detail .app-radio-card.app-radio-card-tall {
+  min-height: 46px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.25;
 }
 
 .app-aduan-detail .app-detail-actions-row .app-button {

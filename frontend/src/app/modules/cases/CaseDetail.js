@@ -922,9 +922,9 @@ const CaseDetail = () => {
                 <div className="app-form-grid">
                     <label className="app-form-field app-span-full">
                         <span>Kategori OP</span>
-                        <div className="app-inline-radio-group">
+                        <div className="app-radio-grid">
                             {CASE_OP_CATEGORY_OPTIONS.map((option) => (
-                                <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                <label className="app-radio-card is-compact app-radio-card-tall" key={option}>
                                     <input
                                         type="radio"
                                         name="case_op_category"
@@ -932,7 +932,7 @@ const CaseDetail = () => {
                                         checked={form.op_category === option}
                                         onChange={() => updateField('op_category', option)}
                                     />
-                                    <span>{option}</span>
+                                    {option}
                                 </label>
                             ))}
                         </div>
@@ -940,9 +940,9 @@ const CaseDetail = () => {
 
                     <label className="app-form-field app-span-full">
                         <span>Status Kes OP</span>
-                        <div className="app-inline-radio-group">
+                        <div className="app-radio-grid">
                             {CASE_OP_STATUS_OPTIONS.map((option) => (
-                                <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                <label className="app-radio-card is-compact app-radio-card-tall" key={option}>
                                     <input
                                         type="radio"
                                         name="case_op_status"
@@ -950,7 +950,7 @@ const CaseDetail = () => {
                                         checked={form.op_case_status === option}
                                         onChange={() => updateField('op_case_status', option)}
                                     />
-                                    <span>{option}</span>
+                                    {option}
                                 </label>
                             ))}
                         </div>

@@ -3279,26 +3279,28 @@ const ComplaintDetail = () => {
 
                                 <div className="app-form-field">
                                     <span>Jenis Kesalahan</span>
-                                    <label className="app-inline-radio">
-                                        <input
-                                            type="radio"
-                                            name="aj_offense_type"
-                                            value="BT"
-                                            checked={ajPayload.offense_type_id === 'BT'}
-                                            onChange={() => setAjPayload((prev) => ({ ...prev, offense_type_id: 'BT' }))}
-                                        />
-                                        <span>Kesalahan Boleh Tangkap</span>
-                                    </label>
-                                    <label className="app-inline-radio">
-                                        <input
-                                            type="radio"
-                                            name="aj_offense_type"
-                                            value="TBT"
-                                            checked={ajPayload.offense_type_id === 'TBT'}
-                                            onChange={() => setAjPayload((prev) => ({ ...prev, offense_type_id: 'TBT' }))}
-                                        />
-                                        <span>Kesalahan Tak Boleh Tangkap</span>
-                                    </label>
+                                    <div className="app-radio-grid">
+                                        <label className="app-radio-card is-compact app-radio-card-tall">
+                                            <input
+                                                type="radio"
+                                                name="aj_offense_type"
+                                                value="BT"
+                                                checked={ajPayload.offense_type_id === 'BT'}
+                                                onChange={() => setAjPayload((prev) => ({ ...prev, offense_type_id: 'BT' }))}
+                                            />
+                                            Kesalahan Boleh Tangkap
+                                        </label>
+                                        <label className="app-radio-card is-compact app-radio-card-tall">
+                                            <input
+                                                type="radio"
+                                                name="aj_offense_type"
+                                                value="TBT"
+                                                checked={ajPayload.offense_type_id === 'TBT'}
+                                                onChange={() => setAjPayload((prev) => ({ ...prev, offense_type_id: 'TBT' }))}
+                                            />
+                                            Kesalahan Tak Boleh Tangkap
+                                        </label>
+                                    </div>
                                 </div>
 
                                 <div className="app-form-field">
@@ -4079,9 +4081,9 @@ const ComplaintDetail = () => {
 
                                             <label className="app-form-field app-span-full">
                                                 <span>Status Terkini <span className="complaint-required">*</span></span>
-                                                <div className="app-inline-radio-group">
+                                                <div className="app-radio-grid">
                                                     {AJ_CURRENT_STATUS_OPTIONS.map((option) => (
-                                                        <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                                        <label className="app-radio-card is-compact app-radio-card-tall" key={option}>
                                                             <input
                                                                 type="radio"
                                                                 name="aj_current_status"
@@ -4094,7 +4096,7 @@ const ComplaintDetail = () => {
                                                                     }
                                                                 }}
                                                             />
-                                                            <span>{option}</span>
+                                                            {option}
                                                         </label>
                                                     ))}
                                                 </div>
@@ -4850,9 +4852,9 @@ const ComplaintDetail = () => {
 
                                             <label className="app-form-field app-span-full">
                                                 <span>Status Kes OP</span>
-                                                <div className="app-inline-radio-group">
+                                                <div className="app-radio-grid">
                                                     {AJ_OP_CASE_STATUS_OPTIONS.map((option) => (
-                                                        <label className="app-inline-radio app-inline-radio-compact" key={option}>
+                                                        <label className="app-radio-card is-compact app-radio-card-tall" key={option}>
                                                             <input
                                                                 type="radio"
                                                                 name="aj_op_case_status"
@@ -4860,7 +4862,7 @@ const ComplaintDetail = () => {
                                                                 checked={ajActionReport.op_case_status === option}
                                                                 onChange={() => updateActionReportField('op_case_status', option)}
                                                             />
-                                                            <span>{option}</span>
+                                                            {option}
                                                         </label>
                                                     ))}
                                                 </div>
