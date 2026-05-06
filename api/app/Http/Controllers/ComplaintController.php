@@ -345,7 +345,7 @@ class ComplaintController extends Controller
                 'action_datetime' => $validated['action_datetime'] ?? null,
                 'statement_datetime' => $validated['statement_datetime'] ?? null,
                 'court_date' => $validated['court_date'] ?? null,
-                'report_notes' => $this->nullableString($validated['report_notes'] ?? null),
+                'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
                 'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
                 'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
             ]);
@@ -2181,7 +2181,7 @@ class ComplaintController extends Controller
                 'action_datetime' => $validated['action_datetime'] ?? null,
                 'statement_datetime' => $validated['statement_datetime'] ?? null,
                 'court_date' => $validated['court_date'] ?? null,
-                'report_notes' => $this->nullableString($validated['report_notes'] ?? null),
+                'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
                 'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
                 'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
             ]);
@@ -2948,6 +2948,10 @@ class ComplaintController extends Controller
         // Allow officer flows to keep it empty string (but never NULL).
         if (array_key_exists('summary', $validated)) {
             $payload['summary'] = $validated['summary'] ?? '';
+        }
+
+        if (array_key_exists('borang5_statement', $payload)) {
+            $payload['borang5_statement'] = $this->nullableTextareaString($payload['borang5_statement']);
         }
 
         if (array_key_exists('complaint_time', $validated)) {
@@ -4517,7 +4521,7 @@ class ComplaintController extends Controller
         // Keep summary as string (can be empty for officer intake).
         // DB column is non-nullable in current schema, so never persist null.
         $summary = (string) ($request->summary ?? '');
-        $borang5Statement = (string) ($request->borang5_statement ?? '');
+        $borang5Statement = (string) ($this->nullableTextareaString($request->borang5_statement ?? '') ?? '');
         $offenseId = $request->input('offense_id');
 
         // Public submissions must include Ringkasan Aduan.
@@ -6342,6 +6346,25 @@ class ComplaintController extends Controller
     private function nullableString($value): ?string
     {
         $text = trim((string) ($value ?? ''));
+
+        return $text === '' ? null : $text;
+    }
+
+    private function nullableTextareaString($value): ?string
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", (string) ($value ?? ''));
+        $text = preg_replace('/[\x{00A0}\x{1680}\x{2000}-\x{200B}\x{202F}\x{205F}\x{3000}]/u', ' ', $text);
+        $text = str_replace("\t", ' ', $text);
+
+        $lines = preg_split("/\n/", $text);
+        $lines = array_map(static function ($line): string {
+            $line = preg_replace('/[ ]+/u', ' ', (string) $line);
+            return trim((string) $line);
+        }, $lines ?: []);
+
+        $text = implode("\n", $lines);
+        $text = preg_replace("/\n{3,}/", "\n\n", $text);
+        $text = trim((string) $text);
 
         return $text === '' ? null : $text;
     }

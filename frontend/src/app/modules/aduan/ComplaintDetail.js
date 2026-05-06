@@ -12,6 +12,7 @@ import SharedProsecutionStatusSelect from '../../components/SharedProsecutionSta
 import SharedAttachmentSection from '../../components/SharedAttachmentSection';
 import OydAttachmentSection from '../../components/OydAttachmentSection';
 import SeizureAttachmentSection from '../../components/SeizureAttachmentSection';
+import { sanitizePastedPlainText } from '../../../libs/FormInput';
 import { useToast } from '../../components/SharedToastProvider';
 import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
 import LAPORAN_TINDAKAN_TEMPLATES from './laporanTindakanTemplates';
@@ -70,6 +71,21 @@ const normalizePpaClassification = (value) => {
     if (normalized === 'FFA') return 'FNA';
     if (['FNA', 'KIV', 'NFA', 'OP'].includes(normalized)) return normalized;
     return '';
+};
+
+const handleSanitizedPaste = (event, currentValue, onValue) => {
+    const text = event.clipboardData?.getData('text/plain');
+    if (typeof text !== 'string' || text === '') {
+        return;
+    }
+
+    event.preventDefault();
+    const target = event.target;
+    const start = target.selectionStart ?? String(currentValue || '').length;
+    const end = target.selectionEnd ?? String(currentValue || '').length;
+    const pasted = sanitizePastedPlainText(text);
+    const nextValue = `${String(currentValue || '').slice(0, start)}${pasted}${String(currentValue || '').slice(end)}`;
+    onValue(nextValue);
 };
 
 const ComplaintDetail = () => {
@@ -3253,7 +3269,10 @@ const ComplaintDetail = () => {
                                         className="app-textarea-250"
                                         rows="10"
                                         value={basicDraft.borang5_statement}
-                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: sanitizePastedPlainText(event.target.value) }))}
+                                        onPaste={(event) => handleSanitizedPaste(event, basicDraft.borang5_statement, (nextValue) => {
+                                            setBasicDraft((prev) => ({ ...prev, borang5_statement: nextValue }));
+                                        })}
                                         placeholder="Saya dengan ini mengesahkan maklumat berikut"
                                     />
                                 </div>
@@ -3437,7 +3456,10 @@ const ComplaintDetail = () => {
                                         className="app-textarea-250"
                                         rows="10"
                                         value={basicDraft.borang5_statement}
-                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: sanitizePastedPlainText(event.target.value) }))}
+                                        onPaste={(event) => handleSanitizedPaste(event, basicDraft.borang5_statement, (nextValue) => {
+                                            setBasicDraft((prev) => ({ ...prev, borang5_statement: nextValue }));
+                                        })}
                                         placeholder="Butiran Aduan (Borang 5)"
                                     />
                                 </div>
@@ -4544,7 +4566,10 @@ const ComplaintDetail = () => {
                                                 className="app-textarea-400"
                                                 rows="4"
                                                 value={ajReport.report_notes}
-                                                onChange={(event) => updateReportField('report_notes', event.target.value)}
+                                                onChange={(event) => updateReportField('report_notes', sanitizePastedPlainText(event.target.value))}
+                                                onPaste={(event) => handleSanitizedPaste(event, ajReport.report_notes, (nextValue) => {
+                                                    updateReportField('report_notes', nextValue);
+                                                })}
                                             />
                                         </div>
 

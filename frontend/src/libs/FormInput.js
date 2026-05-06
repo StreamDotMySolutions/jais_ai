@@ -5,6 +5,33 @@ import useStore from '../store';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css'; // import styles
 
+export function sanitizePastedPlainText(value = '') {
+    return String(value ?? '')
+        .replace(/\r\n?/g, '\n')
+        .replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g, ' ')
+        .replace(/\t/g, ' ')
+        .split('\n')
+        .map((line) => line.replace(/[ ]+/g, ' ').trim())
+        .join('\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
+function insertSanitizedPaste(event, currentValue, onValue) {
+    const text = event.clipboardData?.getData('text/plain');
+    if (typeof text !== 'string' || text === '') {
+        return;
+    }
+
+    event.preventDefault();
+    const target = event.target;
+    const start = target.selectionStart ?? currentValue.length;
+    const end = target.selectionEnd ?? currentValue.length;
+    const pasted = sanitizePastedPlainText(text);
+    const nextValue = `${String(currentValue).slice(0, start)}${pasted}${String(currentValue).slice(end)}`;
+    onValue(nextValue);
+}
+
 export function appendFormData(formData, data) {
     if (data instanceof Array) {
         data.forEach(item => {
@@ -145,11 +172,18 @@ export function InputTextarea({
                         //required 
                         isInvalid={errors?.hasOwnProperty(fieldName)}
                         onChange={ (e) => { 
-                          store.setValue(fieldName, e.target.value)
+                          const nextValue = sanitizePastedPlainText(e.target.value)
+                          store.setValue(fieldName, nextValue)
                           if (typeof onValueChange === 'function') {
-                            onValueChange(e.target.value)
+                            onValueChange(nextValue)
                           }
                         } }
+                        onPaste={(e) => insertSanitizedPaste(e, value, (nextValue) => {
+                            store.setValue(fieldName, nextValue);
+                            if (typeof onValueChange === 'function') {
+                                onValueChange(nextValue);
+                            }
+                        })}
                     />
                     {
                         errors?.hasOwnProperty(fieldName) &&
