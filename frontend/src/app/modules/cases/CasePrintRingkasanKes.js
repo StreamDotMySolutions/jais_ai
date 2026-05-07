@@ -97,6 +97,7 @@ const CasePrintRingkasanKes = () => {
     const firstPoliceReport = Array.isArray(caseRecord.police_reports) && caseRecord.police_reports.length
         ? caseRecord.police_reports[0]
         : null;
+    const inspectionForms = Array.isArray(caseRecord.inspection_forms) ? caseRecord.inspection_forms : [];
     const seizureItems = Array.isArray(caseRecord.seizure_items) ? caseRecord.seizure_items : [];
     const seizureSummary = seizureItems.length
         ? seizureItems.map((item, index) => `${index + 1}. ${item.description || item.item_no || '-'}`).join('\n')
@@ -109,7 +110,9 @@ const CasePrintRingkasanKes = () => {
     const tarikhTindakan = formatDateSlash(caseRecord.action_datetime);
     const masaTindakan = formatTimeMalay(caseRecord.action_datetime);
     const pegawaiPenangkap = renderValue(caseRecord?.arrest_staff?.name || caseRecord?.arrestStaff?.name, '-').toUpperCase();
-    const noBorangAkuanPemeriksaan = 'TIADA';
+    const noBorangAkuanPemeriksaan = inspectionForms.length
+        ? inspectionForms.map((row) => row.form_no || '-').filter(Boolean).join('\n')
+        : 'TIADA';
 
     return (
         <div className="print-page">

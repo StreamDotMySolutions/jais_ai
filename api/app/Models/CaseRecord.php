@@ -79,4 +79,9 @@ class CaseRecord extends Model
     {
         return $this->hasMany(CasePoliceReport::class, 'case_id')->orderBy('id');
     }
+
+    public function inspectionForms()
+    {
+        return $this->hasMany(CaseInspectionForm::class, 'case_id')->orderBy('id');
+    }
 }

@@ -19,7 +19,7 @@ const SeizureAttachmentSection = ({
     category = 'bukti',
     onCategoryChange,
 }) => {
-    const modeKey = mode === 'police_report' ? 'police_report' : 'seizure';
+    const modeKey = mode === 'police_report' ? 'police_report' : (mode === 'inspection_form' ? 'inspection_form' : 'seizure');
     const labels = modeKey === 'police_report'
         ? {
             entity: 'Report Polis',
@@ -30,6 +30,16 @@ const SeizureAttachmentSection = ({
             deleteSuccess: 'Lampiran Report Polis dipadam.',
             saveFirst: 'Simpan maklumat report polis dahulu sebelum muat naik.',
         }
+        : modeKey === 'inspection_form'
+            ? {
+                entity: 'Borang Akuan Pemeriksaan',
+                lower: 'borang akuan pemeriksaan',
+                uploadSuccess: 'Lampiran Borang Akuan Pemeriksaan berjaya dimuat naik.',
+                uploadFail: 'Gagal memuat naik lampiran Borang Akuan Pemeriksaan.',
+                uploadProcessFail: 'Gagal memproses muat naik lampiran Borang Akuan Pemeriksaan.',
+                deleteSuccess: 'Lampiran Borang Akuan Pemeriksaan dipadam.',
+                saveFirst: 'Sila isi no. borang dahulu sebelum muat naik.',
+            }
         : {
             entity: 'Barang Kes',
             lower: 'barang kes',
@@ -82,13 +92,19 @@ const SeizureAttachmentSection = ({
     const routeBasePath = basePath || `${apiUrl}/complaints/${complaintId}`;
     const uploadUrl = (targetRecordId) => modeKey === 'police_report'
         ? `${routeBasePath}/police-reports/${targetRecordId}/media`
-        : `${routeBasePath}/seizure-items/${targetRecordId}/media`;
+        : modeKey === 'inspection_form'
+            ? `${routeBasePath}/inspection-forms/${targetRecordId}/media`
+            : `${routeBasePath}/seizure-items/${targetRecordId}/media`;
     const deleteUrl = (attachmentId) => modeKey === 'police_report'
         ? `${routeBasePath}/police-report-media/${attachmentId}`
-        : `${routeBasePath}/seizure-item-media/${attachmentId}`;
+        : modeKey === 'inspection_form'
+            ? `${routeBasePath}/inspection-form-media/${attachmentId}`
+            : `${routeBasePath}/seizure-item-media/${attachmentId}`;
     const downloadUrl = (attachment) => modeKey === 'police_report'
         ? `${routeBasePath}/police-report-media/${attachment?.id}/download`
-        : `${routeBasePath}/seizure-item-media/${attachment?.id}/download`;
+        : modeKey === 'inspection_form'
+            ? `${routeBasePath}/inspection-form-media/${attachment?.id}/download`
+            : `${routeBasePath}/seizure-item-media/${attachment?.id}/download`;
 
     const openPreview = (file) => {
         if (!apiUrl || !file?.id) return;
@@ -329,9 +345,18 @@ const SeizureAttachmentSection = ({
                                             value={category || 'bukti'}
                                             onChange={(event) => onCategoryChange?.(event.target.value)}
                                         >
-                                            <option value="bukti">Gambar Bukti</option>
-                                            <option value="lain_lain">Lain-lain</option>
-                                            <option value="ic">IC</option>
+                                            {modeKey === 'inspection_form' ? (
+                                                <>
+                                                    <option value="dokumen">Dokumen</option>
+                                                    <option value="lain_lain">Lain-lain</option>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <option value="bukti">Gambar Bukti</option>
+                                                    <option value="lain_lain">Lain-lain</option>
+                                                    <option value="ic">IC</option>
+                                                </>
+                                            )}
                                         </select>
                                         <input
                                             className="app-upload-file"
@@ -363,9 +388,18 @@ const SeizureAttachmentSection = ({
                                 value={category || 'bukti'}
                                 onChange={(event) => onCategoryChange?.(event.target.value)}
                             >
-                                <option value="bukti">Gambar Bukti</option>
-                                <option value="lain_lain">Lain-lain</option>
-                                <option value="ic">IC</option>
+                                {modeKey === 'inspection_form' ? (
+                                    <>
+                                        <option value="dokumen">Dokumen</option>
+                                        <option value="lain_lain">Lain-lain</option>
+                                    </>
+                                ) : (
+                                    <>
+                                        <option value="bukti">Gambar Bukti</option>
+                                        <option value="lain_lain">Lain-lain</option>
+                                        <option value="ic">IC</option>
+                                    </>
+                                )}
                             </select>
                             <input
                                 className="app-upload-file"

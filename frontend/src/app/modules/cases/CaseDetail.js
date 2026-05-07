@@ -11,6 +11,7 @@ import { useToast } from '../../components/SharedToastProvider';
 const emptySeizureItem = { item_no: '', description: '', storage: '' };
 const emptyPoliceReport = { report_no: '', description: '', station: '' };
 const emptyOyd = { name: '', id_number: '', investigator_name: '', file_no: '' };
+const emptyInspectionForm = { form_no: '' };
 
 const CASE_OP_CATEGORY_OPTIONS = [
     'PP Unit Gerakan',
@@ -100,6 +101,8 @@ const CaseDetail = () => {
         case_summary: '',
         report_notes: '',
         oyds: [emptyOyd],
+        inspection_form_status: '',
+        inspection_forms: [emptyInspectionForm],
         seizure_status: '',
         seizure_items: [emptySeizureItem],
         police_report_status: '',
@@ -142,6 +145,8 @@ const CaseDetail = () => {
             case_summary: data?.case_summary || '',
             report_notes: data?.report_notes || '',
             oyds: Array.isArray(data?.oyds) && data.oyds.length ? data.oyds : [emptyOyd],
+            inspection_form_status: data?.inspection_form_status || '',
+            inspection_forms: Array.isArray(data?.inspection_forms) && data.inspection_forms.length ? data.inspection_forms : [emptyInspectionForm],
             seizure_status: data?.seizure_status || '',
             seizure_items: Array.isArray(data?.seizure_items) && data.seizure_items.length ? data.seizure_items : [emptySeizureItem],
             police_report_status: data?.police_report_status || '',
@@ -359,6 +364,7 @@ const CaseDetail = () => {
             ...form,
             report_offense_id: form.report_offense_id || null,
             arrest_staff_id: form.arrest_staff_id || null,
+            inspection_forms: form.inspection_form_status === 'ada' ? form.inspection_forms : [],
         };
         const request = isDraft
             ? axios.post(`${apiUrl}/complaints/${draftComplaintId}/cases`, payload, { headers })
@@ -818,6 +824,85 @@ const CaseDetail = () => {
                         ))}
                     </div>
                 </div>
+            </section>
+
+            <section className="app-report-section">
+                <div className="app-report-toggle app-case-report-title">
+                    <h5>BORANG AKUAN PEMERIKSAAN</h5>
+                </div>
+                <div className="app-form-field">
+                    <span>Borang Akuan Pemeriksaan</span>
+                    <div className="app-radio-cards app-radio-cards-2">
+                        <label className={form.inspection_form_status === 'ada' ? 'active' : ''}>
+                            <input
+                                type="radio"
+                                name="case_inspection_form_status"
+                                value="ada"
+                                checked={form.inspection_form_status === 'ada'}
+                                onChange={() => updateField('inspection_form_status', 'ada')}
+                            />
+                            <span>Ada</span>
+                        </label>
+                        <label className={form.inspection_form_status === 'tiada' ? 'active' : ''}>
+                            <input
+                                type="radio"
+                                name="case_inspection_form_status"
+                                value="tiada"
+                                checked={form.inspection_form_status === 'tiada'}
+                                onChange={() => updateField('inspection_form_status', 'tiada')}
+                            />
+                            <span>Tiada</span>
+                        </label>
+                    </div>
+                </div>
+
+                {form.inspection_form_status === 'ada' && (
+                    <div className="app-inline-section">
+                        <div className="app-inline-header">
+                            <h5>Maklumat Borang Akuan Pemeriksaan</h5>
+                            <button type="button" className="app-button app-button-ghost" onClick={() => addArrayRow('inspection_forms', emptyInspectionForm)}>
+                                + Tambah Borang
+                            </button>
+                        </div>
+                        <div className="app-oyds-table-wrap app-seizure-table-wrap app-inspection-form-table">
+                            <div className="app-seizure-table-head app-inspection-form-table-head">
+                                <div>No. Borang</div>
+                                <div>Lampiran</div>
+                                <div></div>
+                            </div>
+                            {form.inspection_forms.map((row, index) => (
+                                <div className="app-seizure-table-row app-inspection-form-table-row" key={`case-inspection-form-${index}`}>
+                                    <div className="app-seizure-table-cell app-inspection-form-table-cell">
+                                        <input
+                                            value={row.form_no || ''}
+                                            onChange={(event) => updateArrayRow('inspection_forms', index, 'form_no', event.target.value)}
+                                        />
+                                    </div>
+                                    <div className="app-seizure-table-cell app-seizure-table-cell-attachment app-inspection-form-table-cell">
+                                        <SeizureAttachmentSection
+                                            compact
+                                            mode="inspection_form"
+                                            apiUrl={apiUrl}
+                                            token={token}
+                                            basePath={`${apiUrl}/cases/${id}`}
+                                            recordId={row.id || null}
+                                            attachments={row.media || []}
+                                            category={row.attachment_category || 'dokumen'}
+                                            onCategoryChange={(value) => updateArrayRow('inspection_forms', index, 'attachment_category', value)}
+                                            onAttachmentsChange={(updater) => updateRowAttachments('inspection_forms', index, updater)}
+                                            onBeforeUpload={() => ensureChildRow('inspection_forms', index, 'inspection-forms', ['form_no'])}
+                                        />
+                                    </div>
+                                    <div className="app-seizure-table-cell app-seizure-table-cell-action app-inspection-form-table-cell">
+                                        <button type="button" className="app-icon-button" onClick={() => removeArrayRow('inspection_forms', index, emptyInspectionForm)} title="Buang">
+                                            <i className="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </section>
 
             <section className="app-report-section">

@@ -7218,6 +7218,30 @@ body {
   align-items: start;
 }
 
+.app-inspection-form-table .app-inspection-form-table-head,
+.app-inspection-form-table .app-inspection-form-table-row {
+  grid-template-columns: minmax(220px, 0.8fr) minmax(340px, 1.7fr) 74px;
+  min-width: 0;
+}
+
+.app-inspection-form-table .app-inspection-form-table-head > div:last-child {
+  text-align: center;
+}
+
+.app-inspection-form-table .app-inspection-form-table-cell {
+  align-self: stretch;
+}
+
+.app-inspection-form-table .app-inspection-form-table-cell > input {
+  width: 100%;
+}
+
+.app-inspection-form-table .app-seizure-table-cell-action {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
 .app-inline-clean .app-inline-table-row {
   border-bottom: none;
   padding: 0;

@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\Appointment;
 use App\Models\CaseOyd;
 use App\Models\CaseOydMedia;
+use App\Models\CaseInspectionForm;
+use App\Models\CaseInspectionFormMedia;
 use App\Models\CasePoliceReport;
 use App\Models\CasePoliceReportMedia;
 use App\Models\CaseRecord;
@@ -309,12 +311,16 @@ class ComplaintController extends Controller
             'court_date' => ['nullable', 'date'],
             'report_notes' => ['nullable', 'string'],
             'case_summary' => ['nullable', 'string'],
+            'inspection_form_status' => ['nullable', 'string', 'max:20'],
             'oyds' => ['nullable', 'array'],
             'oyds.*.id' => ['nullable', 'integer'],
             'oyds.*.name' => ['nullable', 'string', 'max:255'],
             'oyds.*.id_number' => ['nullable', 'string', 'max:255'],
             'oyds.*.investigator_name' => ['nullable', 'string', 'max:255'],
             'oyds.*.file_no' => ['nullable', 'string', 'max:255'],
+            'inspection_forms' => ['nullable', 'array'],
+            'inspection_forms.*.id' => ['nullable', 'integer'],
+            'inspection_forms.*.form_no' => ['nullable', 'string', 'max:255'],
             'seizure_status' => ['nullable', 'string', 'max:20'],
             'police_report_status' => ['nullable', 'string', 'max:20'],
             'seizure_items' => ['nullable', 'array'],
@@ -348,11 +354,19 @@ class ComplaintController extends Controller
                 'court_date' => $validated['court_date'] ?? null,
                 'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
                 'case_summary' => $this->nullableTextareaString($validated['case_summary'] ?? null),
+                'inspection_form_status' => $this->nullableString($validated['inspection_form_status'] ?? null),
                 'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
                 'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
             ]);
 
             $this->syncCaseChildRows($case, CaseOyd::class, 'oyds', $validated['oyds'] ?? [], ['name', 'id_number', 'investigator_name', 'file_no']);
+            $this->syncCaseChildRows(
+                $case,
+                CaseInspectionForm::class,
+                'inspectionForms',
+                (($validated['inspection_form_status'] ?? null) === 'ada') ? ($validated['inspection_forms'] ?? []) : [],
+                ['form_no']
+            );
             $this->syncCaseChildRows($case, CaseSeizureItem::class, 'seizureItems', $validated['seizure_items'] ?? [], ['item_no', 'description', 'storage']);
             $this->syncCaseChildRows($case, CasePoliceReport::class, 'policeReports', $validated['police_reports'] ?? [], ['report_no', 'description', 'station']);
         }, 3);
@@ -460,6 +474,31 @@ class ComplaintController extends Controller
         return response()->json([
             'message' => 'Report polis dicipta.',
             'data' => $report->fresh(['media:id,case_police_report_id,category,file_name,mime,size,created_at']),
+        ], 201);
+    }
+
+    public function createCaseInspectionForm(Request $request, CaseRecord $case)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $data = $request->validate([
+            'form_no' => 'nullable|string|max:255',
+        ]);
+
+        $form = CaseInspectionForm::create([
+            'case_id' => $case->id,
+            'form_no' => $this->nullableString($data['form_no'] ?? null),
+        ]);
+
+        return response()->json([
+            'message' => 'Borang akuan pemeriksaan dicipta.',
+            'data' => $form->fresh(['media:id,case_inspection_form_id,category,file_name,mime,size,created_at']),
         ], 201);
     }
 
@@ -607,6 +646,44 @@ class ComplaintController extends Controller
         ]);
     }
 
+    public function uploadCaseInspectionFormMedia(Request $request, CaseRecord $case, CaseInspectionForm $inspectionForm)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if ((int) $inspectionForm->case_id !== (int) $case->id) {
+            return response()->json(['message' => 'Borang akuan pemeriksaan tidak sah untuk kes ini.'], 422);
+        }
+
+        $request->validate([
+            'category' => 'nullable|in:dokumen,lain_lain',
+            'files' => 'required|array|min:1',
+            'files.*' => 'file|max:51200|mimes:jpg,jpeg,png,webp,pdf',
+        ]);
+
+        $this->storeCaseMediaFiles(
+            $request->file('files', []),
+            CaseInspectionFormMedia::class,
+            'case_inspection_form_id',
+            $inspectionForm->id,
+            "cases/inspection-forms/{$case->id}/{$inspectionForm->id}",
+            $request->input('category', 'dokumen'),
+            $user->id
+        );
+
+        return response()->json([
+            'message' => 'Lampiran Borang Akuan Pemeriksaan berjaya dimuat naik.',
+            'media' => $inspectionForm->fresh()->media()->orderByDesc('id')->get([
+                'id', 'case_inspection_form_id', 'category', 'file_name', 'mime', 'size', 'created_at',
+            ]),
+            'inspection_form' => $inspectionForm->fresh(['media:id,case_inspection_form_id,category,file_name,mime,size,created_at']),
+        ]);
+    }
+
     public function deleteCaseOydMedia(Request $request, CaseRecord $case, CaseOydMedia $media)
     {
         return $this->deleteCaseMedia($request, $case, $media, CaseOyd::class, 'case_oyd_id', 'Lampiran OYDS dipadam.');
@@ -622,6 +699,11 @@ class ComplaintController extends Controller
         return $this->deleteCaseMedia($request, $case, $media, CasePoliceReport::class, 'case_police_report_id', 'Lampiran Report Polis dipadam.');
     }
 
+    public function deleteCaseInspectionFormMedia(Request $request, CaseRecord $case, CaseInspectionFormMedia $media)
+    {
+        return $this->deleteCaseMedia($request, $case, $media, CaseInspectionForm::class, 'case_inspection_form_id', 'Lampiran Borang Akuan Pemeriksaan dipadam.');
+    }
+
     public function downloadCaseOydMedia(Request $request, CaseRecord $case, CaseOydMedia $media)
     {
         return $this->downloadCaseMedia($request, $case, $media, CaseOyd::class, 'case_oyd_id');
@@ -635,6 +717,11 @@ class ComplaintController extends Controller
     public function downloadCasePoliceReportMedia(Request $request, CaseRecord $case, CasePoliceReportMedia $media)
     {
         return $this->downloadCaseMedia($request, $case, $media, CasePoliceReport::class, 'case_police_report_id');
+    }
+
+    public function downloadCaseInspectionFormMedia(Request $request, CaseRecord $case, CaseInspectionFormMedia $media)
+    {
+        return $this->downloadCaseMedia($request, $case, $media, CaseInspectionForm::class, 'case_inspection_form_id');
     }
 
     public function pendingApprovals(Request $request)
@@ -2147,12 +2234,16 @@ class ComplaintController extends Controller
             'court_date' => ['nullable', 'date'],
             'report_notes' => ['nullable', 'string'],
             'case_summary' => ['nullable', 'string'],
+            'inspection_form_status' => ['nullable', 'string', 'max:20'],
             'oyds' => ['nullable', 'array'],
             'oyds.*.id' => ['nullable', 'integer'],
             'oyds.*.name' => ['nullable', 'string', 'max:255'],
             'oyds.*.id_number' => ['nullable', 'string', 'max:255'],
             'oyds.*.investigator_name' => ['nullable', 'string', 'max:255'],
             'oyds.*.file_no' => ['nullable', 'string', 'max:255'],
+            'inspection_forms' => ['nullable', 'array'],
+            'inspection_forms.*.id' => ['nullable', 'integer'],
+            'inspection_forms.*.form_no' => ['nullable', 'string', 'max:255'],
             'seizure_status' => ['nullable', 'string', 'max:20'],
             'police_report_status' => ['nullable', 'string', 'max:20'],
             'seizure_items' => ['nullable', 'array'],
@@ -2186,11 +2277,19 @@ class ComplaintController extends Controller
                 'court_date' => $validated['court_date'] ?? null,
                 'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
                 'case_summary' => $this->nullableTextareaString($validated['case_summary'] ?? null),
+                'inspection_form_status' => $this->nullableString($validated['inspection_form_status'] ?? null),
                 'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
                 'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
             ]);
 
             $this->syncCaseChildRows($case, CaseOyd::class, 'oyds', $validated['oyds'] ?? [], ['name', 'id_number', 'investigator_name', 'file_no']);
+            $this->syncCaseChildRows(
+                $case,
+                CaseInspectionForm::class,
+                'inspectionForms',
+                (($validated['inspection_form_status'] ?? null) === 'ada') ? ($validated['inspection_forms'] ?? []) : [],
+                ['form_no']
+            );
             $this->syncCaseChildRows($case, CaseSeizureItem::class, 'seizureItems', $validated['seizure_items'] ?? [], ['item_no', 'description', 'storage']);
             $this->syncCaseChildRows($case, CasePoliceReport::class, 'policeReports', $validated['police_reports'] ?? [], ['report_no', 'description', 'station']);
 
@@ -4873,6 +4972,7 @@ class ComplaintController extends Controller
             'directive_notes' => null,
             'report_notes' => null,
             'case_summary' => null,
+            'inspection_form_status' => null,
             'investigation_notes' => null,
             'prosecution_notes' => null,
             'seizure_status' => null,
@@ -4944,6 +5044,7 @@ class ComplaintController extends Controller
             'directive_notes' => $complaint->aj_directive_notes,
             'report_notes' => $complaint->aj_report_notes,
             'case_summary' => null,
+            'inspection_form_status' => null,
             'investigation_notes' => $complaint->aj_investigation_notes,
             'prosecution_notes' => $complaint->aj_prosecution_notes,
             'seizure_status' => $complaint->aj_seizure_status,
@@ -5013,6 +5114,7 @@ class ComplaintController extends Controller
             'directive_notes' => $report['directive_notes'] ?? null,
             'report_notes' => $report['report_notes'] ?? null,
             'case_summary' => $report['case_summary'] ?? null,
+            'inspection_form_status' => $report['inspection_form_status'] ?? null,
             'seizure_status' => $report['seizure_status'] ?? null,
             'police_report_status' => $report['police_report_status'] ?? null,
         ]);
@@ -6207,6 +6309,7 @@ class ComplaintController extends Controller
             'prosecutorStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
             'prosecutorStaff.office:id,name,code,office_type,district_id,phone,address',
             'oyds.media:id,case_oyd_id,category,file_name,stored_name,path,disk,mime,size,created_at',
+            'inspectionForms.media:id,case_inspection_form_id,category,file_name,stored_name,path,disk,mime,size,created_at',
             'seizureItems.media:id,case_seizure_item_id,category,file_name,stored_name,path,disk,mime,size,created_at',
             'policeReports.media:id,case_police_report_id,category,file_name,stored_name,path,disk,mime,size,created_at',
             'complaints' => function ($query) {

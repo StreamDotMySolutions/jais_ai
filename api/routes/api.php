@@ -143,6 +143,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('case');
     Route::post('/cases/{case}/oyds', [App\Http\Controllers\ComplaintController::class, 'createCaseOyd'])
         ->whereNumber('case');
+    Route::post('/cases/{case}/inspection-forms', [App\Http\Controllers\ComplaintController::class, 'createCaseInspectionForm'])
+        ->whereNumber('case');
     Route::post('/cases/{case}/seizure-items', [App\Http\Controllers\ComplaintController::class, 'createCaseSeizureItem'])
         ->whereNumber('case');
     Route::post('/cases/{case}/police-reports', [App\Http\Controllers\ComplaintController::class, 'createCasePoliceReport'])
@@ -150,6 +152,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/cases/{case}/oyds/{oyd}/media', [App\Http\Controllers\ComplaintController::class, 'uploadCaseOydMedia'])
         ->whereNumber('case')
         ->whereNumber('oyd');
+    Route::post('/cases/{case}/inspection-forms/{inspectionForm}/media', [App\Http\Controllers\ComplaintController::class, 'uploadCaseInspectionFormMedia'])
+        ->whereNumber('case')
+        ->whereNumber('inspectionForm');
     Route::post('/cases/{case}/seizure-items/{item}/media', [App\Http\Controllers\ComplaintController::class, 'uploadCaseSeizureItemMedia'])
         ->whereNumber('case')
         ->whereNumber('item');
@@ -159,6 +164,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/cases/{case}/oyd-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteCaseOydMedia'])
         ->whereNumber('case')
         ->whereNumber('media');
+    Route::delete('/cases/{case}/inspection-form-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteCaseInspectionFormMedia'])
+        ->whereNumber('case')
+        ->whereNumber('media');
     Route::delete('/cases/{case}/seizure-item-media/{media}', [App\Http\Controllers\ComplaintController::class, 'deleteCaseSeizureItemMedia'])
         ->whereNumber('case')
         ->whereNumber('media');
@@ -166,6 +174,9 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('case')
         ->whereNumber('media');
     Route::get('/cases/{case}/oyd-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadCaseOydMedia'])
+        ->whereNumber('case')
+        ->whereNumber('media');
+    Route::get('/cases/{case}/inspection-form-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadCaseInspectionFormMedia'])
         ->whereNumber('case')
         ->whereNumber('media');
     Route::get('/cases/{case}/seizure-item-media/{media}/download', [App\Http\Controllers\ComplaintController::class, 'downloadCaseSeizureItemMedia'])
