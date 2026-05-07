@@ -1649,10 +1649,7 @@ const ComplaintDetail = () => {
                             if (latest) {
                                 setComplaint((prev) => prev ? { ...prev, ...latest } : prev);
                             }
-                            const autoEmailSent = Boolean(basicResponse?.data?.meta?.borang5_auto_email?.sent);
-                            const successMsg = autoEmailSent
-                                ? 'Maklumat telah dikemaskini dan emel Borang 5 berjaya dihantar.'
-                                : 'Maklumat telah dikemaskini.';
+                            const successMsg = 'Maklumat telah dikemaskini.';
                             setPayloadMessage(successMsg);
                             toast.success(successMsg);
                         })
@@ -2097,40 +2094,53 @@ const ComplaintDetail = () => {
     const janaTindakanBlockedMessage = janaTindakanRequiredMessage || janaTindakanUnsavedMessage;
     const isJanaTindakanDisabled = Boolean(janaTindakanBlockedMessage);
     const janaTindakanDisabledTitle = janaTindakanBlockedMessage || undefined;
+    const basicClassification = (effectiveAjClassification || '').toString().trim();
+    const basicOffenseId = (ajPayload?.offense_id || '').toString().trim();
+    const basicBorang5Statement = (basicDraft?.borang5_statement || '').toString().trim();
+    const basicIncidentAddress = (basicDraft?.address || '').toString().trim();
+    const basicComplaintDate = (basicDraft?.complaint_date || '').toString().trim();
+    const basicComplaintTime = (basicDraft?.complaint_time || '').toString().trim();
+    const savedClassification = normalizePpaClassification(complaint?.aj_ppa_classification);
+    const savedOffenseId = complaint?.aj_offense_id ? String(complaint.aj_offense_id) : '';
+    const savedBorang5Statement = (complaint?.borang5_statement || '').toString().trim();
+    const savedIncidentAddress = (complaint?.address || '').toString().trim();
+    const savedComplaintDate = (complaint?.complaint_date || '').toString().trim();
+    const savedComplaintTime = String(complaint?.complaint_time || '').slice(0, 5);
+    const hasUnsavedDispatchChanges =
+        basicClassification !== savedClassification
+        || basicOffenseId !== savedOffenseId
+        || basicBorang5Statement !== savedBorang5Statement
+        || basicIncidentAddress !== savedIncidentAddress
+        || basicComplaintDate !== savedComplaintDate
+        || basicComplaintTime !== savedComplaintTime;
     const isAwaitingPiDispatch = currentCaseType === 'AJ' && ['menunggu_tindakan_pi', 'disahkan'].includes(currentStage);
     const isAlreadyDispatchedToDistrict = currentCaseType === 'AJ'
         && currentStage === 'dihantar_ke_daerah'
         && Boolean(complaint?.approver_confirmed_at);
     const dispatchMissingFields = [];
-    if (!String(ajActionReport?.directive_staff_id || '').trim()) {
-        dispatchMissingFields.push('Pegawai Yang Mengeluarkan Arahan');
+    if (!basicClassification) {
+        dispatchMissingFields.push('Klasifikasi');
     }
-    if (!String(ajActionReport?.directive_at || '').trim()) {
-        dispatchMissingFields.push('Tarikh / Masa Maklum Aduan');
+    if (!basicOffenseId) {
+        dispatchMissingFields.push('Kesalahan Disyaki');
     }
-    if (!String(ajActionReport?.handover_staff_id || '').trim()) {
-        dispatchMissingFields.push('Pegawai Yang Menerima Arahan');
+    if (!basicBorang5Statement) {
+        dispatchMissingFields.push('Butiran Aduan (Borang 5)');
     }
-    if (!String(ajActionReport?.current_status || '').trim()) {
-        dispatchMissingFields.push('Status Terkini');
+    if (!basicIncidentAddress) {
+        dispatchMissingFields.push('Alamat Kejadian');
     }
-    if (
-        String(ajActionReport?.current_status || '').trim() === 'Other'
-        && !String(ajActionReport?.current_status_other || '').trim()
-    ) {
-        dispatchMissingFields.push('Status Terkini (Other)');
+    if (!basicComplaintDate) {
+        dispatchMissingFields.push('Tarikh Borang 5');
     }
-    if (!String(ajActionReport?.directive_notes || '').trim()) {
-        dispatchMissingFields.push('Arahan Tindakan');
+    if (!basicComplaintTime) {
+        dispatchMissingFields.push('Masa Borang 5');
     }
-    const hasUnsavedDispatchChanges = isAwaitingPiDispatch
-        && dispatchMissingFields.length === 0
-        && hasUnsavedJanaTindakanChanges;
     const dispatchMissingMessage = dispatchMissingFields.length > 0
-        ? `Lengkapkan medan wajib dahulu sebelum Hantar ke Daerah: ${dispatchMissingFields.join(', ')}.`
+        ? `Lengkapkan medan wajib dahulu sebelum Hantar: ${dispatchMissingFields.join(', ')}.`
         : '';
     const dispatchUnsavedMessage = hasUnsavedDispatchChanges
-        ? 'Sila klik Simpan dahulu untuk rekodkan maklumat Jana Tindakan sebelum Hantar ke Daerah.'
+        ? 'Sila klik Simpan dahulu untuk rekodkan Maklumat Aduan sebelum Hantar.'
         : '';
     const dispatchBlockedMessage = dispatchMissingMessage || dispatchUnsavedMessage;
     const canDispatchToDistrict = isAwaitingPiDispatch && !dispatchBlockedMessage;
@@ -2139,7 +2149,7 @@ const ComplaintDetail = () => {
         ? 'Pegawai Daerah tidak dibenarkan menghantar aduan ke daerah.'
         : isAlreadyDispatchedToDistrict
         ? 'Aduan telah dihantar ke daerah.'
-        : (isAwaitingPiDispatch ? (dispatchBlockedMessage || undefined) : 'Aduan hanya boleh dihantar ke daerah selepas disahkan.');
+        : (isAwaitingPiDispatch ? (dispatchBlockedMessage || undefined) : 'Aduan hanya boleh dihantar selepas disahkan.');
     const isBorang5Enabled = ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah', 'laporan_tindakan', 'selesai'].includes(currentStage);
     const borang5DisabledTitle = isBorang5Enabled ? undefined : 'Borang 5 hanya boleh dijana apabila status aduan Disahkan.';
     const lockedStepKeys = useMemo(() => {
@@ -3171,6 +3181,29 @@ const ComplaintDetail = () => {
                                     className=" app-detail-note"
                                 />
                             )}
+                            {currentCaseType === 'AJ' && !!dispatchBlockedMessage && (
+                                <SharedInlineAlert
+                                    type="error"
+                                    message={dispatchBlockedMessage}
+                                    className=" app-detail-note"
+                                />
+                            )}
+                            {currentCaseType === 'AJ' && isAlreadyDispatchedToDistrict && (
+                                <SharedInlineAlert
+                                    type="success"
+                                    message="Aduan telah dihantar ke daerah untuk tindakan lanjut."
+                                    className=" app-detail-note"
+                                />
+                            )}
+                            {currentCaseType === 'AJ' && actionReportMessage && (
+                                <SharedInlineAlert
+                                    type={actionReportMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
+                                    message={actionReportMessage}
+                                    dismissible
+                                    onClose={() => setActionReportMessage('')}
+                                    className=" app-detail-note"
+                                />
+                            )}
                             <div className="app-form-grid">
                                 <div className="app-form-field app-span-full">
                                     <h5>Klasifikasi</h5>
@@ -3269,7 +3302,7 @@ const ComplaintDetail = () => {
                                         className="app-textarea-250"
                                         rows="10"
                                         value={basicDraft.borang5_statement}
-                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: sanitizePastedPlainText(event.target.value) }))}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
                                         onPaste={(event) => handleSanitizedPaste(event, basicDraft.borang5_statement, (nextValue) => {
                                             setBasicDraft((prev) => ({ ...prev, borang5_statement: nextValue }));
                                         })}
@@ -3390,6 +3423,15 @@ const ComplaintDetail = () => {
                                     <button
                                         className="app-button app-button-ghost"
                                         type="button"
+                                        disabled={dispatchButtonDisabled}
+                                        title={dispatchButtonTitle}
+                                        onClick={submitDispatchToDistrict}
+                                    >
+                                        Hantar
+                                    </button>
+                                    <button
+                                        className="app-button app-button-ghost"
+                                        type="button"
                                         disabled={!isBorang5Enabled}
                                         title={borang5DisabledTitle}
                                         onClick={() => window.open(
@@ -3458,7 +3500,7 @@ const ComplaintDetail = () => {
                                         className="app-textarea-250"
                                         rows="10"
                                         value={basicDraft.borang5_statement}
-                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: sanitizePastedPlainText(event.target.value) }))}
+                                        onChange={(event) => setBasicDraft((prev) => ({ ...prev, borang5_statement: event.target.value }))}
                                         onPaste={(event) => handleSanitizedPaste(event, basicDraft.borang5_statement, (nextValue) => {
                                             setBasicDraft((prev) => ({ ...prev, borang5_statement: nextValue }));
                                         })}
@@ -3944,20 +3986,6 @@ const ComplaintDetail = () => {
                                     className=" app-detail-note"
                                 />
                             )}
-                            {isAwaitingPiDispatch && !!dispatchBlockedMessage && (
-                                <SharedInlineAlert
-                                    type="error"
-                                    message={dispatchBlockedMessage}
-                                    className=" app-detail-note"
-                                />
-                            )}
-                            {isAlreadyDispatchedToDistrict && (
-                                <SharedInlineAlert
-                                    type="success"
-                                    message="Aduan telah dihantar ke daerah untuk tindakan lanjut."
-                                    className=" app-detail-note"
-                                />
-                            )}
                             {actionReportMessage && (
                                 <SharedInlineAlert
                                     type={actionReportMessage.toLowerCase().includes('gagal') ? 'error' : 'success'}
@@ -4185,15 +4213,6 @@ const ComplaintDetail = () => {
                                 <div className="app-report-sticky app-span-full">
                                     <button className="app-button" type="button" onClick={submitAjActionReport} disabled={isSaveDisabled} title={saveDisabledTitle}>
                                         Simpan
-                                    </button>
-                                    <button
-                                        className="app-button app-button-ghost"
-                                        type="button"
-                                        disabled={dispatchButtonDisabled}
-                                        title={dispatchButtonTitle}
-                                        onClick={submitDispatchToDistrict}
-                                    >
-                                        Hantar ke Daerah
                                     </button>
                                     <button
                                         className="app-button app-button-ghost"
@@ -4568,7 +4587,7 @@ const ComplaintDetail = () => {
                                                 className="app-textarea-400"
                                                 rows="4"
                                                 value={ajReport.report_notes}
-                                                onChange={(event) => updateReportField('report_notes', sanitizePastedPlainText(event.target.value))}
+                                                onChange={(event) => updateReportField('report_notes', event.target.value)}
                                                 onPaste={(event) => handleSanitizedPaste(event, ajReport.report_notes, (nextValue) => {
                                                     updateReportField('report_notes', nextValue);
                                                 })}

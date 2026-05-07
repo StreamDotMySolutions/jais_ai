@@ -2687,33 +2687,47 @@ class ComplaintController extends Controller
         }
 
         $missingFields = [];
-        if (! $complaint->aj_directive_staff_id) {
-            $missingFields[] = 'Pegawai Yang Mengeluarkan Arahan';
+        $classification = $this->normalizePpaClassification((string) ($complaint->aj_ppa_classification ?? ''));
+        if ($classification === '') {
+            $missingFields[] = 'Klasifikasi';
         }
-        if (! $complaint->aj_directive_at) {
-            $missingFields[] = 'Tarikh / Masa Maklum Aduan';
+        if (! $complaint->aj_offense_id) {
+            $missingFields[] = 'Kesalahan Disyaki';
         }
-        if (! $complaint->aj_handover_staff_id) {
-            $missingFields[] = 'Pegawai Yang Menerima Arahan';
+        if (! trim((string) $complaint->borang5_statement)) {
+            $missingFields[] = 'Butiran Aduan (Borang 5)';
         }
-        if (! trim((string) $complaint->aj_current_status)) {
-            $missingFields[] = 'Status Terkini';
+        if (! trim((string) $complaint->address)) {
+            $missingFields[] = 'Alamat Kejadian';
         }
-        if (
-            trim((string) $complaint->aj_current_status) === 'Other'
-            && trim((string) $complaint->aj_current_status_other) === ''
-        ) {
-            $missingFields[] = 'Status Terkini (Other)';
+        if (! $complaint->complaint_date) {
+            $missingFields[] = 'Tarikh Borang 5';
         }
-        if (! trim((string) $complaint->aj_directive_notes)) {
-            $missingFields[] = 'Arahan Tindakan';
+        if (! $complaint->complaint_time) {
+            $missingFields[] = 'Masa Borang 5';
         }
 
         if (! empty($missingFields)) {
             return response()->json([
-                'message' => 'Lengkapkan medan wajib Jana Tindakan dahulu: ' . implode(', ', $missingFields) . '.',
+                'message' => 'Lengkapkan medan wajib Maklumat Aduan dahulu: ' . implode(', ', $missingFields) . '.',
                 'errors' => [
-                    'jana_tindakan' => $missingFields,
+                    'maklumat_aduan' => $missingFields,
+                ],
+            ], 422);
+        }
+
+        $freshComplaint = $complaint->fresh();
+        $autoBorang5EmailMeta = $this->autoSendBorang5EmailAfterMandatorySave($freshComplaint);
+        if ($autoBorang5EmailMeta === null) {
+            return response()->json([
+                'message' => 'Konfigurasi atau data emel Borang 5 tidak lengkap.',
+            ], 422);
+        }
+        if (($autoBorang5EmailMeta['sent'] ?? false) !== true && ($autoBorang5EmailMeta['reason'] ?? '') !== 'already_sent') {
+            return response()->json([
+                'message' => 'Gagal menghantar emel Borang 5 ke daerah.',
+                'meta' => [
+                    'borang5_auto_email' => $autoBorang5EmailMeta,
                 ],
             ], 422);
         }
@@ -2726,6 +2740,9 @@ class ComplaintController extends Controller
         return response()->json([
             'message' => 'Aduan berjaya dihantar ke daerah untuk tindakan lanjut.',
             'current_stage' => $complaint->current_stage,
+            'meta' => [
+                'borang5_auto_email' => $autoBorang5EmailMeta,
+            ],
             'data' => $complaint->load(['receivedBy:id,name', 'approverStaff:id,name,staff_id']),
         ]);
     }
@@ -3007,17 +3024,11 @@ class ComplaintController extends Controller
             'picUser:id,name',
             'appointment:id,complaint_id,start_at,end_at,status',
         ]);
-        $autoBorang5EmailMeta = $this->autoSendBorang5EmailAfterMandatorySave($freshComplaint);
 
         $response = [
             'message' => 'Maklumat aduan dikemaskini.',
             'data' => $freshComplaint,
         ];
-        if ($autoBorang5EmailMeta) {
-            $response['meta'] = [
-                'borang5_auto_email' => $autoBorang5EmailMeta,
-            ];
-        }
 
         return response()->json($response);
     }

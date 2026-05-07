@@ -172,7 +172,7 @@ export function InputTextarea({
                         //required 
                         isInvalid={errors?.hasOwnProperty(fieldName)}
                         onChange={ (e) => { 
-                          const nextValue = sanitizePastedPlainText(e.target.value)
+                          const nextValue = e.target.value
                           store.setValue(fieldName, nextValue)
                           if (typeof onValueChange === 'function') {
                             onValueChange(nextValue)
