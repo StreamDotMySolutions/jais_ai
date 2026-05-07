@@ -101,11 +101,7 @@ const CasePrintRingkasanKes = () => {
     const seizureSummary = seizureItems.length
         ? seizureItems.map((item, index) => `${index + 1}. ${item.description || item.item_no || '-'}`).join('\n')
         : 'TIADA';
-    const laporanTindakan = String(
-        caseRecord.case_summary
-        || caseRecord.report_notes
-        || ''
-    ).trim().toUpperCase();
+    const laporanTindakan = String(caseRecord.case_summary || '').trim().toUpperCase();
     const statusSemasa = String(caseRecord.current_status || linkedComplaint?.current_stage || '').trim().toUpperCase();
     const noAduanFir = String(caseRecord.case_register_no || linkedComplaint?.reference_no || '').trim();
     const tarikhTerima = formatDateSlash(linkedComplaint?.complaint_date);
