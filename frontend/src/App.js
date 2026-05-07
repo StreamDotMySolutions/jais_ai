@@ -28,6 +28,7 @@ import ComplaintPrintAkSiasatanSlip from './app/modules/aduan/ComplaintPrintAkSi
 import AppointmentCalendar from './app/modules/appointments/AppointmentCalendar';
 import CaseList from './app/modules/cases/CaseList';
 import CaseDetail from './app/modules/cases/CaseDetail';
+import CasePrintRingkasanKes from './app/modules/cases/CasePrintRingkasanKes';
 import StaffList from './app/modules/staff/StaffList';
 import RoleList from './app/modules/roles/RoleList';
 import MenuList from './app/modules/menus/MenuList';
@@ -133,6 +134,7 @@ function App() {
           <Route path="/app/complaints/:id/print/borang-5" element={<ComplaintPrintBorang5 />} />
           <Route path="/app/complaints/:id/print/tindakan-aduan" element={<ComplaintPrintTindakanAduan />} />
           <Route path="/app/cases/:id/print/laporan-tindakan" element={<ComplaintPrintLaporanTindakan source="case" />} />
+          <Route path="/app/cases/:id/print/ringkasan-kes" element={<CasePrintRingkasanKes />} />
           <Route path="/app/complaints/:id/print/ak-siasatan-slip" element={<ComplaintPrintAkSiasatanSlip />} />
           <Route path="/app/i-waran/:id/print" element={<WaranPrint />} />
           <Route path="/app/appointments/popup" element={<AppointmentCalendar isPopup />} />

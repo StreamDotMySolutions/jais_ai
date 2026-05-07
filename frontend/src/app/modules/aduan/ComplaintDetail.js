@@ -145,6 +145,7 @@ const ComplaintDetail = () => {
         arrest_staff_id: '',
         statement_datetime: '',
         court_date: '',
+        case_summary: '',
         report_notes: '',
         file_no: '',
         directive_staff_id: '',
@@ -916,6 +917,7 @@ const ComplaintDetail = () => {
                 : (caseSource.aj_arrest_staff_id ? String(caseSource.aj_arrest_staff_id) : ''),
             statement_datetime: caseSource.statement_datetime || caseSource.aj_statement_datetime || '',
             court_date: caseSource.court_date || caseSource.aj_court_date || '',
+            case_summary: caseSource.case_summary || '',
             report_notes: caseSource.report_notes || caseSource.aj_report_notes || '',
             file_no: caseSource.file_no || caseSource.aj_file_no || '',
             directive_staff_id: caseSource.directive_staff_id
@@ -1107,6 +1109,66 @@ const ComplaintDetail = () => {
 
         updateReportField('report_notes', nextText);
         toast.success('Template laporan dimasukkan.');
+    };
+
+    const buildRingkasanKesTemplate = (arrestStatus) => {
+        const normalizedStatus = String(arrestStatus || '').trim().toLowerCase();
+
+        if (normalizedStatus === 'tiada') {
+            return 'ANGGOTA PPA TELAH MELAKSANAKAN TINDAKAN ADUAN KE PREMIS/LOKASI KEJADIAN DAN HASIL PEMERIKSAAN MENDAPATI TIADA BERLAKU PELANGGARAN KESALAHAN DI BAWAH ENAKMEN JENAYAH SYARIAH (SELANGOR) NO.9 TAHUN 1995.';
+        }
+
+        if (normalizedStatus === 'ada') {
+            return 'ANGGOTA PPA TELAH MELAKSANAKAN TINDAKAN ADUAN KE PREMIS/LOKASI KEJADIAN DAN HASIL PEMERIKSAAN MENDAPATI ADA BERLAKU PELANGGARAN KESALAHAN ENAKMEN JENAYAH SYARIAH (SELANGOR) NO.9 TAHUN 1995.';
+        }
+
+        return '';
+    };
+
+    const applyRingkasanKesTemplate = (arrestStatus, options = {}) => {
+        const {
+            showToast = true,
+            confirmOverwrite = true,
+        } = options;
+
+        const nextText = buildRingkasanKesTemplate(arrestStatus);
+        if (!nextText) {
+            toast.error('Sila pilih Status Tangkapan dahulu.');
+            return;
+        }
+
+        const existing = String(ajReport.case_summary || '').trim();
+        if (confirmOverwrite && existing && existing !== nextText) {
+            const ok = window.confirm('Ringkasan KES akan diganti dengan template mengikut Status Tangkapan. Teruskan?');
+            if (!ok) return;
+        }
+
+        updateReportField('case_summary', nextText);
+        if (showToast) {
+            toast.success('Template Ringkasan KES dimasukkan.');
+        }
+    };
+
+    const handleArrestStatusTemplateChange = (nextStatus) => {
+        const nextText = buildRingkasanKesTemplate(nextStatus);
+        if (!nextText) {
+            updateReportField('arrest_status', nextStatus);
+            return;
+        }
+
+        const existing = String(ajReport.case_summary || '').trim();
+        if (existing && existing !== nextText) {
+            const ok = window.confirm('Ringkasan KES akan diganti dengan template mengikut Status Tangkapan. Teruskan?');
+            if (!ok) {
+                return;
+            }
+        }
+
+        setAjReport((prev) => ({
+            ...prev,
+            arrest_status: nextStatus,
+            case_summary: nextText,
+        }));
     };
 
     const insertArahanTindakanTemplate = () => {
@@ -4330,7 +4392,7 @@ const ComplaintDetail = () => {
                                                             value="ada"
                                                             checked={ajReport.arrest_status === 'ada'}
                                                             disabled={isArrestStatusLocked}
-                                                            onChange={() => updateReportField('arrest_status', 'ada')}
+                                                            onChange={() => handleArrestStatusTemplateChange('ada')}
                                                         />
                                                         <span>Ada Tangkapan</span>
                                                     </label>
@@ -4341,11 +4403,34 @@ const ComplaintDetail = () => {
                                                             value="tiada"
                                                             checked={ajReport.arrest_status === 'tiada'}
                                                             disabled={isArrestStatusLocked}
-                                                            onChange={() => updateReportField('arrest_status', 'tiada')}
+                                                            onChange={() => handleArrestStatusTemplateChange('tiada')}
                                                         />
                                                         <span>Tiada Tangkapan</span>
                                                     </label>
                                                 </div>
+                                            </div>
+
+                                            <div className="app-form-field app-span-full">
+                                                <div className="app-field-inline-head">
+                                                    <span>Ringkasan KES</span>
+                                                    <button
+                                                        type="button"
+                                                        className="app-button app-button-ghost app-button-mini"
+                                                        onClick={() => applyRingkasanKesTemplate(ajReport.arrest_status)}
+                                                    >
+                                                        <i className="bi bi-magic"></i>
+                                                        Guna Template
+                                                    </button>
+                                                </div>
+                                                <textarea
+                                                    className="app-textarea-400"
+                                                    rows="4"
+                                                    value={ajReport.case_summary}
+                                                    onChange={(event) => updateReportField('case_summary', event.target.value)}
+                                                    onPaste={(event) => handleSanitizedPaste(event, ajReport.case_summary, (nextValue) => {
+                                                        updateReportField('case_summary', nextValue);
+                                                    })}
+                                                />
                                             </div>
 
                                             <label className="app-form-field">
@@ -4471,6 +4556,29 @@ const ComplaintDetail = () => {
                                             </div>
 
                                         <div className="app-form-field app-span-full">
+                                            <div className="app-field-inline-head">
+                                                <span>Laporan / Catatan Kes <span className="complaint-required">*</span></span>
+                                                <button
+                                                    type="button"
+                                                    className="app-button app-button-ghost app-button-mini"
+                                                    onClick={insertLaporanTindakanTemplate}
+                                                >
+                                                    <i className="bi bi-magic"></i>
+                                                    Insert Template
+                                                </button>
+                                            </div>
+                                            <textarea
+                                                className="app-textarea-400"
+                                                rows="4"
+                                                value={ajReport.report_notes}
+                                                onChange={(event) => updateReportField('report_notes', event.target.value)}
+                                                onPaste={(event) => handleSanitizedPaste(event, ajReport.report_notes, (nextValue) => {
+                                                    updateReportField('report_notes', nextValue);
+                                                })}
+                                            />
+                                        </div>
+
+                                        <div className="app-form-field app-span-full">
                                             <span>Maklumat OYDS</span>
                                             <small className="app-hint">
                                                 Masukkan maklumat OYDS terlebih dahulu untuk memudahkan penjanaan laporan.
@@ -4569,29 +4677,6 @@ const ComplaintDetail = () => {
                                                     </button>
                                                 </div>
                                             </div>
-                                        </div>
-
-                                        <div className="app-form-field app-span-full">
-                                            <div className="app-field-inline-head">
-                                                <span>LAPORAN <span className="complaint-required">*</span></span>
-                                                <button
-                                                    type="button"
-                                                    className="app-button app-button-ghost app-button-mini"
-                                                    onClick={insertLaporanTindakanTemplate}
-                                                >
-                                                    <i className="bi bi-magic"></i>
-                                                    Insert Template
-                                                </button>
-                                            </div>
-                                            <textarea
-                                                className="app-textarea-400"
-                                                rows="4"
-                                                value={ajReport.report_notes}
-                                                onChange={(event) => updateReportField('report_notes', event.target.value)}
-                                                onPaste={(event) => handleSanitizedPaste(event, ajReport.report_notes, (nextValue) => {
-                                                    updateReportField('report_notes', nextValue);
-                                                })}
-                                            />
                                         </div>
 
                                     </div>

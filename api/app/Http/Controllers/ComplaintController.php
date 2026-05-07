@@ -308,6 +308,7 @@ class ComplaintController extends Controller
             'statement_datetime' => ['nullable', 'date'],
             'court_date' => ['nullable', 'date'],
             'report_notes' => ['nullable', 'string'],
+            'case_summary' => ['nullable', 'string'],
             'oyds' => ['nullable', 'array'],
             'oyds.*.id' => ['nullable', 'integer'],
             'oyds.*.name' => ['nullable', 'string', 'max:255'],
@@ -346,6 +347,7 @@ class ComplaintController extends Controller
                 'statement_datetime' => $validated['statement_datetime'] ?? null,
                 'court_date' => $validated['court_date'] ?? null,
                 'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
+                'case_summary' => $this->nullableTextareaString($validated['case_summary'] ?? null),
                 'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
                 'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
             ]);
@@ -2144,6 +2146,7 @@ class ComplaintController extends Controller
             'statement_datetime' => ['nullable', 'date'],
             'court_date' => ['nullable', 'date'],
             'report_notes' => ['nullable', 'string'],
+            'case_summary' => ['nullable', 'string'],
             'oyds' => ['nullable', 'array'],
             'oyds.*.id' => ['nullable', 'integer'],
             'oyds.*.name' => ['nullable', 'string', 'max:255'],
@@ -2182,6 +2185,7 @@ class ComplaintController extends Controller
                 'statement_datetime' => $validated['statement_datetime'] ?? null,
                 'court_date' => $validated['court_date'] ?? null,
                 'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
+                'case_summary' => $this->nullableTextareaString($validated['case_summary'] ?? null),
                 'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
                 'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
             ]);
@@ -4868,6 +4872,7 @@ class ComplaintController extends Controller
             'court_date' => null,
             'directive_notes' => null,
             'report_notes' => null,
+            'case_summary' => null,
             'investigation_notes' => null,
             'prosecution_notes' => null,
             'seizure_status' => null,
@@ -4938,6 +4943,7 @@ class ComplaintController extends Controller
             'opened_at' => $complaint->aj_directive_at ?: $complaint->aj_action_datetime ?: $complaint->created_at,
             'directive_notes' => $complaint->aj_directive_notes,
             'report_notes' => $complaint->aj_report_notes,
+            'case_summary' => null,
             'investigation_notes' => $complaint->aj_investigation_notes,
             'prosecution_notes' => $complaint->aj_prosecution_notes,
             'seizure_status' => $complaint->aj_seizure_status,
@@ -5006,6 +5012,7 @@ class ComplaintController extends Controller
             'opened_at' => $case->opened_at ?: ($report['directive_at'] ?? null) ?: ($report['action_datetime'] ?? null) ?: $complaint->created_at,
             'directive_notes' => $report['directive_notes'] ?? null,
             'report_notes' => $report['report_notes'] ?? null,
+            'case_summary' => $report['case_summary'] ?? null,
             'seizure_status' => $report['seizure_status'] ?? null,
             'police_report_status' => $report['police_report_status'] ?? null,
         ]);
@@ -5395,7 +5402,7 @@ class ComplaintController extends Controller
         $officerJob = $handoverStaff?->position ?: $fallbackStaff?->position ?: '-';
         $officerPhone = $this->resolveStaffOfficePhone($handoverStaff ?: $fallbackStaff);
         $officerAddress = $this->resolveStaffOfficeAddress($handoverStaff ?: $fallbackStaff);
-        $reportParagraph = strtoupper(trim((string) ($complaint->aj_report_notes ?? '')));
+        $reportParagraph = strtoupper(trim((string) ($complaint->aj_report_notes ?? null)));
         $noDaftar = trim((string) ($complaint->case_register_no ?? '')) !== ''
             ? trim((string) $complaint->case_register_no)
             : $this->buildCaseRegisterNoFromComplaint($complaint);
@@ -5430,7 +5437,7 @@ class ComplaintController extends Controller
             'officerJob' => (string) ($officerJob ?: '-'),
             'officerPhone' => (string) ($officerPhone ?: '-'),
             'officerAddress' => (string) ($officerAddress ?: '-'),
-            'reportParagraph' => (string) ($reportParagraph !== '' ? $reportParagraph : 'LAPORAN MASIH BELUM DIISI'),
+            'reportParagraph' => (string) ($reportParagraph !== '' ? $reportParagraph : 'RINGKASAN KES MASIH BELUM DIISI'),
         ])->setPaper('a4', 'portrait')->output();
 
         $pdfFileName = 'BORANG 5 - KES.pdf';
@@ -5538,7 +5545,7 @@ class ComplaintController extends Controller
         $officerJob = $officer?->position ?: '-';
         $officerPhone = $this->resolveStaffOfficePhone($officer);
         $officerAddress = $this->resolveStaffOfficeAddress($officer);
-        $reportParagraph = strtoupper(trim((string) ($case->report_notes ?? '')));
+        $reportParagraph = strtoupper(trim((string) (($case->case_summary ?? null) ?: ($case->report_notes ?? null))));
         $noDaftar = trim((string) ($case->case_register_no ?? '')) ?: '-';
 
         $arrestStatusLabel = ($case->arrest_status === 'ada') ? 'Ada Tangkapan' : 'Tiada Tangkapan';
@@ -5569,7 +5576,7 @@ class ComplaintController extends Controller
             'officerJob' => (string) ($officerJob ?: '-'),
             'officerPhone' => (string) ($officerPhone ?: '-'),
             'officerAddress' => (string) ($officerAddress ?: '-'),
-            'reportParagraph' => (string) ($reportParagraph !== '' ? $reportParagraph : 'LAPORAN MASIH BELUM DIISI'),
+            'reportParagraph' => (string) ($reportParagraph !== '' ? $reportParagraph : 'RINGKASAN KES MASIH BELUM DIISI'),
         ])->setPaper('a4', 'portrait')->output();
 
         $pdfFileName = 'BORANG 5 - KES.pdf';
@@ -6209,6 +6216,7 @@ class ComplaintController extends Controller
                     'complaints.case_register_no',
                     'complaints.case_type',
                     'complaints.district_name',
+                    'complaints.address',
                     'complaints.complainant_name',
                     'complaints.complaint_date',
                     'complaints.complaint_time',

@@ -97,6 +97,7 @@ const CaseDetail = () => {
         action_datetime: '',
         statement_datetime: '',
         court_date: '',
+        case_summary: '',
         report_notes: '',
         oyds: [emptyOyd],
         seizure_status: '',
@@ -138,6 +139,7 @@ const CaseDetail = () => {
             action_datetime: normalizeDateTimeLocal(data?.action_datetime),
             statement_datetime: normalizeDateTimeLocal(data?.statement_datetime),
             court_date: data?.court_date || '',
+            case_summary: data?.case_summary || '',
             report_notes: data?.report_notes || '',
             oyds: Array.isArray(data?.oyds) && data.oyds.length ? data.oyds : [emptyOyd],
             seizure_status: data?.seizure_status || '',
@@ -264,6 +266,61 @@ const CaseDetail = () => {
 
     const updateField = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const buildCaseSummaryTemplate = (arrestStatus) => {
+        const normalizedStatus = String(arrestStatus || '').trim().toLowerCase();
+
+        if (normalizedStatus === 'tiada') {
+            return 'ANGGOTA PPA TELAH MELAKSANAKAN TINDAKAN ADUAN KE PREMIS/LOKASI KEJADIAN DAN HASIL PEMERIKSAAN MENDAPATI TIADA BERLAKU PELANGGARAN KESALAHAN DI BAWAH ENAKMEN JENAYAH SYARIAH (SELANGOR) NO.9 TAHUN 1995.';
+        }
+
+        if (normalizedStatus === 'ada') {
+            return 'ANGGOTA PPA TELAH MELAKSANAKAN TINDAKAN ADUAN KE PREMIS/LOKASI KEJADIAN DAN HASIL PEMERIKSAAN MENDAPATI ADA BERLAKU PELANGGARAN KESALAHAN ENAKMEN JENAYAH SYARIAH (SELANGOR) NO.9 TAHUN 1995.';
+        }
+
+        return '';
+    };
+
+    const applyCaseSummaryTemplate = (arrestStatus = form.arrest_status, { confirmOverwrite = true, showToast = true } = {}) => {
+        const nextText = buildCaseSummaryTemplate(arrestStatus);
+        if (!nextText) {
+            toast.error('Sila pilih Status Tangkapan dahulu.');
+            return;
+        }
+
+        const existing = String(form.case_summary || '').trim();
+        if (confirmOverwrite && existing && existing !== nextText) {
+            const ok = window.confirm('Ringkasan KES akan diganti mengikut Status Tangkapan. Teruskan?');
+            if (!ok) return;
+        }
+
+        setForm((prev) => ({ ...prev, arrest_status: arrestStatus, case_summary: nextText }));
+        if (showToast) {
+            toast.success('Ringkasan KES dimasukkan.');
+        }
+    };
+
+    const handleArrestStatusChange = (nextStatus) => {
+        const nextText = buildCaseSummaryTemplate(nextStatus);
+        if (!nextText) {
+            updateField('arrest_status', nextStatus);
+            return;
+        }
+
+        const existing = String(form.case_summary || '').trim();
+        if (existing && existing !== nextText) {
+            const ok = window.confirm('Ringkasan KES akan diganti mengikut Status Tangkapan. Teruskan?');
+            if (!ok) {
+                return;
+            }
+        }
+
+        setForm((prev) => ({
+            ...prev,
+            arrest_status: nextStatus,
+            case_summary: nextText,
+        }));
     };
 
     const updateArrayRow = (field, index, key, value) => {
@@ -569,7 +626,7 @@ const CaseDetail = () => {
                                             name="case_arrest_status"
                                             value="ada"
                                             checked={form.arrest_status === 'ada'}
-                                            onChange={() => updateField('arrest_status', 'ada')}
+                                            onChange={() => handleArrestStatusChange('ada')}
                                         />
                                         <span>Ada Tangkapan</span>
                                     </label>
@@ -579,12 +636,27 @@ const CaseDetail = () => {
                                             name="case_arrest_status"
                                             value="tiada"
                                             checked={form.arrest_status === 'tiada'}
-                                            onChange={() => updateField('arrest_status', 'tiada')}
+                                            onChange={() => handleArrestStatusChange('tiada')}
                                         />
                                         <span>Tiada Tangkapan</span>
                                     </label>
                                 </div>
                             </div>
+
+                            <label className="app-form-field app-span-full">
+                                <div className="app-field-inline-head">
+                                    <span>Ringkasan KES</span>
+                                    <button
+                                        type="button"
+                                        className="app-button app-button-ghost app-button-mini"
+                                        onClick={() => applyCaseSummaryTemplate()}
+                                    >
+                                        <i className="bi bi-magic"></i>
+                                        Guna Template
+                                    </button>
+                                </div>
+                                <textarea rows="4" value={form.case_summary} onChange={(event) => updateField('case_summary', event.target.value)} />
+                            </label>
 
                             <label className="app-form-field">
                                 <span>No. Daftar Kes</span>
@@ -971,6 +1043,20 @@ const CaseDetail = () => {
                 <button type="button" className="app-button" onClick={saveCase} disabled={isSaving}>
                     {isSaving ? 'Menyimpan...' : (isDraft ? 'Simpan Kes & Jana No Kes' : 'Simpan Kes')}
                 </button>
+                {!isDraft && (
+                    <button
+                        type="button"
+                        className="app-button app-button-ghost"
+                        onClick={() => window.open(
+                            `/app/cases/${id}/print/ringkasan-kes`,
+                            'ringkasanKesKes',
+                            'width=1080,height=820,scrollbars=yes,resizable=yes'
+                        )}
+                    >
+                        <i className="bi bi-printer"></i>
+                        Ringkasan KES
+                    </button>
+                )}
                 {!isDraft && (
                     <button
                         type="button"
