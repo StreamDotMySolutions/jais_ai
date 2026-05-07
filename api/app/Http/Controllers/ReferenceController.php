@@ -171,6 +171,7 @@ class ReferenceController extends Controller
                 'offices.office_type',
                 'offices.district_id',
                 'offices.phone',
+                'offices.email',
                 'offices.address',
                 'districts.name as district_name',
             ]);

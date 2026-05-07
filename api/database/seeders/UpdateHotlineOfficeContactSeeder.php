@@ -4,7 +4,6 @@ namespace Database\Seeders;
 
 use App\Models\District;
 use App\Models\Office;
-use App\Models\Staff;
 use Illuminate\Database\Seeder;
 
 class UpdateHotlineOfficeContactSeeder extends Seeder
@@ -30,6 +29,16 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
             'SBN' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID SABAK BERNAM',
             'SEP' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID SEPANG',
             'SHA' => 'UNIT PENGURUSAN PENGUATKUASAAN PAID SHAH ALAM',
+        ];
+        $districtOfficeEmails = [
+            'GOM' => 'bpn.gombak@gmail.com',
+            'HLA' => 'bpn.hululangat@gmail.com',
+            'HLS' => 'bpn.huluselangor@gmail.com',
+            'KLG' => 'bpn.klang@gmail.com',
+            'KSE' => 'bpn.kualaselangor@gmail.com',
+            'KUL' => 'bpn.kualalangat22@gmail.com',
+            'SBN' => 'bpn.sabakbernam@gmail.com',
+            'SEP' => 'jais.sepang@gmail.com',
         ];
 
         $hqOffice = Office::query()->updateOrCreate(
@@ -60,91 +69,12 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
                     'office_type' => 'daerah',
                     'district_id' => $district->id,
                     'phone' => $officePhone,
+                    'email' => $districtOfficeEmails[$code] ?? null,
                     'address' => $address,
                     'is_active' => true,
                 ]
             );
         }
 
-        $targets = [
-            [
-                'label' => 'idham',
-                'name' => 'MOHD IDHAM BIN MOHD IDRIS',
-                'emails' => ['wnt5649@gmail.com'],
-            ],
-            [
-                'label' => 'fahizar',
-                'name' => 'FAHIZAR BIN PAIMAN',
-                'emails' => ['fahizarp@gmail.com'],
-            ],
-            [
-                'label' => 'syuhada',
-                'name' => 'SYUHADA BINTI AHMAD SAIFUDDIN',
-                'emails' => ['syuhada.saifudin@jais.gov', 'syuhada.saifudin@jais.gov.my'],
-            ],
-            [
-                'label' => 'rohaya',
-                'name' => 'SITI ROHAYA AINI BINTI ABDULLAH NAJIB',
-                'emails' => ['s.rohayaaini@gmail.com'],
-            ],
-            [
-                'label' => 'aliff',
-                'name' => 'ALIFF FAZHIN BIN HAMDAN',
-                'emails' => ['alifffazhin@jais.gov.my'],
-            ],
-            [
-                'label' => 'ghazali',
-                'name' => 'MOHD GHAZALI BIN MOHAMAD ISMAL',
-                'emails' => ['rockazapin@gmail.com'],
-            ],
-            [
-                'label' => 'izzati',
-                'name' => 'ZAINORIZZATI BINTI MOHD JALANI',
-                'emails' => ['zainorizzati@gmail.com'],
-            ],
-            [
-                'label' => 'zailila',
-                'name' => 'ZAILILA BINTI MOHD YUSOF',
-                'emails' => ['zaimad2813@gmail.com'],
-            ],
-        ];
-
-        foreach ($targets as $target) {
-            $emails = array_values(array_filter(array_map(
-                static fn ($email) => strtolower(trim((string) $email)),
-                $target['emails'] ?? []
-            )));
-
-            $updated = Staff::query()
-                ->where(function ($query) use ($target, $emails) {
-                    $query->whereRaw('LOWER(name) = ?', [strtolower(trim((string) $target['name']))]);
-
-                    if (! empty($emails)) {
-                        $query->orWhereHas('user', function ($userQuery) use ($emails) {
-                            $userQuery->where(function ($emailQuery) use ($emails) {
-                                foreach ($emails as $email) {
-                                    $emailQuery->orWhereRaw('LOWER(email) = ?', [$email]);
-                                }
-                            });
-                        });
-                    }
-                })
-                ->update([
-                    'office_id' => $hqOffice->id,
-                    'office_type' => 'hq',
-                    'district_id' => $petalingDistrictId,
-                    'no_tel_pejabat' => $officePhone,
-                    'office_address' => $hqOfficeAddress,
-                ]);
-
-            if ($this->command) {
-                $this->command->line(sprintf(
-                    '[%s] %s -> %d rekod dikemaskini.',
-                    $target['label'],
-                    $target['name'],
-                    $updated
-                ));
-            }
-        }
     }
 }

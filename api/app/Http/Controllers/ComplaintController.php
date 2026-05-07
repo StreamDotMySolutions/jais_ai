@@ -5256,7 +5256,11 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $recipients = $this->resolveAutoEmailRecipients('mail.auto_recipients.borang5.to', 'mail.auto_recipients.borang5.cc');
+        $recipients = $this->resolveDistrictOfficeEmailRecipients(
+            $complaint->district_id ? (int) $complaint->district_id : null,
+            'mail.auto_recipients.borang5.cc',
+            $complaint->district_name
+        );
         if (empty($recipients['to']) && empty($recipients['cc'])) {
             return null;
         }
@@ -5446,7 +5450,11 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $recipients = $this->resolveAutoEmailRecipients('mail.auto_recipients.laporan_tindakan.to', 'mail.auto_recipients.laporan_tindakan.cc');
+        $recipients = $this->resolveDistrictOfficeEmailRecipients(
+            $complaint->district_id ? (int) $complaint->district_id : null,
+            'mail.auto_recipients.laporan_tindakan.cc',
+            $complaint->district_name
+        );
         if (empty($recipients['to']) && empty($recipients['cc'])) {
             return null;
         }
@@ -5603,19 +5611,24 @@ class ComplaintController extends Controller
             return null;
         }
 
-        $recipients = $this->resolveAutoEmailRecipients('mail.auto_recipients.laporan_tindakan.to', 'mail.auto_recipients.laporan_tindakan.cc');
+        $case->loadMissing([
+            'arrestStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
+            'arrestStaff.office:id,name,code,office_type,district_id,phone,address',
+            'complaints:id,reference_no,district_name,complaint_date,complaint_time,laporan_tindakan_auto_emailed_at',
+        ]);
+
+        $primaryComplaint = $case->complaints->first();
+        $recipients = $this->resolveDistrictOfficeEmailRecipients(
+            $case->district_id ? (int) $case->district_id : ($primaryComplaint?->district_id ? (int) $primaryComplaint->district_id : null),
+            'mail.auto_recipients.laporan_tindakan.cc',
+            $case->district_name ?: $primaryComplaint?->district_name
+        );
         if (empty($recipients['to'])) {
             return [
                 'sent' => false,
                 'reason' => 'invalid_recipient_config',
             ];
         }
-
-        $case->loadMissing([
-            'arrestStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
-            'arrestStaff.office:id,name,code,office_type,district_id,phone,address',
-            'complaints:id,reference_no,district_name,complaint_date,complaint_time,laporan_tindakan_auto_emailed_at',
-        ]);
 
         $formatDateDmyDash = static function ($value): string {
             if (! $value) return '-';
@@ -5634,7 +5647,6 @@ class ComplaintController extends Controller
             }
         };
 
-        $primaryComplaint = $case->complaints->first();
         $tarikhMasa = $case->action_datetime
             ?: $case->statement_datetime
             ?: $primaryComplaint?->complaint_date;
@@ -5743,6 +5755,43 @@ class ComplaintController extends Controller
             $cc = array_slice($to, 1);
             $to = array_slice($to, 0, 1);
         }
+
+        if (! empty($cc)) {
+            $toLookup = array_flip(array_map('strtolower', $to));
+            $cc = array_values(array_filter($cc, fn ($email) => ! isset($toLookup[strtolower($email)])));
+        }
+
+        return [
+            'to' => array_values($to),
+            'cc' => array_values($cc),
+        ];
+    }
+
+    private function resolveDistrictOfficeEmailRecipients(?int $districtId, string $ccConfigKey, ?string $districtName = null): array
+    {
+        $officeQuery = Office::query()
+            ->where('is_active', true)
+            ->where('office_type', 'daerah');
+
+        if ($districtId) {
+            $officeQuery->where('district_id', $districtId);
+        } else {
+            $normalizedDistrictName = trim((string) $districtName);
+            if ($normalizedDistrictName === '') {
+                return [
+                    'to' => [],
+                    'cc' => [],
+                ];
+            }
+
+            $officeQuery->whereHas('district', function ($query) use ($normalizedDistrictName) {
+                $query->whereRaw('LOWER(name) = ?', [strtolower($normalizedDistrictName)]);
+            });
+        }
+
+        $office = $officeQuery->first(['id', 'email']);
+        $to = $this->parseEmailEnv((string) ($office?->email ?? ''));
+        $cc = $this->parseEmailEnv((string) config($ccConfigKey, ''));
 
         if (! empty($cc)) {
             $toLookup = array_flip(array_map('strtolower', $to));

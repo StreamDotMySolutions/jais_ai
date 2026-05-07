@@ -2,13 +2,14 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Office;
 use Illuminate\Console\Command;
 
 class DebugAutoMailRecipientsCommand extends Command
 {
     protected $signature = 'mail:debug-auto-recipients';
 
-    protected $description = 'Paparkan konfigurasi mail dan auto recipients yang sedang dibaca aplikasi.';
+    protected $description = 'Paparkan konfigurasi mail, CC config, dan email pejabat daerah yang digunakan aplikasi.';
 
     public function handle(): int
     {
@@ -26,13 +27,29 @@ class DebugAutoMailRecipientsCommand extends Command
             ['mail.mailers.smtp.password', $this->maskSecret((string) ($smtp['password'] ?? ''))],
             ['mail.from.address', (string) ($from['address'] ?? '-')],
             ['mail.from.name', (string) ($from['name'] ?? '-')],
-            ['mail.auto_recipients.borang5.to', $this->normalizeEmails((string) ($borang5['to'] ?? ''))],
             ['mail.auto_recipients.borang5.cc', $this->normalizeEmails((string) ($borang5['cc'] ?? ''))],
-            ['mail.auto_recipients.laporan_tindakan.to', $this->normalizeEmails((string) ($laporanTindakan['to'] ?? ''))],
             ['mail.auto_recipients.laporan_tindakan.cc', $this->normalizeEmails((string) ($laporanTindakan['cc'] ?? ''))],
         ];
 
         $this->table(['Config Key', 'Value'], $rows);
+        $this->newLine();
+
+        $offices = Office::query()
+            ->with('district:id,name')
+            ->where('office_type', 'daerah')
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'district_id', 'email']);
+
+        $officeRows = $offices->map(function (Office $office): array {
+            return [
+                (string) ($office->code ?: '-'),
+                (string) ($office->district?->name ?: '-'),
+                (string) ($office->name ?: '-'),
+                $this->normalizeEmails((string) ($office->email ?? '')),
+            ];
+        })->all();
+
+        $this->table(['Code', 'Daerah', 'Pejabat', 'Email Recipient'], $officeRows);
 
         return self::SUCCESS;
     }
