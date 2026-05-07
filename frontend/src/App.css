@@ -9597,20 +9597,22 @@ body {
 }
 
 .print-sheet-ringkasan-kes {
-  max-width: 1020px;
-  min-height: 1320px;
-  padding: 1.35rem 1.45rem 1.25rem;
+  width: 186mm;
+  min-height: 266mm;
+  padding: 5mm 7mm 4mm;
   border-radius: 0;
   box-shadow: none;
   border: 0;
   font-family: Arial, Helvetica, sans-serif;
   color: #111111;
   background: #ffffff;
+  margin: 0 auto;
+  box-sizing: border-box;
 }
 
 .print-ringkasan-top-right {
   text-align: right;
-  font-size: 12px;
+  font-size: 11pt;
   font-weight: 700;
   color: #757575;
 }
@@ -9618,28 +9620,28 @@ body {
 .print-ringkasan-logo-wrap {
   display: flex;
   justify-content: center;
-  margin-top: 0.4rem;
+  margin-top: 1.2mm;
 }
 
 .print-ringkasan-logo {
-  width: 128px;
+  width: 30mm;
   height: auto;
 }
 
 .print-ringkasan-department {
-  margin-top: 0.55rem;
+  margin-top: 1.4mm;
   text-align: center;
-  font-size: 14px;
+  font-size: 12pt;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.18;
   text-transform: uppercase;
 }
 
 .print-ringkasan-title {
-  margin-top: 1.55rem;
-  margin-bottom: 1.25rem;
+  margin-top: 6.2mm;
+  margin-bottom: 5.3mm;
   text-align: center;
-  font-size: 26px;
+  font-size: 16pt;
   font-weight: 700;
   text-transform: uppercase;
 }
@@ -9652,8 +9654,8 @@ body {
 }
 
 .print-ringkasan-label-grid {
-  font-size: 12px;
-  margin-bottom: 0.2rem;
+  font-size: 11pt;
+  margin-bottom: 0.8mm;
 }
 
 .print-ringkasan-label-grid-3,
@@ -9667,7 +9669,7 @@ body {
 }
 
 .print-ringkasan-value-grid {
-  margin-bottom: 1rem;
+  margin-bottom: 5.1mm;
 }
 
 .print-ringkasan-value-grid > div,
@@ -9675,47 +9677,48 @@ body {
 .print-ringkasan-big-box,
 .print-ringkasan-small-box,
 .print-ringkasan-sign-box {
-  border: 1px solid #1e1e1e;
+  border: 1.4px solid #111111;
   background: #ffffff;
+  box-sizing: border-box;
 }
 
 .print-ringkasan-value-grid > div {
-  min-height: 48px;
+  min-height: 11.5mm;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.45rem 0.55rem;
-  font-size: 18px;
+  padding: 1mm 2mm;
+  font-size: 11pt;
   font-weight: 500;
 }
 
 .print-ringkasan-inline-row {
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 53mm 1fr;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.95rem;
+  gap: 4mm;
+  margin-bottom: 4.2mm;
 }
 
 .print-ringkasan-inline-label,
 .print-ringkasan-center-label,
 .print-ringkasan-column-label,
 .print-ringkasan-sign-label {
-  font-size: 14px;
+  font-size: 11pt;
   font-weight: 500;
 }
 
 .print-ringkasan-inline-box {
-  min-height: 48px;
+  min-height: 11.5mm;
   display: flex;
   align-items: center;
-  padding: 0.45rem 0.8rem;
-  font-size: 18px;
+  padding: 1mm 3mm;
+  font-size: 11pt;
   font-weight: 500;
 }
 
 .print-ringkasan-inline-box-wide {
-  max-width: 290px;
+  max-width: 59mm;
 }
 
 .print-ringkasan-inline-box-full {
@@ -9724,80 +9727,85 @@ body {
 
 .print-ringkasan-center-label {
   text-align: center;
-  margin-top: 1.65rem;
-  margin-bottom: 0.3rem;
+  margin-top: 6mm;
+  margin-bottom: 1mm;
 }
 
 .print-ringkasan-big-box {
-  padding: 0.8rem 1rem;
-  font-size: 16px;
+  padding: 2.2mm 3.2mm;
+  font-size: 11pt;
   font-weight: 700;
   white-space: pre-wrap;
 }
 
 .print-ringkasan-address-box {
-  min-height: 106px;
+  min-height: 26mm;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  line-height: 1.35;
+  line-height: 1.28;
 }
 
 .print-ringkasan-bottom-grid {
   display: grid;
   grid-template-columns: 1.06fr 0.94fr;
-  gap: 0.9rem;
-  margin-top: 1.45rem;
+  gap: 3.5mm;
+  margin-top: 5.4mm;
 }
 
 .print-ringkasan-column-label {
-  margin-bottom: 0.35rem;
+  margin-bottom: 1mm;
+  line-height: 1.05;
 }
 
 .print-ringkasan-column-label-spaced {
-  margin-top: 0.45rem;
+  margin-top: 1.1mm;
 }
 
 .print-ringkasan-report-box {
-  min-height: 182px;
+  min-height: 42mm;
   text-align: left;
-  line-height: 1.35;
+  line-height: 1.28;
+  font-size: 11pt;
+  font-weight: 500;
+  padding-top: 1.8mm;
+  padding-bottom: 1.8mm;
 }
 
 .print-ringkasan-small-box {
-  min-height: 62px;
-  padding: 0.7rem 0.8rem;
-  font-size: 16px;
+  min-height: 11.5mm;
+  padding: 2mm 3mm;
+  font-size: 11pt;
   font-weight: 500;
   white-space: pre-wrap;
 }
 
 .print-ringkasan-seizure-box {
-  min-height: 92px;
-  line-height: 1.35;
+  min-height: 11.5mm;
+  line-height: 1.2;
 }
 
 .print-ringkasan-sign-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0;
-  margin-top: 1.1rem;
+  margin-top: 3.7mm;
 }
 
 .print-ringkasan-sign-label {
   text-align: center;
-  margin-bottom: 0.3rem;
+  margin-bottom: 1mm;
 }
 
 .print-ringkasan-sign-box {
-  min-height: 188px;
+  min-height: 30mm;
 }
 
 .print-ringkasan-footnote {
-  margin-top: 0.3rem;
+  margin-top: 0.9mm;
   text-align: right;
-  font-size: 12px;
+  font-size: 11pt;
   font-style: italic;
   color: #7a7a7a;
 }
@@ -9849,9 +9857,41 @@ body {
   .print-sheet-ringkasan-kes {
     box-shadow: none;
     border: 0;
-    min-height: auto;
+    width: 186mm;
+    min-height: 266mm;
     max-width: 100%;
-    padding: 0.4rem 0.25rem 0.5rem;
+    padding: 4mm 6mm 3mm;
+    margin: 0 auto;
+    page-break-inside: avoid;
+    overflow: hidden;
+  }
+
+  .print-ringkasan-value-grid > div,
+  .print-ringkasan-inline-box,
+  .print-ringkasan-big-box,
+  .print-ringkasan-small-box,
+  .print-ringkasan-sign-box {
+    border: 1.6px solid #000000 !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-ringkasan-top-right,
+  .print-ringkasan-department,
+  .print-ringkasan-title,
+  .print-ringkasan-label-grid,
+  .print-ringkasan-inline-label,
+  .print-ringkasan-center-label,
+  .print-ringkasan-column-label,
+  .print-ringkasan-sign-label,
+  .print-ringkasan-footnote,
+  .print-ringkasan-value-grid > div,
+  .print-ringkasan-inline-box,
+  .print-ringkasan-big-box,
+  .print-ringkasan-small-box {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }
 

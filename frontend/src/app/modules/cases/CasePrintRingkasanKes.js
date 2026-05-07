@@ -112,8 +112,8 @@ const CasePrintRingkasanKes = () => {
     const masaTerima = formatTimeMalay(linkedComplaint?.complaint_time);
     const tarikhTindakan = formatDateSlash(caseRecord.action_datetime);
     const masaTindakan = formatTimeMalay(caseRecord.action_datetime);
-    const tempatKejadian = renderValue(linkedComplaint?.address, '-').toUpperCase();
     const pegawaiPenangkap = renderValue(caseRecord?.arrest_staff?.name || caseRecord?.arrestStaff?.name, '-').toUpperCase();
+    const noBorangAkuanPemeriksaan = 'TIADA';
 
     return (
         <div className="print-page">
@@ -172,22 +172,17 @@ const CasePrintRingkasanKes = () => {
                     <div>{renderValue(firstPoliceReport?.report_no)}</div>
                 </div>
 
-                <div className="print-ringkasan-center-label">TEMPAT KEJADIAN:</div>
-                <div className="print-ringkasan-big-box print-ringkasan-address-box">
-                    {tempatKejadian}
-                </div>
-
                 <div className="print-ringkasan-bottom-grid">
                     <div className="print-ringkasan-column">
-                        <div className="print-ringkasan-column-label">LAPORAN TINDAKAN:</div>
                         <div className="print-ringkasan-big-box print-ringkasan-report-box">
                             {laporanTindakan || 'RINGKASAN KES MASIH BELUM DIISI'}
                         </div>
                     </div>
 
                     <div className="print-ringkasan-column">
-                        <div className="print-ringkasan-column-label">KESALAHAN:</div>
                         <div className="print-ringkasan-small-box">{offenseLabel}</div>
+                        <div className="print-ringkasan-column-label print-ringkasan-column-label-spaced">NO. BORANG AKUAN PEMERIKSAAN:</div>
+                        <div className="print-ringkasan-small-box">{noBorangAkuanPemeriksaan}</div>
                         <div className="print-ringkasan-column-label print-ringkasan-column-label-spaced">SENARAI BARANG KES:</div>
                         <div className="print-ringkasan-small-box print-ringkasan-seizure-box">{seizureSummary.toUpperCase()}</div>
                     </div>
