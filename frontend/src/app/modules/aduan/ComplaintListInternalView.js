@@ -131,6 +131,7 @@ const getExpandedSections = (item) => {
                 ],
             ],
             fullWidth: [
+                ['Alamat Terkini', item.current_address],
                 ['Alamat Kejadian', item.address],
                 ['Butiran Aduan', item.summary],
             ],
@@ -148,9 +149,6 @@ const getExpandedSections = (item) => {
                     ['Nombor Telefon Pengadu', item.contact_number],
                     ['Pekerjaan Pengadu', item.complainant_occupation],
                 ],
-            ],
-            fullWidth: [
-                ['Alamat Pengadu', item.complainant_address || item.address],
             ],
         },
         {
