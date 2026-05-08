@@ -2229,6 +2229,8 @@ const ComplaintDetail = () => {
     const dispatchBlockedMessage = dispatchMissingMessage || dispatchUnsavedMessage;
     const canDispatchToDistrict = isAdminMaintenanceRole || (isAwaitingPiDispatch && !dispatchBlockedMessage);
     const dispatchButtonDisabled = !isAdminMaintenanceRole && (isPegawaiDaerahRole || isAlreadyDispatchedToDistrict || !canDispatchToDistrict);
+    const dispatchDistrictName = String(complaint?.district_name || complaint?.district?.name || '').trim();
+    const dispatchButtonLabel = dispatchDistrictName ? `Hantar ke ${dispatchDistrictName}` : 'Hantar';
     const dispatchButtonTitle = isAdminMaintenanceRole
         ? undefined
         : isPegawaiDaerahRole
@@ -3513,7 +3515,7 @@ const ComplaintDetail = () => {
                                         title={dispatchButtonTitle}
                                         onClick={submitDispatchToDistrict}
                                     >
-                                        Hantar
+                                        {dispatchButtonLabel}
                                     </button>
                                     <button
                                         className="app-button app-button-ghost"
