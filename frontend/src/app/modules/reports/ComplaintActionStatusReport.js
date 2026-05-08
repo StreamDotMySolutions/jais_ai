@@ -6,8 +6,8 @@ import { formatMalaysiaDateTimeStamp } from '../../utils/dateTime';
 const CLASSIFICATION_OPTIONS = ['FNA', 'KIV', 'NFA', 'OP'];
 
 const ComplaintActionStatusReport = ({
-    title = 'Statistik Status Tindakan',
-    description = 'Ringkasan status semasa laporan tindakan AJ mengikut klasifikasi dan daerah.',
+    title = 'Jana Tindakan Aduan',
+    description = 'Ringkasan dan senarai rekod Jana Tindakan AJ mengikut klasifikasi, daerah, dan status semasa.',
     backLink = '/app/complaints/report',
     defaultClassification = '',
     lockClassification = false,
@@ -18,7 +18,7 @@ const ComplaintActionStatusReport = ({
     const [isExporting, setIsExporting] = useState(false);
     const [error, setError] = useState('');
     const [districtOptions, setDistrictOptions] = useState([]);
-    const [summary, setSummary] = useState({ totals: {}, status_rows: [], classification_rows: [], district_rows: [] });
+    const [summary, setSummary] = useState({ totals: {}, status_rows: [], classification_rows: [], district_rows: [], listing_rows: [] });
     const [filters, setFilters] = useState({
         district: '',
         classification: defaultClassification,
@@ -58,7 +58,7 @@ const ComplaintActionStatusReport = ({
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             params,
         })
-            .then((response) => setSummary(response?.data?.data || { totals: {}, status_rows: [], classification_rows: [], district_rows: [] }))
+            .then((response) => setSummary(response?.data?.data || { totals: {}, status_rows: [], classification_rows: [], district_rows: [], listing_rows: [] }))
             .catch((err) => setError(err?.response?.data?.message || 'Gagal memuatkan statistik status tindakan.'))
             .finally(() => setIsLoading(false));
     };

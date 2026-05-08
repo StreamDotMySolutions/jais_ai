@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 import ProtectedRoute from './libs/ProtectedRoute';
 
@@ -38,6 +38,7 @@ import ArahanBeredar from './app/modules/beredar/ArahanBeredar';
 import ArahanBeredarList from './app/modules/beredar/ArahanBeredarList';
 import ArahanBeredarDetail from './app/modules/beredar/ArahanBeredarDetail';
 import ComplaintActionStatusReport from './app/modules/reports/ComplaintActionStatusReport';
+import ComplaintJanaTindakanReport from './app/modules/reports/ComplaintJanaTindakanReport';
 import ComplaintArrestByDistrictReport from './app/modules/reports/ComplaintArrestByDistrictReport';
 import ComplaintArrestByOffenseReport from './app/modules/reports/ComplaintArrestByOffenseReport';
 import ComplaintArrestorsReport from './app/modules/reports/ComplaintArrestorsReport';
@@ -230,6 +231,14 @@ function App() {
             <Route
               path="/app/complaints/report/ip-status"
               element={<ComplaintIpStatusReport />}
+            />
+            <Route
+              path="/app/jana-tindakan-aduan"
+              element={<ComplaintJanaTindakanReport />}
+            />
+            <Route
+              path="/app/complaints/report/jana-tindakan-aduan"
+              element={<Navigate to="/app/jana-tindakan-aduan" replace />}
             />
             <Route
               path="/app/complaints/report/action-status"

@@ -105,23 +105,23 @@ const AppLayout = () => {
             return [];
         }
 
-        const placeCasesAfterFir = (items) => {
+        const placeCasesAfterJanaTindakan = (items) => {
             const casesIndex = items.findIndex((menu) => (menu?.path || '') === '/app/cases');
-            const firIndex = items.findIndex((menu) => (menu?.path || '') === '/app/aduan');
-            if (casesIndex < 0 || firIndex < 0 || casesIndex === firIndex + 1) {
+            const janaTindakanIndex = items.findIndex((menu) => (menu?.path || '') === '/app/jana-tindakan-aduan');
+            if (casesIndex < 0 || janaTindakanIndex < 0 || casesIndex === janaTindakanIndex + 1) {
                 return items;
             }
 
             const nextItems = [...items];
             const [casesMenu] = nextItems.splice(casesIndex, 1);
-            const nextFirIndex = nextItems.findIndex((menu) => (menu?.path || '') === '/app/aduan');
-            nextItems.splice(nextFirIndex + 1, 0, casesMenu);
+            const nextJanaTindakanIndex = nextItems.findIndex((menu) => (menu?.path || '') === '/app/jana-tindakan-aduan');
+            nextItems.splice(nextJanaTindakanIndex + 1, 0, casesMenu);
             return nextItems;
         };
 
         const hasCasesMenu = menuItems.some((menu) => (menu?.path || '') === '/app/cases');
         if (hasCasesMenu) {
-            return placeCasesAfterFir(menuItems);
+            return placeCasesAfterJanaTindakan(menuItems);
         }
 
         const firRootMenu = menuItems.find((menu) => (menu?.path || '') === '/app/aduan');
@@ -148,7 +148,44 @@ const AppLayout = () => {
 
         const nextMenus = [...menuItems];
         nextMenus.splice(insertIndex + 1, 0, injectedMenu);
-        return placeCasesAfterFir(nextMenus);
+        return placeCasesAfterJanaTindakan(nextMenus);
+    };
+
+    const ensureJanaTindakanMenu = (menuItems) => {
+        if (!Array.isArray(menuItems) || menuItems.length === 0) {
+            return [];
+        }
+
+        const hasMenu = menuItems.some((menu) => (menu?.path || '') === '/app/jana-tindakan-aduan');
+        if (hasMenu) {
+            return menuItems;
+        }
+
+        const firRootMenu = menuItems.find((menu) => (menu?.path || '') === '/app/aduan');
+        const complaintsMenu = menuItems.find((menu) => (menu?.path || '') === '/app/complaints');
+        if (!firRootMenu && !complaintsMenu) {
+            return menuItems;
+        }
+
+        const injectedMenu = {
+            id: 'virtual-jana-tindakan-aduan-menu',
+            parent_id: null,
+            label: 'Jana Tindakan Aduan',
+            path: '/app/jana-tindakan-aduan',
+            icon: 'bi-list-task',
+            sort_order: Number(firRootMenu?.sort_order || complaintsMenu?.sort_order || 0) + 0.5,
+            is_active: 1,
+        };
+
+        const insertAfterPath = firRootMenu ? '/app/aduan' : '/app/complaints';
+        const insertIndex = menuItems.findIndex((menu) => (menu?.path || '') === insertAfterPath);
+        if (insertIndex < 0) {
+            return [...menuItems, injectedMenu];
+        }
+
+        const nextMenus = [...menuItems];
+        nextMenus.splice(insertIndex + 1, 0, injectedMenu);
+        return nextMenus;
     };
 
     const loadMenus = () => {
@@ -170,7 +207,7 @@ const AppLayout = () => {
                 const pendingCount = Number(pendingResponse?.data?.meta?.total || 0);
                 const withPendingBadge = attachPendingApprovalCount(menuItems, pendingCount);
                 const withFirMenu = normalizeFirMenu(withPendingBadge);
-                setMenus(ensureCasesMenu(ensureWaranCalendarMenu(withFirMenu)));
+                setMenus(ensureCasesMenu(ensureJanaTindakanMenu(ensureWaranCalendarMenu(withFirMenu))));
             })
             .catch(() => {
                 setMenus([]);

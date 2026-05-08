@@ -1386,6 +1386,64 @@ class ComplaintController extends Controller
             ->sortByDesc('total')
             ->values();
 
+        $listingRows = (clone $query)
+            ->leftJoin('ref_offenses', 'complaints.aj_offense_id', '=', 'ref_offenses.id')
+            ->with([
+                'picUser:id,name',
+                'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note',
+            ])
+            ->select([
+                'complaints.id',
+                'complaints.reference_no',
+                'complaints.district_name',
+                'complaints.pic_user_id',
+                'ref_offenses.name as offense_name',
+                'ref_offenses.section as offense_section',
+                'complaints.aj_current_status',
+                'complaints.aj_current_status_other',
+                'complaints.aj_ppa_classification',
+                'complaints.complaint_date',
+                'complaints.complaint_time',
+                'complaints.aj_op_case_status',
+                'complaints.aj_file_no',
+            ])
+            ->orderBy('complaints.district_name')
+            ->orderByDesc('complaints.complaint_date')
+            ->orderByDesc('complaints.complaint_time')
+            ->limit((int) min(max((int) $request->integer('limit', 300), 1), 1000))
+            ->get()
+            ->map(function ($complaint) {
+                $latestUpdate = $complaint->actionUpdates->last();
+                $currentStatus = trim((string) ($complaint->aj_current_status ?? ''));
+                if (strcasecmp($currentStatus, 'Other') === 0) {
+                    $currentStatus = trim((string) ($complaint->aj_current_status_other ?? '')) ?: 'Other';
+                }
+
+                return [
+                    'id' => (int) $complaint->id,
+                    'reference_no' => $complaint->reference_no,
+                    'district_name' => $complaint->district_name,
+                    'offense_name' => collect([
+                        $complaint->offense_section ?: null,
+                        $complaint->offense_name ?: null,
+                    ])->filter()->implode(' - '),
+                    'action_status' => $currentStatus,
+                    'classification' => $this->normalizePpaClassification((string) ($complaint->aj_ppa_classification ?? '')) ?: '',
+                    'complaint_date' => $complaint->complaint_date,
+                    'complaint_time' => $complaint->complaint_time,
+                    'pic_name' => $complaint->picUser?->name ?: '',
+                    'latest_update' => [
+                        'classification' => $latestUpdate?->classification,
+                        'action_date' => $latestUpdate?->action_date,
+                        'action_time' => $latestUpdate?->action_time,
+                        'note' => $latestUpdate?->note,
+                    ],
+                    'op_case_status' => $complaint->aj_op_case_status,
+                    'file_no' => $complaint->aj_file_no,
+                ];
+            })
+            ->values();
+
         $totals = [
             'records' => (int) $rows->sum('total'),
             'statuses' => (int) $statusRows->count(),
@@ -1400,6 +1458,7 @@ class ComplaintController extends Controller
                 'status_rows' => $statusRows,
                 'classification_rows' => $classificationRows,
                 'district_rows' => $districtRows,
+                'listing_rows' => $listingRows,
             ],
         ]);
     }
@@ -1495,7 +1554,7 @@ class ComplaintController extends Controller
     {
         $response = $this->reportActionStatus($request);
         $payload = $response->getData(true);
-        $data = $payload['data'] ?? ['totals' => [], 'status_rows' => [], 'classification_rows' => [], 'district_rows' => []];
+        $data = $payload['data'] ?? ['totals' => [], 'status_rows' => [], 'classification_rows' => [], 'district_rows' => [], 'listing_rows' => []];
 
         $spreadsheet = $this->makeReportSpreadsheet(
             'Summary',
@@ -1546,6 +1605,39 @@ class ComplaintController extends Controller
         }
         foreach ([24, 12] as $i => $width) {
             $districtSheet->getColumnDimension(Coordinate::stringFromColumnIndex($i + 1))->setWidth($width);
+        }
+
+        $listingSheet = $this->addReportSheet(
+            $spreadsheet,
+            'Listing Detail',
+            ['No. Aduan', 'Daerah', 'No. Fail', 'Pegawai PIC', 'Kesalahan', 'Status Terkini', 'Klasifikasi', 'Tarikh', 'Masa', 'Maklumat Terkini', 'Status Kes OP']
+        );
+        $listingRows = collect($data['listing_rows'] ?? [])->map(function ($row) {
+            $latestUpdate = $row['latest_update'] ?? [];
+            $latestUpdateText = trim((string) ($latestUpdate['note'] ?? ''));
+            if ($latestUpdateText === '') {
+                $latestUpdateText = trim((string) ($latestUpdate['classification'] ?? ''));
+            }
+
+            return [
+                $row['reference_no'] ?? '',
+                $row['district_name'] ?? 'Tidak diketahui',
+                $row['file_no'] ?? '',
+                $row['pic_name'] ?? '',
+                $row['offense_name'] ?? '',
+                $row['action_status'] ?? '',
+                $row['classification'] ?? '',
+                $row['complaint_date'] ?? '',
+                $row['complaint_time'] ?? '',
+                $latestUpdateText ?: '-',
+                $row['op_case_status'] ?? '',
+            ];
+        })->values()->all();
+        if ($listingRows) {
+            $listingSheet->fromArray($listingRows, null, 'A2');
+        }
+        foreach ([24, 18, 18, 24, 42, 28, 14, 14, 12, 34, 16] as $i => $width) {
+            $listingSheet->getColumnDimension(Coordinate::stringFromColumnIndex($i + 1))->setWidth($width);
         }
 
         return $this->downloadSpreadsheet($spreadsheet, 'aduan-action-status-' . now()->format('Ymd-His') . '.xlsx');
@@ -1787,10 +1879,10 @@ class ComplaintController extends Controller
         $mahkamahRows = (clone $query)
             ->leftJoin('ref_mahkamah', 'complaints.aj_mahkamah_id', '=', 'ref_mahkamah.id')
             ->selectRaw("
-                COALESCE(ref_mahkamah.name, 'Belum Direkodkan') as mahkamah_name,
+                COALESCE(ref_mahkamah.nama, 'Belum Direkodkan') as mahkamah_name,
                 COUNT(complaints.id) as total
             ")
-            ->groupBy(DB::raw("COALESCE(ref_mahkamah.name, 'Belum Direkodkan')"))
+            ->groupBy(DB::raw("COALESCE(ref_mahkamah.nama, 'Belum Direkodkan')"))
             ->orderByDesc('total')
             ->get();
 
@@ -1996,10 +2088,10 @@ class ComplaintController extends Controller
         $mahkamahRows = (clone $query)
             ->leftJoin('ref_mahkamah', 'complaints.aj_mahkamah_id', '=', 'ref_mahkamah.id')
             ->selectRaw("
-                COALESCE(ref_mahkamah.name, 'Belum Direkodkan') as mahkamah_name,
+                COALESCE(ref_mahkamah.nama, 'Belum Direkodkan') as mahkamah_name,
                 COUNT(complaints.id) as total
             ")
-            ->groupBy(DB::raw("COALESCE(ref_mahkamah.name, 'Belum Direkodkan')"))
+            ->groupBy(DB::raw("COALESCE(ref_mahkamah.nama, 'Belum Direkodkan')"))
             ->orderByDesc('total')
             ->get();
 
