@@ -173,12 +173,14 @@ const CasePrintRingkasanKes = () => {
 
                 <div className="print-ringkasan-bottom-grid">
                     <div className="print-ringkasan-column">
+                        <div className="print-ringkasan-column-label">LAPORAN TINDAKAN:</div>
                         <div className="print-ringkasan-big-box print-ringkasan-report-box">
                             {laporanTindakan || 'RINGKASAN KES MASIH BELUM DIISI'}
                         </div>
                     </div>
 
                     <div className="print-ringkasan-column">
+                        <div className="print-ringkasan-column-label">KESALAHAN:</div>
                         <div className="print-ringkasan-small-box">{offenseLabel}</div>
                         <div className="print-ringkasan-column-label print-ringkasan-column-label-spaced">NO. BORANG AKUAN PEMERIKSAAN:</div>
                         <div className="print-ringkasan-small-box">{noBorangAkuanPemeriksaan}</div>
