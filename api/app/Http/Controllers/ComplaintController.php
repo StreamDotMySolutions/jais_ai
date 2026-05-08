@@ -4674,7 +4674,7 @@ class ComplaintController extends Controller
                 'message' => 'Pegawai Daerah hanya dibenarkan mendaftar Aduan Keluarga (AK).',
             ], 403);
         }
-        if ($caseType === 'AJ' && $currentAddress === '') {
+        if ($caseType === 'AJ' && ($isPublicChannel || $isPhysicalInformantChannel) && $currentAddress === '') {
             return response()->json([
                 'message' => 'Alamat Terkini wajib diisi.',
                 'errors' => ['current_address' => ['Alamat Terkini wajib diisi.']],

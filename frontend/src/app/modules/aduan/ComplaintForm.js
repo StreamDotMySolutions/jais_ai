@@ -196,6 +196,8 @@ function ComplaintForm({
         const idNo = (store.getValue('identification_number') || '').trim();
         const phone = (store.getValue('contact_number') || '').trim();
         const districtId = (store.getValue('district_id') || '').toString().trim();
+        const normalizedChannelSource = String(channelSource || '').trim().toLowerCase().replace(/_/g, '-');
+        const isPhysicalInformantChannel = ['walkin', 'walk-in', 'kaunter'].includes(normalizedChannelSource);
         const address = (store.getValue('address') || '').trim();
         const incidentDate = (store.getValue('incident_date') || '').trim();
         const incidentTime = (store.getValue('incident_time') || '').trim();
@@ -255,7 +257,9 @@ function ComplaintForm({
         if (!idNo) localErrors.identification_number = 'Wajib diisi';
         if (!phone) localErrors.contact_number = 'Wajib diisi';
         if (!districtId) localErrors.district_id = 'Wajib diisi';
-        if (selectedCaseType === 'AJ' && !currentAddress) localErrors.current_address = 'Wajib diisi';
+        if (selectedCaseType === 'AJ' && (!officerMode || isPhysicalInformantChannel) && !currentAddress) {
+            localErrors.current_address = 'Wajib diisi';
+        }
         if (!effectiveAddress) {
             localErrors[selectedCaseType === 'AK'
                 ? 'current_address'
@@ -435,6 +439,9 @@ function ComplaintForm({
     const addressFieldName = caseType === 'AK' ? 'current_address' : 'address';
     const addressPlaceholder = caseType === 'AJ' ? 'Alamat/Lokasi Kejadian *' : 'Alamat Terkini *';
     const addressValue = addressDraft || store.getValue(addressFieldName) || '';
+    const normalizedChannelSource = String(channelSource || '').trim().toLowerCase().replace(/_/g, '-');
+    const isPhysicalInformantChannel = ['walkin', 'walk-in', 'kaunter'].includes(normalizedChannelSource);
+    const shouldShowCurrentAddress = caseType === 'AK' || (caseType === 'AJ' && (!officerMode || isPhysicalInformantChannel));
     const templatesByCaseType = {
         AJ: [
             { key: 'aj_aduan_biasa', label: 'Aduan biasa' },
@@ -1295,7 +1302,7 @@ function ComplaintForm({
                             />
                         </Row>
 
-                        {(caseType === 'AK' || caseType === 'AJ') && (
+                        {shouldShowCurrentAddress && (
                             <Row className='mb-4'>
                                 <InputTextarea
                                     type='text'
