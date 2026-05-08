@@ -4268,8 +4268,8 @@ const ComplaintDetail = () => {
                                                                 />
                                                             </div>
                                                             <div className="app-oyds-table-cell">
-                                                                <input
-                                                                    type="text"
+                                                                <textarea
+                                                                    rows="3"
                                                                     value={row.note || ''}
                                                                     onChange={(event) => updateActionHistoryRow(index, 'note', event.target.value)}
                                                                 />
@@ -4288,8 +4288,9 @@ const ComplaintDetail = () => {
                                                         </div>
                                                     ))}
                                                     <div className="app-inline-add">
-                                                        <button type="button" className="app-link" onClick={addActionHistoryRow}>
-                                                            + Tambah Maklumat Terkini
+                                                        <button type="button" className="app-button app-button-ghost app-button-mini" onClick={addActionHistoryRow}>
+                                                            <i className="bi bi-plus-lg"></i>
+                                                            Tambah Maklumat Terkini
                                                         </button>
                                                     </div>
                                                 </div>
