@@ -14,6 +14,7 @@ import OydAttachmentSection from '../../components/OydAttachmentSection';
 import SeizureAttachmentSection from '../../components/SeizureAttachmentSection';
 import { sanitizePastedPlainText } from '../../../libs/FormInput';
 import { useToast } from '../../components/SharedToastProvider';
+import { isMaintenanceOverrideRole } from '../../utils/maintenanceOverride';
 import BORANG5_OFFICER_TEMPLATES from './borang5OfficerTemplates';
 import LAPORAN_TINDAKAN_TEMPLATES from './laporanTindakanTemplates';
 import { getComplaintStageLabel, getPublicComplaintStageLabel } from './complaintStage';
@@ -280,7 +281,7 @@ const ComplaintDetail = () => {
     const isPublicRole = ['awam', 'user'].includes(role);
     const isPegawaiRole = ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
     const isPegawaiDaerahRole = role === 'pegawai_daerah';
-    const isAdminMaintenanceRole = ['admin', 'system'].includes(role);
+    const isAdminMaintenanceRole = isMaintenanceOverrideRole(role);
     const detailTopBoxTitle = 'Aduan';
     const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase().replace(/_/g, '-');
     const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp-web'].includes(complaintChannelNormalized);
@@ -2041,8 +2042,15 @@ const ComplaintDetail = () => {
     const handleNavigateBackToList = useCallback(() => {
         suppressUnloadReleaseRef.current = true;
         releaseIntakeLockQuietly();
-        navigate('/app/complaints');
-    }, [navigate, releaseIntakeLockQuietly]);
+        let returnSearch = location.state?.fromComplaintListSearch || '';
+        if (!returnSearch) {
+            const params = new URLSearchParams(location.search || '');
+            ['step', 'open_case_report', 'case_id'].forEach((key) => params.delete(key));
+            const query = params.toString();
+            returnSearch = query ? `?${query}` : '';
+        }
+        navigate(`/app/complaints${returnSearch}`);
+    }, [location.state, navigate, releaseIntakeLockQuietly]);
 
     const handleNext = () => {
         const currentIndex = sortedIds.indexOf(Number(id));
@@ -2052,7 +2060,11 @@ const ComplaintDetail = () => {
         suppressUnloadReleaseRef.current = true;
         releaseIntakeLockQuietly();
         const nextId = sortedIds[currentIndex + 1];
-        navigate(`/app/complaints/${nextId}`);
+        navigate(`/app/complaints/${nextId}`, {
+            state: {
+                fromComplaintListSearch: location.state?.fromComplaintListSearch || '',
+            },
+        });
     };
 
     const handlePrev = () => {
@@ -2063,7 +2075,11 @@ const ComplaintDetail = () => {
         suppressUnloadReleaseRef.current = true;
         releaseIntakeLockQuietly();
         const prevId = sortedIds[currentIndex - 1];
-        navigate(`/app/complaints/${prevId}`);
+        navigate(`/app/complaints/${prevId}`, {
+            state: {
+                fromComplaintListSearch: location.state?.fromComplaintListSearch || '',
+            },
+        });
     };
 
     const normalizeDateTimeLocalValue = (value) => String(value || '').trim().replace(' ', 'T').slice(0, 16);

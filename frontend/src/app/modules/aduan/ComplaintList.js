@@ -16,6 +16,88 @@ import useOffenseOptions from '../../hooks/useOffenseOptions';
 import useMahkamahOptions from '../../hooks/useMahkamahOptions';
 import { formatMalaysiaDateTimeStamp } from '../../utils/dateTime';
 
+const FILTER_AUTO_APPLY_DELAY_MS = 350;
+const FILTER_KEYS = [
+    'keyword',
+    'complaintNo',
+    'complainant',
+    'summaryText',
+    'caseRegisterNo',
+    'offenseText',
+    'reportText',
+    'oydText',
+    'courtDate',
+    'investigationNotes',
+    'courtText',
+    'modifiedDate',
+    'modifiedUser',
+    'status',
+    'district',
+    'fromDate',
+    'toDate',
+    'actionStatus',
+    'ipStatus',
+    'prosecutionStatus',
+    'classification',
+    'receiver',
+    'approver',
+    'channel',
+    'incidentFromDate',
+    'incidentToDate',
+];
+
+const createEmptyFilters = () => ({
+    keyword: '',
+    complaintNo: '',
+    complainant: '',
+    summaryText: '',
+    caseRegisterNo: '',
+    offenseText: '',
+    reportText: '',
+    oydText: '',
+    courtDate: '',
+    investigationNotes: '',
+    courtText: '',
+    modifiedDate: '',
+    modifiedUser: '',
+    status: '',
+    district: '',
+    fromDate: '',
+    toDate: '',
+    actionStatus: '',
+    ipStatus: '',
+    prosecutionStatus: '',
+    classification: '',
+    receiver: '',
+    approver: '',
+    channel: '',
+    incidentFromDate: '',
+    incidentToDate: '',
+});
+
+const buildFilterSearchParams = (filters) => {
+    const params = new URLSearchParams();
+    FILTER_KEYS.forEach((key) => {
+        const value = String(filters?.[key] || '').trim();
+        if (value) {
+            params.set(key, value);
+        }
+    });
+    return params;
+};
+
+const parseFiltersFromSearch = (search) => {
+    const params = new URLSearchParams(search || '');
+    const next = createEmptyFilters();
+    FILTER_KEYS.forEach((key) => {
+        next[key] = (params.get(key) || '').trim();
+    });
+    if (!next.district) {
+        next.district = (params.get('district_id') || '').trim();
+    }
+    return next;
+};
+
 const getListScope = ({ isPublicRole, fetchEndpoint }) => {
     if (isPublicRole) {
         return 'my';
@@ -400,62 +482,8 @@ const ComplaintList = ({
             label: item.nama || '',
         }))
     ), [mahkamahItems]);
-    const [filters, setFilters] = useState({
-        keyword: '',
-        complaintNo: '',
-        complainant: '',
-        summaryText: '',
-        caseRegisterNo: '',
-        offenseText: '',
-        reportText: '',
-        oydText: '',
-        courtDate: '',
-        investigationNotes: '',
-        courtText: '',
-        modifiedDate: '',
-        modifiedUser: '',
-        status: '',
-        district: '',
-        fromDate: '',
-        toDate: '',
-        actionStatus: '',
-        ipStatus: '',
-        prosecutionStatus: '',
-        classification: '',
-        receiver: '',
-        approver: '',
-        channel: '',
-        incidentFromDate: '',
-        incidentToDate: '',
-    });
-    const [draftFilters, setDraftFilters] = useState({
-        keyword: '',
-        complaintNo: '',
-        complainant: '',
-        summaryText: '',
-        caseRegisterNo: '',
-        offenseText: '',
-        reportText: '',
-        oydText: '',
-        courtDate: '',
-        investigationNotes: '',
-        courtText: '',
-        modifiedDate: '',
-        modifiedUser: '',
-        status: '',
-        district: '',
-        fromDate: '',
-        toDate: '',
-        actionStatus: '',
-        ipStatus: '',
-        prosecutionStatus: '',
-        classification: '',
-        receiver: '',
-        approver: '',
-        channel: '',
-        incidentFromDate: '',
-        incidentToDate: '',
-    });
+    const [filters, setFilters] = useState(() => parseFiltersFromSearch(location.search));
+    const [draftFilters, setDraftFilters] = useState(() => parseFiltersFromSearch(location.search));
     const [showFilters, setShowFilters] = useState(true);
     const [advancedFiltersOpen, setAdvancedFiltersOpen] = useState(false);
     const [pickupMessage, setPickupMessage] = useState('');
@@ -477,6 +505,8 @@ const ComplaintList = ({
     });
     const [selectedComplaint, setSelectedComplaint] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
+    const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
+    const draftFiltersKey = useMemo(() => JSON.stringify(draftFilters), [draftFilters]);
     const canInlineEdit = !isPublicRole;
     const normalizedCaseType = (caseType || '').toUpperCase();
     const canCreateAjComplaintByRole = ['pegawai_hq', 'pegawai', 'admin', 'system'].includes(role);
@@ -556,7 +586,7 @@ const ComplaintList = ({
                 toast.success(msg);
                 fetchComplaints();
                 if (openDetail) {
-                    navigate(`/app/complaints/${complaintId}`);
+                    openComplaintDetail(complaintId);
                 }
             })
             .catch((err) => {
@@ -621,25 +651,12 @@ const ComplaintList = ({
     }, []);
 
     useEffect(() => {
-        const query = new URLSearchParams(location.search || '');
-        const status = (query.get('status') || '').trim();
-        const district = (query.get('district_id') || '').trim();
+        const nextFilters = parseFiltersFromSearch(location.search);
+        const nextFiltersKey = JSON.stringify(nextFilters);
 
-        if (!status && !district) {
-            return;
-        }
-
-        setDraftFilters((prev) => ({
-            ...prev,
-            status: status || '',
-            district: district || '',
-        }));
-        setFilters((prev) => ({
-            ...prev,
-            status: status || '',
-            district: district || '',
-        }));
-        setStatusTab(status || 'all');
+        setDraftFilters((prev) => (JSON.stringify(prev) === nextFiltersKey ? prev : nextFilters));
+        setFilters((prev) => (JSON.stringify(prev) === nextFiltersKey ? prev : nextFilters));
+        setStatusTab(nextFilters.status || 'all');
         setPage(1);
     }, [location.search]);
 
@@ -692,6 +709,33 @@ const ComplaintList = ({
     useEffect(() => {
         fetchComplaints();
     }, [apiUrl, role, fetchEndpoint, caseType, isCase, page, perPage, filters, pendingApproval]);
+
+    useEffect(() => {
+        if (draftFiltersKey === filtersKey) {
+            return undefined;
+        }
+
+        const timer = window.setTimeout(() => {
+            setFilters(draftFilters);
+            setStatusTab(draftFilters.status || 'all');
+            setPendingApproval(false);
+            setPage(1);
+        }, FILTER_AUTO_APPLY_DELAY_MS);
+
+        return () => window.clearTimeout(timer);
+    }, [draftFilters, draftFiltersKey, filtersKey]);
+
+    useEffect(() => {
+        const nextSearch = buildFilterSearchParams(filters).toString();
+        const currentSearch = new URLSearchParams(location.search || '').toString();
+        if (nextSearch === currentSearch) {
+            return;
+        }
+        navigate({
+            pathname: location.pathname,
+            search: nextSearch ? `?${nextSearch}` : '',
+        }, { replace: true });
+    }, [filters, location.pathname, location.search, navigate]);
 
     useEffect(() => {
         setPage(1);
@@ -842,34 +886,7 @@ const ComplaintList = ({
     };
 
     const handleReset = () => {
-        const empty = {
-            keyword: '',
-            complaintNo: '',
-            complainant: '',
-            summaryText: '',
-            caseRegisterNo: '',
-            offenseText: '',
-            reportText: '',
-            oydText: '',
-            courtDate: '',
-            investigationNotes: '',
-            courtText: '',
-            modifiedDate: '',
-            modifiedUser: '',
-            status: '',
-            district: '',
-            fromDate: '',
-            toDate: '',
-            ipStatus: '',
-            prosecutionStatus: '',
-            classification: '',
-            receiver: '',
-            approver: '',
-            channel: '',
-            incidentFromDate: '',
-            incidentToDate: '',
-            actionStatus: '',
-        };
+        const empty = createEmptyFilters();
         setDraftFilters(empty);
         setFilters(empty);
         setStatusTab('all');
@@ -879,6 +896,18 @@ const ComplaintList = ({
 
     const startIndex = pagination.total === 0 ? 0 : ((pagination.current_page - 1) * pagination.per_page) + 1;
     const endIndex = Math.min(pagination.current_page * pagination.per_page, pagination.total);
+    const detailSearch = location.search || '';
+    const openComplaintDetail = (complaintId, extraQuery = '') => {
+        const search = extraQuery || '';
+        navigate(`/app/complaints/${complaintId}${search}`, {
+            state: {
+                fromComplaintListSearch: detailSearch,
+            },
+        });
+    };
+    const buildComplaintDetailHref = (complaintId, extraQuery = '') => (
+        `/app/complaints/${complaintId}${extraQuery || detailSearch}`
+    );
 
     return (
         <div className="app-complaints app-aduan-list">
@@ -940,7 +969,8 @@ const ComplaintList = ({
                                 complaints={complaints}
                                 sortedComplaints={sortedComplaints}
                                 setSelectedComplaint={setSelectedComplaint}
-                                navigate={navigate}
+                                openComplaintDetail={openComplaintDetail}
+                                buildComplaintDetailHref={buildComplaintDetailHref}
                                 getPublicComplaintStageLabel={getPublicComplaintStageLabel}
                                 pickupMessage={pickupMessage}
                                 actionMessage={actionMessage}
@@ -977,7 +1007,8 @@ const ComplaintList = ({
                                 getProsecutionStatusBadgeTone={getProsecutionStatusBadgeTone}
                                 getProsecutionStatusLabel={getProsecutionStatusLabel}
                                 getClassificationAlert={getClassificationAlert}
-                                navigate={navigate}
+                                openComplaintDetail={openComplaintDetail}
+                                buildComplaintDetailHref={buildComplaintDetailHref}
                                 canDelete={canDelete}
                                 setDeleteTarget={setDeleteTarget}
                                 enablePickup={enablePickup}
@@ -1007,6 +1038,8 @@ const ComplaintList = ({
                     canInlineEdit={canInlineEdit}
                     districtOptions={districtOptions}
                     saveInlineField={saveInlineField}
+                    openComplaintDetail={openComplaintDetail}
+                    buildComplaintDetailHref={buildComplaintDetailHref}
                 />
             </div>
             {isFormOpen && (
@@ -1041,9 +1074,9 @@ const ComplaintList = ({
                                     const createdCaseType = typeof created === 'object' ? created?.caseType : '';
                                     if (createdId) {
                                         if ((createdCaseType || '').toUpperCase() === 'AK') {
-                                            navigate(`/app/complaints/${createdId}?step=siasatan`);
+                                            openComplaintDetail(createdId, '?step=siasatan');
                                         } else {
-                                            navigate(`/app/complaints/${createdId}`);
+                                            openComplaintDetail(createdId);
                                         }
                                     }
                                 }}

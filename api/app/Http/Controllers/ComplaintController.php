@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers; 
 
+use App\Http\Controllers\Concerns\InteractsWithMaintenanceOverride;
 use App\Http\Controllers\Controller; 
 use Illuminate\Http\Request;
 use App\Models\Appointment;
@@ -44,6 +45,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ComplaintController extends Controller
 {
+    use InteractsWithMaintenanceOverride;
+
     public function __construct(
         private MobilePushNotificationService $mobilePushNotificationService,
         private ComplaintReferenceService $complaintReferenceService,
@@ -188,6 +191,7 @@ class ComplaintController extends Controller
     public function storeCase(Request $request)
     {
         $user = $request->user();
+        $canBypassCaseWorkflowLocks = $this->canBypassWorkflowLocks($user);
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -225,7 +229,7 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'Aduan yang dipilih mesti daripada daerah yang sama.'], 422);
         }
 
-        if ($user->hasRole('pegawai_daerah')) {
+        if (! $canBypassCaseWorkflowLocks && $user->hasRole('pegawai_daerah')) {
             $userDistrictId = $this->resolveUserDistrictId($user);
             if (! $userDistrictId || (int) $userDistrictId !== $districtId) {
                 return response()->json(['message' => 'Kes luar daerah tidak dibenarkan.'], 403);
@@ -2318,6 +2322,7 @@ class ComplaintController extends Controller
     public function activateCase(Request $request, Complaint $complaint, CaseRecord $case)
     {
         $user = $request->user();
+        $canBypassCaseWorkflowLocks = $this->canBypassWorkflowLocks($user);
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -2327,7 +2332,7 @@ class ComplaintController extends Controller
         if (! $complaint->cases()->where('cases.id', $case->id)->exists()) {
             return response()->json(['message' => 'Kes ini tidak dipautkan pada aduan tersebut.'], 404);
         }
-        if ($user->hasRole('pegawai_daerah')) {
+        if (! $canBypassCaseWorkflowLocks && $user->hasRole('pegawai_daerah')) {
             $districtId = $this->resolveUserDistrictId($user);
             if ($districtId && (int) ($case->district_id ?? 0) !== (int) $districtId) {
                 return response()->json(['message' => 'Kes luar daerah tidak dibenarkan.'], 403);
@@ -2347,6 +2352,7 @@ class ComplaintController extends Controller
     public function attachCase(Request $request, Complaint $complaint, CaseRecord $case)
     {
         $user = $request->user();
+        $canBypassCaseWorkflowLocks = $this->canBypassWorkflowLocks($user);
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -2356,7 +2362,7 @@ class ComplaintController extends Controller
         if (strtoupper(trim((string) ($complaint->case_type ?? ''))) !== strtoupper(trim((string) ($case->case_type ?? '')))) {
             return response()->json(['message' => 'Kategori kes tidak sepadan dengan aduan.'], 422);
         }
-        if ($user->hasRole('pegawai_daerah')) {
+        if (! $canBypassCaseWorkflowLocks && $user->hasRole('pegawai_daerah')) {
             $districtId = $this->resolveUserDistrictId($user);
             if ($districtId && (int) ($case->district_id ?? 0) !== (int) $districtId) {
                 return response()->json(['message' => 'Kes luar daerah tidak dibenarkan.'], 403);
@@ -2716,7 +2722,7 @@ class ComplaintController extends Controller
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        $canBypassApprovalLock = $user->hasAnyRole(['admin', 'system']);
+        $canBypassApprovalLock = $this->canBypassWorkflowLocks($user);
         $complaint->load('approverStaff:id,name');
         $isApprover = false;
         if ($user->staff && $complaint->approver_staff_id) {
@@ -2774,7 +2780,7 @@ class ComplaintController extends Controller
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        $canBypassDispatchLock = $user->hasAnyRole(['admin', 'system']);
+        $canBypassDispatchLock = $this->canBypassWorkflowLocks($user);
         if (! $this->canViewComplaint($complaint, $user)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
@@ -2898,7 +2904,7 @@ class ComplaintController extends Controller
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
-        $canBypassAssigneeLock = $user->hasAnyRole(['admin', 'system']);
+        $canBypassAssigneeLock = $this->canBypassWorkflowLocks($user);
 
         $request->validate([
             'approver_staff_id' => 'nullable|exists:staff,id',
@@ -2999,7 +3005,7 @@ class ComplaintController extends Controller
             ->all();
         $isAllowedLockedUpdate = ! empty($requestKeys)
             && collect($requestKeys)->every(fn ($key) => in_array($key, $allowedWhenBasicLocked, true));
-        $canBypassBasicLock = $user->hasAnyRole(['admin', 'system']);
+        $canBypassBasicLock = $this->canBypassWorkflowLocks($user);
 
         if ($this->isBasicOfficerEditLockedByChannel($complaint->channel) && ! $isAllowedLockedUpdate && ! $canBypassBasicLock) {
             return response()->json([

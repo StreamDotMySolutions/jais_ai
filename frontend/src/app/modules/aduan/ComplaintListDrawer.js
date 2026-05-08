@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import SharedInlineEditText from '../../components/SharedInlineEditText';
 
 const LOCKED_BASIC_EDIT_CHANNELS = ['portal', 'web', 'whatsapp', 'whatsapp_web'];
@@ -16,9 +15,9 @@ const ComplaintListDrawer = ({
     canInlineEdit,
     districtOptions,
     saveInlineField,
+    openComplaintDetail,
+    buildComplaintDetailHref,
 }) => {
-    const navigate = useNavigate();
-
     if (!selectedComplaint) {
         return null;
     }
@@ -240,12 +239,12 @@ const ComplaintListDrawer = ({
                     <button
                         className="app-button"
                         type="button"
-                        onClick={() => navigate(`/app/complaints/${selectedComplaint.id}`)}
+                        onClick={() => openComplaintDetail(selectedComplaint.id)}
                     >
                         Butiran Aduan
                     </button>
                     <a
-                        href={`/app/complaints/${selectedComplaint.id}`}
+                        href={buildComplaintDetailHref(selectedComplaint.id)}
                         className="app-icon-button"
                         target="_blank"
                         rel="noreferrer"

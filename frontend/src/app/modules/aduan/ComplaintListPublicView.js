@@ -7,7 +7,8 @@ const ComplaintListPublicView = ({
     complaints,
     sortedComplaints,
     setSelectedComplaint,
-    navigate,
+    openComplaintDetail,
+    buildComplaintDetailHref,
     getPublicComplaintStageLabel,
     pickupMessage,
     actionMessage,
@@ -33,7 +34,7 @@ const ComplaintListPublicView = ({
                             <button
                                 type="button"
                                 className="app-link app-link-button app-public-ref"
-                                onClick={() => navigate(`/app/complaints/${item.id}`)}
+                                onClick={() => openComplaintDetail(item.id)}
                             >
                                 {item.reference_no || '-'}
                             </button>
@@ -61,7 +62,7 @@ const ComplaintListPublicView = ({
                             </button>
                             <a
                                 className="app-icon-button app-icon-button-xs"
-                                href={`/app/complaints/${item.id}`}
+                                href={buildComplaintDetailHref(item.id)}
                                 target="_blank"
                                 rel="noreferrer"
                                 aria-label="Buka dalam tab baharu"

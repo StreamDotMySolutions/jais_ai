@@ -223,7 +223,8 @@ const ComplaintListInternalView = ({
     getProsecutionStatusBadgeTone,
     getProsecutionStatusLabel,
     getClassificationAlert,
-    navigate,
+    openComplaintDetail,
+    buildComplaintDetailHref,
     canDelete,
     setDeleteTarget,
     enablePickup,
@@ -373,7 +374,7 @@ const ComplaintListInternalView = ({
                                     <button
                                         type="button"
                                         className="app-link app-link-button app-complaint-cell-link"
-                                        onClick={() => navigate(`/app/complaints/${item.id}`)}
+                                        onClick={() => openComplaintDetail(item.id)}
                                     >
                                         {item.reference_no || '-'}
                                     </button>
@@ -488,7 +489,7 @@ const ComplaintListInternalView = ({
                                             <button
                                                 type="button"
                                                 className="app-button app-button-ghost"
-                                                onClick={() => navigate(`/app/complaints/${item.id}`)}
+                                                onClick={() => openComplaintDetail(item.id)}
                                             >
                                                 Sambung Kemaskini
                                             </button>
@@ -501,7 +502,7 @@ const ComplaintListInternalView = ({
                                                 <button
                                                     type="button"
                                                     className="app-icon-button"
-                                                    onClick={() => navigate(`/app/complaints/${item.id}`)}
+                                                    onClick={() => openComplaintDetail(item.id)}
                                                     aria-label="Kemaskini"
                                                     title="Kemaskini"
                                                 >
@@ -509,7 +510,7 @@ const ComplaintListInternalView = ({
                                                 </button>
                                                 <a
                                                     className="app-icon-button app-icon-button-xs"
-                                                    href={`/app/complaints/${item.id}`}
+                                                    href={buildComplaintDetailHref(item.id)}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     aria-label="Buka dalam tab baharu"

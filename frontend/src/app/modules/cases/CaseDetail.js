@@ -7,6 +7,7 @@ import SharedInlineAlert from '../../components/SharedInlineAlert';
 import OydAttachmentSection from '../../components/OydAttachmentSection';
 import SeizureAttachmentSection from '../../components/SeizureAttachmentSection';
 import { useToast } from '../../components/SharedToastProvider';
+import { isMaintenanceOverrideRole } from '../../utils/maintenanceOverride';
 
 const emptySeizureItem = { item_no: '', description: '', storage: '' };
 const emptyPoliceReport = { report_no: '', description: '', station: '' };
@@ -75,7 +76,9 @@ const CaseDetail = () => {
     const navigate = useNavigate();
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
+    const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
     const toast = useToast();
+    const isMaintenanceOverride = isMaintenanceOverrideRole(role);
     const isDraft = !id || id === 'new';
     const draftComplaintId = useMemo(() => {
         const params = new URLSearchParams(location.search || '');
@@ -503,6 +506,12 @@ const CaseDetail = () => {
                         </button>
                     )}
                 </div>
+                {isMaintenanceOverride && !isDraft && (
+                    <SharedInlineAlert
+                        type="info"
+                        message="Mode penyelenggaraan aktif untuk role admin/system. Lock workflow KES yang berkaitan maintenance dibenarkan."
+                    />
+                )}
                 {isLinkPanelOpen && (
                     <div className="app-case-link-panel">
                         <div className="app-case-link-panel-head">
