@@ -2716,6 +2716,7 @@ class ComplaintController extends Controller
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        $canBypassApprovalLock = $user->hasAnyRole(['admin', 'system']);
         $complaint->load('approverStaff:id,name');
         $isApprover = false;
         if ($user->staff && $complaint->approver_staff_id) {
@@ -2724,7 +2725,7 @@ class ComplaintController extends Controller
         if (! $isApprover && $user->name && $complaint->approverStaff) {
             $isApprover = strcasecmp($user->name, $complaint->approverStaff->name) === 0;
         }
-        if (! $isApprover) {
+        if (! $isApprover && ! $canBypassApprovalLock) {
             return response()->json(['message' => 'Anda bukan pegawai pengesah yang ditetapkan.'], 403);
         }
 
@@ -2773,19 +2774,20 @@ class ComplaintController extends Controller
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        $canBypassDispatchLock = $user->hasAnyRole(['admin', 'system']);
         if (! $this->canViewComplaint($complaint, $user)) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
         if (strtoupper((string) ($complaint->case_type ?: 'AJ')) !== 'AJ') {
             return response()->json(['message' => 'Fungsi ini hanya terpakai untuk Aduan Jenayah (AJ).'], 422);
         }
-        if (! $complaint->approver_confirmed_at) {
+        if (! $canBypassDispatchLock && ! $complaint->approver_confirmed_at) {
             return response()->json(['message' => 'Aduan belum disahkan oleh Pegawai Pengesah.'], 422);
         }
-        if ((string) $complaint->current_stage === 'dihantar_ke_daerah') {
+        if (! $canBypassDispatchLock && (string) $complaint->current_stage === 'dihantar_ke_daerah') {
             return response()->json(['message' => 'Aduan telah dihantar ke daerah.'], 422);
         }
-        if (! in_array((string) $complaint->current_stage, ['disahkan', 'menunggu_tindakan_pi'], true)) {
+        if (! $canBypassDispatchLock && ! in_array((string) $complaint->current_stage, ['disahkan', 'menunggu_tindakan_pi'], true)) {
             return response()->json(['message' => 'Aduan perlu berstatus Disahkan sebelum dihantar ke daerah.'], 422);
         }
 
@@ -2810,7 +2812,7 @@ class ComplaintController extends Controller
             $missingFields[] = 'Masa Borang 5';
         }
 
-        if (! empty($missingFields)) {
+        if (! $canBypassDispatchLock && ! empty($missingFields)) {
             return response()->json([
                 'message' => 'Lengkapkan medan wajib Maklumat Aduan dahulu: ' . implode(', ', $missingFields) . '.',
                 'errors' => [
@@ -2896,6 +2898,7 @@ class ComplaintController extends Controller
         if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
             return response()->json(['message' => 'Unauthorized'], 403);
         }
+        $canBypassAssigneeLock = $user->hasAnyRole(['admin', 'system']);
 
         $request->validate([
             'approver_staff_id' => 'nullable|exists:staff,id',
@@ -2944,7 +2947,7 @@ class ComplaintController extends Controller
             $missingFields[] = 'Butiran Aduan (Borang 5)';
         }
 
-        if (! empty($missingFields)) {
+        if (! $canBypassAssigneeLock && ! empty($missingFields)) {
             return response()->json([
                 'message' => 'Sila lengkapkan dan simpan medan wajib dahulu sebelum Hantar Pengesahan: ' . implode(', ', $missingFields) . '.',
                 'errors' => [
@@ -2996,8 +2999,9 @@ class ComplaintController extends Controller
             ->all();
         $isAllowedLockedUpdate = ! empty($requestKeys)
             && collect($requestKeys)->every(fn ($key) => in_array($key, $allowedWhenBasicLocked, true));
+        $canBypassBasicLock = $user->hasAnyRole(['admin', 'system']);
 
-        if ($this->isBasicOfficerEditLockedByChannel($complaint->channel) && ! $isAllowedLockedUpdate) {
+        if ($this->isBasicOfficerEditLockedByChannel($complaint->channel) && ! $isAllowedLockedUpdate && ! $canBypassBasicLock) {
             return response()->json([
                 'message' => 'Aduan dari portal atau WhatsApp AI tidak boleh dikemaskini oleh pegawai pada bahagian ini.',
             ], 422);

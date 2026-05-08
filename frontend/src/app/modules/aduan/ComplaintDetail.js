@@ -280,6 +280,7 @@ const ComplaintDetail = () => {
     const isPublicRole = ['awam', 'user'].includes(role);
     const isPegawaiRole = ['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'].includes(role);
     const isPegawaiDaerahRole = role === 'pegawai_daerah';
+    const isAdminMaintenanceRole = ['admin', 'system'].includes(role);
     const detailTopBoxTitle = 'Aduan';
     const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase().replace(/_/g, '-');
     const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp-web'].includes(complaintChannelNormalized);
@@ -287,11 +288,11 @@ const ComplaintDetail = () => {
     const effectiveInformantName = (complaint?.informant_name || '').trim();
     const effectiveInformantIdNumber = (complaint?.informant_identification_number || '').trim();
     const effectiveInformantContactNumber = (complaint?.informant_contact_number || '').trim();
-    const canEditBasicComplaint = isPegawaiRole && !isBasicEditLockedBySource;
+    const canEditBasicComplaint = isPegawaiRole && (!isBasicEditLockedBySource || isAdminMaintenanceRole);
     const arrestStatusLockSource = primaryCase
         ? primaryCase.arrest_status
         : complaint?.aj_arrest_status;
-    const isArrestStatusLocked = Boolean(
+    const isArrestStatusLocked = !isAdminMaintenanceRole && Boolean(
         complaint?.laporan_tindakan_auto_emailed_at
         && String(arrestStatusLockSource || '').trim()
     );
@@ -493,7 +494,7 @@ const ComplaintDetail = () => {
         const lockedStages = isAkCase
             ? ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'dihantar_ke_daerah']
             : ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'];
-        const isAduanEditingLocked = lockedStages.includes(currentStage);
+        const isAduanEditingLocked = lockedStages.includes(currentStage) && !isAdminMaintenanceRole;
         if (!apiUrl || !id || isAduanEditingLocked) return;
         const token = localStorage.getItem('token');
         const payload = { [fieldName]: value };
@@ -603,7 +604,7 @@ const ComplaintDetail = () => {
         const lockedStages = isAkCase
             ? ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'dihantar_ke_daerah']
             : ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'];
-        const isAduanEditingLocked = lockedStages.includes(currentStage);
+        const isAduanEditingLocked = lockedStages.includes(currentStage) && !isAdminMaintenanceRole;
         if (!apiUrl || !id || basicSaving || isAduanEditingLocked) {
             return;
         }
@@ -1798,7 +1799,7 @@ const ComplaintDetail = () => {
         if (!String(ajReport?.report_notes || '').trim()) {
             ajReportMissingFields.push('Laporan');
         }
-        if (ajReportMissingFields.length > 0) {
+        if (!isAdminMaintenanceRole && ajReportMissingFields.length > 0) {
             const msg = `Lengkapkan medan wajib dahulu sebelum Simpan: ${ajReportMissingFields.join(', ')}.`;
             setReportMessage(msg);
             toast.error(msg);
@@ -1964,7 +1965,7 @@ const ComplaintDetail = () => {
                 missingFields.push('Alamat Kejadian');
             }
 
-            if (missingFields.length > 0) {
+            if (!isAdminMaintenanceRole && missingFields.length > 0) {
                 const msg = `Sila isi medan wajib dahulu: ${missingFields.join(', ')}. Kemudian klik Simpan sebelum Hantar Pengesahan.`;
                 setAssigneeMessage(msg);
                 toast.error(msg);
@@ -1981,7 +1982,7 @@ const ComplaintDetail = () => {
                 || borang5Statement !== savedBorang5
                 || incidentAddress !== savedIncidentAddress;
 
-            if (hasUnsavedAjChanges) {
+            if (!isAdminMaintenanceRole && hasUnsavedAjChanges) {
                 const msg = 'Sila klik Simpan dahulu untuk rekodkan Klasifikasi, Kesalahan Disyaki, Alamat Kejadian dan Butiran Aduan (Borang 5), kemudian baru Hantar Pengesahan.';
                 setAssigneeMessage(msg);
                 toast.error(msg);
@@ -2076,13 +2077,14 @@ const ComplaintDetail = () => {
         : akSubtype === 'poligami'
             ? 'Poligami'
             : akEventNoun;
-    const isCaseTypeLocked = Boolean(complaint?.approver_confirmed_at) || ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage);
+    const isCaseTypeLocked = !isAdminMaintenanceRole && (Boolean(complaint?.approver_confirmed_at) || ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'].includes(currentStage));
     const isAwaitingApproval = currentStage === 'tunggu_pengesahan' && !complaint?.approver_confirmed_at;
     const aduanLockedStages = currentCaseType === 'AK'
         ? ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'dihantar_ke_daerah']
         : ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'];
-    const isAduanBoxLocked = aduanLockedStages.includes(currentStage);
-    const isSaveDisabled = isAwaitingApproval;
+    const isAduanBoxLockedByStage = aduanLockedStages.includes(currentStage);
+    const isAduanBoxLocked = isAduanBoxLockedByStage && !isAdminMaintenanceRole;
+    const isSaveDisabled = !isAdminMaintenanceRole && isAwaitingApproval;
     const saveDisabledTitle = isSaveDisabled ? 'Tidak boleh simpan semasa menunggu tindakan pengesah.' : undefined;
     const aduanBoxDisabledTitle = isAduanBoxLocked
         ? (currentCaseType === 'AK'
@@ -2097,7 +2099,8 @@ const ComplaintDetail = () => {
     const canApprove = Boolean(
         !complaint?.approver_confirmed_at
         && (
-            approvalMeta.is_assigned_approver
+            isAdminMaintenanceRole
+            || approvalMeta.is_assigned_approver
             || (localStaffId && String(complaint?.approver_staff_id || '') === String(localStaffId))
             || (localUserName && approverName && localUserName === approverName)
         )
@@ -2154,8 +2157,8 @@ const ComplaintDetail = () => {
         ? 'Sila klik Simpan dahulu untuk rekodkan maklumat Jana Tindakan sebelum Jana Tindakan.'
         : '';
     const janaTindakanBlockedMessage = janaTindakanRequiredMessage || janaTindakanUnsavedMessage;
-    const isJanaTindakanDisabled = Boolean(janaTindakanBlockedMessage);
-    const janaTindakanDisabledTitle = janaTindakanBlockedMessage || undefined;
+    const isJanaTindakanDisabled = !isAdminMaintenanceRole && Boolean(janaTindakanBlockedMessage);
+    const janaTindakanDisabledTitle = isAdminMaintenanceRole ? undefined : (janaTindakanBlockedMessage || undefined);
     const basicClassification = (effectiveAjClassification || '').toString().trim();
     const basicOffenseId = (ajPayload?.offense_id || '').toString().trim();
     const basicBorang5Statement = (basicDraft?.borang5_statement || '').toString().trim();
@@ -2205,14 +2208,16 @@ const ComplaintDetail = () => {
         ? 'Sila klik Simpan dahulu untuk rekodkan Maklumat Aduan sebelum Hantar.'
         : '';
     const dispatchBlockedMessage = dispatchMissingMessage || dispatchUnsavedMessage;
-    const canDispatchToDistrict = isAwaitingPiDispatch && !dispatchBlockedMessage;
-    const dispatchButtonDisabled = isPegawaiDaerahRole || isAlreadyDispatchedToDistrict || !canDispatchToDistrict;
-    const dispatchButtonTitle = isPegawaiDaerahRole
+    const canDispatchToDistrict = isAdminMaintenanceRole || (isAwaitingPiDispatch && !dispatchBlockedMessage);
+    const dispatchButtonDisabled = !isAdminMaintenanceRole && (isPegawaiDaerahRole || isAlreadyDispatchedToDistrict || !canDispatchToDistrict);
+    const dispatchButtonTitle = isAdminMaintenanceRole
+        ? undefined
+        : isPegawaiDaerahRole
         ? 'Pegawai Daerah tidak dibenarkan menghantar aduan ke daerah.'
         : isAlreadyDispatchedToDistrict
         ? 'Aduan telah dihantar ke daerah.'
         : (isAwaitingPiDispatch ? (dispatchBlockedMessage || undefined) : 'Aduan hanya boleh dihantar selepas disahkan.');
-    const isBorang5Enabled = ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah', 'laporan_tindakan', 'selesai'].includes(currentStage);
+    const isBorang5Enabled = isAdminMaintenanceRole || ['menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah', 'laporan_tindakan', 'selesai'].includes(currentStage);
     const borang5DisabledTitle = isBorang5Enabled ? undefined : 'Borang 5 hanya boleh dijana apabila status aduan Disahkan.';
     const lockedStepKeys = useMemo(() => {
         if (currentCaseType === 'AK') {
@@ -2220,7 +2225,7 @@ const ComplaintDetail = () => {
         }
         return ['laporan_tindakan', 'laporan_pemeriksaan', 'siasatan', 'pendakwaan'];
     }, [currentCaseType]);
-    const isStepLocked = useCallback((key) => (!isApproved && lockedStepKeys.includes(key)), [isApproved, lockedStepKeys]);
+    const isStepLocked = useCallback((key) => (!isAdminMaintenanceRole && !isApproved && lockedStepKeys.includes(key)), [isAdminMaintenanceRole, isApproved, lockedStepKeys]);
 
     useEffect(() => {
         const params = new URLSearchParams(location.search || '');
@@ -2465,7 +2470,7 @@ const ComplaintDetail = () => {
                                 <strong>{complaint.submitted_at ? formatDateTime(complaint.submitted_at) : '-'}</strong>
                             </div>
                         </div>
-                        {isPegawaiRole && isBasicEditLockedBySource && (
+                        {isPegawaiRole && isBasicEditLockedBySource && !isAdminMaintenanceRole && (
                             <div className="app-detail-note">
                                 Aduan dari portal atau WhatsApp AI hanya boleh disemak. Kemaskini asas dikunci untuk pegawai.
                             </div>
@@ -3450,7 +3455,7 @@ const ComplaintDetail = () => {
                                                     apiUrl={apiUrl}
                                                     value={approverStaffId}
                                                     onChange={setApproverStaffId}
-                                                    disabled={Boolean(complaint.approver_confirmed_at)}
+                                                    disabled={!isAdminMaintenanceRole && Boolean(complaint.approver_confirmed_at)}
                                                 />
                                             </div>
                                             <div className="app-approver-row">
