@@ -210,7 +210,8 @@ function ComplaintForm({
         const akEventDate = (store.getValue('ak_event_date') || '').trim();
         const akEventPlace = (store.getValue('ak_event_place') || '').trim();
         const akEventTime = (store.getValue('ak_event_time') || '').trim();
-        const akEventLocation = (store.getValue('current_address') || '').trim();
+        const currentAddress = (store.getValue('current_address') || '').trim();
+        const akEventLocation = currentAddress;
         const akRujukDate = (store.getValue('ak_rujuk_date') || '').trim();
         const useFamilyEventSection = selectedCaseType === 'AK' && ['nikah', 'cerai', 'rujuk', 'poligami'].includes(akSubtype);
         const usePlaceAsAddress = useFamilyEventSection;
@@ -254,6 +255,7 @@ function ComplaintForm({
         if (!idNo) localErrors.identification_number = 'Wajib diisi';
         if (!phone) localErrors.contact_number = 'Wajib diisi';
         if (!districtId) localErrors.district_id = 'Wajib diisi';
+        if (selectedCaseType === 'AJ' && !currentAddress) localErrors.current_address = 'Wajib diisi';
         if (!effectiveAddress) {
             localErrors[selectedCaseType === 'AK'
                 ? 'current_address'
@@ -1293,7 +1295,7 @@ function ComplaintForm({
                             />
                         </Row>
 
-                        {caseType === 'AK' && (
+                        {(caseType === 'AK' || caseType === 'AJ') && (
                             <Row className='mb-4'>
                                 <InputTextarea
                                     type='text'
@@ -1302,10 +1304,6 @@ function ComplaintForm({
                                     icon='bi-geo-alt'
                                     rows='4'
                                     isLoading={isLoading}
-                                    onValueChange={(val) => {
-                                        setAddressDraft(val);
-                                        tryAutoSuggestTemplate(val);
-                                    }}
                                 />
                             </Row>
                         )}

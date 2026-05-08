@@ -4667,11 +4667,18 @@ class ComplaintController extends Controller
 
         // Store the complaint
         $caseType = strtoupper((string) ($request->case_type ?? 'AJ'));
+        $currentAddress = trim((string) ($request->input('current_address') ?? ''));
         $user = $request->user();
         if ($user && $user->hasRole('pegawai_daerah') && $caseType === 'AJ') {
             return response()->json([
                 'message' => 'Pegawai Daerah hanya dibenarkan mendaftar Aduan Keluarga (AK).',
             ], 403);
+        }
+        if ($caseType === 'AJ' && $currentAddress === '') {
+            return response()->json([
+                'message' => 'Alamat Terkini wajib diisi.',
+                'errors' => ['current_address' => ['Alamat Terkini wajib diisi.']],
+            ], 422);
         }
         $referenceNo = $this->complaintReferenceService->generateReferenceNo($caseType, $district?->name, $now);
 
@@ -4706,7 +4713,7 @@ class ComplaintController extends Controller
             'ak_event_date' => $caseType === 'AK' ? $request->input('ak_event_date') : null,
             'ak_event_place' => $caseType === 'AK' ? $request->input('ak_event_place') : null,
             'ak_event_time' => ($caseType === 'AK' && $request->filled('ak_event_time')) ? ($request->input('ak_event_time') . ':00') : null,
-            'current_address' => $caseType === 'AK' ? $request->input('current_address') : null,
+            'current_address' => $currentAddress !== '' ? $currentAddress : null,
             'ak_rujuk_date' => $caseType === 'AK' ? $request->input('ak_rujuk_date') : null,
             'channel' => $channel,
             'consent_accepted' => $isPublicChannel ? $request->boolean('consent_accepted') : false,
