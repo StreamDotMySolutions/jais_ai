@@ -901,6 +901,7 @@ const ComplaintList = ({
         const search = extraQuery || '';
         navigate(`/app/complaints/${complaintId}${search}`, {
             state: {
+                fromComplaintListPath: location.pathname,
                 fromComplaintListSearch: detailSearch,
             },
         });

@@ -2042,6 +2042,7 @@ const ComplaintDetail = () => {
     const handleNavigateBackToList = useCallback(() => {
         suppressUnloadReleaseRef.current = true;
         releaseIntakeLockQuietly();
+        const returnPath = location.state?.fromComplaintListPath || '/app/complaints';
         let returnSearch = location.state?.fromComplaintListSearch || '';
         if (!returnSearch) {
             const params = new URLSearchParams(location.search || '');
@@ -2049,7 +2050,7 @@ const ComplaintDetail = () => {
             const query = params.toString();
             returnSearch = query ? `?${query}` : '';
         }
-        navigate(`/app/complaints${returnSearch}`);
+        navigate(`${returnPath}${returnSearch}`);
     }, [location.state, navigate, releaseIntakeLockQuietly]);
 
     const handleNext = () => {
@@ -2062,6 +2063,7 @@ const ComplaintDetail = () => {
         const nextId = sortedIds[currentIndex + 1];
         navigate(`/app/complaints/${nextId}`, {
             state: {
+                fromComplaintListPath: location.state?.fromComplaintListPath || '/app/complaints',
                 fromComplaintListSearch: location.state?.fromComplaintListSearch || '',
             },
         });
@@ -2077,6 +2079,7 @@ const ComplaintDetail = () => {
         const prevId = sortedIds[currentIndex - 1];
         navigate(`/app/complaints/${prevId}`, {
             state: {
+                fromComplaintListPath: location.state?.fromComplaintListPath || '/app/complaints',
                 fromComplaintListSearch: location.state?.fromComplaintListSearch || '',
             },
         });
