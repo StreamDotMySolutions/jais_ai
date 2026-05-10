@@ -13,6 +13,7 @@ use App\Models\ArahanBeredarOyd;
 use App\Models\ArahanBeredarOydMedia;
 use App\Models\IwaranWarrant;
 use App\Models\IwaranWaranAttachment;
+use App\Models\IwaranCourtDocument;
 use App\Observers\ComplaintObserver;
 use App\Observers\ComplaintOydObserver;
 use App\Observers\ComplaintOydMediaObserver;
@@ -24,6 +25,7 @@ use App\Observers\ArahanBeredarOydObserver;
 use App\Observers\ArahanBeredarOydMediaObserver;
 use App\Observers\IwaranWarrantObserver;
 use App\Observers\IwaranWaranAttachmentObserver;
+use App\Observers\IwaranCourtDocumentObserver;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -53,5 +55,6 @@ class AppServiceProvider extends ServiceProvider
         ArahanBeredarOydMedia::observe(ArahanBeredarOydMediaObserver::class);
         IwaranWarrant::observe(IwaranWarrantObserver::class);
         IwaranWaranAttachment::observe(IwaranWaranAttachmentObserver::class);
+        IwaranCourtDocument::observe(IwaranCourtDocumentObserver::class);
     }
 }

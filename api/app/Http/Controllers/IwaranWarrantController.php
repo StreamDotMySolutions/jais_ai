@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\IwaranCourtDocument;
 use App\Models\IwaranWaranAttachment;
 use App\Models\IwaranWarrant;
 use App\Services\IwaranReferenceService;
@@ -18,6 +19,136 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class IwaranWarrantController extends Controller
 {
+    private function transformAttachment(IwaranWaranAttachment $attachment): array
+    {
+        return [
+            'id' => $attachment->id,
+            'file_name' => $attachment->file_name,
+            'mime' => $attachment->mime,
+            'size' => $attachment->size,
+            'created_at' => $attachment->created_at,
+            'download_url' => route('iwaran.attachments.download', ['attachment' => $attachment->id]),
+        ];
+    }
+
+    private function transformCourtDocument(IwaranCourtDocument $document): array
+    {
+        return [
+            'id' => $document->id,
+            'file_name' => $document->file_name,
+            'mime' => $document->mime,
+            'size' => $document->size,
+            'created_at' => $document->created_at,
+            'download_url' => route('iwaran.court-documents.download', ['document' => $document->id]),
+        ];
+    }
+
+    private function ensureAuthorizedWaranUser(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! method_exists($user, 'hasAnyRole') || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return null;
+        }
+
+        return $user;
+    }
+
+    private function getUserDistrictId($user): ?int
+    {
+        if (! $user) {
+            return null;
+        }
+
+        if (! empty($user->district_id)) {
+            return (int) $user->district_id;
+        }
+
+        if ($user->staff && ! empty($user->staff->district_id)) {
+            return (int) $user->staff->district_id;
+        }
+
+        return null;
+    }
+
+    private function applyIwaranAccessScope($query, $user): void
+    {
+        if (! $user || ! method_exists($user, 'hasRole')) {
+            return;
+        }
+
+        if ($user->hasRole('pegawai_daerah')) {
+            $districtId = $this->getUserDistrictId($user);
+            if ($districtId) {
+                $query->where('daerah_id', $districtId);
+            } else {
+                $query->whereRaw('1 = 0');
+            }
+        }
+    }
+
+    private function applyWorkflowStageFromStatus(array &$data, ?IwaranWarrant $warrant = null): void
+    {
+        $status = trim((string) ($data['status'] ?? ($warrant?->status ?? '')));
+        if ($status === '') {
+            return;
+        }
+
+        if (in_array($status, ['berjaya', 'tidak_berjaya', 'kembalian'], true)) {
+            $data['current_stage'] = $status;
+            return;
+        }
+
+        if ($status === 'dalam_proses') {
+            $currentStage = (string) ($warrant?->current_stage ?? '');
+            if (! in_array($currentStage, [IwaranWarrant::STAGE_BARU, IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH], true)) {
+                $data['current_stage'] = IwaranWarrant::STAGE_DALAM_PROSES;
+            }
+        }
+    }
+
+    private function canDispatchWarrant($user, IwaranWarrant $warrant): bool
+    {
+        return $user
+            && method_exists($user, 'hasAnyRole')
+            && $user->hasAnyRole(['pegawai_hq', 'admin', 'system'])
+            && ! empty($warrant->daerah_id);
+    }
+
+    private function canPickupWarrant($user, IwaranWarrant $warrant): bool
+    {
+        $districtId = $this->getUserDistrictId($user);
+        if (! $districtId || (int) ($warrant->daerah_id ?? 0) !== $districtId) {
+            return false;
+        }
+
+        return (string) ($warrant->current_stage ?: IwaranWarrant::STAGE_BARU) === IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH;
+    }
+
+    private function getWarrantStageLabel(?string $stage): string
+    {
+        return match ((string) $stage) {
+            IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH => 'Dihantar ke Daerah',
+            IwaranWarrant::STAGE_DITERIMA_DAERAH => 'Diterima Daerah',
+            IwaranWarrant::STAGE_DALAM_PROSES => 'Dalam Proses',
+            IwaranWarrant::STAGE_BERJAYA => 'Berjaya',
+            IwaranWarrant::STAGE_TIDAK_BERJAYA => 'Tidak Berjaya',
+            IwaranWarrant::STAGE_KEMBALIAN => 'Kembalian',
+            default => 'Baru',
+        };
+    }
+
+    private function appendWorkflowMeta(IwaranWarrant $warrant, $user): array
+    {
+        $currentStage = (string) ($warrant->current_stage ?: IwaranWarrant::STAGE_BARU);
+
+        return array_merge($warrant->toArray(), [
+            'current_stage' => $currentStage,
+            'current_stage_label' => $this->getWarrantStageLabel($currentStage),
+            'can_dispatch' => $this->canDispatchWarrant($user, $warrant),
+            'can_pickup' => $this->canPickupWarrant($user, $warrant),
+        ]);
+    }
+
     private function csvCell($value): string
     {
         $str = (string)($value ?? '');
@@ -33,6 +164,11 @@ class IwaranWarrantController extends Controller
 
     public function store(Request $request, IwaranReferenceService $referenceService): JsonResponse
     {
+        $user = $this->ensureAuthorizedWaranUser($request);
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $data = $request->validate([
             'jenis_waran' => ['nullable', 'in:tangkap,geledah'],
             'no_ruj_fail' => ['nullable', 'string'],
@@ -66,11 +202,13 @@ class IwaranWarrantController extends Controller
             'catatan_pelaksana' => ['nullable', 'string'],
         ]);
 
-        $pendaftarStaffId = optional($request->user()?->staff)->id;
+        $pendaftarStaffId = optional($user?->staff)->id;
         if ($pendaftarStaffId) {
             $data['pendaftar_staff_id'] = $pendaftarStaffId;
         }
         $data['status'] = $data['status'] ?? 'draf';
+        $data['current_stage'] = IwaranWarrant::STAGE_BARU;
+        $this->applyWorkflowStageFromStatus($data);
         $data['tahun'] = (int) ($data['tahun'] ?? Carbon::parse($data['tarikh_masa_terima'] ?? now())->format('Y'));
 
         $providedNoRujFail = trim((string) ($data['no_ruj_fail'] ?? ''));
@@ -100,6 +238,11 @@ class IwaranWarrantController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $user = $this->ensureAuthorizedWaranUser($request);
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
         $query = IwaranWarrant::query()
             ->latest()
             ->with([
@@ -107,7 +250,11 @@ class IwaranWarrantController extends Controller
                 'mahkamah:id,nama',
                 'pendaftar:id,name',
                 'pelaksana:id,name',
+                'receivedBy:id,name',
+                'sentToDistrictBy:id,name',
             ]);
+
+        $this->applyIwaranAccessScope($query, $user);
 
         if ($request->filled('keyword')) {
             $keyword = strtolower($request->string('keyword')->toString());
@@ -120,6 +267,10 @@ class IwaranWarrantController extends Controller
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status')->toString());
+        }
+
+        if ($request->filled('current_stage')) {
+            $query->where('current_stage', $request->string('current_stage')->toString());
         }
 
         if ($request->filled('district_id')) {
@@ -136,9 +287,11 @@ class IwaranWarrantController extends Controller
 
         $items = $query->paginate($request->integer('per_page', 10));
 
+        $rows = collect($items->items())->map(fn (IwaranWarrant $warrant) => $this->appendWorkflowMeta($warrant, $user))->values();
+
         return response()->json([
             'message' => 'Senarai waran',
-            'data' => $items->items(),
+            'data' => $rows,
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'last_page' => $items->lastPage(),
@@ -943,18 +1096,21 @@ class IwaranWarrantController extends Controller
 
     public function show(Request $request, IwaranWarrant $iwaranWarrant): JsonResponse
     {
+        $user = $this->ensureAuthorizedWaranUser($request);
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $districtId = $this->getUserDistrictId($user);
+        if ($user->hasRole('pegawai_daerah')) {
+            if (! $districtId || (int) ($iwaranWarrant->daerah_id ?? 0) !== $districtId) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+        }
+
         if ($request->query('only') === 'attachments') {
             $iwaranWarrant->load(['attachments']);
-            $attachments = $iwaranWarrant->attachments->map(function (IwaranWaranAttachment $attachment) {
-                return [
-                    'id' => $attachment->id,
-                    'file_name' => $attachment->file_name,
-                    'mime' => $attachment->mime,
-                    'size' => $attachment->size,
-                    'created_at' => $attachment->created_at,
-                    'download_url' => route('iwaran.attachments.download', ['attachment' => $attachment->id]),
-                ];
-            });
+            $attachments = $iwaranWarrant->attachments->map(fn (IwaranWaranAttachment $attachment) => $this->transformAttachment($attachment));
 
             return response()->json([
                 'message' => 'Lampiran waran',
@@ -964,11 +1120,25 @@ class IwaranWarrantController extends Controller
             ]);
         }
 
+        if ($request->query('only') === 'court-documents') {
+            $iwaranWarrant->load(['courtDocuments']);
+            $courtDocuments = $iwaranWarrant->courtDocuments->map(fn (IwaranCourtDocument $document) => $this->transformCourtDocument($document));
+
+            return response()->json([
+                'message' => 'Dokumen mahkamah waran',
+                'data' => [
+                    'court_documents' => $courtDocuments,
+                ],
+            ]);
+        }
+
         $relations = [
             'daerah:id,name',
             'mahkamah:id,nama',
             'pendaftar:id,name',
             'pelaksana:id,name',
+            'receivedBy:id,name',
+            'sentToDistrictBy:id,name',
             'jenisKesMal:id,nama',
             'jenisKesJenayah:id,nama',
             'hasilPerlaksanaan:id,nama',
@@ -976,34 +1146,44 @@ class IwaranWarrantController extends Controller
 
         if (! $request->boolean('lightweight')) {
             $relations[] = 'attachments';
+            $relations[] = 'courtDocuments';
         }
 
         $iwaranWarrant->load($relations);
 
         $attachments = collect();
         if ($iwaranWarrant->relationLoaded('attachments')) {
-            $attachments = $iwaranWarrant->attachments->map(function (IwaranWaranAttachment $attachment) {
-                return [
-                    'id' => $attachment->id,
-                    'file_name' => $attachment->file_name,
-                    'mime' => $attachment->mime,
-                    'size' => $attachment->size,
-                    'created_at' => $attachment->created_at,
-                    'download_url' => route('iwaran.attachments.download', ['attachment' => $attachment->id]),
-                ];
-            });
+            $attachments = $iwaranWarrant->attachments->map(fn (IwaranWaranAttachment $attachment) => $this->transformAttachment($attachment));
+        }
+
+        $courtDocuments = collect();
+        if ($iwaranWarrant->relationLoaded('courtDocuments')) {
+            $courtDocuments = $iwaranWarrant->courtDocuments->map(fn (IwaranCourtDocument $document) => $this->transformCourtDocument($document));
         }
 
         return response()->json([
             'message' => 'Maklumat waran',
-            'data' => array_merge($iwaranWarrant->toArray(), [
+            'data' => array_merge($this->appendWorkflowMeta($iwaranWarrant, $user), [
                 'attachments' => $attachments,
+                'court_documents' => $courtDocuments,
             ]),
         ]);
     }
 
     public function update(Request $request, IwaranWarrant $iwaranWarrant): JsonResponse
     {
+        $user = $this->ensureAuthorizedWaranUser($request);
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $districtId = $this->getUserDistrictId($user);
+        if ($user->hasRole('pegawai_daerah')) {
+            if (! $districtId || (int) ($iwaranWarrant->daerah_id ?? 0) !== $districtId) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+        }
+
         $data = $request->validate([
             'jenis_waran' => ['nullable', 'in:tangkap,geledah'],
             'no_ruj_fail' => ['nullable', 'string'],
@@ -1038,12 +1218,84 @@ class IwaranWarrantController extends Controller
         ]);
 
         $data['status'] = $data['status'] ?? ($iwaranWarrant->status ?: 'draf');
+        $this->applyWorkflowStageFromStatus($data, $iwaranWarrant);
 
         $iwaranWarrant->update($data);
 
         return response()->json([
             'message' => 'Waran dikemaskini.',
-            'data' => $iwaranWarrant->fresh(),
+            'data' => $this->appendWorkflowMeta(
+                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name']),
+                $user
+            ),
+        ]);
+    }
+
+    public function dispatchToDistrict(Request $request, IwaranWarrant $iwaranWarrant): JsonResponse
+    {
+        $user = $this->ensureAuthorizedWaranUser($request);
+        if (! $user || ! $user->hasAnyRole(['pegawai_hq', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (! $iwaranWarrant->daerah_id) {
+            return response()->json([
+                'message' => 'Daerah waran belum dipilih.',
+                'errors' => [
+                    'daerah_id' => ['Daerah waran belum dipilih.'],
+                ],
+            ], 422);
+        }
+
+        $iwaranWarrant->update([
+            'current_stage' => IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH,
+            'sent_to_district_at' => now(),
+            'sent_to_district_by_user_id' => $user->id,
+            'received_at' => null,
+            'received_by_user_id' => null,
+        ]);
+
+        return response()->json([
+            'message' => 'Waran berjaya dihantar ke daerah.',
+            'data' => $this->appendWorkflowMeta(
+                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name']),
+                $user
+            ),
+        ]);
+    }
+
+    public function pickup(Request $request, IwaranWarrant $iwaranWarrant): JsonResponse
+    {
+        $user = $this->ensureAuthorizedWaranUser($request);
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $districtId = $this->getUserDistrictId($user);
+        if (! $districtId || (int) ($iwaranWarrant->daerah_id ?? 0) !== $districtId) {
+            return response()->json(['message' => 'Waran ini bukan untuk daerah anda.'], 403);
+        }
+
+        if ((string) $iwaranWarrant->current_stage !== IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH) {
+            return response()->json(['message' => 'Waran ini tidak berada dalam queue penerimaan daerah.'], 422);
+        }
+
+        if ($iwaranWarrant->received_by_user_id && (int) $iwaranWarrant->received_by_user_id !== (int) $user->id) {
+            return response()->json(['message' => 'Waran ini telah diterima oleh pegawai lain.'], 422);
+        }
+
+        $iwaranWarrant->update([
+            'current_stage' => IwaranWarrant::STAGE_DITERIMA_DAERAH,
+            'received_by_user_id' => $user->id,
+            'received_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Waran berjaya diterima.',
+            'data' => $this->appendWorkflowMeta(
+                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name']),
+                $user
+            ),
         ]);
     }
 
@@ -1092,6 +1344,44 @@ class IwaranWarrantController extends Controller
         ], 201);
     }
 
+    public function uploadCourtDocuments(Request $request, IwaranWarrant $iwaranWarrant): JsonResponse
+    {
+        $request->validate([
+            'files' => ['required', 'array', 'max:20'],
+            'files.*' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:51200'],
+        ]);
+
+        $stored = [];
+        $disk = 'local';
+        $baseDir = "iwaran/{$iwaranWarrant->id}/court-documents";
+        $userId = optional($request->user())->id;
+
+        foreach ($request->file('files', []) as $file) {
+            $originalName = $file->getClientOriginalName();
+            $ext = $file->getClientOriginalExtension();
+            $safeBase = Str::slug(pathinfo($originalName, PATHINFO_FILENAME));
+            $storedName = time() . '-' . Str::random(8) . '-' . ($safeBase ?: 'court-document') . ($ext ? ".{$ext}" : '');
+            $path = $file->storeAs($baseDir, $storedName, $disk);
+
+            $document = IwaranCourtDocument::create([
+                'iwaran_waran_id' => $iwaranWarrant->id,
+                'user_id' => $userId,
+                'file_name' => $originalName,
+                'disk' => $disk,
+                'path' => $path,
+                'mime' => $file->getMimeType(),
+                'size' => $file->getSize(),
+            ]);
+
+            $stored[] = $this->transformCourtDocument($document);
+        }
+
+        return response()->json([
+            'message' => 'Dokumen mahkamah berjaya dimuat naik.',
+            'data' => $stored,
+        ], 201);
+    }
+
     public function downloadAttachment(Request $request, IwaranWaranAttachment $attachment)
     {
         $disk = $attachment->disk ?: 'local';
@@ -1116,6 +1406,30 @@ class IwaranWarrantController extends Controller
         ]);
     }
 
+    public function downloadCourtDocument(Request $request, IwaranCourtDocument $document)
+    {
+        $disk = $document->disk ?: 'local';
+        if (!Storage::disk($disk)->exists($document->path)) {
+            return response()->json(['message' => 'Fail tidak dijumpai.'], 404);
+        }
+
+        return Storage::disk($disk)->download($document->path, $document->file_name);
+    }
+
+    public function deleteCourtDocument(Request $request, IwaranCourtDocument $document): JsonResponse
+    {
+        $disk = $document->disk ?: 'local';
+        if ($document->path) {
+            Storage::disk($disk)->delete($document->path);
+        }
+
+        $document->delete();
+
+        return response()->json([
+            'message' => 'Dokumen mahkamah dipadam.',
+        ]);
+    }
+
     public function destroy(Request $request, IwaranWarrant $iwaranWarrant): JsonResponse
     {
         $user = $request->user();
@@ -1123,12 +1437,19 @@ class IwaranWarrantController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $iwaranWarrant->load(['attachments']);
+        $iwaranWarrant->load(['attachments', 'courtDocuments']);
 
         foreach (($iwaranWarrant->attachments ?? []) as $attachment) {
             $disk = $attachment->disk ?: 'local';
             if ($attachment->path) {
                 Storage::disk($disk)->delete($attachment->path);
+            }
+        }
+
+        foreach (($iwaranWarrant->courtDocuments ?? []) as $document) {
+            $disk = $document->disk ?: 'local';
+            if ($document->path) {
+                Storage::disk($disk)->delete($document->path);
             }
         }
 

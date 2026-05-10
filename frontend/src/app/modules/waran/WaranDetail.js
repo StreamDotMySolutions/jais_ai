@@ -45,6 +45,49 @@ const WaranDetail = () => {
     const [error, setError] = useState('');
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [actionLoading, setActionLoading] = useState('');
+
+    const handleDispatch = () => {
+        if (!apiUrl || !record?.id || actionLoading) {
+            return;
+        }
+        setActionLoading('dispatch');
+        axios.post(`${apiUrl}/i-waran/${record.id}/dispatch-to-district`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                setRecord(response?.data?.data || null);
+                toast.success(response?.data?.message || 'Waran berjaya dihantar ke daerah.');
+                setError('');
+            })
+            .catch((err) => {
+                const msg = err?.response?.data?.message || 'Gagal hantar waran ke daerah.';
+                setError(msg);
+                toast.error(msg);
+            })
+            .finally(() => setActionLoading(''));
+    };
+
+    const handlePickup = () => {
+        if (!apiUrl || !record?.id || actionLoading) {
+            return;
+        }
+        setActionLoading('pickup');
+        axios.post(`${apiUrl}/i-waran/${record.id}/pickup`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                setRecord(response?.data?.data || null);
+                toast.success(response?.data?.message || 'Waran berjaya diterima.');
+                setError('');
+            })
+            .catch((err) => {
+                const msg = err?.response?.data?.message || 'Gagal terima waran.';
+                setError(msg);
+                toast.error(msg);
+            })
+            .finally(() => setActionLoading(''));
+    };
 
     const renderKvGrid = (columns = []) => (
         <div className="app-waran-kv-grid">
@@ -183,8 +226,38 @@ const WaranDetail = () => {
                     <span className="app-eyebrow">i-WARAN</span>
                     <h3>Butiran Waran</h3>
                     <p>Maklumat ringkas untuk rujukan pantas.</p>
+                    <div className="app-status-stack" style={{ marginTop: '0.45rem' }}>
+                        <span className="app-status-pill" title="Status Waran">
+                            Status Waran: {record.current_stage_label || 'Baru'}
+                        </span>
+                        {record.status && (
+                            <span className="app-status-pill-mini is-muted" title="Status Pelaksanaan">
+                                Pelaksanaan: {toTitle(record.status)}
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className="app-complaints-actions">
+                    {record.can_dispatch && (
+                        <button
+                            className="app-button"
+                            type="button"
+                            onClick={handleDispatch}
+                            disabled={actionLoading === 'dispatch'}
+                        >
+                            {actionLoading === 'dispatch' ? 'Menghantar...' : `Hantar ke ${record.daerah?.name || 'Daerah'}`}
+                        </button>
+                    )}
+                    {record.can_pickup && (
+                        <button
+                            className="app-button"
+                            type="button"
+                            onClick={handlePickup}
+                            disabled={actionLoading === 'pickup'}
+                        >
+                            {actionLoading === 'pickup' ? 'Menerima...' : 'Terima Waran'}
+                        </button>
+                    )}
                     <button
                         className="app-button app-button-ghost"
                         type="button"
@@ -243,8 +316,17 @@ const WaranDetail = () => {
                     ],
                     [
                         { label: 'Tarikh/Masa Terima', value: formatDateTime(record.tarikh_masa_terima) },
-                        { label: 'Status', value: toTitle(record.status || 'draf') },
+                        { label: 'Status Pelaksanaan', value: toTitle(record.status || 'draf') },
                         { label: 'Tarikh Bicara', value: formatDateTime(record.tarikh_bicara) },
+                    ],
+                    [
+                        { label: 'Stage Semasa', value: record.current_stage_label || 'Baru' },
+                        { label: 'Dihantar Ke Daerah Pada', value: formatDateTime(record.sent_to_district_at) },
+                        { label: 'Dihantar Oleh', value: record.sent_to_district_by?.name || '-' },
+                    ],
+                    [
+                        { label: 'Diterima Pada', value: formatDateTime(record.received_at) },
+                        { label: 'Diterima Oleh', value: record.received_by?.name || '-' },
                     ],
                 ])}
             </div>
@@ -273,7 +355,21 @@ const WaranDetail = () => {
 
             <div className="app-card">
                 <div className="app-card-header">
-                    <h4>Lampiran</h4>
+                    <h4>Dokumen Mahkamah</h4>
+                </div>
+                <AttachmentSection
+                    apiUrl={apiUrl}
+                    token={token}
+                    recordId={record.id}
+                    attachments={record.court_documents || []}
+                    canUpload={false}
+                    canDelete={false}
+                />
+            </div>
+
+            <div className="app-card">
+                <div className="app-card-header">
+                    <h4>Lampiran Pelaksana</h4>
                 </div>
                 <AttachmentSection
                     apiUrl={apiUrl}

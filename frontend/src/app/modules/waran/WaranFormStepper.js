@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import { useToast } from '../../components/SharedToastProvider';
 import InlineAlert from '../../components/SharedInlineAlert';
 import AttachmentSection from '../../components/SharedAttachmentSection';
@@ -40,6 +42,14 @@ const emptyForm = {
     laporan_1: '',
     laporan_2: '',
     catatan_pelaksana: '',
+};
+
+const emptyWorkflowMeta = {
+    current_stage: 'baru',
+    current_stage_label: 'Baru',
+    can_dispatch: false,
+    can_pickup: false,
+    district_name: '',
 };
 const ADD_MAHKAMAH_OPTION = '__add_mahkamah__';
 const emptyMahkamahDraft = {
@@ -186,7 +196,9 @@ const WaranFormStepper = ({ mode = 'create' }) => {
     const [jenisKesJenayahOptions, setJenisKesJenayahOptions] = useState([]);
     const [hasilOptions, setHasilOptions] = useState([]);
     const [attachments, setAttachments] = useState([]);
+    const [courtDocuments, setCourtDocuments] = useState([]);
     const [validationErrors, setValidationErrors] = useState({});
+    const [workflowMeta, setWorkflowMeta] = useState({ ...emptyWorkflowMeta });
     const [isMahkamahModalOpen, setIsMahkamahModalOpen] = useState(false);
     const [mahkamahDraft, setMahkamahDraft] = useState({ ...emptyMahkamahDraft });
     const [mahkamahDraftErrors, setMahkamahDraftErrors] = useState({});
@@ -200,14 +212,6 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         laporan: true,
         lampiran: true,
     });
-
-    const yearOptions = useMemo(() => {
-        const years = [];
-        for (let year = CURRENT_YEAR + 1; year >= CURRENT_YEAR - 10; year -= 1) {
-            years.push(String(year));
-        }
-        return years;
-    }, []);
 
     const isEdit = mode === 'edit';
 
@@ -289,18 +293,29 @@ const WaranFormStepper = ({ mode = 'create' }) => {
     }, [mahkamahOptions]);
 
     const updateField = (field) => (event) => {
+        const nextValue = event.target.value;
         setValidationErrors((prev) => {
-            if (!prev || !prev[field]) {
+            if (!prev || (!prev[field] && !(field === 'tarikh_masa_terima' && prev.tahun))) {
                 return prev;
             }
             const next = { ...prev };
             delete next[field];
+            if (field === 'tarikh_masa_terima') {
+                delete next.tahun;
+            }
             return next;
         });
-        setFormData((prev) => ({
-            ...prev,
-            [field]: event.target.value,
-        }));
+        setFormData((prev) => {
+            const next = {
+                ...prev,
+                [field]: nextValue,
+            };
+            if (field === 'tarikh_masa_terima') {
+                const extractedYear = String(nextValue || '').slice(0, 4);
+                next.tahun = /^\d{4}$/.test(extractedYear) ? extractedYear : '';
+            }
+            return next;
+        });
     };
 
     const updateFieldValue = (field) => (value) => {
@@ -353,7 +368,24 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             openMahkamahModal();
             return;
         }
-        updateFieldValue('mahkamah_id')(value);
+        const selectedMahkamah = (mahkamahOptions || []).find((item) => String(item.id) === String(value)) || null;
+        const selectedEmail = String(selectedMahkamah?.emel || '').trim();
+
+        setValidationErrors((prev) => {
+            if (!prev || (!prev.mahkamah_id && !prev.emel_mahkamah)) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next.mahkamah_id;
+            delete next.emel_mahkamah;
+            return next;
+        });
+
+        setFormData((prev) => ({
+            ...prev,
+            mahkamah_id: value,
+            emel_mahkamah: selectedEmail,
+        }));
     };
 
     const updateJenisKesMal = (input) => {
@@ -507,7 +539,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     setFormData((prev) => ({
                         ...prev,
                         mahkamah_id: createdId,
-                        emel_mahkamah: prev.emel_mahkamah || createdEmail || '',
+                        emel_mahkamah: createdEmail || '',
                         daerah_id: prev.daerah_id || String(created?.daerah_id || ''),
                     }));
                     setValidationErrors((prev) => {
@@ -593,7 +625,15 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     laporan_2: '',
                     catatan_pelaksana: data.catatan_pelaksana || '',
                 }));
+                setWorkflowMeta({
+                    current_stage: data.current_stage || 'baru',
+                    current_stage_label: data.current_stage_label || 'Baru',
+                    can_dispatch: Boolean(data.can_dispatch),
+                    can_pickup: Boolean(data.can_pickup),
+                    district_name: data?.daerah?.name || '',
+                });
                 setAttachments([]);
+                setCourtDocuments([]);
                 axios.get(`${apiUrl}/i-waran/${id}`, {
                     params: { only: 'attachments' },
                     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -604,6 +644,16 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                             : []);
                     })
                     .catch(() => setAttachments([]));
+                axios.get(`${apiUrl}/i-waran/${id}`, {
+                    params: { only: 'court-documents' },
+                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                })
+                    .then((courtDocumentResponse) => {
+                        setCourtDocuments(Array.isArray(courtDocumentResponse?.data?.data?.court_documents)
+                            ? courtDocumentResponse.data.data.court_documents
+                            : []);
+                    })
+                    .catch(() => setCourtDocuments([]));
             })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal memuatkan waran.');
@@ -734,6 +784,46 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         }
     };
 
+    const handleWorkflowAction = (action) => {
+        if (!apiUrl || !id || saving) {
+            return;
+        }
+
+        const actionUrl = action === 'dispatch'
+            ? `${apiUrl}/i-waran/${id}/dispatch-to-district`
+            : `${apiUrl}/i-waran/${id}/pickup`;
+        const loadingLabel = action === 'dispatch' ? 'Menghantar waran...' : 'Menerima waran...';
+
+        setSaving(true);
+        setError('');
+        setMessage(loadingLabel);
+        setShowMessage(true);
+
+        axios.post(actionUrl, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                const data = response?.data?.data || {};
+                setWorkflowMeta({
+                    current_stage: data.current_stage || 'baru',
+                    current_stage_label: data.current_stage_label || 'Baru',
+                    can_dispatch: Boolean(data.can_dispatch),
+                    can_pickup: Boolean(data.can_pickup),
+                    district_name: data?.daerah?.name || workflowMeta.district_name || '',
+                });
+                setMessage(response?.data?.message || 'Status waran dikemaskini.');
+                setShowMessage(true);
+                toast.success(response?.data?.message || 'Status waran dikemaskini.');
+            })
+            .catch((err) => {
+                const msg = err?.response?.data?.message || 'Gagal kemaskini workflow waran.';
+                setError(msg);
+                setShowMessage(false);
+                toast.error(msg);
+            })
+            .finally(() => setSaving(false));
+    };
+
     return (
         <div className="app-waran">
             <div className="app-waran-header">
@@ -745,6 +835,18 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     <span className="app-eyebrow">i-WARAN</span>
                     <h3>{isEdit ? 'Kemaskini Waran' : 'Borang Pendaftaran Waran (Stepper)'}</h3>
                     <p>{isEdit ? 'Kemaskini maklumat waran yang dipilih.' : 'Lengkapkan maklumat mengikut turutan untuk simpan rekod waran.'}</p>
+                    {isEdit && (
+                        <div className="app-status-stack" style={{ marginTop: '0.45rem' }}>
+                            <span className="app-status-pill" title="Status Waran">
+                                Status Waran: {workflowMeta.current_stage_label || 'Baru'}
+                            </span>
+                            {formData.status && (
+                                <span className="app-status-pill-mini is-muted" title="Status Pelaksanaan">
+                                    Pelaksanaan: {String(formData.status || '').replace(/_/g, ' ')}
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -844,12 +946,28 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 </div>
                                 <div className="app-form-field">
                                     <label>Tahun *</label>
-                                    <select className={validationErrors.tahun ? 'app-input-error' : ''} value={formData.tahun} onChange={updateField('tahun')}>
-                                        <option value="">Pilih tahun</option>
-                                        {yearOptions.map((year) => (
-                                            <option key={year} value={year}>{year}</option>
-                                        ))}
-                                    </select>
+                                    <DatePicker
+                                        selected={formData.tahun ? new Date(Number(formData.tahun), 0, 1) : null}
+                                        onChange={(date) => {
+                                            setFormData((prev) => ({
+                                                ...prev,
+                                                tahun: date ? String(date.getFullYear()) : '',
+                                            }));
+                                            setValidationErrors((prev) => {
+                                                if (!prev?.tahun) {
+                                                    return prev;
+                                                }
+                                                const next = { ...prev };
+                                                delete next.tahun;
+                                                return next;
+                                            });
+                                        }}
+                                        showYearPicker
+                                        dateFormat="yyyy"
+                                        yearItemNumber={12}
+                                        placeholderText="Pilih tahun"
+                                        className={validationErrors.tahun ? 'app-input-error app-year-picker-input' : 'app-year-picker-input'}
+                                    />
                                     {validationErrors.tahun && (
                                         <small className="app-inline-note app-inline-note-error">{validationErrors.tahun}</small>
                                     )}
@@ -977,13 +1095,29 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                         <small className="app-inline-note app-inline-note-error">{validationErrors.tarikh_bicara}</small>
                                     )}
                                 </div>
-                                <div className="app-form-field">
-                                    <label>Waran</label>
-                                    <div className="app-detail-note">Gunakan seksyen Lampiran untuk muat naik PDF/gambar waran.</div>
-                                </div>
                                 <div className="app-form-field span-2">
                                     <label>Catatan Pendaftar</label>
                                     <textarea rows="3" value={formData.catatan_pendaftar} onChange={updateField('catatan_pendaftar')} />
+                                </div>
+                                <div className="app-form-field" style={{ gridColumn: '1 / -1' }}>
+                                    <label>Dokumen Mahkamah</label>
+                                    <AttachmentSection
+                                        apiUrl={apiUrl}
+                                        token={token}
+                                        recordId={id}
+                                        attachments={courtDocuments}
+                                        onAttachmentsChange={setCourtDocuments}
+                                        label="Muat naik dokumen mahkamah (PDF/JPG/PNG)"
+                                        accept=".pdf,image/png,image/jpeg"
+                                        canUpload
+                                        canDelete
+                                        maxFiles={20}
+                                        maxSizeMb={50}
+                                        getUploadUrl={({ apiUrl: baseUrl, recordId }) => `${baseUrl}/i-waran/${recordId}/court-documents`}
+                                        getDeleteUrl={({ apiUrl: baseUrl, attachmentId }) => `${baseUrl}/i-waran/court-documents/${attachmentId}`}
+                                        getDownloadUrl={({ attachment }) => attachment?.download_url || ''}
+                                        uploadButtonLabel="Upload Dokumen"
+                                    />
                                 </div>
                                 </div>
                             )}
@@ -1021,7 +1155,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
 
                         <div className="app-accordion">
                             <button type="button" className="app-accordion-header" onClick={() => toggleSection('lampiran')}>
-                                <span>Lampiran</span>
+                                <span>Lampiran Pelaksana</span>
                                 <i className={`bi ${openSections.lampiran ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
                             </button>
                             {openSections.lampiran && (
@@ -1047,6 +1181,26 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                             <button type="button" className="app-button" onClick={handleSubmit} disabled={saving}>
                                 {saving ? 'Menyimpan...' : 'Simpan'}
                             </button>
+                            {isEdit && workflowMeta.can_dispatch && (
+                                <button
+                                    type="button"
+                                    className="app-button app-button-ghost"
+                                    onClick={() => handleWorkflowAction('dispatch')}
+                                    disabled={saving}
+                                >
+                                    {saving ? 'Menghantar...' : `Hantar ke ${workflowMeta.district_name || 'Daerah'}`}
+                                </button>
+                            )}
+                            {isEdit && workflowMeta.can_pickup && (
+                                <button
+                                    type="button"
+                                    className="app-button app-button-ghost"
+                                    onClick={() => handleWorkflowAction('pickup')}
+                                    disabled={saving}
+                                >
+                                    {saving ? 'Menerima...' : 'Terima Waran'}
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 className="app-button app-button-outline"
@@ -1221,6 +1375,26 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                             <button type="button" className="app-button" onClick={handleSubmit} disabled={saving}>
                                 {saving ? 'Menyimpan...' : 'Simpan'}
                             </button>
+                            {isEdit && workflowMeta.can_dispatch && (
+                                <button
+                                    type="button"
+                                    className="app-button app-button-ghost"
+                                    onClick={() => handleWorkflowAction('dispatch')}
+                                    disabled={saving}
+                                >
+                                    {saving ? 'Menghantar...' : `Hantar ke ${workflowMeta.district_name || 'Daerah'}`}
+                                </button>
+                            )}
+                            {isEdit && workflowMeta.can_pickup && (
+                                <button
+                                    type="button"
+                                    className="app-button app-button-ghost"
+                                    onClick={() => handleWorkflowAction('pickup')}
+                                    disabled={saving}
+                                >
+                                    {saving ? 'Menerima...' : 'Terima Waran'}
+                                </button>
+                            )}
                             {isEdit && (
                                 <button
                                     type="button"
