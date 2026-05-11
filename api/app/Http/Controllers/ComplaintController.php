@@ -5633,10 +5633,10 @@ class ComplaintController extends Controller
         $subject = 'TINDAKAN (' . $arrestStatusLabel . ') : KES - ' . $subjectReference;
         $bodyPlainText = "Assalamualaikum\n\n"
             . "Laporan Tindakan bagi daerah " . ($complaint->district_name ?: '-') . " telah diperolehi.\n\n"
-            . "Sila muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail KES.\n\n"
-            . "Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan\n\n"
+            . "Sila muat turun salinan Laporan Tindakan di lampiran sebagai simpanan rekod di Fail KES.\n\n"
+            . "Pastikan Laporan Tindakan ini disemak dan difailkan di dalam Fail Siasatan.\n\n"
             . "Terima kasih.";
-        $highlightLine = 'Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan';
+        $highlightLine = 'Pastikan Laporan Tindakan ini disemak dan difailkan di dalam Fail Siasatan.';
         $escapedBody = nl2br(e($bodyPlainText));
         $escapedBody = str_replace(
             e($highlightLine),
@@ -5659,7 +5659,7 @@ class ComplaintController extends Controller
             'reportParagraph' => (string) ($reportParagraph !== '' ? $reportParagraph : 'RINGKASAN KES MASIH BELUM DIISI'),
         ])->setPaper('a4', 'portrait')->output();
 
-        $pdfFileName = 'BORANG 5 - KES.pdf';
+        $pdfFileName = 'LAPORAN TINDAKAN - KES.pdf';
 
         try {
             Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
@@ -5768,7 +5768,7 @@ class ComplaintController extends Controller
         $officerJob = $officer?->position ?: '-';
         $officerPhone = $this->resolveStaffOfficePhone($officer);
         $officerAddress = $this->resolveStaffOfficeAddress($officer);
-        $reportParagraph = strtoupper(trim((string) (($case->case_summary ?? null) ?: ($case->report_notes ?? null))));
+        $reportParagraph = strtoupper(trim((string) ($case->report_notes ?? null)));
         $noDaftar = trim((string) ($case->case_register_no ?? '')) ?: '-';
 
         $arrestStatusLabel = ($case->arrest_status === 'ada') ? 'Ada Tangkapan' : 'Tiada Tangkapan';
@@ -5776,10 +5776,10 @@ class ComplaintController extends Controller
         $subject = 'TINDAKAN (' . $arrestStatusLabel . ') : KES - ' . $subjectReference;
         $bodyPlainText = "Assalamualaikum\n\n"
             . "Laporan Tindakan bagi daerah " . ($case->district_name ?: '-') . " telah diperolehi.\n\n"
-            . "Sila muat turun salinan Borang 5 di lampiran sebagai simpanan rekod di Fail KES.\n\n"
-            . "Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan\n\n"
+            . "Sila muat turun salinan Laporan Tindakan di lampiran sebagai simpanan rekod di Fail KES.\n\n"
+            . "Pastikan Laporan Tindakan ini disemak dan difailkan di dalam Fail Siasatan.\n\n"
             . "Terima kasih.";
-        $highlightLine = 'Pastikan Borang 5 ini ditandatangani oleh pemberi maklumat dan Seksyen Inkuiri sebelum dilampirkan di dalam Fail Siasatan';
+        $highlightLine = 'Pastikan Laporan Tindakan ini disemak dan difailkan di dalam Fail Siasatan.';
         $escapedBody = nl2br(e($bodyPlainText));
         $escapedBody = str_replace(
             e($highlightLine),
@@ -5802,7 +5802,7 @@ class ComplaintController extends Controller
             'reportParagraph' => (string) ($reportParagraph !== '' ? $reportParagraph : 'RINGKASAN KES MASIH BELUM DIISI'),
         ])->setPaper('a4', 'portrait')->output();
 
-        $pdfFileName = 'BORANG 5 - KES.pdf';
+        $pdfFileName = 'LAPORAN TINDAKAN - KES.pdf';
 
         try {
             Mail::send([], [], function ($message) use ($recipients, $subject, $html, $pdfBinary, $pdfFileName): void {
