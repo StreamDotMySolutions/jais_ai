@@ -8369,12 +8369,16 @@ body {
 .app-waran-signatures {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 3.8cm;
-  margin-top: 2.15cm;
+  gap: 2.6cm;
+  margin-top: 1.1cm;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .app-waran-signature-block {
   text-align: center;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
 .app-waran-signature-block .t {
@@ -8383,18 +8387,18 @@ body {
 
 .app-waran-signature-block .line {
   width: 78%;
-  margin: 2.4cm auto 0.3cm;
+  margin: 1.45cm auto 0.22cm;
   border-top: 1px solid #111111;
 }
 
 .app-waran-signature-block .name {
-  font-size: 10.5pt;
+  font-size: 10pt;
   font-weight: 700;
 }
 
 .app-waran-signature-block .role {
-  font-size: 10pt;
-  line-height: 1.25;
+  font-size: 9.5pt;
+  line-height: 1.15;
 }
 
 @media print {

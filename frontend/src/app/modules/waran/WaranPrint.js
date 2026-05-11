@@ -177,9 +177,6 @@ const WaranPrint = () => {
                     <div className="app-waran-signature-block">
                         <div className="t">Disahkan oleh</div>
                         <div className="line"></div>
-                        <div className="name">{record.pendaftar?.name || '-'}</div>
-                        <div className="role">Bahagian Pengurusan Penguatkuasaan</div>
-                        <div className="role">Jabatan Agama Islam Selangor</div>
                     </div>
                 </section>
             </div>
