@@ -149,18 +149,10 @@ class IwaranWarrantController extends Controller
         }
 
         $to = $this->normalizeEmailList([$districtOfficeEmail]);
-        $cc = $this->normalizeEmailList([
-            (string) ($warrant->emel_mahkamah ?? ''),
-        ]);
-
-        if (! empty($to) && ! empty($cc)) {
-            $toLookup = array_flip(array_map('strtolower', $to));
-            $cc = array_values(array_filter($cc, fn ($email) => ! isset($toLookup[strtolower($email)])));
-        }
 
         return [
             'to' => $to,
-            'cc' => $cc,
+            'cc' => [],
         ];
     }
 
@@ -1386,7 +1378,7 @@ class IwaranWarrantController extends Controller
         if (($emailMeta['sent'] ?? false) !== true) {
             return response()->json([
                 'message' => empty($emailMeta['to'] ?? [])
-                    ? 'Email daerah belum lengkap. Sila semak email daerah dan email mahkamah.'
+                    ? 'Email daerah belum lengkap. Sila semak email daerah.'
                     : 'Gagal menghantar email i-Waran ke daerah.',
                 'meta' => [
                     'dispatch_email' => $emailMeta,
