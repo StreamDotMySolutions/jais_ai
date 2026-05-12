@@ -46,6 +46,18 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN'),
         ],
 
+        'iwaran_smtp' => [
+            'transport' => 'smtp',
+            'url' => env('IWARAN_MAIL_URL'),
+            'host' => env('IWARAN_MAIL_HOST', env('MAIL_HOST', 'smtp.mailgun.org')),
+            'port' => env('IWARAN_MAIL_PORT', env('MAIL_PORT', 587)),
+            'encryption' => env('IWARAN_MAIL_ENCRYPTION', env('MAIL_ENCRYPTION', 'tls')),
+            'username' => env('IWARAN_MAIL_USERNAME', env('MAIL_USERNAME')),
+            'password' => env('IWARAN_MAIL_PASSWORD', env('MAIL_PASSWORD')),
+            'timeout' => null,
+            'local_domain' => env('IWARAN_MAIL_EHLO_DOMAIN', env('MAIL_EHLO_DOMAIN')),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
@@ -110,6 +122,13 @@ return [
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', 'Example'),
+    ],
+
+    'iwaran' => [
+        'from' => [
+            'address' => env('IWARAN_MAIL_FROM_ADDRESS', env('MAIL_FROM_ADDRESS', 'hello@example.com')),
+            'name' => env('IWARAN_MAIL_FROM_NAME', env('MAIL_FROM_NAME', 'Example')),
+        ],
     ],
 
     'auto_recipients' => [

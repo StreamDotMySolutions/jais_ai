@@ -148,7 +148,7 @@ const WaranPrint = () => {
 
                     <div className="app-waran-report-paragraph" style={{ marginTop: '0.45rem' }}>
                         Bahawasanya saya Pegawai Penguatkuasa Agama <strong>{record.pelaksana?.name || '-'}</strong>,
-                        beralamat di <strong>{record.alamat_pejabat || 'Bahagian Pengurusan Penguatkuasaan, Jabatan Agama Islam Selangor'}</strong>,
+                        beralamat di <strong>{record.alamat_pejabat || 'Bahagian Pengurusan Penguatkuasaan, Tingkat 4 Menara Utara, Bangunan Sultan Idris Shah, 40000 Shah Alam, Selangor Darul Ehsan'}</strong>,
                         dengan sesungguhnya telah melaksanakan waran tangkap seperti yang dinyatakan di atas.
                     </div>
 

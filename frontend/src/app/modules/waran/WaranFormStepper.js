@@ -191,6 +191,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
     const [showMessage, setShowMessage] = useState(false);
     const [error, setError] = useState('');
     const [districtOptions, setDistrictOptions] = useState([]);
+    const [districtOfficeOptions, setDistrictOfficeOptions] = useState([]);
     const [mahkamahOptions, setMahkamahOptions] = useState([]);
     const [jenisKesMalOptions, setJenisKesMalOptions] = useState([]);
     const [jenisKesJenayahOptions, setJenisKesJenayahOptions] = useState([]);
@@ -291,6 +292,18 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             },
         ];
     }, [mahkamahOptions]);
+
+    const selectedDistrictOfficeEmail = useMemo(() => {
+        const districtId = String(formData.daerah_id || '');
+        if (!districtId) {
+            return '';
+        }
+        const office = (districtOfficeOptions || []).find((item) => (
+            String(item?.district_id || '') === districtId
+            && String(item?.office_type || '').toLowerCase() === 'daerah'
+        ));
+        return String(office?.email || '').trim();
+    }, [districtOfficeOptions, formData.daerah_id]);
 
     const updateField = (field) => (event) => {
         const nextValue = event.target.value;
@@ -480,6 +493,12 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     setMahkamahOptions(response?.data?.data || []);
                 })
                 .catch(() => setMahkamahOptions([]));
+
+            axios.get(`${apiUrl}/references/offices`)
+                .then((response) => {
+                    setDistrictOfficeOptions(Array.isArray(response?.data?.data) ? response.data.data : []);
+                })
+                .catch(() => setDistrictOfficeOptions([]));
         }, delayMs);
 
         return () => window.clearTimeout(timer);
@@ -1029,19 +1048,6 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                         />
                                     </div>
                                 )}
-                                <div className="app-form-field">
-                                    <label>Mahkamah *</label>
-                                    <SearchSelect
-                                        value={formData.mahkamah_id}
-                                        options={mahkamahSearchOptions}
-                                        placeholder="Pilih mahkamah"
-                                        searchPlaceholder="Cari mahkamah..."
-                                        onChange={onMahkamahSelectChange}
-                                    />
-                                    {validationErrors.mahkamah_id && (
-                                        <small className="app-inline-note app-inline-note-error">{validationErrors.mahkamah_id}</small>
-                                    )}
-                                </div>
                                 <div className="app-form-field span-2">
                                     <label>Daerah *</label>
                                     <div className="app-radio-row">
@@ -1062,32 +1068,20 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                         <small className="app-inline-note app-inline-note-error">{validationErrors.daerah_id}</small>
                                     )}
                                 </div>
-                                <div className="app-form-field">
-                                    <label>Email</label>
-                                    <input
-                                        type="email"
-                                        className={validationErrors.emel ? 'app-input-error' : ''}
-                                        placeholder="nama@domain.gov.my"
-                                        value={formData.emel}
-                                        onChange={updateField('emel')}
-                                    />
-                                    {validationErrors.emel && (
-                                        <small className="app-inline-note app-inline-note-error">{validationErrors.emel}</small>
-                                    )}
-                                </div>
-                                <div className="app-form-field">
-                                    <label>Email Mahkamah</label>
-                                    <input
-                                        type="email"
-                                        className={validationErrors.emel_mahkamah ? 'app-input-error' : ''}
-                                        placeholder="mahkamah@domain.gov.my"
-                                        value={formData.emel_mahkamah}
-                                        onChange={updateField('emel_mahkamah')}
-                                    />
-                                    {validationErrors.emel_mahkamah && (
-                                        <small className="app-inline-note app-inline-note-error">{validationErrors.emel_mahkamah}</small>
-                                    )}
-                                </div>
+                                {!!formData.daerah_id && (
+                                    <div className="app-form-field">
+                                        <label>Email Daerah</label>
+                                        <input
+                                            type="email"
+                                            value={selectedDistrictOfficeEmail}
+                                            placeholder="Akan dipaparkan mengikut daerah yang dipilih"
+                                            disabled
+                                        />
+                                        <small className="app-inline-note">
+                                            Auto email waran ke daerah akan dihantar menggunakan alamat emel ini.
+                                        </small>
+                                    </div>
+                                )}
                                 <div className="app-form-field">
                                     <label>Tarikh Perbicaraan *</label>
                                     <input type="date" className={validationErrors.tarikh_bicara ? 'app-input-error' : ''} value={formData.tarikh_bicara} onChange={updateField('tarikh_bicara')} />
@@ -1095,6 +1089,36 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                         <small className="app-inline-note app-inline-note-error">{validationErrors.tarikh_bicara}</small>
                                     )}
                                 </div>
+                                <div className="app-form-field">
+                                    <label>Mahkamah *</label>
+                                    <SearchSelect
+                                        value={formData.mahkamah_id}
+                                        options={mahkamahSearchOptions}
+                                        placeholder="Pilih mahkamah"
+                                        searchPlaceholder="Cari mahkamah..."
+                                        onChange={onMahkamahSelectChange}
+                                    />
+                                    {validationErrors.mahkamah_id && (
+                                        <small className="app-inline-note app-inline-note-error">{validationErrors.mahkamah_id}</small>
+                                    )}
+                                </div>
+                                {!!formData.mahkamah_id && (
+                                    <div className="app-form-field">
+                                        <label>Email Mahkamah</label>
+                                        <input
+                                            type="email"
+                                            placeholder="mahkamah@domain.gov.my"
+                                            value={formData.emel_mahkamah}
+                                            disabled
+                                        />
+                                        <small className="app-inline-note">
+                                            Alamat emel mahkamah dipaparkan secara automatik berdasarkan mahkamah yang dipilih.
+                                        </small>
+                                        {validationErrors.emel_mahkamah && (
+                                            <small className="app-inline-note app-inline-note-error">{validationErrors.emel_mahkamah}</small>
+                                        )}
+                                    </div>
+                                )}
                                 <div className="app-form-field span-2">
                                     <label>Catatan Pendaftar</label>
                                     <textarea rows="3" value={formData.catatan_pendaftar} onChange={updateField('catatan_pendaftar')} />
