@@ -79,6 +79,13 @@ const readInputValue = (input) => {
     return String(input?.target?.value || '');
 };
 
+const resolveDistrictOfficeAddress = (office) => (
+    String(
+        office?.address
+        || ''
+    ).trim()
+);
+
 const toDateTimeLocalValue = (value) => {
     if (!value) {
         return '';
@@ -272,6 +279,28 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         }))
     ), [jenisKesJenayahOptions]);
 
+    useEffect(() => {
+        const districtId = String(formData.daerah_id || '');
+        if (!districtId) {
+            return;
+        }
+        if (String(formData.alamat_pejabat || '').trim()) {
+            return;
+        }
+        const districtOffice = (districtOfficeOptions || []).find((item) => (
+            String(item?.district_id || '') === districtId
+            && String(item?.office_type || '').toLowerCase() === 'daerah'
+        ));
+        const nextAddress = resolveDistrictOfficeAddress(districtOffice);
+        if (!nextAddress) {
+            return;
+        }
+        setFormData((prev) => ({
+            ...prev,
+            alamat_pejabat: nextAddress,
+        }));
+    }, [districtOfficeOptions, formData.daerah_id, formData.alamat_pejabat]);
+
     const mahkamahSearchOptions = useMemo(() => {
         const options = (mahkamahOptions || []).map((item) => {
             const districtName = item?.daerah?.name || item?.district?.name || item?.daerah_name || item?.district_name || '';
@@ -340,10 +369,22 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             delete next[field];
             return next;
         });
-        setFormData((prev) => ({
-            ...prev,
-            [field]: value,
-        }));
+        setFormData((prev) => {
+            const next = {
+                ...prev,
+                [field]: value,
+            };
+
+            if (field === 'daerah_id') {
+                const districtOffice = (districtOfficeOptions || []).find((item) => (
+                    String(item?.district_id || '') === String(value || '')
+                    && String(item?.office_type || '').toLowerCase() === 'daerah'
+                ));
+                next.alamat_pejabat = resolveDistrictOfficeAddress(districtOffice);
+            }
+
+            return next;
+        });
     };
 
     const openMahkamahModal = () => {
@@ -1265,7 +1306,15 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 </div>
                                 <div className="app-form-field span-2">
                                     <label>Alamat Pejabat</label>
-                                    <textarea rows="2" placeholder="Alamat pejabat" value={formData.alamat_pejabat} onChange={updateField('alamat_pejabat')}></textarea>
+                                    <textarea
+                                        rows="2"
+                                        placeholder="Akan diisi automatik mengikut daerah"
+                                        value={formData.alamat_pejabat}
+                                        onChange={updateField('alamat_pejabat')}
+                                    ></textarea>
+                                    <small className="app-inline-note">
+                                        Alamat pejabat diisi automatik berdasarkan daerah yang dipilih dan masih boleh dikemas kini jika perlu.
+                                    </small>
                                 </div>
                                 <div className="app-form-field span-2">
                                     <label>Status *</label>
