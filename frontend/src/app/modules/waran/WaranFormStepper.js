@@ -7,6 +7,7 @@ import { useToast } from '../../components/SharedToastProvider';
 import InlineAlert from '../../components/SharedInlineAlert';
 import AttachmentSection from '../../components/SharedAttachmentSection';
 import SharedStaffSelect from '../../components/SharedStaffSelect';
+import { isMaintenanceOverrideRole } from '../../utils/maintenanceOverride';
 import SearchSelect from '../../../libs/SearchSelect';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -81,7 +82,7 @@ const readInputValue = (input) => {
 
 const resolveDistrictOfficeAddress = (office) => (
     String(
-        office?.address
+        office?.iwaran_address
         || ''
     ).trim()
 );
@@ -191,6 +192,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
     const navigate = useNavigate();
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
+    const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
     const [formData, setFormData] = useState({ ...emptyForm });
     const [isLoading, setIsLoading] = useState(mode === 'edit');
     const [saving, setSaving] = useState(false);
@@ -222,6 +224,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
     });
 
     const isEdit = mode === 'edit';
+    const isMaintenanceOverride = isMaintenanceOverrideRole(role);
 
     const laporanText = useMemo(() => {
         if (!formData.laporan_1 && !formData.laporan_2) {
@@ -284,15 +287,12 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         if (!districtId) {
             return;
         }
-        if (String(formData.alamat_pejabat || '').trim()) {
-            return;
-        }
         const districtOffice = (districtOfficeOptions || []).find((item) => (
             String(item?.district_id || '') === districtId
             && String(item?.office_type || '').toLowerCase() === 'daerah'
         ));
         const nextAddress = resolveDistrictOfficeAddress(districtOffice);
-        if (!nextAddress) {
+        if (nextAddress === String(formData.alamat_pejabat || '').trim()) {
             return;
         }
         setFormData((prev) => ({
@@ -300,6 +300,25 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             alamat_pejabat: nextAddress,
         }));
     }, [districtOfficeOptions, formData.daerah_id, formData.alamat_pejabat]);
+
+    useEffect(() => {
+        const districtId = String(formData.daerah_id || '');
+        if (!districtId) {
+            return;
+        }
+        const districtOffice = (districtOfficeOptions || []).find((item) => (
+            String(item?.district_id || '') === districtId
+            && String(item?.office_type || '').toLowerCase() === 'daerah'
+        ));
+        const nextEmail = String(districtOffice?.email || '').trim();
+        if (nextEmail === String(formData.emel || '').trim()) {
+            return;
+        }
+        setFormData((prev) => ({
+            ...prev,
+            emel: nextEmail,
+        }));
+    }, [districtOfficeOptions, formData.daerah_id, formData.emel]);
 
     const mahkamahSearchOptions = useMemo(() => {
         const options = (mahkamahOptions || []).map((item) => {
@@ -331,8 +350,8 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             String(item?.district_id || '') === districtId
             && String(item?.office_type || '').toLowerCase() === 'daerah'
         ));
-        return String(office?.email || '').trim();
-    }, [districtOfficeOptions, formData.daerah_id]);
+        return String(formData.emel || office?.email || '').trim();
+    }, [districtOfficeOptions, formData.daerah_id, formData.emel]);
 
     const updateField = (field) => (event) => {
         const nextValue = event.target.value;
@@ -1116,7 +1135,9 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                             type="email"
                                             value={selectedDistrictOfficeEmail}
                                             placeholder="Akan dipaparkan mengikut daerah yang dipilih"
-                                            disabled
+                                            disabled={!isMaintenanceOverride}
+                                            readOnly={!isMaintenanceOverride}
+                                            onChange={isMaintenanceOverride ? updateField('emel') : undefined}
                                         />
                                         <small className="app-inline-note">
                                             Auto email waran ke daerah akan dihantar menggunakan alamat emel ini.
@@ -1150,7 +1171,9 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                             type="email"
                                             placeholder="mahkamah@domain.gov.my"
                                             value={formData.emel_mahkamah}
-                                            disabled
+                                            disabled={!isMaintenanceOverride}
+                                            readOnly={!isMaintenanceOverride}
+                                            onChange={isMaintenanceOverride ? updateField('emel_mahkamah') : undefined}
                                         />
                                         <small className="app-inline-note">
                                             Alamat emel mahkamah dipaparkan secara automatik berdasarkan mahkamah yang dipilih.
@@ -1310,10 +1333,14 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                         rows="2"
                                         placeholder="Akan diisi automatik mengikut daerah"
                                         value={formData.alamat_pejabat}
-                                        onChange={updateField('alamat_pejabat')}
+                                        readOnly={!isMaintenanceOverride}
+                                        disabled={!isMaintenanceOverride}
+                                        onChange={isMaintenanceOverride ? updateField('alamat_pejabat') : undefined}
                                     ></textarea>
                                     <small className="app-inline-note">
-                                        Alamat pejabat diisi automatik berdasarkan daerah yang dipilih dan masih boleh dikemas kini jika perlu.
+                                        {formData.alamat_pejabat
+                                            ? 'Alamat pejabat dipaparkan secara automatik berdasarkan daerah yang dipilih.'
+                                            : 'Alamat i-Waran untuk daerah ini belum diisi.'}
                                     </small>
                                 </div>
                                 <div className="app-form-field span-2">

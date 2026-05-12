@@ -40,6 +40,17 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
             'SBN' => 'bpn.sabakbernam@gmail.com',
             'SEP' => 'jais.sepang@gmail.com',
         ];
+        $districtIwaranAddresses = [
+            'PET' => "BAHAGIAN PENGURUSAN PENGUATKUASAAN,\nJABATAN AGAMA ISLAM SELANGOR,\nTINGKAT 4 MENARA UTARA,\nBANGUNAN SULTAN IDRIS SHAH,\n40000 SHAH ALAM, SELANGOR DARUL EHSAN",
+            'KLG' => "PEJABAT AGAMA ISLAM DAERAH KLANG,\nTINGKAT 1\nBANGUNAN PEJABAT-PEJABAT KERAJAAN,\nJALAN KOTA, 41000 KLANG\nSELANGOR DARUL EHSAN",
+            'GOM' => "KOMPLEKS ISLAM DAERAH GOMBAK,\nKM 16, PERSIARAN PEGAWAI, BANDAR BARU SELAYANG,\n68100 BATU CAVES, SELANGOR DARUL EHSAN",
+            'SEP' => "PEJABAT AGAMA ISLAM DAERAH SEPANG,\nBANDAR BARU SALAK TINGGI,\n43900 SEPANG\nSELANGOR DARUL EHSAN",
+            'HLA' => "KOMPLEKS ISLAM DAERAH HULU LANGAT,\nPERSIARAN KEMAJUAN SEKSYEN 16,\n43650 BANDAR BARU BANGI,\nSELANGOR DARUL EHSAN",
+            'KUL' => "KOMPLEKS ISLAM DAERAH KUALA LANGAT,\nPERSIARAN SULTAN ABDUL AZIZ SHAH,\nKOTA SERI LANGAT (SG. SEDU),\n42700 BANTING, KUALA LANGAT,\nSELANGOR DARUL EHSAN",
+            'HLS' => "PEJABAT AGAMA ISLAM DAERAH HULU SELANGOR,\n44000 KUALA KUBU BHARU,\nSELANGOR DARUL EHSAN",
+            'KSE' => "KOMPLEKS ISLAM DAERAH KUALA SELANGOR,\nJALAN MASJID,\n45000 KUALA SELANGOR,\nSELANGOR DARUL EHSAN",
+            'SBN' => "PEJABAT AGAMA ISLAM DAERAH SABAK BERNAM,\nPARIT SATU TIMUR, 45300 SUNGAI BESAR,\nSELANGOR DARUL EHSAN",
+        ];
 
         $hqOffice = Office::query()->updateOrCreate(
             ['code' => 'HQ'],
@@ -49,6 +60,7 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
                 'district_id' => $petalingDistrictId,
                 'phone' => $officePhone,
                 'address' => $hqOfficeAddress,
+                'iwaran_address' => $districtIwaranAddresses['PET'],
                 'is_active' => true,
             ]
         );
@@ -71,6 +83,7 @@ class UpdateHotlineOfficeContactSeeder extends Seeder
                     'phone' => $officePhone,
                     'email' => $districtOfficeEmails[$code] ?? null,
                     'address' => $address,
+                    'iwaran_address' => $districtIwaranAddresses[$code] ?? null,
                     'is_active' => true,
                 ]
             );
