@@ -138,17 +138,52 @@ class IwaranWarrantController extends Controller
             return false;
         }
 
-        return filter_var((string) ($warrant->emel_mahkamah ?? ''), FILTER_VALIDATE_EMAIL) !== false;
+        return count($this->normalizeEmailList([
+            (string) ($warrant->emel_mahkamah ?? ''),
+        ])) > 0;
     }
 
     private function normalizeEmailList(array $emails): array
     {
         return collect($emails)
+            ->flatMap(function ($email) {
+                return preg_split('/[\r\n,;]+/', (string) $email) ?: [];
+            })
             ->map(fn ($email) => trim((string) $email))
+            ->filter()
             ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
             ->unique(fn ($email) => strtolower($email))
             ->values()
             ->all();
+    }
+
+    private function emailListValidationRules(): array
+    {
+        return [
+            'nullable',
+            'string',
+            'max:1000',
+            function (string $attribute, mixed $value, \Closure $fail): void {
+                $raw = trim((string) ($value ?? ''));
+                if ($raw === '') {
+                    return;
+                }
+
+                $tokens = collect(preg_split('/[\r\n,;]+/', $raw) ?: [])
+                    ->map(fn ($email) => trim((string) $email))
+                    ->filter()
+                    ->values();
+
+                if ($tokens->isEmpty()) {
+                    return;
+                }
+
+                $valid = $this->normalizeEmailList([$raw]);
+                if (count($valid) !== $tokens->count()) {
+                    $fail('Sila masukkan alamat emel yang sah. Gunakan koma jika lebih daripada satu emel.');
+                }
+            },
+        ];
     }
 
     private function resolveIwaranDispatchRecipients(IwaranWarrant $warrant): array
@@ -428,8 +463,8 @@ class IwaranWarrantController extends Controller
             'jenis_kes_jenayah_lain' => ['nullable', 'string', 'max:255'],
             'mahkamah_id' => ['nullable', 'integer'],
             'daerah_id' => ['nullable', 'integer'],
-            'emel' => ['nullable', 'email'],
-            'emel_mahkamah' => ['nullable', 'email'],
+            'emel' => $this->emailListValidationRules(),
+            'emel_mahkamah' => $this->emailListValidationRules(),
             'tarikh_bicara' => ['nullable', 'date'],
             'fail_waran' => ['nullable', 'string'],
             'nama_okt' => ['nullable', 'string'],
@@ -1443,8 +1478,8 @@ class IwaranWarrantController extends Controller
             'jenis_kes_jenayah_lain' => ['nullable', 'string', 'max:255'],
             'mahkamah_id' => ['nullable', 'integer'],
             'daerah_id' => ['nullable', 'integer'],
-            'emel' => ['nullable', 'email'],
-            'emel_mahkamah' => ['nullable', 'email'],
+            'emel' => $this->emailListValidationRules(),
+            'emel_mahkamah' => $this->emailListValidationRules(),
             'tarikh_bicara' => ['nullable', 'date'],
             'fail_waran' => ['nullable', 'string'],
             'nama_okt' => ['nullable', 'string'],

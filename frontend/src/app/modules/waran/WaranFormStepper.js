@@ -312,7 +312,8 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             && String(item?.office_type || '').toLowerCase() === 'daerah'
         ));
         const nextEmail = String(districtOffice?.email || '').trim();
-        if (nextEmail === String(formData.emel || '').trim()) {
+        const currentEmail = String(formData.emel || '').trim();
+        if (!nextEmail || currentEmail) {
             return;
         }
         setFormData((prev) => ({
@@ -341,6 +342,23 @@ const WaranFormStepper = ({ mode = 'create' }) => {
             },
         ];
     }, [mahkamahOptions]);
+
+    useEffect(() => {
+        const mahkamahId = String(formData.mahkamah_id || '');
+        if (!mahkamahId) {
+            return;
+        }
+        const selectedMahkamah = (mahkamahOptions || []).find((item) => String(item.id) === mahkamahId) || null;
+        const nextEmail = String(selectedMahkamah?.emel || '').trim();
+        const currentEmail = String(formData.emel_mahkamah || '').trim();
+        if (!nextEmail || currentEmail) {
+            return;
+        }
+        setFormData((prev) => ({
+            ...prev,
+            emel_mahkamah: nextEmail,
+        }));
+    }, [mahkamahOptions, formData.mahkamah_id, formData.emel_mahkamah]);
 
     const selectedDistrictOfficeEmail = useMemo(() => {
         const districtId = String(formData.daerah_id || '');
@@ -1141,15 +1159,14 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     <div className="app-form-field">
                                         <label>Email Daerah</label>
                                         <input
-                                            type="email"
+                                            type="text"
                                             value={selectedDistrictOfficeEmail}
                                             placeholder="Akan dipaparkan mengikut daerah yang dipilih"
-                                            disabled={!isMaintenanceOverride}
-                                            readOnly={!isMaintenanceOverride}
-                                            onChange={isMaintenanceOverride ? updateField('emel') : undefined}
+                                            onChange={updateField('emel')}
                                         />
                                         <small className="app-inline-note">
                                             Auto email waran ke daerah akan dihantar menggunakan alamat emel ini.
+                                            {' Gunakan koma jika lebih daripada satu emel.'}
                                         </small>
                                     </div>
                                 )}
@@ -1177,15 +1194,14 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     <div className="app-form-field">
                                         <label>Email Mahkamah</label>
                                         <input
-                                            type="email"
+                                            type="text"
                                             placeholder="mahkamah@domain.gov.my"
                                             value={formData.emel_mahkamah}
-                                            disabled={!isMaintenanceOverride}
-                                            readOnly={!isMaintenanceOverride}
-                                            onChange={isMaintenanceOverride ? updateField('emel_mahkamah') : undefined}
+                                            onChange={updateField('emel_mahkamah')}
                                         />
                                         <small className="app-inline-note">
                                             Alamat emel mahkamah dipaparkan secara automatik berdasarkan mahkamah yang dipilih.
+                                            {' Gunakan koma jika lebih daripada satu emel.'}
                                         </small>
                                         {validationErrors.emel_mahkamah && (
                                             <small className="app-inline-note app-inline-note-error">{validationErrors.emel_mahkamah}</small>
