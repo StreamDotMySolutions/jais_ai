@@ -1241,30 +1241,6 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                             )}
                         </div>
 
-                        <div className="app-accordion">
-                            <button type="button" className="app-accordion-header" onClick={() => toggleSection('lampiran')}>
-                                <span>Lampiran Pelaksana</span>
-                                <i className={`bi ${openSections.lampiran ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
-                            </button>
-                            {openSections.lampiran && (
-                                <div className="app-accordion-body">
-                                    <AttachmentSection
-                                        apiUrl={apiUrl}
-                                        token={token}
-                                        recordId={id}
-                                        attachments={attachments}
-                                        onAttachmentsChange={setAttachments}
-                                        label="Muat naik fail (PDF/JPG/PNG)"
-                                        accept=".pdf,image/png,image/jpeg"
-                                        canUpload
-                                        canDelete
-                                        maxFiles={20}
-                                        maxSizeMb={50}
-                                    />
-                                </div>
-                            )}
-                        </div>
-
                         <div className="app-form-actions app-actions-sticky app-waran-step-actions">
                             <button type="button" className="app-button" onClick={handleSubmit} disabled={saving}>
                                 {saving ? 'Menyimpan...' : 'Simpan'}
@@ -1467,6 +1443,30 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     <label>Catatan Pelaksana</label>
                                     <textarea rows="3" placeholder="Catatan tambahan" value={formData.catatan_pelaksana} onChange={updateField('catatan_pelaksana')}></textarea>
                                 </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="app-accordion">
+                            <button type="button" className="app-accordion-header" onClick={() => toggleSection('lampiran')}>
+                                <span>Lampiran Pelaksana</span>
+                                <i className={`bi ${openSections.lampiran ? 'bi-chevron-up' : 'bi-chevron-down'}`}></i>
+                            </button>
+                            {openSections.lampiran && (
+                                <div className="app-accordion-body">
+                                    <AttachmentSection
+                                        apiUrl={apiUrl}
+                                        token={token}
+                                        recordId={id}
+                                        attachments={attachments}
+                                        onAttachmentsChange={setAttachments}
+                                        label="Muat naik fail (PDF/JPG/PNG)"
+                                        accept=".pdf,image/png,image/jpeg"
+                                        canUpload
+                                        canDelete
+                                        maxFiles={20}
+                                        maxSizeMb={50}
+                                    />
                                 </div>
                             )}
                         </div>
