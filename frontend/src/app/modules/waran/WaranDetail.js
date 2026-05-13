@@ -89,6 +89,27 @@ const WaranDetail = () => {
             .finally(() => setActionLoading(''));
     };
 
+    const handleSendToCourt = () => {
+        if (!apiUrl || !record?.id || actionLoading) {
+            return;
+        }
+        setActionLoading('court');
+        axios.post(`${apiUrl}/i-waran/${record.id}/send-to-court`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                setRecord(response?.data?.data || null);
+                toast.success(response?.data?.message || 'Email i-Waran berjaya dihantar ke mahkamah.');
+                setError('');
+            })
+            .catch((err) => {
+                const msg = err?.response?.data?.message || 'Gagal hantar email i-Waran ke mahkamah.';
+                setError(msg);
+                toast.error(msg);
+            })
+            .finally(() => setActionLoading(''));
+    };
+
     const renderKvGrid = (columns = []) => (
         <div className="app-waran-kv-grid">
             {columns.map((rows, index) => (
@@ -256,6 +277,16 @@ const WaranDetail = () => {
                             disabled={actionLoading === 'pickup'}
                         >
                             {actionLoading === 'pickup' ? 'Menerima...' : 'Terima Waran'}
+                        </button>
+                    )}
+                    {record.can_send_to_court && (
+                        <button
+                            className="app-button app-button-ghost"
+                            type="button"
+                            onClick={handleSendToCourt}
+                            disabled={actionLoading === 'court'}
+                        >
+                            {actionLoading === 'court' ? 'Menghantar...' : 'Hantar ke Mahkamah'}
                         </button>
                     )}
                     <button

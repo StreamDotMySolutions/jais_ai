@@ -50,6 +50,7 @@ const emptyWorkflowMeta = {
     current_stage_label: 'Baru',
     can_dispatch: false,
     can_pickup: false,
+    can_send_to_court: false,
     district_name: '',
 };
 const ADD_MAHKAMAH_OPTION = '__add_mahkamah__';
@@ -709,6 +710,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     current_stage_label: data.current_stage_label || 'Baru',
                     can_dispatch: Boolean(data.can_dispatch),
                     can_pickup: Boolean(data.can_pickup),
+                    can_send_to_court: Boolean(data.can_send_to_court),
                     district_name: data?.daerah?.name || '',
                 });
                 setAttachments([]);
@@ -870,8 +872,14 @@ const WaranFormStepper = ({ mode = 'create' }) => {
 
         const actionUrl = action === 'dispatch'
             ? `${apiUrl}/i-waran/${id}/dispatch-to-district`
-            : `${apiUrl}/i-waran/${id}/pickup`;
-        const loadingLabel = action === 'dispatch' ? 'Menghantar waran...' : 'Menerima waran...';
+            : action === 'pickup'
+                ? `${apiUrl}/i-waran/${id}/pickup`
+                : `${apiUrl}/i-waran/${id}/send-to-court`;
+        const loadingLabel = action === 'dispatch'
+            ? 'Menghantar waran...'
+            : action === 'pickup'
+                ? 'Menerima waran...'
+                : 'Menghantar ke mahkamah...';
 
         setSaving(true);
         setError('');
@@ -888,6 +896,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     current_stage_label: data.current_stage_label || 'Baru',
                     can_dispatch: Boolean(data.can_dispatch),
                     can_pickup: Boolean(data.can_pickup),
+                    can_send_to_court: Boolean(data.can_send_to_court),
                     district_name: data?.daerah?.name || workflowMeta.district_name || '',
                 });
                 setMessage(response?.data?.message || 'Status waran dikemaskini.');
@@ -1493,6 +1502,16 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     disabled={saving}
                                 >
                                     {saving ? 'Menerima...' : 'Terima Waran'}
+                                </button>
+                            )}
+                            {isEdit && workflowMeta.can_send_to_court && (
+                                <button
+                                    type="button"
+                                    className="app-button app-button-ghost"
+                                    onClick={() => handleWorkflowAction('court')}
+                                    disabled={saving}
+                                >
+                                    {saving ? 'Menghantar...' : 'Hantar ke Mahkamah'}
                                 </button>
                             )}
                             {isEdit && (

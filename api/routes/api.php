@@ -202,6 +202,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/i-waran/{iwaranWarrant}', [IwaranWarrantController::class, 'update'])->whereNumber('iwaranWarrant');
     Route::post('/i-waran/{iwaranWarrant}/dispatch-to-district', [IwaranWarrantController::class, 'dispatchToDistrict'])->whereNumber('iwaranWarrant');
     Route::post('/i-waran/{iwaranWarrant}/pickup', [IwaranWarrantController::class, 'pickup'])->whereNumber('iwaranWarrant');
+    Route::post('/i-waran/{iwaranWarrant}/send-to-court', [IwaranWarrantController::class, 'sendToCourt'])->whereNumber('iwaranWarrant');
     Route::delete('/i-waran/{iwaranWarrant}', [IwaranWarrantController::class, 'destroy'])->whereNumber('iwaranWarrant');
     Route::post('/i-waran/{iwaranWarrant}/attachments', [IwaranWarrantController::class, 'uploadAttachments'])
         ->whereNumber('iwaranWarrant');

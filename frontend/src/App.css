@@ -8287,24 +8287,24 @@ body {
 
 .app-waran-report-sheet {
   font-family: "Times New Roman", Georgia, serif;
-  font-size: 11pt;
+  font-size: 10pt;
   color: #111111;
   max-width: 21cm;
   margin: 0 auto;
-  padding: 2.2cm 2.0cm 2.0cm;
+  padding: 1.2cm 1.5cm 1cm;
   line-height: 1.22;
 }
 
 .app-waran-report-code {
   text-align: right;
   font-size: 9.5pt;
-  margin-bottom: 1.8cm;
+  margin-bottom: 0.5cm;
   font-weight: 700;
 }
 
 .app-waran-report-title {
   text-align: center;
-  margin-bottom: 1.35cm;
+  margin-bottom: 0.9cm;
 }
 
 .app-waran-report-title h1,
@@ -8325,7 +8325,11 @@ body {
 }
 
 .app-waran-report-section {
-  margin-top: 1.0cm;
+  margin-top: 0.72cm;
+}
+
+.app-waran-report-section:first-of-type {
+  margin-top: 0.45cm;
 }
 
 .app-waran-report-section h3 {
@@ -8370,7 +8374,7 @@ body {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2.6cm;
-  margin-top: 1.1cm;
+  margin-top: 1.35cm;
   page-break-inside: avoid;
   break-inside: avoid;
 }

@@ -268,6 +268,24 @@ const WaranList = () => {
             .finally(() => setActionLoadingId(null));
     };
 
+    const handleSendToCourt = (item) => {
+        if (!apiUrl || !item?.id || actionLoadingId) {
+            return;
+        }
+        setActionLoadingId(`court-${item.id}`);
+        axios.post(`${apiUrl}/i-waran/${item.id}/send-to-court`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                updateRecordRow(response?.data?.data || {});
+                setError('');
+            })
+            .catch((err) => {
+                setError(err?.response?.data?.message || 'Gagal hantar email i-Waran ke mahkamah.');
+            })
+            .finally(() => setActionLoadingId(null));
+    };
+
     const startIndex = pagination.total === 0 ? 0 : ((pagination.current_page - 1) * pagination.per_page) + 1;
     const endIndex = Math.min(pagination.current_page * pagination.per_page, pagination.total);
 
@@ -480,6 +498,16 @@ const WaranList = () => {
                                                 disabled={actionLoadingId === `pickup-${item.id}`}
                                             >
                                                 {actionLoadingId === `pickup-${item.id}` ? 'Menerima...' : 'Terima Waran'}
+                                            </button>
+                                        )}
+                                        {item.can_send_to_court && (
+                                            <button
+                                                type="button"
+                                                className="app-button app-button-ghost app-button-mini"
+                                                onClick={() => handleSendToCourt(item)}
+                                                disabled={actionLoadingId === `court-${item.id}`}
+                                            >
+                                                {actionLoadingId === `court-${item.id}` ? 'Menghantar...' : 'Hantar ke Mahkamah'}
                                             </button>
                                         )}
                                     </span>

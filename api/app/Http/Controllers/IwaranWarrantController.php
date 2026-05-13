@@ -127,6 +127,20 @@ class IwaranWarrantController extends Controller
         return (string) ($warrant->current_stage ?: IwaranWarrant::STAGE_BARU) === IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH;
     }
 
+    private function canSendWarrantToCourt($user, IwaranWarrant $warrant): bool
+    {
+        if (! $user || ! method_exists($user, 'hasAnyRole') || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return false;
+        }
+
+        $status = trim((string) ($warrant->status ?? ''));
+        if (! in_array($status, ['berjaya', 'tidak_berjaya', 'kembalian'], true)) {
+            return false;
+        }
+
+        return filter_var((string) ($warrant->emel_mahkamah ?? ''), FILTER_VALIDATE_EMAIL) !== false;
+    }
+
     private function normalizeEmailList(array $emails): array
     {
         return collect($emails)
@@ -251,6 +265,111 @@ class IwaranWarrantController extends Controller
         }
     }
 
+    private function resolveIwaranCourtRecipients(IwaranWarrant $warrant): array
+    {
+        return [
+            'to' => $this->normalizeEmailList([
+                (string) ($warrant->emel_mahkamah ?? ''),
+            ]),
+            'cc' => [],
+        ];
+    }
+
+    private function sendExecutionEmailToCourt(IwaranWarrant $warrant): array
+    {
+        $warrant->loadMissing([
+            'daerah:id,name',
+            'mahkamah:id,nama',
+            'attachments',
+            'pelaksana:id,name',
+        ]);
+
+        $recipients = $this->resolveIwaranCourtRecipients($warrant);
+        if (empty($recipients['to'])) {
+            return [
+                'sent' => false,
+                'reason' => 'invalid_recipient_config',
+                'to' => [],
+                'cc' => [],
+            ];
+        }
+
+        $subjectReference = trim((string) ($warrant->no_ruj_fail ?: ('Waran #' . $warrant->id)));
+        $subject = 'LAPORAN PELAKSANAAN i-WARAN : ' . $subjectReference;
+
+        $statusLabel = $this->getWarrantStageLabel((string) ($warrant->current_stage ?: IwaranWarrant::STAGE_BARU));
+        $executionDateTime = $warrant->tarikh_masa_perlaksanaan_1 ?: $warrant->tarikh_masa_perlaksanaan_2 ?: $warrant->tarikh_masa_perlaksanaan_3;
+        $bodyPlainText = "Assalamualaikum\n\n"
+            . "Laporan pelaksanaan i-Waran dikemukakan untuk rujukan pihak mahkamah.\n\n"
+            . "No. Ruj Fail Waran: " . ($warrant->no_ruj_fail ?: '-') . "\n"
+            . "Nama OKT: " . ($warrant->nama_okt ?: '-') . "\n"
+            . "Mahkamah: " . ($warrant->mahkamah?->nama ?: '-') . "\n"
+            . "Daerah Pelaksanaan: " . ($warrant->daerah?->name ?: '-') . "\n"
+            . "Status Pelaksanaan: " . ($warrant->status ? Str::title(str_replace('_', ' ', (string) $warrant->status)) : $statusLabel) . "\n"
+            . "Tarikh/Masa Pelaksanaan: " . ($executionDateTime ? Carbon::parse($executionDateTime)->format('d-m-Y H:i') : '-') . "\n"
+            . "Tindakan Oleh: " . ($warrant->pelaksana?->name ?: '-') . "\n\n"
+            . "Sila rujuk lampiran pelaksana yang disertakan.\n\n"
+            . "Terima kasih.";
+
+        $html = '<div style="font-family:Verdana,Arial,Helvetica,sans-serif;color:#111;font-size:14px;line-height:1.6;">'
+            . nl2br(e($bodyPlainText))
+            . '</div>';
+
+        $mailFrom = (array) config('mail.iwaran.from', []);
+        $fromAddress = trim((string) ($mailFrom['address'] ?? ''));
+        $fromName = trim((string) ($mailFrom['name'] ?? ''));
+
+        try {
+            Mail::mailer('iwaran_smtp')->send([], [], function ($message) use ($recipients, $subject, $html, $warrant, $fromAddress, $fromName): void {
+                $message->to($recipients['to'])
+                    ->subject($subject)
+                    ->html($html);
+
+                if ($fromAddress !== '') {
+                    $message->from($fromAddress, $fromName !== '' ? $fromName : null);
+                }
+
+                foreach (($warrant->attachments ?? []) as $attachment) {
+                    $disk = $attachment->disk ?: 'local';
+                    if (! $attachment->path || ! Storage::disk($disk)->exists($attachment->path)) {
+                        continue;
+                    }
+
+                    $message->attachData(
+                        Storage::disk($disk)->get($attachment->path),
+                        $attachment->file_name,
+                        ['mime' => $attachment->mime ?: 'application/octet-stream']
+                    );
+                }
+            });
+
+            Log::info('i-Waran court email sent', [
+                'iwaran_id' => $warrant->id,
+                'to_count' => count($recipients['to']),
+                'subject' => $subject,
+            ]);
+
+            return [
+                'sent' => true,
+                'to' => $recipients['to'],
+                'cc' => [],
+                'subject' => $subject,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('i-Waran court email failed', [
+                'iwaran_id' => $warrant->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'sent' => false,
+                'reason' => 'send_failed',
+                'to' => $recipients['to'],
+                'cc' => [],
+            ];
+        }
+    }
+
     private function getWarrantStageLabel(?string $stage): string
     {
         return match ((string) $stage) {
@@ -273,6 +392,7 @@ class IwaranWarrantController extends Controller
             'current_stage_label' => $this->getWarrantStageLabel($currentStage),
             'can_dispatch' => $this->canDispatchWarrant($user, $warrant),
             'can_pickup' => $this->canPickupWarrant($user, $warrant),
+            'can_send_to_court' => $this->canSendWarrantToCourt($user, $warrant),
         ]);
     }
 
@@ -1434,6 +1554,41 @@ class IwaranWarrantController extends Controller
 
         return response()->json([
             'message' => 'Waran berjaya diterima.',
+            'data' => $this->appendWorkflowMeta(
+                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name']),
+                $user
+            ),
+        ]);
+    }
+
+    public function sendToCourt(Request $request, IwaranWarrant $iwaranWarrant): JsonResponse
+    {
+        $user = $this->ensureAuthorizedWaranUser($request);
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        if (! $this->canSendWarrantToCourt($user, $iwaranWarrant)) {
+            return response()->json(['message' => 'Waran belum sedia untuk dihantar ke mahkamah.'], 422);
+        }
+
+        $emailMeta = $this->sendExecutionEmailToCourt($iwaranWarrant->fresh());
+        if (($emailMeta['sent'] ?? false) !== true) {
+            return response()->json([
+                'message' => empty($emailMeta['to'] ?? [])
+                    ? 'Email mahkamah belum lengkap. Sila semak email mahkamah.'
+                    : 'Gagal menghantar email i-Waran ke mahkamah.',
+                'meta' => [
+                    'court_email' => $emailMeta,
+                ],
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Email i-Waran berjaya dihantar ke mahkamah.',
+            'meta' => [
+                'court_email' => $emailMeta,
+            ],
             'data' => $this->appendWorkflowMeta(
                 $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name']),
                 $user
