@@ -53,6 +53,15 @@ const emptyWorkflowMeta = {
     can_send_to_court: false,
     district_name: '',
 };
+const WARAN_STAGE_TONE = {
+    baru: 'app-waran-status-pill is-draf',
+    dihantar_ke_daerah: 'app-status-pill-soft',
+    diterima_daerah: 'app-status-pill-soft',
+    dalam_proses: 'app-waran-status-pill is-dalam_proses',
+    berjaya: 'app-waran-status-pill is-berjaya',
+    tidak_berjaya: 'app-waran-status-pill is-tidak_berjaya',
+    kembalian: 'app-waran-status-pill is-kembalian',
+};
 const ADD_MAHKAMAH_OPTION = '__add_mahkamah__';
 const emptyMahkamahDraft = {
     nama: '',
@@ -943,7 +952,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     <p>{isEdit ? 'Kemaskini maklumat waran yang dipilih.' : 'Lengkapkan maklumat mengikut turutan untuk simpan rekod waran.'}</p>
                     {isEdit && (
                         <div className="app-status-stack" style={{ marginTop: '0.45rem' }}>
-                            <span className="app-status-pill" title="Status Waran">
+                            <span className={`app-status-pill ${WARAN_STAGE_TONE[workflowMeta.current_stage || 'baru'] || ''}`} title="Status Waran">
                                 Status Waran: {workflowMeta.current_stage_label || 'Baru'}
                             </span>
                             {formData.status && (

@@ -11450,34 +11450,34 @@ body {
   max-height: calc(1.35em * 3);
 }
 
-.app-waran-list .app-waran-status-pill.is-draf {
+.app-waran-status-pill.is-draf {
   background: #eef2f7;
   color: #415569;
   border: 1px solid #d7e0ea;
 }
 
-.app-waran-list .app-waran-status-pill.is-berjaya {
-  background: #e7f8ee;
-  color: #12623d;
-  border: 1px solid #bfe4cc;
+.app-waran-status-pill.is-berjaya {
+  background: #198754;
+  color: #ffffff;
+  border: 1px solid #198754;
 }
 
-.app-waran-list .app-waran-status-pill.is-tidak_berjaya {
-  background: #fdeceb;
-  color: #a3342a;
-  border: 1px solid #f4c6c2;
+.app-waran-status-pill.is-tidak_berjaya {
+  background: #dc3545;
+  color: #ffffff;
+  border: 1px solid #dc3545;
 }
 
-.app-waran-list .app-waran-status-pill.is-dalam_proses {
-  background: #eef6ff;
-  color: #2259a7;
-  border: 1px solid #cddff8;
+.app-waran-status-pill.is-dalam_proses {
+  background: #ffc107;
+  color: #212529;
+  border: 1px solid #ffc107;
 }
 
-.app-waran-list .app-waran-status-pill.is-kembalian {
-  background: #fff6e6;
-  color: #8a5816;
-  border: 1px solid #edd5a7;
+.app-waran-status-pill.is-kembalian {
+  background: #6c757d;
+  color: #ffffff;
+  border: 1px solid #6c757d;
 }
 
 .app-aduan-detail {

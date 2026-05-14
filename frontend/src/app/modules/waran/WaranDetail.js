@@ -33,6 +33,16 @@ const toTitle = (value) => {
         .replace(/\b\w/g, (m) => m.toUpperCase());
 };
 
+const WARAN_STAGE_TONE = {
+    baru: 'app-waran-status-pill is-draf',
+    dihantar_ke_daerah: 'app-status-pill-soft',
+    diterima_daerah: 'app-status-pill-soft',
+    dalam_proses: 'app-waran-status-pill is-dalam_proses',
+    berjaya: 'app-waran-status-pill is-berjaya',
+    tidak_berjaya: 'app-waran-status-pill is-tidak_berjaya',
+    kembalian: 'app-waran-status-pill is-kembalian',
+};
+
 const WaranDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
@@ -248,7 +258,7 @@ const WaranDetail = () => {
                     <h3>Butiran Waran</h3>
                     <p>Maklumat ringkas untuk rujukan pantas.</p>
                     <div className="app-status-stack" style={{ marginTop: '0.45rem' }}>
-                        <span className="app-status-pill" title="Status Waran">
+                        <span className={`app-status-pill ${WARAN_STAGE_TONE[record.current_stage || 'baru'] || ''}`} title="Status Waran">
                             Status Waran: {record.current_stage_label || 'Baru'}
                         </span>
                         {record.status && (

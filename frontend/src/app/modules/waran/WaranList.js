@@ -30,13 +30,13 @@ const JENIS_WARAN_LABELS = {
 };
 
 const STAGE_TONE = {
-    baru: '',
+    baru: 'app-waran-status-pill is-draf',
     dihantar_ke_daerah: 'app-status-pill-soft',
     diterima_daerah: 'app-status-pill-soft',
-    dalam_proses: 'app-status-pill-soft',
-    berjaya: 'app-status-pill-soft',
-    tidak_berjaya: 'app-status-pill-soft',
-    kembalian: 'app-status-pill-soft',
+    dalam_proses: 'app-waran-status-pill is-dalam_proses',
+    berjaya: 'app-waran-status-pill is-berjaya',
+    tidak_berjaya: 'app-waran-status-pill is-tidak_berjaya',
+    kembalian: 'app-waran-status-pill is-kembalian',
 };
 
 const toTitle = (value) => {

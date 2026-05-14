@@ -7,8 +7,8 @@ const STATUS_META = {
     draf: { label: 'Draf', color: '#6b7280' },
     berjaya: { label: 'Berjaya', color: '#117a37' },
     tidak_berjaya: { label: 'Tidak Berjaya', color: '#b42318' },
-    dalam_proses: { label: 'Dalam Proses', color: '#b26b00' },
-    kembalian: { label: 'Kembalian', color: '#1f4db5' },
+    dalam_proses: { label: 'Dalam Proses', color: '#b58900' },
+    kembalian: { label: 'Kembalian', color: '#64748b' },
 };
 
 const WEEKDAYS = ['Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu', 'Ahad'];
