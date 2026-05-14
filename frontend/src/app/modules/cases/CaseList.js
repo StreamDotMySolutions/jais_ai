@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import ListPageLayout from '../../components/ListPageLayout';
 import PaginationBar from '../../components/PaginationBar';
+import { isMaintenanceOverrideRole } from '../../utils/maintenanceOverride';
 
 const formatDateTime = (value) => {
     if (!value) return '-';
@@ -45,7 +46,9 @@ const formatExistingComplaintCase = (complaint) => {
 const CaseList = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
+    const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
     const navigate = useNavigate();
+    const isMaintenanceOverride = isMaintenanceOverrideRole(role);
     const [rows, setRows] = useState([]);
     const [keyword, setKeyword] = useState('');
     const [caseType, setCaseType] = useState('AJ');
@@ -209,10 +212,18 @@ const CaseList = () => {
             title="Senarai Kes"
             description="Paparan semua rekod KES yang sudah dipautkan dengan aduan."
             actions={(
-                <button type="button" className="app-button" onClick={openCreateModal}>
-                    <i className="bi bi-plus-lg"></i>
-                    Tambah Kes
-                </button>
+                <>
+                    {isMaintenanceOverride && (
+                        <button type="button" className="app-button app-button-ghost" onClick={() => navigate('/app/cases/new')}>
+                            <i className="bi bi-file-earmark-plus"></i>
+                            Kes Tanpa Aduan
+                        </button>
+                    )}
+                    <button type="button" className="app-button" onClick={openCreateModal}>
+                        <i className="bi bi-plus-lg"></i>
+                        Tambah Kes Dari Aduan
+                    </button>
+                </>
             )}
             filters={(
                 <form className="app-filter app-case-filters" onSubmit={(event) => event.preventDefault()}>

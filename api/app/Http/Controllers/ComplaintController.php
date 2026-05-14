@@ -271,6 +271,131 @@ class ComplaintController extends Controller
         ], 201);
     }
 
+    public function storeStandaloneCase(Request $request)
+    {
+        $user = $request->user();
+        if (! $user || ! $this->canBypassWorkflowLocks($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'district_id' => ['required', 'integer', 'exists:districts,id'],
+            'file_no' => ['nullable', 'string', 'max:255'],
+            'report_offense_id' => ['nullable', 'integer', 'exists:ref_offenses,id'],
+            'arrest_staff_id' => ['nullable', 'integer', 'exists:staff,id'],
+            'current_status' => ['nullable', 'string', 'max:255'],
+            'op_category' => ['nullable', 'string', 'max:255'],
+            'op_case_status' => ['nullable', 'string', 'max:255'],
+            'op_notes' => ['nullable', 'string', 'max:20000'],
+            'arrest_status' => ['nullable', 'string', 'max:20'],
+            'arrest_by' => ['nullable', 'string', 'max:255'],
+            'male_count' => ['nullable', 'integer', 'min:0'],
+            'female_count' => ['nullable', 'integer', 'min:0'],
+            'other_count' => ['nullable', 'integer', 'min:0'],
+            'action_datetime' => ['nullable', 'date'],
+            'statement_datetime' => ['nullable', 'date'],
+            'court_date' => ['nullable', 'date'],
+            'report_notes' => ['nullable', 'string'],
+            'case_summary' => ['nullable', 'string'],
+            'inspection_form_status' => ['nullable', 'string', 'max:20'],
+            'oyds' => ['nullable', 'array'],
+            'oyds.*.id' => ['nullable', 'integer'],
+            'oyds.*.name' => ['nullable', 'string', 'max:255'],
+            'oyds.*.id_number' => ['nullable', 'string', 'max:255'],
+            'oyds.*.investigator_name' => ['nullable', 'string', 'max:255'],
+            'oyds.*.file_no' => ['nullable', 'string', 'max:255'],
+            'inspection_forms' => ['nullable', 'array'],
+            'inspection_forms.*.id' => ['nullable', 'integer'],
+            'inspection_forms.*.form_no' => ['nullable', 'string', 'max:255'],
+            'seizure_status' => ['nullable', 'string', 'max:20'],
+            'police_report_status' => ['nullable', 'string', 'max:20'],
+            'seizure_items' => ['nullable', 'array'],
+            'seizure_items.*.id' => ['nullable', 'integer'],
+            'seizure_items.*.item_no' => ['nullable', 'string', 'max:255'],
+            'seizure_items.*.description' => ['nullable', 'string', 'max:2000'],
+            'seizure_items.*.storage' => ['nullable', 'string', 'max:1000'],
+            'police_reports' => ['nullable', 'array'],
+            'police_reports.*.id' => ['nullable', 'integer'],
+            'police_reports.*.report_no' => ['nullable', 'string', 'max:255'],
+            'police_reports.*.description' => ['nullable', 'string', 'max:2000'],
+            'police_reports.*.station' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $district = District::query()->find($validated['district_id']);
+        if (! $district) {
+            return response()->json(['message' => 'Daerah tidak dijumpai.'], 422);
+        }
+
+        if ($user->hasRole('pegawai_daerah')) {
+            $userDistrictId = $this->resolveUserDistrictId($user);
+            if (! $userDistrictId || (int) $userDistrictId !== (int) $district->id) {
+                return response()->json(['message' => 'Kes luar daerah tidak dibenarkan.'], 403);
+            }
+        }
+
+        $case = DB::transaction(function () use ($validated, $district) {
+            $now = now();
+            $case = CaseRecord::create([
+                'case_type' => 'AJ',
+                'case_register_no' => $this->caseReferenceService->generateCaseRegisterNo('AJ', $district->name, $now),
+                'complaint_year' => (int) $now->format('Y'),
+                'district_id' => $district->id,
+                'district_name' => $district->name,
+                'file_no' => $this->nullableString($validated['file_no'] ?? null),
+                'report_offense_id' => $validated['report_offense_id'] ?? null,
+                'arrest_staff_id' => $validated['arrest_staff_id'] ?? null,
+                'current_status' => $this->nullableString($validated['current_status'] ?? null),
+                'op_category' => $this->nullableString($validated['op_category'] ?? null),
+                'op_case_status' => $this->nullableString($validated['op_case_status'] ?? null),
+                'op_notes' => $this->nullableString($validated['op_notes'] ?? null),
+                'arrest_status' => $this->nullableString($validated['arrest_status'] ?? null),
+                'arrest_by' => $this->nullableString($validated['arrest_by'] ?? null),
+                'male_count' => $validated['male_count'] ?? null,
+                'female_count' => $validated['female_count'] ?? null,
+                'other_count' => $validated['other_count'] ?? null,
+                'action_datetime' => $validated['action_datetime'] ?? null,
+                'statement_datetime' => $validated['statement_datetime'] ?? null,
+                'court_date' => $validated['court_date'] ?? null,
+                'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
+                'case_summary' => $this->nullableTextareaString($validated['case_summary'] ?? null),
+                'inspection_form_status' => $this->nullableString($validated['inspection_form_status'] ?? null),
+                'seizure_status' => $this->nullableString($validated['seizure_status'] ?? null),
+                'police_report_status' => $this->nullableString($validated['police_report_status'] ?? null),
+                'opened_at' => $now,
+            ]);
+
+            $this->syncCaseChildRows($case, CaseOyd::class, 'oyds', $validated['oyds'] ?? [], ['name', 'id_number', 'investigator_name', 'file_no']);
+            $this->syncCaseChildRows(
+                $case,
+                CaseInspectionForm::class,
+                'inspectionForms',
+                (($validated['inspection_form_status'] ?? null) === 'ada') ? ($validated['inspection_forms'] ?? []) : [],
+                ['form_no']
+            );
+            $this->syncCaseChildRows($case, CaseSeizureItem::class, 'seizureItems', $validated['seizure_items'] ?? [], ['item_no', 'description', 'storage']);
+            $this->syncCaseChildRows($case, CasePoliceReport::class, 'policeReports', $validated['police_reports'] ?? [], ['report_no', 'description', 'station']);
+
+            return $case->fresh();
+        }, 3);
+
+        $freshCase = $this->loadCaseDetail($case);
+        $autoLaporanEmailMeta = $this->autoSendLaporanTindakanEmailAfterCaseSave($freshCase);
+
+        $response = [
+            'message' => 'Kes baharu tanpa aduan berjaya ditambah.',
+            'data' => $freshCase,
+            'meta' => [
+                'created_without_complaint' => true,
+            ],
+        ];
+
+        if ($autoLaporanEmailMeta) {
+            $response['meta']['laporan_tindakan_auto_email'] = $autoLaporanEmailMeta;
+        }
+
+        return response()->json($response, 201);
+    }
+
     public function caseShow(Request $request, CaseRecord $case)
     {
         $user = $request->user();

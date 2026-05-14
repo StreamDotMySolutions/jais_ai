@@ -137,6 +137,7 @@ Route::middleware('auth:sanctum')->get('/complaints/{complaint}', [App\Http\Cont
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/cases', [App\Http\Controllers\ComplaintController::class, 'caseIndex']);
     Route::post('/cases', [App\Http\Controllers\ComplaintController::class, 'storeCase']);
+    Route::post('/cases/standalone', [App\Http\Controllers\ComplaintController::class, 'storeStandaloneCase']);
     Route::get('/cases/{case}', [App\Http\Controllers\ComplaintController::class, 'caseShow'])
         ->whereNumber('case');
     Route::put('/cases/{case}', [App\Http\Controllers\ComplaintController::class, 'caseUpdate'])

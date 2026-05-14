@@ -84,8 +84,10 @@ const CaseDetail = () => {
         const params = new URLSearchParams(location.search || '');
         return params.get('complaint_id') || '';
     }, [location.search]);
+    const isStandaloneDraft = isDraft && !draftComplaintId;
     const [caseRecord, setCaseRecord] = useState(null);
     const [form, setForm] = useState({
+        district_id: '',
         file_no: '',
         report_offense_id: '',
         arrest_staff_id: '',
@@ -121,15 +123,21 @@ const CaseDetail = () => {
     const [isComplaintSearchLoading, setIsComplaintSearchLoading] = useState(false);
     const [isLinkingComplaint, setIsLinkingComplaint] = useState(false);
     const [linkError, setLinkError] = useState('');
+    const [districtOptions, setDistrictOptions] = useState([]);
 
     const headers = useMemo(() => (token ? { Authorization: `Bearer ${token}` } : undefined), [token]);
     const otherCaseComplaints = useMemo(() => getOtherCaseComplaints(caseRecord), [caseRecord]);
     const linkedComplaintIds = useMemo(() => new Set(
         (Array.isArray(caseRecord?.complaints) ? caseRecord.complaints : []).map((complaint) => Number(complaint.id))
     ), [caseRecord]);
+    const selectedDraftDistrictName = useMemo(() => {
+        const selected = (districtOptions || []).find((district) => String(district.id) === String(form.district_id || caseRecord?.district_id || ''));
+        return selected?.name || caseRecord?.district_name || '';
+    }, [districtOptions, form.district_id, caseRecord]);
 
     const hydrateForm = (data) => {
         setForm({
+            district_id: data?.district_id ? String(data.district_id) : '',
             file_no: data?.file_no || '',
             report_offense_id: data?.report_offense_id ? String(data.report_offense_id) : '',
             arrest_staff_id: data?.arrest_staff_id ? String(data.arrest_staff_id) : '',
@@ -166,7 +174,25 @@ const CaseDetail = () => {
 
         if (isDraft) {
             if (!draftComplaintId) {
-                setError('Aduan tidak dipilih untuk kes baharu.');
+                if (!isMaintenanceOverride) {
+                    setError('Fungsi Kes tanpa Aduan hanya dibenarkan untuk role admin/system.');
+                    setIsLoading(false);
+                    return;
+                }
+                const draftCase = {
+                    id: null,
+                    case_type: 'AJ',
+                    case_register_no: '',
+                    district_id: null,
+                    district_name: '',
+                    complaints: [],
+                    oyds: [emptyOyd],
+                    seizure_items: [emptySeizureItem],
+                    police_reports: [emptyPoliceReport],
+                };
+                setCaseRecord(draftCase);
+                hydrateForm(draftCase);
+                setError('');
                 setIsLoading(false);
                 return;
             }
@@ -213,7 +239,21 @@ const CaseDetail = () => {
 
     useEffect(() => {
         loadCase();
-    }, [apiUrl, id, draftComplaintId]);
+    }, [apiUrl, id, draftComplaintId, isMaintenanceOverride]);
+
+    useEffect(() => {
+        if (!apiUrl) {
+            return;
+        }
+        axios.get(`${apiUrl}/districts`)
+            .then((response) => {
+                const data = Array.isArray(response?.data?.data) ? response.data.data : [];
+                setDistrictOptions(data);
+            })
+            .catch(() => {
+                setDistrictOptions([]);
+            });
+    }, [apiUrl]);
 
     useEffect(() => {
         if (!isLinkPanelOpen || !caseRecord) {
@@ -367,16 +407,26 @@ const CaseDetail = () => {
             ...form,
             report_offense_id: form.report_offense_id || null,
             arrest_staff_id: form.arrest_staff_id || null,
+            district_id: form.district_id || null,
             inspection_forms: form.inspection_form_status === 'ada' ? form.inspection_forms : [],
         };
+        if (isStandaloneDraft && !isMaintenanceOverride) {
+            setError('Fungsi Kes tanpa Aduan hanya dibenarkan untuk role admin/system.');
+            setIsSaving(false);
+            return;
+        }
         const request = isDraft
-            ? axios.post(`${apiUrl}/complaints/${draftComplaintId}/cases`, payload, { headers })
+            ? (
+                draftComplaintId
+                    ? axios.post(`${apiUrl}/complaints/${draftComplaintId}/cases`, payload, { headers })
+                    : axios.post(`${apiUrl}/cases/standalone`, payload, { headers })
+            )
             : axios.put(`${apiUrl}/cases/${id}`, payload, { headers });
 
         request
             .then((response) => {
                 const data = isDraft
-                    ? (response?.data?.meta?.primary_case || response?.data?.data?.primary_case)
+                    ? (response?.data?.meta?.primary_case || response?.data?.data?.primary_case || response?.data?.data)
                     : response?.data?.data;
                 setCaseRecord(data);
                 hydrateForm(data);
@@ -457,7 +507,7 @@ const CaseDetail = () => {
                             <div className="app-detail-status-row">
                                 <span className="app-detail-status-label">Daerah :</span>
                                 <span className="app-status-pill">
-                                    {caseRecord?.district_name || '-'} | {caseRecord?.case_type === 'AJ' ? 'Aduan Jenayah (AJ)' : '-'}
+                                    {selectedDraftDistrictName || '-'} | {caseRecord?.case_type === 'AJ' ? 'Aduan Jenayah (AJ)' : '-'}
                                 </span>
                             </div>
                         </div>
@@ -470,7 +520,11 @@ const CaseDetail = () => {
             {isDraft && (
                 <SharedInlineAlert
                     type="info"
-                    message="No. daftar kes hanya akan dijana selepas Simpan Kes. Jika keluar tanpa simpan, tiada rekod kes akan dibuat."
+                    message={
+                        isStandaloneDraft
+                            ? 'No. daftar kes akan dijana selepas Simpan Kes. Draf ini boleh dibuat tanpa aduan dan anda boleh pautkan aduan kemudian jika perlu.'
+                            : 'No. daftar kes hanya akan dijana selepas Simpan Kes. Jika keluar tanpa simpan, tiada rekod kes akan dibuat.'
+                    }
                 />
             )}
             {otherCaseComplaints.length > 0 && (
@@ -584,6 +638,9 @@ const CaseDetail = () => {
                     </div>
                 )}
                 <div className="app-case-linked-detail-list">
+                    {(!caseRecord?.complaints || caseRecord.complaints.length === 0) && (
+                        <div className="app-empty">Tiada aduan berkaitan buat masa ini.</div>
+                    )}
                     {(caseRecord?.complaints || []).map((complaint) => (
                         <div
                             role="button"
@@ -677,6 +734,18 @@ const CaseDetail = () => {
                                 <span>No. Daftar Kes</span>
                                 <input value={isDraft ? 'Akan dijana selepas simpan' : (caseRecord?.case_register_no || '')} readOnly disabled />
                             </label>
+
+                            {isStandaloneDraft && (
+                                <label className="app-form-field">
+                                    <span>Daerah <span className="complaint-required">*</span></span>
+                                    <select value={form.district_id} onChange={(event) => updateField('district_id', event.target.value)}>
+                                        <option value="">Pilih daerah</option>
+                                        {districtOptions.map((district) => (
+                                            <option key={`case-district-${district.id}`} value={district.id}>{district.name}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                            )}
 
                             <label className="app-form-field">
                                 <span>Nombor Fail</span>
