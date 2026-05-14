@@ -559,13 +559,6 @@ const WaranList = () => {
                                                     <i className="bi bi-box-arrow-up-right"></i>
                                                 </a>
                                             </div>
-                                            <button
-                                                type="button"
-                                                className="app-row-toggle-link"
-                                                onClick={() => navigate(`/app/i-waran/${item.id}`)}
-                                            >
-                                                Show more <i className="bi bi-chevron-down"></i>
-                                            </button>
                                         </div>
                                     </span>
                                 </div>
