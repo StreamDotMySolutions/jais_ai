@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\InteractsWithMaintenanceOverride;
 use App\Models\IwaranCourtDocument;
 use App\Models\Office;
 use App\Models\IwaranWaranAttachment;
@@ -22,6 +23,8 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class IwaranWarrantController extends Controller
 {
+    use InteractsWithMaintenanceOverride;
+
     private function transformAttachment(IwaranWaranAttachment $attachment): array
     {
         return [
@@ -111,14 +114,26 @@ class IwaranWarrantController extends Controller
 
     private function canDispatchWarrant($user, IwaranWarrant $warrant): bool
     {
-        return $user
+        if ($this->canBypassWorkflowLocks($user)) {
+            return ! empty($warrant->daerah_id);
+        }
+
+        if (! ($user
             && method_exists($user, 'hasAnyRole')
             && $user->hasAnyRole(['pegawai_hq', 'admin', 'system'])
-            && ! empty($warrant->daerah_id);
+            && ! empty($warrant->daerah_id))) {
+            return false;
+        }
+
+        return (string) ($warrant->current_stage ?: IwaranWarrant::STAGE_BARU) === IwaranWarrant::STAGE_BARU;
     }
 
     private function canPickupWarrant($user, IwaranWarrant $warrant): bool
     {
+        if ($this->canBypassWorkflowLocks($user)) {
+            return true;
+        }
+
         $districtId = $this->getUserDistrictId($user);
         if (! $districtId || (int) ($warrant->daerah_id ?? 0) !== $districtId) {
             return false;
@@ -129,7 +144,17 @@ class IwaranWarrantController extends Controller
 
     private function canSendWarrantToCourt($user, IwaranWarrant $warrant): bool
     {
+        if ($this->canBypassWorkflowLocks($user)) {
+            return count($this->normalizeEmailList([
+                (string) ($warrant->emel_mahkamah ?? ''),
+            ])) > 0;
+        }
+
         if (! $user || ! method_exists($user, 'hasAnyRole') || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return false;
+        }
+
+        if (! empty($warrant->sent_to_court_at)) {
             return false;
         }
 
@@ -428,6 +453,7 @@ class IwaranWarrantController extends Controller
             'can_dispatch' => $this->canDispatchWarrant($user, $warrant),
             'can_pickup' => $this->canPickupWarrant($user, $warrant),
             'can_send_to_court' => $this->canSendWarrantToCourt($user, $warrant),
+            'court_delivery_label' => ! empty($warrant->sent_to_court_at) ? 'Telah hantar ke Mahkamah' : null,
         ]);
     }
 
@@ -1419,11 +1445,12 @@ class IwaranWarrantController extends Controller
             'mahkamah:id,nama',
             'pendaftar:id,name',
             'pelaksana:id,name',
-            'receivedBy:id,name',
-            'sentToDistrictBy:id,name',
-            'jenisKesMal:id,nama',
-            'jenisKesJenayah:id,nama',
-            'hasilPerlaksanaan:id,nama',
+                'receivedBy:id,name',
+                'sentToDistrictBy:id,name',
+                'sentToCourtBy:id,name',
+                'jenisKesMal:id,nama',
+                'jenisKesJenayah:id,nama',
+                'hasilPerlaksanaan:id,nama',
         ];
 
         if (! $request->boolean('lightweight')) {
@@ -1506,8 +1533,8 @@ class IwaranWarrantController extends Controller
 
         return response()->json([
             'message' => 'Waran dikemaskini.',
-            'data' => $this->appendWorkflowMeta(
-                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name']),
+                'data' => $this->appendWorkflowMeta(
+                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name', 'sentToCourtBy:id,name']),
                 $user
             ),
         ]);
@@ -1554,8 +1581,8 @@ class IwaranWarrantController extends Controller
             'meta' => [
                 'dispatch_email' => $emailMeta,
             ],
-            'data' => $this->appendWorkflowMeta(
-                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name']),
+                'data' => $this->appendWorkflowMeta(
+                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name', 'sentToCourtBy:id,name']),
                 $user
             ),
         ]);
@@ -1568,29 +1595,42 @@ class IwaranWarrantController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
+        $maintenanceOverride = $this->canBypassWorkflowLocks($user);
         $districtId = $this->getUserDistrictId($user);
-        if (! $districtId || (int) ($iwaranWarrant->daerah_id ?? 0) !== $districtId) {
+        if (! $maintenanceOverride && (! $districtId || (int) ($iwaranWarrant->daerah_id ?? 0) !== $districtId)) {
             return response()->json(['message' => 'Waran ini bukan untuk daerah anda.'], 403);
         }
 
-        if ((string) $iwaranWarrant->current_stage !== IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH) {
+        if (! $maintenanceOverride && (string) $iwaranWarrant->current_stage !== IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH) {
             return response()->json(['message' => 'Waran ini tidak berada dalam queue penerimaan daerah.'], 422);
         }
 
-        if ($iwaranWarrant->received_by_user_id && (int) $iwaranWarrant->received_by_user_id !== (int) $user->id) {
+        if (
+            ! $maintenanceOverride
+            && $iwaranWarrant->received_by_user_id
+            && (int) $iwaranWarrant->received_by_user_id !== (int) $user->id
+        ) {
             return response()->json(['message' => 'Waran ini telah diterima oleh pegawai lain.'], 422);
         }
 
         $iwaranWarrant->update([
-            'current_stage' => IwaranWarrant::STAGE_DITERIMA_DAERAH,
+            'current_stage' => $maintenanceOverride
+                && in_array((string) $iwaranWarrant->current_stage, [
+                    IwaranWarrant::STAGE_DALAM_PROSES,
+                    IwaranWarrant::STAGE_BERJAYA,
+                    IwaranWarrant::STAGE_TIDAK_BERJAYA,
+                    IwaranWarrant::STAGE_KEMBALIAN,
+                ], true)
+                    ? $iwaranWarrant->current_stage
+                    : IwaranWarrant::STAGE_DITERIMA_DAERAH,
             'received_by_user_id' => $user->id,
             'received_at' => now(),
         ]);
 
         return response()->json([
             'message' => 'Waran berjaya diterima.',
-            'data' => $this->appendWorkflowMeta(
-                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name']),
+                'data' => $this->appendWorkflowMeta(
+                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name', 'sentToCourtBy:id,name']),
                 $user
             ),
         ]);
@@ -1619,13 +1659,18 @@ class IwaranWarrantController extends Controller
             ], 422);
         }
 
+        $iwaranWarrant->update([
+            'sent_to_court_at' => now(),
+            'sent_to_court_by_user_id' => $user->id,
+        ]);
+
         return response()->json([
             'message' => 'Email i-Waran berjaya dihantar ke mahkamah.',
             'meta' => [
                 'court_email' => $emailMeta,
             ],
             'data' => $this->appendWorkflowMeta(
-                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name']),
+                $iwaranWarrant->fresh()->load(['daerah:id,name', 'receivedBy:id,name', 'sentToDistrictBy:id,name', 'sentToCourtBy:id,name']),
                 $user
             ),
         ]);

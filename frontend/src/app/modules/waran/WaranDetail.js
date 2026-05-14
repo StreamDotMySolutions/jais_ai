@@ -266,6 +266,11 @@ const WaranDetail = () => {
                                 Pelaksanaan: {toTitle(record.status)}
                             </span>
                         )}
+                        {record.sent_to_court_at && (
+                            <span className="app-status-pill-mini is-info" title="Status penghantaran ke mahkamah">
+                                {record.court_delivery_label || 'Telah hantar ke Mahkamah'}
+                            </span>
+                        )}
                     </div>
                 </div>
                 <div className="app-complaints-actions">
@@ -368,6 +373,10 @@ const WaranDetail = () => {
                     [
                         { label: 'Diterima Pada', value: formatDateTime(record.received_at) },
                         { label: 'Diterima Oleh', value: record.received_by?.name || '-' },
+                        { label: 'Hantar ke Mahkamah Pada', value: formatDateTime(record.sent_to_court_at) },
+                    ],
+                    [
+                        { label: 'Hantar ke Mahkamah Oleh', value: record.sent_to_court_by?.name || '-' },
                     ],
                 ])}
             </div>

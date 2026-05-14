@@ -52,6 +52,9 @@ const emptyWorkflowMeta = {
     can_pickup: false,
     can_send_to_court: false,
     district_name: '',
+    sent_to_court_at: '',
+    sent_to_court_by: null,
+    court_delivery_label: '',
 };
 const WARAN_STAGE_TONE = {
     baru: 'app-waran-status-pill is-draf',
@@ -739,6 +742,9 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     can_pickup: Boolean(data.can_pickup),
                     can_send_to_court: Boolean(data.can_send_to_court),
                     district_name: data?.daerah?.name || '',
+                    sent_to_court_at: data?.sent_to_court_at || '',
+                    sent_to_court_by: data?.sent_to_court_by || null,
+                    court_delivery_label: data?.court_delivery_label || '',
                 });
                 setAttachments([]);
                 setCourtDocuments([]);
@@ -925,6 +931,9 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     can_pickup: Boolean(data.can_pickup),
                     can_send_to_court: Boolean(data.can_send_to_court),
                     district_name: data?.daerah?.name || workflowMeta.district_name || '',
+                    sent_to_court_at: data?.sent_to_court_at || '',
+                    sent_to_court_by: data?.sent_to_court_by || null,
+                    court_delivery_label: data?.court_delivery_label || '',
                 });
                 setMessage(response?.data?.message || 'Status waran dikemaskini.');
                 setShowMessage(true);
@@ -958,6 +967,11 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                             {formData.status && (
                                 <span className="app-status-pill-mini is-muted" title="Status Pelaksanaan">
                                     Pelaksanaan: {String(formData.status || '').replace(/_/g, ' ')}
+                                </span>
+                            )}
+                            {workflowMeta.sent_to_court_at && (
+                                <span className="app-status-pill-mini is-info" title="Status penghantaran ke mahkamah">
+                                    {workflowMeta.court_delivery_label || 'Telah hantar ke Mahkamah'}
                                 </span>
                             )}
                         </div>
@@ -1538,6 +1552,11 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 >
                                     {saving ? 'Menghantar...' : 'Hantar ke Mahkamah'}
                                 </button>
+                            )}
+                            {isEdit && workflowMeta.sent_to_court_at && !workflowMeta.can_send_to_court && (
+                                <span className="app-status-pill-mini is-info" title={workflowMeta.sent_to_court_by?.name ? `Dihantar oleh ${workflowMeta.sent_to_court_by.name}` : 'Status penghantaran ke mahkamah'}>
+                                    {workflowMeta.court_delivery_label || 'Telah hantar ke Mahkamah'}
+                                </span>
                             )}
                             {isEdit && (
                                 <button

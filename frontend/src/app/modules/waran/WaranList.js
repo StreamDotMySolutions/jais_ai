@@ -462,6 +462,18 @@ const WaranList = () => {
                                                 <span className={`app-status-pill-mini is-muted app-waran-status-mini is-${item.status}`}>
                                                     Pelaksanaan: {STATUS_LABELS[item.status] || toTitle(item.status)}
                                                 </span>
+                                                {item.sent_to_court_at && (
+                                                    <span className="app-status-pill-mini is-info">
+                                                        {item.court_delivery_label || 'Telah hantar ke Mahkamah'}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        )}
+                                        {!item.status && item.sent_to_court_at && (
+                                            <span className="app-status-stack">
+                                                <span className="app-status-pill-mini is-info">
+                                                    {item.court_delivery_label || 'Telah hantar ke Mahkamah'}
+                                                </span>
                                             </span>
                                         )}
                                     </span>
@@ -476,6 +488,11 @@ const WaranList = () => {
                                         {item.received_by?.name && (
                                             <span className="app-complaint-cell-meta" title={`Diterima oleh ${item.received_by.name}`}>
                                                 Terima: {item.received_by.name}
+                                            </span>
+                                        )}
+                                        {item.sent_to_court_by?.name && (
+                                            <span className="app-complaint-cell-meta" title={`Dihantar ke mahkamah oleh ${item.sent_to_court_by.name}`}>
+                                                Mahkamah: {item.sent_to_court_by.name}
                                             </span>
                                         )}
                                         {item.can_dispatch && (

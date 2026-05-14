@@ -35,6 +35,11 @@ class IwaranWarrant extends Model
         return $this->belongsTo(User::class, 'received_by_user_id');
     }
 
+    public function sentToCourtBy()
+    {
+        return $this->belongsTo(User::class, 'sent_to_court_by_user_id');
+    }
+
     public function pelaksana()
     {
         return $this->belongsTo(Staff::class, 'tindakan_oleh_staff_id');
