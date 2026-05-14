@@ -11408,7 +11408,7 @@ body {
 .app-waran-list .app-table-actions .app-table-row,
 .app-waran-list .app-table.app-waran-list-table .app-table-row:has(.app-button),
 .app-waran-list .app-table.app-waran-list-table .app-table-header:has(+ .app-table-row .app-button) {
-  grid-template-columns: 34px minmax(220px, 1.35fr) minmax(180px, 0.9fr) minmax(140px, 0.78fr) minmax(170px, 0.95fr) minmax(220px, 1.2fr) minmax(110px, 0.55fr);
+  grid-template-columns: 34px minmax(220px, 1.35fr) minmax(180px, 0.9fr) minmax(140px, 0.78fr) minmax(250px, 1.4fr) minmax(150px, 0.78fr) minmax(110px, 0.55fr);
 }
 
 .app-waran-list .app-table-header > *,
@@ -11478,6 +11478,12 @@ body {
   background: #6c757d;
   color: #ffffff;
   border: 1px solid #6c757d;
+}
+
+.app-waran-status-pill.is-hantar_mahkamah {
+  background: #0d6efd;
+  color: #ffffff;
+  border: 1px solid #0d6efd;
 }
 
 .app-aduan-detail {

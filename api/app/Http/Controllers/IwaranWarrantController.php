@@ -94,22 +94,7 @@ class IwaranWarrantController extends Controller
 
     private function applyWorkflowStageFromStatus(array &$data, ?IwaranWarrant $warrant = null): void
     {
-        $status = trim((string) ($data['status'] ?? ($warrant?->status ?? '')));
-        if ($status === '') {
-            return;
-        }
-
-        if (in_array($status, ['berjaya', 'tidak_berjaya', 'kembalian'], true)) {
-            $data['current_stage'] = $status;
-            return;
-        }
-
-        if ($status === 'dalam_proses') {
-            $currentStage = (string) ($warrant?->current_stage ?? '');
-            if (! in_array($currentStage, [IwaranWarrant::STAGE_BARU, IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH], true)) {
-                $data['current_stage'] = IwaranWarrant::STAGE_DALAM_PROSES;
-            }
-        }
+        // Status pelaksanaan tidak lagi boleh menimpa workflow waran.
     }
 
     private function canDispatchWarrant($user, IwaranWarrant $warrant): bool
@@ -357,7 +342,7 @@ class IwaranWarrantController extends Controller
         $subjectReference = trim((string) ($warrant->no_ruj_fail ?: ('Waran #' . $warrant->id)));
         $subject = 'LAPORAN PELAKSANAAN i-WARAN : ' . $subjectReference;
 
-        $statusLabel = $this->getWarrantStageLabel((string) ($warrant->current_stage ?: IwaranWarrant::STAGE_BARU));
+        $statusLabel = $this->getWarrantStageLabel($this->resolveWarrantStage($warrant));
         $executionDateTime = $warrant->tarikh_masa_perlaksanaan_1 ?: $warrant->tarikh_masa_perlaksanaan_2 ?: $warrant->tarikh_masa_perlaksanaan_3;
         $bodyPlainText = "Assalamualaikum\n\n"
             . "Laporan pelaksanaan i-Waran dikemukakan untuk rujukan pihak mahkamah.\n\n"
@@ -435,17 +420,34 @@ class IwaranWarrantController extends Controller
         return match ((string) $stage) {
             IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH => 'Dihantar ke Daerah',
             IwaranWarrant::STAGE_DITERIMA_DAERAH => 'Diterima Daerah',
-            IwaranWarrant::STAGE_DALAM_PROSES => 'Dalam Proses',
-            IwaranWarrant::STAGE_BERJAYA => 'Berjaya',
-            IwaranWarrant::STAGE_TIDAK_BERJAYA => 'Tidak Berjaya',
-            IwaranWarrant::STAGE_KEMBALIAN => 'Kembalian',
+            IwaranWarrant::STAGE_HANTAR_KE_MAHKAMAH => 'Hantar ke Mahkamah',
             default => 'Baru',
         };
     }
 
+    private function resolveWarrantStage(IwaranWarrant $warrant): string
+    {
+        if (! empty($warrant->sent_to_court_at)) {
+            return IwaranWarrant::STAGE_HANTAR_KE_MAHKAMAH;
+        }
+
+        $currentStage = (string) ($warrant->current_stage ?: IwaranWarrant::STAGE_BARU);
+        if (in_array($currentStage, [
+            IwaranWarrant::STAGE_BARU,
+            IwaranWarrant::STAGE_DIHANTAR_KE_DAERAH,
+            IwaranWarrant::STAGE_DITERIMA_DAERAH,
+            IwaranWarrant::STAGE_HANTAR_KE_MAHKAMAH,
+        ], true)) {
+            return $currentStage;
+        }
+
+        // Normalize rekod lama yang pernah menggunakan stage untuk status pelaksanaan.
+        return IwaranWarrant::STAGE_DITERIMA_DAERAH;
+    }
+
     private function appendWorkflowMeta(IwaranWarrant $warrant, $user): array
     {
-        $currentStage = (string) ($warrant->current_stage ?: IwaranWarrant::STAGE_BARU);
+        $currentStage = $this->resolveWarrantStage($warrant);
 
         return array_merge($warrant->toArray(), [
             'current_stage' => $currentStage,
@@ -1615,13 +1617,8 @@ class IwaranWarrantController extends Controller
 
         $iwaranWarrant->update([
             'current_stage' => $maintenanceOverride
-                && in_array((string) $iwaranWarrant->current_stage, [
-                    IwaranWarrant::STAGE_DALAM_PROSES,
-                    IwaranWarrant::STAGE_BERJAYA,
-                    IwaranWarrant::STAGE_TIDAK_BERJAYA,
-                    IwaranWarrant::STAGE_KEMBALIAN,
-                ], true)
-                    ? $iwaranWarrant->current_stage
+                && (string) $iwaranWarrant->current_stage === IwaranWarrant::STAGE_HANTAR_KE_MAHKAMAH
+                    ? IwaranWarrant::STAGE_HANTAR_KE_MAHKAMAH
                     : IwaranWarrant::STAGE_DITERIMA_DAERAH,
             'received_by_user_id' => $user->id,
             'received_at' => now(),
@@ -1662,6 +1659,7 @@ class IwaranWarrantController extends Controller
         $iwaranWarrant->update([
             'sent_to_court_at' => now(),
             'sent_to_court_by_user_id' => $user->id,
+            'current_stage' => IwaranWarrant::STAGE_HANTAR_KE_MAHKAMAH,
         ]);
 
         return response()->json([

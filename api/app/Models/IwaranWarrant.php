@@ -15,10 +15,7 @@ class IwaranWarrant extends Model
     public const STAGE_BARU = 'baru';
     public const STAGE_DIHANTAR_KE_DAERAH = 'dihantar_ke_daerah';
     public const STAGE_DITERIMA_DAERAH = 'diterima_daerah';
-    public const STAGE_DALAM_PROSES = 'dalam_proses';
-    public const STAGE_BERJAYA = 'berjaya';
-    public const STAGE_TIDAK_BERJAYA = 'tidak_berjaya';
-    public const STAGE_KEMBALIAN = 'kembalian';
+    public const STAGE_HANTAR_KE_MAHKAMAH = 'hantar_ke_mahkamah';
 
     public function pendaftar()
     {

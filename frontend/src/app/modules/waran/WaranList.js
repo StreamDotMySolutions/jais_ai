@@ -33,10 +33,7 @@ const STAGE_TONE = {
     baru: 'app-waran-status-pill is-draf',
     dihantar_ke_daerah: 'app-status-pill-soft',
     diterima_daerah: 'app-status-pill-soft',
-    dalam_proses: 'app-waran-status-pill is-dalam_proses',
-    berjaya: 'app-waran-status-pill is-berjaya',
-    tidak_berjaya: 'app-waran-status-pill is-tidak_berjaya',
-    kembalian: 'app-waran-status-pill is-kembalian',
+    hantar_ke_mahkamah: 'app-waran-status-pill is-hantar_mahkamah',
 };
 
 const toTitle = (value) => {
@@ -429,8 +426,8 @@ const WaranList = () => {
                                 <span>Waran</span>
                                 <span>Daerah / Jenis</span>
                                 <span>Status Waran</span>
-                                <span>Tindakan</span>
                                 <span>Butiran Waran</span>
+                                <span>Tindakan</span>
                                 <span>Aksi</span>
                             </div>
                             {records.map((item, index) => (
@@ -476,6 +473,13 @@ const WaranList = () => {
                                                 </span>
                                             </span>
                                         )}
+                                    </span>
+                                    <span className="app-summary">
+                                        {[
+                                            item.nama_okt ? `Nama OKT: ${item.nama_okt}` : '',
+                                            item.no_kp_okt ? `No. K/P: ${item.no_kp_okt}` : '',
+                                            item.no_kes ? `No. Kes: ${item.no_kes}` : '',
+                                        ].filter(Boolean).join('\n') || '-'}
                                     </span>
                                     <span className="app-complaint-cell">
                                         <span className="app-complaint-cell-meta">Tarikh Terima</span>
@@ -527,13 +531,6 @@ const WaranList = () => {
                                                 {actionLoadingId === `court-${item.id}` ? 'Menghantar...' : 'Hantar ke Mahkamah'}
                                             </button>
                                         )}
-                                    </span>
-                                    <span className="app-summary">
-                                        {[
-                                            item.nama_okt ? `Nama OKT: ${item.nama_okt}` : '',
-                                            item.no_kp_okt ? `No. K/P: ${item.no_kp_okt}` : '',
-                                            item.no_kes ? `No. Kes: ${item.no_kes}` : '',
-                                        ].filter(Boolean).join('\n') || '-'}
                                     </span>
                                     <span>
                                         <div className="app-row-actions-stack is-compact">
