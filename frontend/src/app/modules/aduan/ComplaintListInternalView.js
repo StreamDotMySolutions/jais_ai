@@ -311,6 +311,7 @@ const ComplaintListInternalView = ({
                 <div className="app-table-header">
                     <span>Bil</span>
                     <span>Aduan</span>
+                    <span>Kaedah / Tarikh</span>
                     <span>Daerah / Kategori</span>
                     <span>Status</span>
                     <span>Tindakan</span>
@@ -320,6 +321,7 @@ const ComplaintListInternalView = ({
                 {Array.from({ length: 6 }, (_, index) => (
                     <div key={`skeleton-row-${index}`} className="app-table-row">
                         <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                        <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
@@ -376,9 +378,11 @@ const ComplaintListInternalView = ({
                                     >
                                         {item.reference_no || '-'}
                                     </button>
-                                    <span className="app-complaint-cell-meta">{getListDateTimeLabel(item)}</span>
-                                    <span className="app-complaint-cell-meta">{`Kaedah: ${formatChannelLabel(item.channel)}`}</span>
                                     <span className="app-complaint-cell-name">{item.complainant_name || '-'}</span>
+                                </span>
+                                <span className="app-complaint-cell">
+                                    <span className="app-complaint-cell-name">{formatChannelLabel(item.channel)}</span>
+                                    <span className="app-complaint-cell-meta">{getListDateTimeLabel(item)}</span>
                                 </span>
                                 <span className="app-complaint-cell">
                                     <span className="app-complaint-cell-name">{item.district_name || '-'}</span>
