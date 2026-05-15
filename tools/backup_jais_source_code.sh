@@ -17,6 +17,7 @@ tar \
   --exclude='frontend/node_modules' \
   --exclude='frontend/build' \
   --exclude='api/vendor' \
+  --exclude='api/storage/app' \
   --exclude='api/storage/logs' \
   --exclude='api/storage/framework/cache/*' \
   --exclude='api/storage/framework/sessions/*' \
