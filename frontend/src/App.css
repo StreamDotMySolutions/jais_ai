@@ -11121,26 +11121,26 @@ body {
 
 .app-aduan-list .app-table-actions .app-table-header,
 .app-aduan-list .app-table-actions .app-table-row {
-  grid-template-columns: 25px 1.55fr 1.15fr 0.95fr 1.05fr 1.15fr 1.45fr 0.85fr;
+  grid-template-columns: 25px 1.35fr 1.15fr 1.05fr 0.95fr 1.05fr 1.15fr 1.45fr 0.85fr;
 }
 
 .app-aduan-list .app-table .app-table-row:has(.app-button),
 .app-aduan-list .app-table .app-table-header:has(+ .app-table-row .app-button) {
-  grid-template-columns: 25px 1.55fr 1.15fr 0.95fr 1.05fr 1.15fr 1.45fr 0.85fr;
+  grid-template-columns: 25px 1.35fr 1.15fr 1.05fr 0.95fr 1.05fr 1.15fr 1.45fr 0.85fr;
 }
 
 .app-aduan-list .app-complaints-body.has-drawer .app-table-actions .app-table-header,
 .app-aduan-list .app-complaints-body.has-drawer .app-table-actions .app-table-row {
-  grid-template-columns: 25px 1.55fr 1.15fr 0.95fr 1.05fr 1.15fr 0.85fr;
+  grid-template-columns: 25px 1.35fr 1.15fr 1.05fr 0.95fr 1.05fr 1.15fr 0.85fr;
 }
 
 .app-aduan-list .app-complaints-body.has-drawer .app-table .app-table-row:has(.app-button),
 .app-aduan-list .app-complaints-body.has-drawer .app-table .app-table-header:has(+ .app-table-row .app-button) {
-  grid-template-columns: 25px 1.55fr 1.15fr 0.95fr 1.05fr 1.15fr 0.85fr;
+  grid-template-columns: 25px 1.35fr 1.15fr 1.05fr 0.95fr 1.05fr 1.15fr 0.85fr;
 }
 
-.app-aduan-list .app-complaints-body.has-drawer .app-table-header > *:nth-child(7),
-.app-aduan-list .app-complaints-body.has-drawer .app-table-row > *:nth-child(7) {
+.app-aduan-list .app-complaints-body.has-drawer .app-table-header > *:nth-child(8),
+.app-aduan-list .app-complaints-body.has-drawer .app-table-row > *:nth-child(8) {
   display: none;
 }
 

@@ -310,17 +310,19 @@ const ComplaintListInternalView = ({
             <div className="app-table app-table-actions app-table-skeleton">
                 <div className="app-table-header">
                     <span>Bil</span>
-                    <span>Aduan</span>
+                    <span>No Aduan</span>
+                    <span>Nama Pengadu</span>
                     <span>Kaedah / Tarikh</span>
                     <span>Daerah / Kategori</span>
-                    <span>Status</span>
-                    <span>Tindakan</span>
                     <span>Butiran Aduan</span>
+                    <span>Tindakan</span>
+                    <span>Status</span>
                     <span>Aksi</span>
                 </div>
                 {Array.from({ length: 6 }, (_, index) => (
                     <div key={`skeleton-row-${index}`} className="app-table-row">
                         <span className="app-skeleton-line app-skeleton-line--sm"></span>
+                        <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
                         <span className="app-skeleton-line"></span>
@@ -375,9 +377,12 @@ const ComplaintListInternalView = ({
                                         type="button"
                                         className="app-link app-link-button app-complaint-cell-link"
                                         onClick={() => openComplaintDetail(item.id)}
+                                        title={item.reference_no || '-'}
                                     >
                                         {item.reference_no || '-'}
                                     </button>
+                                </span>
+                                <span className="app-complaint-cell">
                                     <span className="app-complaint-cell-name">{item.complainant_name || '-'}</span>
                                 </span>
                                 <span className="app-complaint-cell">
@@ -389,6 +394,30 @@ const ComplaintListInternalView = ({
                                     <span className="app-complaint-cell-meta">{formatCaseTypeDisplay(item.case_type)}</span>
                                     {item.case_type === 'AK' && formatAkSubtypeDisplay(item.ak_subtype) && (
                                         <span className="app-complaint-cell-meta">{formatAkSubtypeDisplay(item.ak_subtype)}</span>
+                                    )}
+                                </span>
+                                <span className="app-summary">
+                                    <span title={item.summary || '-'}>
+                                        {item.summary || '-'}
+                                    </span>
+                                </span>
+                                <span>
+                                    <span className="app-status-pill">
+                                        {getComplaintStageLabel(item.current_stage || 'baru', userRole)}
+                                    </span>
+                                    {(receiverName || approverName) && (
+                                        <span className="app-status-stack">
+                                            {receiverName && (
+                                                <span className="app-status-meta-line" title={`Penerima Aduan: ${receiverName}`}>
+                                                    Penerima: {receiverName}
+                                                </span>
+                                            )}
+                                            {approverName && (
+                                                <span className="app-status-meta-line" title={`Pegawai Pengesah: ${approverName}`}>
+                                                    Pengesah: {approverName}
+                                                </span>
+                                            )}
+                                        </span>
                                     )}
                                 </span>
                                 <span>
@@ -454,28 +483,6 @@ const ComplaintListInternalView = ({
                                             </span>
                                         );
                                     })()}
-                                </span>
-                                <span>
-                                    <span className="app-status-pill">
-                                        {getComplaintStageLabel(item.current_stage || 'baru', userRole)}
-                                    </span>
-                                    {(receiverName || approverName) && (
-                                        <span className="app-status-stack">
-                                            {receiverName && (
-                                                <span className="app-status-meta-line" title={`Penerima Aduan: ${receiverName}`}>
-                                                    Penerima: {receiverName}
-                                                </span>
-                                            )}
-                                            {approverName && (
-                                                <span className="app-status-meta-line" title={`Pegawai Pengesah: ${approverName}`}>
-                                                    Pengesah: {approverName}
-                                                </span>
-                                            )}
-                                        </span>
-                                    )}
-                                </span>
-                                <span className="app-summary">
-                                    {item.summary || '-'}
                                 </span>
                                 <span className={`app-row-actions app-row-actions-stack${item.current_stage === 'baru' ? ' is-compact' : ''}`}>
                                     <span className="app-row-actions-icons">
