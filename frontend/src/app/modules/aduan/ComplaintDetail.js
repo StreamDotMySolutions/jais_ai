@@ -983,23 +983,19 @@ const ComplaintDetail = () => {
                 : ajActionReportDefault.history_entries);
         setAjActionReport({
             ...ajActionReportDefault,
-            directive_staff_id: caseSource.directive_staff_id
-                ? String(caseSource.directive_staff_id)
-                : (caseSource.aj_directive_staff_id ? String(caseSource.aj_directive_staff_id) : ''),
-            handover_staff_id: caseSource.handover_staff_id
-                ? String(caseSource.handover_staff_id)
-                : (caseSource.aj_handover_staff_id ? String(caseSource.aj_handover_staff_id) : ''),
-            directive_at: caseSource.directive_at || caseSource.aj_directive_at || '',
-            directive_notes: caseSource.directive_notes || caseSource.aj_directive_notes || '',
-            handover_at: caseSource.handover_at || complaint.handover_at || '',
-            handover_notes: caseSource.handover_notes || complaint.handover_notes || '',
-            current_status: caseSource.current_status || caseSource.aj_current_status || '',
-            current_status_other: caseSource.current_status_other || caseSource.aj_current_status_other || '',
-            case_register_no: caseSource.case_register_no || complaint.case_register_no || '',
-            op_category: caseSource.op_category || caseSource.aj_op_category || '',
-            op_case_status: caseSource.op_case_status || caseSource.aj_op_case_status || '',
-            op_notes: caseSource.op_notes || caseSource.aj_op_notes || '',
-            file_no: caseSource.file_no || caseSource.aj_file_no || '',
+            directive_staff_id: complaint.aj_directive_staff_id ? String(complaint.aj_directive_staff_id) : '',
+            handover_staff_id: complaint.aj_handover_staff_id ? String(complaint.aj_handover_staff_id) : '',
+            directive_at: complaint.aj_directive_at || '',
+            directive_notes: complaint.aj_directive_notes || '',
+            handover_at: complaint.handover_at || '',
+            handover_notes: complaint.handover_notes || '',
+            current_status: complaint.aj_current_status || '',
+            current_status_other: complaint.aj_current_status_other || '',
+            case_register_no: complaint.case_register_no || '',
+            op_category: complaint.aj_op_category || '',
+            op_case_status: complaint.aj_op_case_status || '',
+            op_notes: complaint.aj_op_notes || '',
+            file_no: complaint.aj_file_no || '',
             history_entries: derivedInitialHistory,
         });
         setAkPayload({
@@ -2145,18 +2141,18 @@ const ComplaintDetail = () => {
     const savedHistoryEntriesNormalized = normalizeHistoryEntries(complaint?.action_updates || []);
     const hasUnsavedJanaTindakanChanges = (
         String(ajActionReport?.directive_staff_id || '') !== String(complaint?.aj_directive_staff_id || '')
-        || normalizeDateTimeLocalValue(ajActionReport?.directive_at) !== normalizeDateTimeLocalValue(primaryCase?.directive_at || complaint?.aj_directive_at)
+        || normalizeDateTimeLocalValue(ajActionReport?.directive_at) !== normalizeDateTimeLocalValue(complaint?.aj_directive_at)
         || String(ajActionReport?.handover_staff_id || '') !== String(complaint?.aj_handover_staff_id || '')
-        || normalizeDateTimeLocalValue(ajActionReport?.handover_at) !== normalizeDateTimeLocalValue(primaryCase?.handover_at || complaint?.handover_at)
+        || normalizeDateTimeLocalValue(ajActionReport?.handover_at) !== normalizeDateTimeLocalValue(complaint?.handover_at)
         || String(ajActionReport?.directive_notes || '').trim() !== String(complaint?.aj_directive_notes || '').trim()
         || String(ajActionReport?.handover_notes || '').trim() !== String(complaint?.handover_notes || '').trim()
-        || String(ajActionReport?.current_status || '').trim() !== String(primaryCase?.current_status || complaint?.aj_current_status || '').trim()
-        || String(ajActionReport?.current_status_other || '').trim() !== String(primaryCase?.current_status_other || complaint?.aj_current_status_other || '').trim()
-        || String(ajActionReport?.case_register_no || '').trim() !== String(primaryCase?.case_register_no || complaint?.case_register_no || '').trim()
-        || String(ajActionReport?.op_category || '').trim() !== String(primaryCase?.op_category || complaint?.aj_op_category || '').trim()
-        || String(ajActionReport?.op_case_status || '').trim() !== String(primaryCase?.op_case_status || complaint?.aj_op_case_status || '').trim()
-        || String(ajActionReport?.op_notes || '').trim() !== String(primaryCase?.op_notes || complaint?.aj_op_notes || '').trim()
-        || String(ajActionReport?.file_no || '').trim() !== String(primaryCase?.file_no || complaint?.aj_file_no || '').trim()
+        || String(ajActionReport?.current_status || '').trim() !== String(complaint?.aj_current_status || '').trim()
+        || String(ajActionReport?.current_status_other || '').trim() !== String(complaint?.aj_current_status_other || '').trim()
+        || String(ajActionReport?.case_register_no || '').trim() !== String(complaint?.case_register_no || '').trim()
+        || String(ajActionReport?.op_category || '').trim() !== String(complaint?.aj_op_category || '').trim()
+        || String(ajActionReport?.op_case_status || '').trim() !== String(complaint?.aj_op_case_status || '').trim()
+        || String(ajActionReport?.op_notes || '').trim() !== String(complaint?.aj_op_notes || '').trim()
+        || String(ajActionReport?.file_no || '').trim() !== String(complaint?.aj_file_no || '').trim()
         || JSON.stringify(draftHistoryEntriesNormalized) !== JSON.stringify(savedHistoryEntriesNormalized)
     );
     const janaTindakanMissingFields = [];
@@ -2168,6 +2164,15 @@ const ComplaintDetail = () => {
     }
     if (!String(ajActionReport?.directive_notes || '').trim()) {
         janaTindakanMissingFields.push('Minit / Arahan Tindakan');
+    }
+    if (!normalizeDateTimeLocalValue(ajActionReport?.directive_at)) {
+        janaTindakanMissingFields.push('Tarikh / Masa Maklum Aduan');
+    }
+    if (!normalizeDateTimeLocalValue(ajActionReport?.handover_at)) {
+        janaTindakanMissingFields.push('Tarikh / Masa Serahan');
+    }
+    if (!String(ajActionReport?.current_status || '').trim()) {
+        janaTindakanMissingFields.push('Status Terkini');
     }
     const janaTindakanRequiredMessage = janaTindakanMissingFields.length > 0
         ? `Lengkapkan medan wajib dahulu sebelum Jana Tindakan: ${janaTindakanMissingFields.join(', ')}.`

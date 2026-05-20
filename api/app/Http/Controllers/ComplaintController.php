@@ -2801,8 +2801,34 @@ class ComplaintController extends Controller
             'actionUpdates:id,complaint_id,sort_order,classification,action_date,action_time,note',
         ]);
 
-        $primaryCase = $this->resolvePrimaryCaseForComplaint($complaint);
-        $caseSource = $primaryCase ?: $complaint;
+        $missingJanaTindakanFields = [];
+        if (! $complaint->aj_handover_staff_id) {
+            $missingJanaTindakanFields[] = 'Kumpulan / Pelaksana';
+        }
+        if (! $complaint->aj_directive_staff_id) {
+            $missingJanaTindakanFields[] = 'Nama Penyelia Bertugas';
+        }
+        if (! trim((string) ($complaint->aj_directive_at ?? ''))) {
+            $missingJanaTindakanFields[] = 'Tarikh / Masa Maklum Aduan';
+        }
+        if (! trim((string) ($complaint->handover_at ?? ''))) {
+            $missingJanaTindakanFields[] = 'Tarikh / Masa Serahan';
+        }
+        if (! trim((string) ($complaint->aj_directive_notes ?? ''))) {
+            $missingJanaTindakanFields[] = 'Minit / Arahan Tindakan';
+        }
+        if (! trim((string) ($complaint->aj_current_status ?? ''))) {
+            $missingJanaTindakanFields[] = 'Status Terkini';
+        }
+
+        if (! empty($missingJanaTindakanFields)) {
+            return response()->json([
+                'message' => 'Lengkapkan medan wajib Jana Tindakan dahulu: ' . implode(', ', $missingJanaTindakanFields) . '.',
+                'errors' => [
+                    'jana_tindakan' => $missingJanaTindakanFields,
+                ],
+            ], 422);
+        }
 
         $formatDateDmySlash = static function ($value): string {
             if (! $value) return '-';
@@ -2832,18 +2858,18 @@ class ComplaintController extends Controller
         $directiveBy = $complaint->ajDirectiveStaff?->name ?: '-';
         $pelaksanaName = $complaint->ajHandoverStaff?->name ?: $complaint->picUser?->name ?: '-';
 
-        $directiveDateText = ($caseSource->directive_at ?? $complaint->aj_directive_at)
-            ? $formatDateDmySlash($caseSource->directive_at ?? $complaint->aj_directive_at)
-            : $complaintDate;
-        $directiveTimeText = ($caseSource->directive_at ?? $complaint->aj_directive_at)
-            ? $formatTimeMalay($caseSource->directive_at ?? $complaint->aj_directive_at)
-            : $complaintTime;
-        $handoverDateText = ($caseSource->handover_at ?? $complaint->handover_at)
-            ? $formatDateDmySlash($caseSource->handover_at ?? $complaint->handover_at)
-            : $complaintDate;
-        $handoverTimeText = ($caseSource->handover_at ?? $complaint->handover_at)
-            ? $formatTimeMalay($caseSource->handover_at ?? $complaint->handover_at)
-            : $complaintTime;
+        $directiveDateText = $complaint->aj_directive_at
+            ? $formatDateDmySlash($complaint->aj_directive_at)
+            : '-';
+        $directiveTimeText = $complaint->aj_directive_at
+            ? $formatTimeMalay($complaint->aj_directive_at)
+            : '-';
+        $handoverDateText = $complaint->handover_at
+            ? $formatDateDmySlash($complaint->handover_at)
+            : '-';
+        $handoverTimeText = $complaint->handover_at
+            ? $formatTimeMalay($complaint->handover_at)
+            : '-';
         $historyRows = collect($complaint->actionUpdates ?? [])
             ->sortBy(fn ($row) => (int) ($row->sort_order ?? 0))
             ->filter(function ($row) {
@@ -2863,12 +2889,14 @@ class ComplaintController extends Controller
             ->values()
             ->all();
 
-        $currentStatus = ($caseSource->current_status ?? $complaint->aj_current_status) ?: ($complaint->current_stage ?: '-');
+        $currentStatus = $complaint->aj_current_status === 'Other'
+            ? (trim((string) ($complaint->aj_current_status_other ?? '')) ?: 'Other')
+            : ($complaint->aj_current_status ?: '-');
         $districtDisplay = $complaint->district_name ?: '-';
-        $caseRegisterNo = ($caseSource->case_register_no ?? $complaint->case_register_no) ?: '-';
+        $caseRegisterNo = $complaint->case_register_no ?: '-';
 
-        $defaultSubject = 'TINDAKAN (' . ((($caseSource->arrest_status ?? null) === 'ada' || $complaint->aj_arrest_status === 'ada') ? 'Ada Tangkapan' : 'Tiada Tangkapan') . ') : '
-            . (($caseSource->case_register_no ?? $complaint->case_register_no) ?: $complaint->reference_no ?: ('Aduan #' . $complaint->id));
+        $defaultSubject = 'TINDAKAN (' . (($complaint->aj_arrest_status === 'ada') ? 'Ada Tangkapan' : 'Tiada Tangkapan') . ') : '
+            . ($complaint->case_register_no ?: $complaint->reference_no ?: ('Aduan #' . $complaint->id));
         $subject = trim((string) ($validated['subject'] ?? '')) ?: $defaultSubject;
 
         $defaultBody = "Assalamualaikum\n\n"
@@ -2903,7 +2931,7 @@ class ComplaintController extends Controller
             'historyRows' => $historyRows,
             'currentStatus' => $currentStatus,
             'caseRegisterNo' => $caseRegisterNo,
-            'directiveNotes' => (string) (($caseSource->directive_notes ?? null) ?: ($caseSource->report_notes ?? null) ?: $complaint->aj_directive_notes ?: $complaint->aj_report_notes ?: '-'),
+            'directiveNotes' => (string) ($complaint->aj_directive_notes ?: '-'),
         ])->setPaper('a4', 'portrait')->output();
 
         $safeReference = preg_replace('/[^A-Za-z0-9\-_]+/', '_', (string) ($complaint->reference_no ?: ('aduan_' . $complaint->id))) ?: ('aduan_' . $complaint->id);

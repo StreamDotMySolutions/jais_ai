@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { getComplaintStageLabel } from './complaintStage';
 import { useToast } from '../../components/SharedToastProvider';
 
 const ComplaintPrintTindakanAduan = () => {
@@ -38,7 +37,12 @@ const ComplaintPrintTindakanAduan = () => {
 
     const renderValue = (value) => value || '-';
     const pad2 = (value) => String(value ?? '').padStart(2, '0');
-    const caseSource = complaint?.primary_case || complaint;
+    const caseRegisterNo = complaint?.case_register_no || '-';
+    const directiveAtRaw = complaint?.aj_directive_at || '';
+    const handoverAtRaw = complaint?.handover_at || '';
+    const directiveNotes = complaint?.aj_directive_notes || '';
+    const currentStatusRaw = String(complaint?.aj_current_status || '').trim();
+    const currentStatusOtherRaw = String(complaint?.aj_current_status_other || '').trim();
 
     const formatDateDMY = (value) => {
         if (!value) {
@@ -86,13 +90,13 @@ const ComplaintPrintTindakanAduan = () => {
         complaint?.submitted_by?.name ||
         '-';
     const directiveBy = complaint?.ajDirectiveStaff?.name || complaint?.aj_directive_staff?.name || '-';
-    const pelaksanaName = complaint?.ajHandoverStaff?.name || complaint?.aj_handover_staff?.name || complaint?.picUser?.name || complaint?.pic_user?.name || '-';
-    const directiveAt = (caseSource?.directive_at || complaint?.aj_directive_at) ? new Date(caseSource?.directive_at || complaint?.aj_directive_at) : null;
-    const directiveDateText = directiveAt ? directiveAt.toLocaleDateString('ms-MY') : complaintDate;
-    const directiveTimeText = directiveAt ? directiveAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : complaintTime;
-    const handoverAt = (caseSource?.handover_at || complaint?.handover_at) ? new Date(caseSource?.handover_at || complaint?.handover_at) : null;
-    const handoverDateText = handoverAt ? handoverAt.toLocaleDateString('ms-MY') : complaintDate;
-    const handoverTimeText = handoverAt ? handoverAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : complaintTime;
+    const pelaksanaName = complaint?.ajHandoverStaff?.name || complaint?.aj_handover_staff?.name || '-';
+    const directiveAt = directiveAtRaw ? new Date(directiveAtRaw) : null;
+    const directiveDateText = directiveAt ? directiveAt.toLocaleDateString('ms-MY') : '-';
+    const directiveTimeText = directiveAt ? directiveAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : '-';
+    const handoverAt = handoverAtRaw ? new Date(handoverAtRaw) : null;
+    const handoverDateText = handoverAt ? handoverAt.toLocaleDateString('ms-MY') : '-';
+    const handoverTimeText = handoverAt ? handoverAt.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' }) : '-';
     const actionHistoryEntries = Array.isArray(complaint?.actionUpdates)
         ? complaint.actionUpdates
         : (Array.isArray(complaint?.action_updates) ? complaint.action_updates : []);
@@ -111,13 +115,12 @@ const ComplaintPrintTindakanAduan = () => {
             time: row?.action_time ? formatTimeMalay(row.action_time) : '-',
             note: row?.note || '-',
         }));
-    const currentStatus = (String(caseSource?.current_status || complaint?.aj_current_status || '').trim() === 'Other')
-        ? (caseSource?.current_status_other || complaint?.aj_current_status_other || 'Other')
-        : (caseSource?.current_status || complaint?.aj_current_status || getComplaintStageLabel(complaint?.current_stage || 'baru'));
+    const currentStatus = currentStatusRaw === 'Other'
+        ? (currentStatusOtherRaw || 'Other')
+        : (currentStatusRaw || '-');
     const districtDisplay = complaint?.district_name || complaint?.district?.name || '-';
-    const caseRegisterNo = caseSource?.case_register_no || complaint?.case_register_no || '-';
     const subjectCaseNo = caseRegisterNo !== '-' ? `KES- ${districtDisplay} / ${caseRegisterNo} / ${complaint?.complaint_year || '-'}` : (complaint?.reference_no || `Aduan #${id}`);
-    const defaultSubject = `TINDAKAN (${(caseSource?.arrest_status || complaint?.aj_arrest_status || complaint?.arrest_status) === 'ada' ? 'Ada Tangkapan' : 'Tiada Tangkapan'}) : ${subjectCaseNo}`;
+    const defaultSubject = `TINDAKAN (${(complaint?.aj_arrest_status || complaint?.arrest_status) === 'ada' ? 'Ada Tangkapan' : 'Tiada Tangkapan'}) : ${subjectCaseNo}`;
     const defaultBody = [
         'Assalamualaikum',
         '',
@@ -130,7 +133,22 @@ const ComplaintPrintTindakanAduan = () => {
         'Terima kasih.',
     ].join('\n');
 
+    const missingFields = [];
+    if (!String(complaint?.aj_handover_staff_id || '').trim()) missingFields.push('Kumpulan / Pelaksana');
+    if (!String(complaint?.aj_directive_staff_id || '').trim()) missingFields.push('Nama Penyelia Bertugas');
+    if (!directiveAtRaw) missingFields.push('Tarikh / Masa Maklum Aduan');
+    if (!handoverAtRaw) missingFields.push('Tarikh / Masa Serahan');
+    if (!String(directiveNotes || '').trim()) missingFields.push('Minit / Arahan Tindakan');
+    if (!currentStatusRaw) missingFields.push('Status Terkini');
+    const blockingMessage = missingFields.length > 0
+        ? `Lengkapkan medan wajib Jana Tindakan dahulu: ${missingFields.join(', ')}.`
+        : '';
+
     const openEmailModal = () => {
+        if (blockingMessage) {
+            toast.error(blockingMessage);
+            return;
+        }
         setEmailForm({
             email: '',
             subject: defaultSubject,
@@ -202,6 +220,19 @@ const ComplaintPrintTindakanAduan = () => {
         return <div className="print-loading">Aduan tidak ditemui.</div>;
     }
 
+    if (blockingMessage) {
+        return (
+            <div className="print-page">
+                <div className="print-toolbar no-print">
+                    <Link className="app-button app-button-ghost" to={`/app/complaints/${id}`}>
+                        Kembali
+                    </Link>
+                </div>
+                <div className="print-loading">{blockingMessage}</div>
+            </div>
+        );
+    }
+
     return (
         <div className="print-page">
             <div className="print-toolbar no-print">
@@ -269,7 +300,7 @@ const ComplaintPrintTindakanAduan = () => {
                 <div className="print-notes">
                     <span>Minit / Arahan Tindakan :</span>
                     <div className="print-notes-box">
-                        {renderValue(caseSource?.directive_notes || caseSource?.report_notes || complaint.aj_directive_notes || complaint.aj_report_notes)}
+                        {renderValue(directiveNotes)}
                     </div>
                 </div>
 
