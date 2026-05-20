@@ -41,7 +41,6 @@ class AuthController extends Controller
 
         // find user
         $user = User::with([
-            'district:id,name',
             'staff:id,user_id,staff_id,name,district_id',
             'staff.district:id,name',
         ])->where('id', Auth::user()->id)->first();

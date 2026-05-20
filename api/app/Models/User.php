@@ -53,11 +53,6 @@ class User extends Authenticatable
         return $this->hasOne(Staff::class);
     }
 
-    public function district()
-    {
-        return $this->belongsTo(District::class);
-    }
-
     public function mobilePushTokens()
     {
         return $this->hasMany(MobilePushToken::class);

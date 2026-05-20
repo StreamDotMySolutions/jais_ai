@@ -20,7 +20,7 @@ const Profile = () => {
         if (roleName !== 'pegawai_daerah') {
             return String(role?.name || '').toUpperCase();
         }
-        const districtName = String(account?.staff?.district?.name || account?.district?.name || cachedDistrictName || '').trim();
+        const districtName = String(account?.staff?.district?.name || cachedDistrictName || '').trim();
         return districtName || 'Daerah belum ditetapkan. Sila minta assign daerah dahulu.';
     };
 

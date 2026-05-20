@@ -6782,9 +6782,11 @@ class ComplaintController extends Controller
 
     private function resolveUserDistrictId($user): ?int
     {
-        if (! empty($user->district_id)) {
-            return (int) $user->district_id;
+        if (! $user) {
+            return null;
         }
+
+        $user->loadMissing('staff:id,user_id,district_id');
 
         if ($user->staff && ! empty($user->staff->district_id)) {
             return (int) $user->staff->district_id;

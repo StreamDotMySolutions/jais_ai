@@ -59,9 +59,7 @@ function SignIn() {
             const normalizedRole = rawRole && rawRole !== 'null' && rawRole !== 'undefined'
                 ? rawRole
                 : 'awam';
-            const districtName = response?.data?.user?.district?.name
-                || response?.data?.staff?.district?.name
-                || '';
+            const districtName = response?.data?.staff?.district?.name || '';
             localStorage.setItem('token', response.data.token) // token to be used with axios interceptor
             localStorage.setItem('role', normalizedRole) // token to be used with profile
             localStorage.setItem('user_name', response.data.user?.name || 'Pengguna')

@@ -23,7 +23,7 @@ class UserController extends Controller
         $keyword = trim((string) $request->query('keyword', ''));
 
         $query = User::query()
-            ->with(['roles', 'district:id,name'])
+            ->with(['roles'])
             ->orderBy('name');
 
         if ($keyword !== '') {
@@ -61,7 +61,6 @@ class UserController extends Controller
             'role' => ['nullable', 'string', Rule::exists(config('permission.table_names.roles'), 'name')],
             'status' => 'nullable|boolean',
             'office_type' => 'nullable|string|in:hq,daerah',
-            'district_id' => 'nullable|exists:districts,id',
         ]);
 
         $user = User::create([
@@ -70,7 +69,6 @@ class UserController extends Controller
             'password' => Hash::make($validated['password']),
             'status' => $validated['status'] ?? 1,
             'office_type' => $validated['office_type'] ?? null,
-            'district_id' => $validated['district_id'] ?? null,
         ]);
 
         if (! empty($validated['role'])) {
@@ -79,7 +77,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'User created',
-            'data' => $user->load(['roles', 'district:id,name']),
+            'data' => $user->load(['roles']),
         ]);
     }
 
@@ -97,7 +95,6 @@ class UserController extends Controller
             'role' => ['nullable', 'string', Rule::exists(config('permission.table_names.roles'), 'name')],
             'status' => 'nullable|boolean',
             'office_type' => 'nullable|string|in:hq,daerah',
-            'district_id' => 'nullable|exists:districts,id',
         ]);
 
         $payload = [
@@ -105,7 +102,6 @@ class UserController extends Controller
             'email' => $validated['email'],
             'status' => $validated['status'] ?? $user->status,
             'office_type' => $validated['office_type'] ?? null,
-            'district_id' => $validated['district_id'] ?? null,
         ];
 
         if (! empty($validated['password'])) {
@@ -120,7 +116,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'User updated',
-            'data' => $user->load(['roles', 'district:id,name']),
+            'data' => $user->load(['roles']),
         ]);
     }
 }

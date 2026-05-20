@@ -127,10 +127,6 @@ class AppointmentController extends Controller
             return null;
         }
 
-        if (! empty($user->district_id)) {
-            return (int) $user->district_id;
-        }
-
         $user->loadMissing('staff:id,user_id,district_id');
         if ($user->staff && ! empty($user->staff->district_id)) {
             return (int) $user->staff->district_id;

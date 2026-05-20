@@ -11,7 +11,6 @@ const emptyForm = {
     role: '',
     status: '1',
     office_type: '',
-    district_id: '',
 };
 
 const UserList = () => {
@@ -19,7 +18,6 @@ const UserList = () => {
     const token = localStorage.getItem('token');
     const [users, setUsers] = useState([]);
     const [roles, setRoles] = useState([]);
-    const [districts, setDistricts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [form, setForm] = useState(emptyForm);
@@ -85,17 +83,6 @@ const UserList = () => {
             .catch(() => {});
     }, [apiUrl]);
 
-    useEffect(() => {
-        if (!apiUrl) {
-            return;
-        }
-        axios.get(`${apiUrl}/districts`)
-            .then((response) => {
-                setDistricts(response?.data?.data || []);
-            })
-            .catch(() => {});
-    }, [apiUrl]);
-
     const openCreate = () => {
         setForm(emptyForm);
         setEditingId(null);
@@ -110,7 +97,6 @@ const UserList = () => {
             role: item.roles?.[0]?.name || '',
             status: item.status ? '1' : '0',
             office_type: item.office_type || '',
-            district_id: item.district_id || '',
         });
         setEditingId(item.id);
         setShowModal(true);
@@ -137,7 +123,6 @@ const UserList = () => {
             role: form.role || null,
             status: form.status === '1' ? 1 : 0,
             office_type: form.office_type || null,
-            district_id: form.district_id || null,
         };
         if (form.password) {
             payload.password = form.password;
@@ -347,17 +332,6 @@ const UserList = () => {
                                     <option value="">Pilih Penempatan</option>
                                     <option value="hq">HQ</option>
                                     <option value="daerah">Daerah</option>
-                                </select>
-                            </label>
-                            <label className="app-form-field">
-                                <span>Daerah</span>
-                                <select value={form.district_id} onChange={(e) => updateField('district_id', e.target.value)}>
-                                    <option value="">Pilih Daerah</option>
-                                    {districts.map((district) => (
-                                        <option key={district.id} value={district.id}>
-                                            {district.name}
-                                        </option>
-                                    ))}
                                 </select>
                             </label>
                             <label className="app-form-field">
