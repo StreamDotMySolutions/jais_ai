@@ -5,7 +5,7 @@
     <title>Borang 5</title>
     <style>
         @page {
-            margin: 20mm 16mm 18mm 16mm;
+            margin: 16mm 17mm 18mm 17mm;
         }
 
         body {
@@ -21,14 +21,14 @@
         }
 
         .header {
-            margin-bottom: 26px;
+            margin-bottom: 2.7rem;
         }
 
         .meta {
             text-align: right;
             font-size: 8px;
             font-weight: 700;
-            margin-bottom: 24px;
+            margin-bottom: 2.4rem;
         }
 
         .title {
@@ -39,11 +39,11 @@
         }
 
         .title-spacer {
-            min-height: 12px;
+            min-height: 1.15rem;
         }
 
         .section-spacer {
-            height: 14px;
+            height: 1.4rem;
         }
 
         table {
@@ -52,56 +52,72 @@
         }
 
         .table-identity {
-            margin-top: 16px;
+            margin-top: 1.7rem;
+        }
+
+        .identity-title {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            text-decoration: underline;
+            margin: 0 0 0.4rem;
+            padding-left: 2.5rem;
         }
 
         .row-label {
             width: 30%;
             vertical-align: top;
+            font-size: 10px;
             line-height: 1.6;
-            padding-left: 32px;
+            padding-left: 2.5rem;
         }
 
         .row-value {
             width: 70%;
             vertical-align: top;
+            font-size: 10px;
             line-height: 1.6;
             font-weight: 700;
         }
 
         .inline-time-label {
-            margin-left: 52px;
+            margin-left: 4.7rem;
             font-weight: 400;
         }
 
         .body {
-            margin-top: 22px;
-            padding-left: 32px;
-            padding-right: 8px;
+            margin-top: 2.15rem;
+            padding-left: 2.5rem;
+            padding-right: 0.5rem;
         }
 
         .body-title {
             font-size: 10px;
             font-weight: 700;
-            margin-bottom: 9px;
+            margin-bottom: 0.9rem;
         }
 
         .body-text {
-            display: block;
-            width: 100%;
+            font-size: 10px;
             line-height: 1.6;
             text-align: left;
-            white-space: pre-wrap;
             word-break: break-word;
+        }
+
+        .body-line {
+            display: block;
+            margin: 0;
+            text-align: left;
         }
 
         .sign-row {
             width: 100%;
-            margin-top: 52px;
+            margin-top: 3.4rem;
+            page-break-inside: avoid;
         }
 
         .sign-row-bottom {
-            margin-top: 58px;
+            margin-top: 3.9rem;
         }
 
         .sign-empty {
@@ -117,37 +133,42 @@
         }
 
         .sign-label {
+            font-size: 10px;
             font-style: italic;
-            margin-bottom: 5px;
+            margin-bottom: 0.45rem;
         }
 
         .sign-name {
+            font-size: 10px;
             line-height: 1.5;
         }
 
         .sign-note {
-            margin-top: 3px;
+            margin-top: 0.2rem;
             font-size: 9px;
             font-style: italic;
             color: #4b5563;
         }
 
         .note {
-            margin-top: 20px;
-            padding-left: 32px;
-            padding-right: 8px;
+            margin-top: 2rem;
+            padding-left: 2.5rem;
+            padding-right: 0.5rem;
+            font-size: 10px;
             line-height: 1.6;
         }
 
         .date-note {
-            margin-top: 26px;
-            padding-left: 32px;
+            margin-top: 2.6rem;
+            padding-left: 2.5rem;
+            font-size: 10px;
             line-height: 1.6;
         }
 
         .main-status {
-            margin-top: 28px;
-            padding-left: 32px;
+            margin-top: 2.8rem;
+            padding-left: 2.5rem;
+            font-size: 10px;
             line-height: 1.6;
             font-weight: 700;
             color: #d32f2f;
@@ -184,6 +205,11 @@
         </table>
 
         <table class="table-identity">
+            @if(($caseType ?? 'AJ') === 'AK')
+                <tr>
+                    <td colspan="2" class="identity-title">BUTIR-BUTIR PEMBERI MAKLUMAT</td>
+                </tr>
+            @endif
             <tr>
                 <td class="row-label">Nama</td>
                 <td class="row-value">{{ $informantName ?: '-' }}</td>
@@ -209,22 +235,26 @@
         <div class="body">
             <div class="body-title">SAYA DENGAN INI MEMBERIKAN MAKLUMAT BERIKUT :</div>
             @php
-                $reportLines = preg_split("/\r\n|\n|\r/", (string) ($reportText ?: '-'));
+                $reportLines = array_values(array_filter(
+                    array_map(static fn ($line) => ltrim((string) $line), preg_split("/\r\n|\n|\r/", (string) ($reportText ?: '-')) ?: []),
+                    static fn ($line) => $line !== ''
+                ));
                 $hasBoldedLokasiLine = false;
             @endphp
             <div class="body-text">
-                @foreach($reportLines as $index => $line)
+                @foreach($reportLines as $line)
                     @php
-                        $line = ltrim((string) $line);
                         $matched = preg_match('/^(\s*(?:LOKASI|LOKASI KEJADIAN|ALAMAT KEJADIAN|ALAMAT LOKASI KEJADIAN)\s*:\s*)(.*)$/i', $line, $parts) === 1;
                     @endphp
                     @if($matched && ! $hasBoldedLokasiLine)
                         @php $hasBoldedLokasiLine = true; @endphp
-                        <span>{{ trim((string) $parts[1]) }} </span><strong>{{ trim((string) $parts[2]) !== '' ? trim((string) $parts[2]) : '-' }}</strong>
+                        <div class="body-line">
+                            <span>{{ trim((string) $parts[1]) }}</span>
+                            <strong>{{ trim((string) $parts[2]) !== '' ? trim((string) $parts[2]) : '-' }}</strong>
+                        </div>
                     @else
-                        {{ $line !== '' ? $line : ' ' }}
+                        <div class="body-line">{{ $line }}</div>
                     @endif
-                    @if($index < count($reportLines) - 1)<br>@endif
                 @endforeach
             </div>
         </div>
