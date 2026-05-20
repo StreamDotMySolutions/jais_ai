@@ -82,6 +82,11 @@ const WaranCalendarStatus = () => {
         status: '',
         dateField: 'all',
     });
+    const [moreDialog, setMoreDialog] = useState({
+        open: false,
+        dateKey: '',
+        events: [],
+    });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -168,6 +173,7 @@ const WaranCalendarStatus = () => {
 
     const dayEvents = eventsByDate[focusDateKey] || [];
     const headerCount = viewMode === 'day' ? dayEvents.length : total;
+    const closeMoreDialog = () => setMoreDialog({ open: false, dateKey: '', events: [] });
 
     return (
         <ListPageLayout
@@ -330,7 +336,22 @@ const WaranCalendarStatus = () => {
                                                 </button>
                                             );
                                         })}
-                                        {!loading && moreCount > 0 ? <span className="app-waran-calendar-more">+{moreCount} lagi</span> : null}
+                                        {!loading && moreCount > 0 ? (
+                                            <button
+                                                type="button"
+                                                className="app-waran-calendar-more"
+                                                onClick={() => {
+                                                    setMoreDialog({
+                                                        open: true,
+                                                        dateKey,
+                                                        events,
+                                                    });
+                                                }}
+                                                title={`Lihat ${moreCount} rekod lagi pada ${formatDateDisplay(dateKey)}`}
+                                            >
+                                                +{moreCount} lagi
+                                            </button>
+                                        ) : null}
                                     </div>
                                 </div>
                             );
@@ -369,6 +390,58 @@ const WaranCalendarStatus = () => {
                     </div>
                 )}
             </div>
+            {moreDialog.open ? (
+                <div className="app-waran-calendar-dialog-backdrop" onClick={closeMoreDialog}>
+                    <div
+                        className="app-waran-calendar-dialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={`Senarai waran ${formatDateDisplay(moreDialog.dateKey)}`}
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="app-waran-calendar-dialog-head">
+                            <div>
+                                <strong>{formatDateDisplay(moreDialog.dateKey)}</strong>
+                                <span>{moreDialog.events.length} rekod dipaparkan</span>
+                            </div>
+                            <button className="app-calendar-close" type="button" onClick={closeMoreDialog}>×</button>
+                        </div>
+                        <div className="app-waran-calendar-dialog-list">
+                            {moreDialog.events.map((event) => {
+                                const meta = STATUS_META[event.status] || { label: event.status_label || event.status, color: '#334155' };
+                                return (
+                                    <div key={`${event.id}-${event.status}-${event.no_kes}`} className="app-waran-calendar-dialog-item">
+                                        <div className="app-waran-calendar-dialog-grid">
+                                            <span>Status</span>
+                                            <strong style={{ color: meta.color }}>{meta.label}</strong>
+                                            <span>No. Kes</span>
+                                            <strong>{event.no_kes || '-'}</strong>
+                                            <span>Daerah</span>
+                                            <strong>{event.district_name || '-'}</strong>
+                                            <span>Tarikh</span>
+                                            <strong>{formatDateDisplay(event.date)}</strong>
+                                        </div>
+                                        <div className="app-waran-calendar-dialog-actions">
+                                            <button
+                                                className="app-button"
+                                                type="button"
+                                                onClick={() => navigate(`/app/i-waran/${event.id}`)}
+                                            >
+                                                Buka Waran
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="app-waran-calendar-dialog-footer">
+                            <button className="app-button app-button-ghost" type="button" onClick={closeMoreDialog}>
+                                Tutup
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </ListPageLayout>
     );
 };

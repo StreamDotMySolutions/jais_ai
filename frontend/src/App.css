@@ -8933,8 +8933,103 @@ body {
 }
 
 .app-waran-calendar-more {
+  border: 0;
+  background: transparent;
+  padding: 0;
   font-size: 0.72rem;
   color: #60717b;
+  text-align: left;
+  cursor: pointer;
+}
+
+.app-waran-calendar-more:hover {
+  color: #0f3f9f;
+  text-decoration: underline;
+}
+
+.app-waran-calendar-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: rgba(15, 23, 42, 0.28);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 96px 16px 24px;
+}
+
+.app-waran-calendar-dialog {
+  width: min(640px, 96vw);
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  background: #ffffff;
+  border: 1px solid #e1e7e4;
+  border-radius: 16px;
+  padding: 0.95rem;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.14);
+}
+
+.app-waran-calendar-dialog-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.8rem;
+}
+
+.app-waran-calendar-dialog-head strong {
+  display: block;
+  color: #1f2f26;
+  font-size: 1.02rem;
+}
+
+.app-waran-calendar-dialog-head span {
+  display: block;
+  margin-top: 0.15rem;
+  color: #6b7a83;
+  font-size: 0.8rem;
+}
+
+.app-waran-calendar-dialog-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.app-waran-calendar-dialog-item {
+  border: 1px solid #dde6e2;
+  border-radius: 14px;
+  padding: 0.8rem 0.85rem;
+  background: #ffffff;
+}
+
+.app-waran-calendar-dialog-grid {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  column-gap: 0.85rem;
+  row-gap: 0.3rem;
+}
+
+.app-waran-calendar-dialog-grid > span {
+  color: #667780;
+  font-size: 0.8rem;
+}
+
+.app-waran-calendar-dialog-grid > strong {
+  color: #24343d;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.app-waran-calendar-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+
+.app-waran-calendar-dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.9rem;
 }
 
 .app-waran-calendar-loading {
@@ -9076,6 +9171,10 @@ body {
   }
 
   .app-waran-calendar-day-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .app-waran-calendar-dialog-grid {
     grid-template-columns: 1fr;
   }
 }
