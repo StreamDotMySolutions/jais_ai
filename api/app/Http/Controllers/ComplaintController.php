@@ -2272,7 +2272,7 @@ class ComplaintController extends Controller
         }
 
         $complaint->load([
-            'submittedBy:id,name,email,office_type,district_id',
+            'submittedBy:id,name,email,office_type',
             'submittedBy.staff',
             'submittedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'receivedBy:id,name,email',
@@ -3344,7 +3344,7 @@ class ComplaintController extends Controller
         }
 
         $freshComplaint = $complaint->fresh()->load([
-            'submittedBy:id,name,email,office_type,district_id',
+            'submittedBy:id,name,email,office_type',
             'submittedBy.staff',
             'submittedBy.staff.office:id,name,code,office_type,district_id,phone,address',
             'receivedBy:id,name,email',
