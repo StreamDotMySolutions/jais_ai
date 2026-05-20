@@ -9850,13 +9850,13 @@ body {
 .print-signature-laporan .print-sign-col-centered {
   width: 340px;
   margin-left: auto;
-  margin-right: 70px;
+  margin-right: 0;
 }
 
 .print-signature-laporan-bottom .print-sign-col-centered {
   width: 340px;
   margin-left: auto;
-  margin-right: 70px;
+  margin-right: 0;
 }
 
 .print-sign-label {
