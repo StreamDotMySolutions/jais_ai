@@ -2423,15 +2423,22 @@ body {
   color: #ffffff;
   font-size: 0.8rem;
   font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 
 .app-side-user-role {
   color: #c8d2ff;
   font-size: 0.7rem;
   text-transform: lowercase;
+}
+
+.app-side-user-role.is-district {
+  text-transform: none;
+  line-height: 1.25;
+}
+
+.app-side-user-role.is-warning {
+  color: #ffe08a;
 }
 
 .app-side-logout {

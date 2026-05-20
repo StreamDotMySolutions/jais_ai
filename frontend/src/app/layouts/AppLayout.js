@@ -215,6 +215,7 @@ const AppLayout = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('role');
         localStorage.removeItem('user_name');
+        localStorage.removeItem('district_name');
         navigate('/sign-in', { replace: true });
     };
 

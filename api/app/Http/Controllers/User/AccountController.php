@@ -13,6 +13,12 @@ class AccountController extends Controller
     public function show(Request $request)
     {
         $user = $request->user(); // Get the authenticated user
+        $user->loadMissing([
+            'district:id,name',
+            'staff:id,user_id,staff_id,name,district_id',
+            'staff.district:id,name',
+            'roles:id,name',
+        ]);
     
         // Retrieve the user's role using Spatie
         $role = $user->roles->pluck('name')->first();

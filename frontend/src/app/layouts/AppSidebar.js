@@ -12,6 +12,13 @@ const AppSidebar = ({
 }) => {
     const location = useLocation();
     const navigate = useNavigate();
+    const districtName = String(localStorage.getItem('district_name') || '').trim();
+    const userRoleLabel = useMemo(() => {
+        if (role !== 'pegawai_daerah') {
+            return role;
+        }
+        return districtName || 'Daerah belum ditetapkan. Sila minta assign daerah dahulu.';
+    }, [districtName, role]);
     const skeletonItems = Array.from({ length: 6 }, (_, index) => index);
     const { roots, childrenMap } = useMemo(() => {
         const map = new Map();
@@ -209,7 +216,7 @@ const AppSidebar = ({
                     </span>
                     <div className="app-side-user-meta">
                         <div className="app-side-user-name">{userName}</div>
-                        <div className="app-side-user-role">{role}</div>
+                        <div className={`app-side-user-role${role === 'pegawai_daerah' ? ' is-district' : ''}${role === 'pegawai_daerah' && !districtName ? ' is-warning' : ''}`}>{userRoleLabel}</div>
                     </div>
                     <button
                         type="button"

@@ -14,6 +14,15 @@ const Profile = () => {
     const [isLoading, setIsLoading] = useState(false);
     const account = store.getValue('account');
     const [shouldAutoOpenPassword, setShouldAutoOpenPassword] = useState(false);
+    const cachedDistrictName = String(localStorage.getItem('district_name') || '').trim();
+    const getRoleBadgeLabel = (role) => {
+        const roleName = String(role?.name || '').trim().toLowerCase();
+        if (roleName !== 'pegawai_daerah') {
+            return String(role?.name || '').toUpperCase();
+        }
+        const districtName = String(account?.staff?.district?.name || account?.district?.name || cachedDistrictName || '').trim();
+        return districtName || 'Daerah belum ditetapkan. Sila minta assign daerah dahulu.';
+    };
 
     useEffect(() => {
         const params = new URLSearchParams(location.search || '');
@@ -101,7 +110,7 @@ const Profile = () => {
                         <td>
                         {account?.roles?.map((role, index) => (
                             <span key={index}>
-                            <Badge bg='dark'>{role.name.toUpperCase()}</Badge>
+                            <Badge bg='dark'>{getRoleBadgeLabel(role)}</Badge>
                             {index < account.roles.length - 1 && ", "} {/* Adds a comma between role names except after the last one */}
                             </span>
                         ))}
