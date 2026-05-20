@@ -1204,6 +1204,14 @@ const CaseDetail = () => {
 
             <div className="app-report-sticky app-case-sticky-actions">
                 <button type="button" className="app-button" onClick={saveCase} disabled={isSaving}>
+                    {isSaving && (
+                        <span
+                            className="spinner-border spinner-border-sm"
+                            role="status"
+                            aria-hidden="true"
+                            style={{ marginRight: '.45rem' }}
+                        ></span>
+                    )}
                     {isSaving ? 'Menyimpan...' : (isDraft ? 'Simpan Kes & Jana No Kes' : 'Simpan Kes')}
                 </button>
                 {!isDraft && (
