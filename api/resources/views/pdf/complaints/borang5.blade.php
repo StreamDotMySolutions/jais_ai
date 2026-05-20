@@ -87,6 +87,8 @@
         }
 
         .body-text {
+            display: block;
+            width: 100%;
             line-height: 1.6;
             text-align: left;
             white-space: pre-wrap;
@@ -213,12 +215,12 @@
             <div class="body-text">
                 @foreach($reportLines as $index => $line)
                     @php
-                        $line = (string) $line;
+                        $line = ltrim((string) $line);
                         $matched = preg_match('/^(\s*(?:LOKASI|LOKASI KEJADIAN|ALAMAT KEJADIAN|ALAMAT LOKASI KEJADIAN)\s*:\s*)(.*)$/i', $line, $parts) === 1;
                     @endphp
                     @if($matched && ! $hasBoldedLokasiLine)
                         @php $hasBoldedLokasiLine = true; @endphp
-                        <span>{{ $parts[1] }}</span><strong>{{ $parts[2] !== '' ? $parts[2] : '-' }}</strong>
+                        <span>{{ trim((string) $parts[1]) }} </span><strong>{{ trim((string) $parts[2]) !== '' ? trim((string) $parts[2]) : '-' }}</strong>
                     @else
                         {{ $line !== '' ? $line : ' ' }}
                     @endif
