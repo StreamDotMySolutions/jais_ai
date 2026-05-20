@@ -218,6 +218,7 @@ const ComplaintDetail = () => {
     const [payloadMessage, setPayloadMessage] = useState('');
     const [reportMessage, setReportMessage] = useState('');
     const [actionReportMessage, setActionReportMessage] = useState('');
+    const [isDispatchingToDistrict, setIsDispatchingToDistrict] = useState(false);
     const [isAjReportModalOpen, setIsAjReportModalOpen] = useState(false);
     const [statusInput, setStatusInput] = useState('');
     const [caseTypeMessage, setCaseTypeMessage] = useState('');
@@ -1614,11 +1615,12 @@ const ComplaintDetail = () => {
     };
 
     const submitDispatchToDistrict = () => {
-        if (!apiUrl || !id) {
+        if (!apiUrl || !id || isDispatchingToDistrict) {
             return;
         }
         const token = localStorage.getItem('token');
         setActionReportMessage('');
+        setIsDispatchingToDistrict(true);
         axios.post(`${apiUrl}/complaints/${id}/dispatch-to-district`, {}, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -1641,6 +1643,9 @@ const ComplaintDetail = () => {
                 const msg = err?.response?.data?.message || 'Gagal menghantar aduan ke daerah.';
                 setActionReportMessage(msg);
                 toast.error(msg);
+            })
+            .finally(() => {
+                setIsDispatchingToDistrict(false);
             });
     };
 
@@ -2247,13 +2252,17 @@ const ComplaintDetail = () => {
         : '';
     const dispatchBlockedMessage = dispatchMissingMessage || dispatchUnsavedMessage;
     const canDispatchToDistrict = isAdminMaintenanceRole || (isAwaitingPiDispatch && !dispatchBlockedMessage);
-    const dispatchButtonDisabled = !isAdminMaintenanceRole && (isPegawaiDaerahRole || isAlreadyDispatchedToDistrict || !canDispatchToDistrict);
+    const dispatchButtonDisabled = isDispatchingToDistrict || (!isAdminMaintenanceRole && (isPegawaiDaerahRole || isAlreadyDispatchedToDistrict || !canDispatchToDistrict));
     const dispatchDistrictName = String(complaint?.district_name || complaint?.district?.name || '').trim();
-    const dispatchButtonLabel = dispatchDistrictName ? `Hantar ke ${dispatchDistrictName}` : 'Hantar';
+    const dispatchButtonLabel = isDispatchingToDistrict
+        ? 'Sedang menghantar...'
+        : (dispatchDistrictName ? `Hantar ke ${dispatchDistrictName}` : 'Hantar');
     const dispatchButtonTitle = isAdminMaintenanceRole
-        ? undefined
+        ? (isDispatchingToDistrict ? 'Sistem sedang menghantar aduan ke daerah.' : undefined)
         : isPegawaiDaerahRole
         ? 'Pegawai Daerah tidak dibenarkan menghantar aduan ke daerah.'
+        : isDispatchingToDistrict
+        ? 'Sistem sedang menghantar aduan ke daerah.'
         : isAlreadyDispatchedToDistrict
         ? 'Aduan telah dihantar ke daerah.'
         : (isAwaitingPiDispatch ? (dispatchBlockedMessage || undefined) : 'Aduan hanya boleh dihantar selepas disahkan.');
@@ -3534,6 +3543,9 @@ const ComplaintDetail = () => {
                                         title={dispatchButtonTitle}
                                         onClick={submitDispatchToDistrict}
                                     >
+                                        {isDispatchingToDistrict && (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ marginRight: '.45rem' }}></span>
+                                        )}
                                         {dispatchButtonLabel}
                                     </button>
                                     <button
