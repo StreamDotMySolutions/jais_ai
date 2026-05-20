@@ -361,12 +361,26 @@ const ComplaintDetail = () => {
                 });
             })
             .catch((err) => {
-                setError(err?.message || 'Gagal mendapatkan aduan.');
+                const status = err?.response?.status;
+                if (status === 403) {
+                    if (role === 'pegawai_daerah') {
+                        const districtName = (localStorage.getItem('district_name') || '').trim();
+                        setError(
+                            districtName
+                                ? `Anda tidak mempunyai akses ke aduan ini kerana ia bukan dalam daerah ${districtName} anda.`
+                                : 'Anda belum ditetapkan kepada mana-mana daerah. Sila minta pentadbir assign daerah anda terlebih dahulu.'
+                        );
+                        return;
+                    }
+                    setError('Anda tidak mempunyai kebenaran untuk membuka aduan ini.');
+                    return;
+                }
+                setError(err?.response?.data?.message || err?.message || 'Gagal mendapatkan aduan.');
             })
             .finally(() => {
                 setIsLoading(false);
             });
-    }, [apiUrl, id]);
+    }, [apiUrl, id, role]);
 
     useEffect(() => {
         const el = detailHeaderRef.current;
