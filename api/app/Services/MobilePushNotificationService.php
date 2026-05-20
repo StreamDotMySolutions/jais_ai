@@ -133,12 +133,8 @@ class MobilePushNotificationService
             ->whereHas('roles', function ($roleQuery) {
                 $roleQuery->where('name', 'pegawai_daerah');
             })
-            ->where(function ($scopeQuery) use ($complaint) {
-                $scopeQuery
-                    ->where('district_id', $complaint->district_id)
-                    ->orWhereHas('staff', function ($staffQuery) use ($complaint) {
-                        $staffQuery->where('district_id', $complaint->district_id);
-                    });
+            ->whereHas('staff', function ($staffQuery) use ($complaint) {
+                $staffQuery->where('district_id', $complaint->district_id);
             })
             ->pluck('id');
 
