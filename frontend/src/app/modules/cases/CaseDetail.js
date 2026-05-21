@@ -629,7 +629,15 @@ const CaseDetail = () => {
                                             onClick={() => linkComplaintToCase(complaint.id)}
                                             disabled={isLinked || isLinkingComplaint}
                                         >
-                                            {isLinked ? 'Sudah Dipaut' : 'Paut'}
+                                            {!isLinked && isLinkingComplaint && (
+                                                <span
+                                                    className="spinner-border spinner-border-sm"
+                                                    role="status"
+                                                    aria-hidden="true"
+                                                    style={{ marginRight: '.45rem' }}
+                                                ></span>
+                                            )}
+                                            {isLinked ? 'Sudah Dipaut' : (isLinkingComplaint ? 'Memaut...' : 'Paut')}
                                         </button>
                                     </div>
                                 );
