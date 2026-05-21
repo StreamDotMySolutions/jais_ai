@@ -278,6 +278,14 @@ const WaranDetail = () => {
                             onClick={handleDispatch}
                             disabled={actionLoading === 'dispatch'}
                         >
+                            {actionLoading === 'dispatch' && (
+                                <span
+                                    className="spinner-border spinner-border-sm"
+                                    role="status"
+                                    aria-hidden="true"
+                                    style={{ marginRight: '.45rem' }}
+                                ></span>
+                            )}
                             {actionLoading === 'dispatch' ? 'Menghantar...' : `Hantar ke ${record.daerah?.name || 'Daerah'}`}
                         </button>
                     )}
@@ -288,6 +296,14 @@ const WaranDetail = () => {
                             onClick={handlePickup}
                             disabled={actionLoading === 'pickup'}
                         >
+                            {actionLoading === 'pickup' && (
+                                <span
+                                    className="spinner-border spinner-border-sm"
+                                    role="status"
+                                    aria-hidden="true"
+                                    style={{ marginRight: '.45rem' }}
+                                ></span>
+                            )}
                             {actionLoading === 'pickup' ? 'Menerima...' : 'Terima Waran'}
                         </button>
                     )}
@@ -298,6 +314,14 @@ const WaranDetail = () => {
                             onClick={handleSendToCourt}
                             disabled={actionLoading === 'court'}
                         >
+                            {actionLoading === 'court' && (
+                                <span
+                                    className="spinner-border spinner-border-sm"
+                                    role="status"
+                                    aria-hidden="true"
+                                    style={{ marginRight: '.45rem' }}
+                                ></span>
+                            )}
                             {actionLoading === 'court' ? 'Menghantar...' : 'Hantar ke Mahkamah'}
                         </button>
                     )}

@@ -228,6 +228,12 @@ const ComplaintDetail = () => {
     const [districtOptions, setDistrictOptions] = useState([]);
     const [basicEditing, setBasicEditing] = useState(false);
     const [basicSaving, setBasicSaving] = useState(false);
+    const [approvalSaving, setApprovalSaving] = useState(false);
+    const [assigneeSaving, setAssigneeSaving] = useState(false);
+    const [ajPayloadSaving, setAjPayloadSaving] = useState(false);
+    const [akPayloadSaving, setAkPayloadSaving] = useState(false);
+    const [ajReportSaving, setAjReportSaving] = useState(false);
+    const [ajActionReportSaving, setAjActionReportSaving] = useState(false);
     const [basicMessage, setBasicMessage] = useState('');
     const [addressExpanded, setAddressExpanded] = useState(false);
     const [summaryExpanded, setSummaryExpanded] = useState(false);
@@ -1579,11 +1585,12 @@ const ComplaintDetail = () => {
     };
 
     const submitApproval = () => {
-        if (!apiUrl) {
+        if (!apiUrl || approvalSaving) {
             return;
         }
         const token = localStorage.getItem('token');
         setActionMessage('');
+        setApprovalSaving(true);
         axios.post(`${apiUrl}/complaints/${id}/approve`, {}, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         })
@@ -1611,7 +1618,8 @@ const ComplaintDetail = () => {
                 const msg = err?.response?.data?.message || 'Gagal mengesahkan aduan.';
                 setActionMessage(msg);
                 toast.error(msg);
-            });
+            })
+            .finally(() => setApprovalSaving(false));
     };
 
     const submitDispatchToDistrict = () => {
@@ -1691,11 +1699,12 @@ const ComplaintDetail = () => {
     };
 
     const submitAjPayload = () => {
-        if (!apiUrl) {
+        if (!apiUrl || ajPayloadSaving) {
             return;
         }
         const token = localStorage.getItem('token');
         setPayloadMessage('');
+        setAjPayloadSaving(true);
         axios.post(`${apiUrl}/complaints/${id}/aj`, {
             // Keep fir_no consistent with reference_no (Zoho field is effectively No Aduan).
             payload: {
@@ -1742,11 +1751,12 @@ const ComplaintDetail = () => {
             })
             .catch((err) => {
                 setPayloadMessage(err?.response?.data?.message || 'Gagal kemaskini AJ.');
-            });
+            })
+            .finally(() => setAjPayloadSaving(false));
     };
 
     const submitAkPayload = () => {
-        if (!apiUrl) {
+        if (!apiUrl || akPayloadSaving) {
             return;
         }
         if (!akPayload.offense_id) {
@@ -1757,6 +1767,7 @@ const ComplaintDetail = () => {
         }
         const token = localStorage.getItem('token');
         setPayloadMessage('');
+        setAkPayloadSaving(true);
         axios.post(`${apiUrl}/complaints/${id}/ak`, {
             payload: akPayload,
         }, {
@@ -1795,11 +1806,12 @@ const ComplaintDetail = () => {
             })
             .catch((err) => {
                 setPayloadMessage(err?.response?.data?.message || 'Gagal kemaskini AK.');
-            });
+            })
+            .finally(() => setAkPayloadSaving(false));
     };
 
     const submitAjReport = () => {
-        if (!apiUrl) {
+        if (!apiUrl || ajReportSaving) {
             return;
         }
         const ajReportMissingFields = [];
@@ -1823,6 +1835,7 @@ const ComplaintDetail = () => {
         }
         const token = localStorage.getItem('token');
         setReportMessage('');
+        setAjReportSaving(true);
         axios.post(`${apiUrl}/complaints/${id}/aj-report`, {
             report: {
                 ...ajReport,
@@ -1848,7 +1861,8 @@ const ComplaintDetail = () => {
                 const msg = err?.response?.data?.message || 'Gagal kemaskini laporan.';
                 setReportMessage(msg);
                 toast.error(msg);
-            });
+            })
+            .finally(() => setAjReportSaving(false));
     };
 
     const activateAjCase = (caseId, { openCaseDetail = false } = {}) => {
@@ -1920,11 +1934,12 @@ const ComplaintDetail = () => {
     }, [complaint, id, location.search, navigate, primaryCase?.id]);
 
     const submitAjActionReport = () => {
-        if (!apiUrl) {
+        if (!apiUrl || ajActionReportSaving) {
             return;
         }
         const token = localStorage.getItem('token');
         setActionReportMessage('');
+        setAjActionReportSaving(true);
         axios.post(`${apiUrl}/complaints/${id}/aj-action-report`, {
             report: {
                 ...ajActionReport,
@@ -1954,11 +1969,12 @@ const ComplaintDetail = () => {
                 const msg = err?.response?.data?.message || 'Gagal kemaskini laporan tindakan.';
                 setActionReportMessage(msg);
                 toast.error(msg);
-            });
+            })
+            .finally(() => setAjActionReportSaving(false));
     };
 
     const submitAssignees = () => {
-        if (!apiUrl) {
+        if (!apiUrl || assigneeSaving) {
             return;
         }
         if ((complaint?.case_type || 'AJ') === 'AJ') {
@@ -2007,6 +2023,7 @@ const ComplaintDetail = () => {
         }
         const token = localStorage.getItem('token');
         setAssigneeMessage('');
+        setAssigneeSaving(true);
         axios.post(`${apiUrl}/complaints/${id}/assignees`, {
             approver_staff_id: approverStaffId || null,
         }, {
@@ -2022,7 +2039,8 @@ const ComplaintDetail = () => {
                 const msg = err?.response?.data?.message || 'Gagal kemaskini pegawai.';
                 setAssigneeMessage(msg);
                 toast.error(msg);
-            });
+            })
+            .finally(() => setAssigneeSaving(false));
     };
 
     const canReleaseIntakeLock = useCallback(() => {
@@ -3516,9 +3534,12 @@ const ComplaintDetail = () => {
                                     </div>
                                     <div className="app-approver-actions">
                                         {!complaint.approver_confirmed_at && !canApprove && !isAwaitingApproval && (
-                                            <button className="app-button app-button-ghost" type="button" onClick={submitAssignees}>
-                                                Hantar Pengesahan
-                                            </button>
+                                    <button className="app-button app-button-ghost" type="button" onClick={submitAssignees}>
+                                        {assigneeSaving && (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ marginRight: '.45rem' }}></span>
+                                        )}
+                                        {assigneeSaving ? 'Menghantar...' : 'Hantar Pengesahan'}
+                                    </button>
                                         )}
                                         {isAwaitingApproval && !canApprove && (
                                             <span className="app-status-pill app-status-pill-soft">
@@ -3527,14 +3548,20 @@ const ComplaintDetail = () => {
                                         )}
                                         {!complaint.approver_confirmed_at && canApprove && (
                                             <button className="app-button" type="button" onClick={submitApproval}>
-                                                Sahkan Aduan
+                                                {approvalSaving && (
+                                                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ marginRight: '.45rem' }}></span>
+                                                )}
+                                                {approvalSaving ? 'Mengesahkan...' : 'Sahkan Aduan'}
                                             </button>
                                         )}
                                     </div>
                                 </div>
                                 <div className="app-report-sticky app-span-full">
                                     <button className="app-button" type="button" onClick={submitAjPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
-                                        Simpan
+                                        {ajPayloadSaving && (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ marginRight: '.45rem' }}></span>
+                                        )}
+                                        {ajPayloadSaving ? 'Menyimpan...' : 'Simpan'}
                                     </button>
                                     <button
                                         className="app-button app-button-ghost"
@@ -3658,7 +3685,10 @@ const ComplaintDetail = () => {
 
                                 <div className="app-report-sticky app-span-full">
                                     <button className="app-button" type="button" onClick={submitAkPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
-                                        {isAkFirstIntakeSave ? 'Terima & Sahkan Aduan' : 'Simpan'}
+                                        {akPayloadSaving && (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ marginRight: '.45rem' }}></span>
+                                        )}
+                                        {akPayloadSaving ? 'Menyimpan...' : (isAkFirstIntakeSave ? 'Terima & Sahkan Aduan' : 'Simpan')}
                                     </button>
                                     <button
                                         className="app-button app-button-ghost"
@@ -4332,7 +4362,10 @@ const ComplaintDetail = () => {
 
                                 <div className="app-report-sticky app-span-full">
                                     <button className="app-button" type="button" onClick={submitAjActionReport} disabled={isSaveDisabled} title={saveDisabledTitle}>
-                                        Simpan
+                                        {ajActionReportSaving && (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ marginRight: '.45rem' }}></span>
+                                        )}
+                                        {ajActionReportSaving ? 'Menyimpan...' : 'Simpan'}
                                     </button>
                                     <button
                                         className="app-button app-button-ghost"
@@ -5052,7 +5085,10 @@ const ComplaintDetail = () => {
                                         />
                                     )}
                                     <button className="app-button" type="button" onClick={submitAjReport} disabled={isSaveDisabled} title={saveDisabledTitle}>
-                                        Simpan Laporan
+                                        {ajReportSaving && (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ marginRight: '.45rem' }}></span>
+                                        )}
+                                        {ajReportSaving ? 'Menyimpan...' : 'Simpan Laporan'}
                                     </button>
                                 </div>
                                             </div>
@@ -5130,7 +5166,10 @@ const ComplaintDetail = () => {
 
                                 <div className="app-form-actions app-span-full app-align-right">
                                     <button className="app-button" type="button" onClick={submitAjPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
-                                        Simpan
+                                        {ajPayloadSaving && (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ marginRight: '.45rem' }}></span>
+                                        )}
+                                        {ajPayloadSaving ? 'Menyimpan...' : 'Simpan'}
                                     </button>
                                 </div>
                             </div>
@@ -5200,7 +5239,10 @@ const ComplaintDetail = () => {
 
                                 <div className="app-form-actions app-span-full app-align-right">
                                     <button className="app-button" type="button" onClick={submitAjPayload} disabled={isSaveDisabled} title={saveDisabledTitle}>
-                                        Simpan
+                                        {ajPayloadSaving && (
+                                            <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ marginRight: '.45rem' }}></span>
+                                        )}
+                                        {ajPayloadSaving ? 'Menyimpan...' : 'Simpan'}
                                     </button>
                                 </div>
                             </div>

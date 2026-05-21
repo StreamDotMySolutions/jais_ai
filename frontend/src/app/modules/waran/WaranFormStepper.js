@@ -1286,20 +1286,36 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                             )}
                         </div>
 
-                        <div className="app-form-actions app-actions-sticky app-waran-step-actions">
-                            <button type="button" className="app-button" onClick={handleSubmit} disabled={saving}>
-                                {saving ? 'Menyimpan...' : 'Simpan'}
-                            </button>
-                            {isEdit && workflowMeta.can_dispatch && (
+                          <div className="app-form-actions app-actions-sticky app-waran-step-actions">
+                              <button type="button" className="app-button" onClick={handleSubmit} disabled={saving}>
+                                  {saving && (
+                                      <span
+                                          className="spinner-border spinner-border-sm"
+                                          role="status"
+                                          aria-hidden="true"
+                                          style={{ marginRight: '.45rem' }}
+                                      ></span>
+                                  )}
+                                  {saving ? 'Menyimpan...' : 'Simpan'}
+                              </button>
+                              {isEdit && workflowMeta.can_dispatch && (
                                 <button
                                     type="button"
                                     className="app-button app-button-ghost"
                                     onClick={() => handleWorkflowAction('dispatch')}
                                     disabled={saving}
                                 >
+                                    {saving && (
+                                        <span
+                                            className="spinner-border spinner-border-sm"
+                                            role="status"
+                                            aria-hidden="true"
+                                            style={{ marginRight: '.45rem' }}
+                                        ></span>
+                                    )}
                                     {saving ? 'Menghantar...' : `Hantar ke ${workflowMeta.district_name || 'Daerah'}`}
                                 </button>
-                            )}
+                              )}
                             {isEdit && workflowMeta.can_pickup && (
                                 <button
                                     type="button"
@@ -1307,9 +1323,17 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     onClick={() => handleWorkflowAction('pickup')}
                                     disabled={saving}
                                 >
+                                    {saving && (
+                                        <span
+                                            className="spinner-border spinner-border-sm"
+                                            role="status"
+                                            aria-hidden="true"
+                                            style={{ marginRight: '.45rem' }}
+                                        ></span>
+                                    )}
                                     {saving ? 'Menerima...' : 'Terima Waran'}
                                 </button>
-                            )}
+                              )}
                             <button
                                 type="button"
                                 className="app-button app-button-outline"
@@ -1516,20 +1540,36 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                             )}
                         </div>
 
-                        <div className="app-form-actions app-actions-sticky app-waran-step-actions">
-                            <button type="button" className="app-button" onClick={handleSubmit} disabled={saving}>
-                                {saving ? 'Menyimpan...' : 'Simpan'}
-                            </button>
-                            {isEdit && workflowMeta.can_dispatch && (
+                          <div className="app-form-actions app-actions-sticky app-waran-step-actions">
+                              <button type="button" className="app-button" onClick={handleSubmit} disabled={saving}>
+                                  {saving && (
+                                      <span
+                                          className="spinner-border spinner-border-sm"
+                                          role="status"
+                                          aria-hidden="true"
+                                          style={{ marginRight: '.45rem' }}
+                                      ></span>
+                                  )}
+                                  {saving ? 'Menyimpan...' : 'Simpan'}
+                              </button>
+                              {isEdit && workflowMeta.can_dispatch && (
                                 <button
                                     type="button"
                                     className="app-button app-button-ghost"
                                     onClick={() => handleWorkflowAction('dispatch')}
                                     disabled={saving}
                                 >
+                                    {saving && (
+                                        <span
+                                            className="spinner-border spinner-border-sm"
+                                            role="status"
+                                            aria-hidden="true"
+                                            style={{ marginRight: '.45rem' }}
+                                        ></span>
+                                    )}
                                     {saving ? 'Menghantar...' : `Hantar ke ${workflowMeta.district_name || 'Daerah'}`}
                                 </button>
-                            )}
+                              )}
                             {isEdit && workflowMeta.can_pickup && (
                                 <button
                                     type="button"
@@ -1537,19 +1577,35 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     onClick={() => handleWorkflowAction('pickup')}
                                     disabled={saving}
                                 >
+                                    {saving && (
+                                        <span
+                                            className="spinner-border spinner-border-sm"
+                                            role="status"
+                                            aria-hidden="true"
+                                            style={{ marginRight: '.45rem' }}
+                                        ></span>
+                                    )}
                                     {saving ? 'Menerima...' : 'Terima Waran'}
                                 </button>
-                            )}
-                            {isEdit && workflowMeta.can_send_to_court && (
+                              )}
+                              {isEdit && workflowMeta.can_send_to_court && (
                                 <button
                                     type="button"
                                     className="app-button app-button-ghost"
                                     onClick={() => handleWorkflowAction('court')}
                                     disabled={saving}
                                 >
+                                    {saving && (
+                                        <span
+                                            className="spinner-border spinner-border-sm"
+                                            role="status"
+                                            aria-hidden="true"
+                                            style={{ marginRight: '.45rem' }}
+                                        ></span>
+                                    )}
                                     {saving ? 'Menghantar...' : 'Hantar ke Mahkamah'}
                                 </button>
-                            )}
+                              )}
                             {isEdit && workflowMeta.sent_to_court_at && !workflowMeta.can_send_to_court && (
                                 <span className="app-status-pill-mini is-info" title={workflowMeta.sent_to_court_by?.name ? `Dihantar oleh ${workflowMeta.sent_to_court_by.name}` : 'Status penghantaran ke mahkamah'}>
                                     {workflowMeta.court_delivery_label || 'Telah hantar ke Mahkamah'}
@@ -1634,6 +1690,14 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 Batal
                             </button>
                             <button type="button" className="app-button" onClick={saveNewMahkamah} disabled={savingMahkamah}>
+                                {savingMahkamah && (
+                                    <span
+                                        className="spinner-border spinner-border-sm"
+                                        role="status"
+                                        aria-hidden="true"
+                                        style={{ marginRight: '.45rem' }}
+                                    ></span>
+                                )}
                                 {savingMahkamah ? 'Menyimpan...' : 'Simpan Mahkamah'}
                             </button>
                         </div>

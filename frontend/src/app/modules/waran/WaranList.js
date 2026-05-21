@@ -499,38 +499,62 @@ const WaranList = () => {
                                                 Mahkamah: {item.sent_to_court_by.name}
                                             </span>
                                         )}
-                                        {item.can_dispatch && (
-                                            <button
-                                                type="button"
-                                                className="app-button app-button-ghost app-button-mini"
-                                                onClick={() => handleDispatch(item)}
-                                                disabled={actionLoadingId === `dispatch-${item.id}`}
-                                            >
-                                                {actionLoadingId === `dispatch-${item.id}`
-                                                    ? 'Menghantar...'
-                                                    : `Hantar ke ${item.daerah?.name || 'Daerah'}`}
-                                            </button>
-                                        )}
-                                        {item.can_pickup && (
-                                            <button
-                                                type="button"
-                                                className="app-button app-button-ghost app-button-mini"
-                                                onClick={() => handlePickup(item)}
-                                                disabled={actionLoadingId === `pickup-${item.id}`}
-                                            >
-                                                {actionLoadingId === `pickup-${item.id}` ? 'Menerima...' : 'Terima Waran'}
-                                            </button>
-                                        )}
-                                        {item.can_send_to_court && (
-                                            <button
-                                                type="button"
-                                                className="app-button app-button-ghost app-button-mini"
-                                                onClick={() => handleSendToCourt(item)}
-                                                disabled={actionLoadingId === `court-${item.id}`}
-                                            >
-                                                {actionLoadingId === `court-${item.id}` ? 'Menghantar...' : 'Hantar ke Mahkamah'}
-                                            </button>
-                                        )}
+                                          {item.can_dispatch && (
+                                              <button
+                                                  type="button"
+                                                  className="app-button app-button-ghost app-button-mini"
+                                                  onClick={() => handleDispatch(item)}
+                                                  disabled={actionLoadingId === `dispatch-${item.id}`}
+                                              >
+                                                  {actionLoadingId === `dispatch-${item.id}` && (
+                                                      <span
+                                                          className="spinner-border spinner-border-sm"
+                                                          role="status"
+                                                          aria-hidden="true"
+                                                          style={{ marginRight: '.45rem' }}
+                                                      ></span>
+                                                  )}
+                                                  {actionLoadingId === `dispatch-${item.id}`
+                                                      ? 'Menghantar...'
+                                                      : `Hantar ke ${item.daerah?.name || 'Daerah'}`}
+                                              </button>
+                                          )}
+                                          {item.can_pickup && (
+                                              <button
+                                                  type="button"
+                                                  className="app-button app-button-ghost app-button-mini"
+                                                  onClick={() => handlePickup(item)}
+                                                  disabled={actionLoadingId === `pickup-${item.id}`}
+                                              >
+                                                  {actionLoadingId === `pickup-${item.id}` && (
+                                                      <span
+                                                          className="spinner-border spinner-border-sm"
+                                                          role="status"
+                                                          aria-hidden="true"
+                                                          style={{ marginRight: '.45rem' }}
+                                                      ></span>
+                                                  )}
+                                                  {actionLoadingId === `pickup-${item.id}` ? 'Menerima...' : 'Terima Waran'}
+                                              </button>
+                                          )}
+                                          {item.can_send_to_court && (
+                                              <button
+                                                  type="button"
+                                                  className="app-button app-button-ghost app-button-mini"
+                                                  onClick={() => handleSendToCourt(item)}
+                                                  disabled={actionLoadingId === `court-${item.id}`}
+                                              >
+                                                  {actionLoadingId === `court-${item.id}` && (
+                                                      <span
+                                                          className="spinner-border spinner-border-sm"
+                                                          role="status"
+                                                          aria-hidden="true"
+                                                          style={{ marginRight: '.45rem' }}
+                                                      ></span>
+                                                  )}
+                                                  {actionLoadingId === `court-${item.id}` ? 'Menghantar...' : 'Hantar ke Mahkamah'}
+                                              </button>
+                                          )}
                                     </span>
                                     <span>
                                         <div className="app-row-actions-stack is-compact">
