@@ -49,7 +49,9 @@ const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
     const linkedComplaint = isCasePrint
         ? ((Array.isArray(caseSource?.complaints) && caseSource.complaints.length) ? caseSource.complaints[0] : null)
         : complaint;
-    const laporanText = caseSource?.report_notes || linkedComplaint?.aj_report_notes || '';
+    const laporanText = isCasePrint
+        ? String(caseSource?.report_notes || '').trim()
+        : String(caseSource?.report_notes || linkedComplaint?.aj_report_notes || '').trim();
 
     const pad2 = (value) => String(value ?? '').padStart(2, '0');
 
@@ -91,12 +93,18 @@ const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
         return `${hh12}.${pad2(mm)} ${isPm ? 'PM' : 'AM'}`;
     };
 
-    const tarikhMasa = caseSource?.action_datetime || caseSource?.statement_datetime || linkedComplaint?.aj_action_datetime || '';
+    const tarikhMasa = isCasePrint
+        ? (caseSource?.action_datetime || '')
+        : (caseSource?.action_datetime || caseSource?.statement_datetime || linkedComplaint?.aj_action_datetime || '');
 
     const noDaftar = (() => {
         const caseRegisterNo = String(caseSource?.case_register_no || '').trim();
         if (caseRegisterNo) {
             return caseRegisterNo;
+        }
+
+        if (isCasePrint) {
+            return '';
         }
 
         const referenceNo = String(linkedComplaint?.reference_no || '').trim();
@@ -116,7 +124,9 @@ const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
         return `KES-${district}/${year}/${month}/${runningNo}`;
     })();
 
-    const arrestStaff = caseSource?.arrest_staff || caseSource?.arrestStaff || linkedComplaint?.aj_arrest_staff || linkedComplaint?.ajArrestStaff || null;
+    const arrestStaff = isCasePrint
+        ? (caseSource?.arrest_staff || caseSource?.arrestStaff || null)
+        : (caseSource?.arrest_staff || caseSource?.arrestStaff || linkedComplaint?.aj_arrest_staff || linkedComplaint?.ajArrestStaff || null);
     const officerName = arrestStaff?.name || '';
     const officerIdNo = arrestStaff?.ic_number || arrestStaff?.staff_id || '-';
     const officerJob = arrestStaff?.position || '-';
@@ -125,6 +135,31 @@ const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
     const reportParagraph = String(laporanText || '').trim().toUpperCase();
     const reportDate = formatDateDMY(tarikhMasa);
     const reportTime = formatTime12hDot(tarikhMasa);
+    const missingFields = [];
+
+    if (isCasePrint) {
+        if (!String(noDaftar || '').trim()) missingFields.push('No. Daftar Kes');
+        if (!String(caseSource?.action_datetime || '').trim()) missingFields.push('Tarikh / Masa Tindakan');
+        if (!String(caseSource?.arrest_staff_id || '').trim() || !String(officerName || '').trim()) missingFields.push('Pegawai Penangkap');
+        if (!String(laporanText || '').trim()) missingFields.push('Laporan / Catatan Kes');
+    }
+
+    const blockingMessage = missingFields.length > 0
+        ? `Lengkapkan medan wajib Laporan Tindakan dahulu: ${missingFields.join(', ')}.`
+        : '';
+
+    if (blockingMessage) {
+        return (
+            <div className="print-page">
+                <div className="print-toolbar no-print">
+                    <Link className="app-button app-button-ghost" to={isCasePrint ? `/app/cases/${id}` : `/app/complaints/${id}`}>
+                        Kembali
+                    </Link>
+                </div>
+                <div className="print-loading">{blockingMessage}</div>
+            </div>
+        );
+    }
 
     return (
         <div className="print-page">
