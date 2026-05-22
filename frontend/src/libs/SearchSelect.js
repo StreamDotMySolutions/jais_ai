@@ -8,6 +8,7 @@ const SearchSelect = ({
     searchPlaceholder = 'Cari...',
     onChange,
     disabled = false,
+    className = '',
 }) => {
     const renderOptionLabel = (option) => {
         if (option && typeof option.label === 'object' && option.label !== null) {
@@ -70,7 +71,7 @@ const SearchSelect = ({
     };
 
     return (
-        <div className={`app-search-select${disabled ? ' is-disabled' : ''}`} ref={wrapperRef}>
+        <div className={`app-search-select${disabled ? ' is-disabled' : ''}${className ? ` ${className}` : ''}`} ref={wrapperRef}>
             {label && <span className="app-search-select-label">{label}</span>}
             <div className="app-search-select-body">
                 <button

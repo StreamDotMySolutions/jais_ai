@@ -3523,6 +3523,9 @@ const ComplaintDetail = () => {
                                                     value={approverStaffId}
                                                     onChange={setApproverStaffId}
                                                     disabled={!isAdminMaintenanceRole && Boolean(complaint.approver_confirmed_at)}
+                                                    searchable
+                                                    searchPlaceholder="Cari pegawai pengesah..."
+                                                    showDistrictLabel
                                                 />
                                             </div>
                                             <div className="app-approver-row">
