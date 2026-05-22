@@ -62,6 +62,7 @@ const SharedStaffSelect = ({
                 searchPlaceholder={searchPlaceholder}
                 onChange={onChange}
                 disabled={disabled || isLoading}
+                className={className}
             />
         );
     }

@@ -117,6 +117,7 @@ const CaseDetail = () => {
     const [isSaving, setIsSaving] = useState(false);
     const [message, setMessage] = useState('');
     const [error, setError] = useState('');
+    const [validationErrors, setValidationErrors] = useState({});
     const [isLinkPanelOpen, setIsLinkPanelOpen] = useState(false);
     const [complaintKeyword, setComplaintKeyword] = useState('');
     const [complaintResults, setComplaintResults] = useState([]);
@@ -136,6 +137,7 @@ const CaseDetail = () => {
     }, [districtOptions, form.district_id, caseRecord]);
 
     const hydrateForm = (data) => {
+        setValidationErrors({});
         setForm({
             district_id: data?.district_id ? String(data.district_id) : '',
             file_no: data?.file_no || '',
@@ -314,6 +316,34 @@ const CaseDetail = () => {
 
     const updateField = (field, value) => {
         setForm((prev) => ({ ...prev, [field]: value }));
+        setValidationErrors((prev) => {
+            if (!prev[field]) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+    };
+
+    const getRequiredValidationErrors = () => {
+        const nextErrors = {};
+        if (!form.arrest_status) {
+            nextErrors.arrest_status = 'Status tangkapan wajib dipilih.';
+        }
+        if (isStandaloneDraft && !form.district_id) {
+            nextErrors.district_id = 'Daerah wajib dipilih.';
+        }
+        if (!form.action_datetime) {
+            nextErrors.action_datetime = 'Tarikh / Masa wajib diisi.';
+        }
+        if (!form.arrest_staff_id) {
+            nextErrors.arrest_staff_id = 'Pegawai penangkap wajib dipilih.';
+        }
+        if (!String(form.report_notes || '').trim()) {
+            nextErrors.report_notes = 'Laporan / Catatan Kes wajib diisi.';
+        }
+        return nextErrors;
     };
 
     const buildCaseSummaryTemplate = (arrestStatus) => {
@@ -400,9 +430,18 @@ const CaseDetail = () => {
 
     const saveCase = () => {
         if (!apiUrl) return;
+        const nextValidationErrors = getRequiredValidationErrors();
+        if (Object.keys(nextValidationErrors).length) {
+            setValidationErrors(nextValidationErrors);
+            const firstMessage = Object.values(nextValidationErrors)[0];
+            setError(firstMessage);
+            toast.error(firstMessage);
+            return;
+        }
         setIsSaving(true);
         setMessage('');
         setError('');
+        setValidationErrors({});
         const payload = {
             ...form,
             report_offense_id: form.report_offense_id || null,
@@ -430,6 +469,7 @@ const CaseDetail = () => {
                     : response?.data?.data;
                 setCaseRecord(data);
                 hydrateForm(data);
+                setValidationErrors({});
                 const autoEmailSent = Boolean(response?.data?.meta?.laporan_tindakan_auto_email?.sent);
                 const msg = autoEmailSent
                     ? 'Maklumat kes berjaya disimpan dan emel Laporan Tindakan berjaya dihantar.'
@@ -443,6 +483,9 @@ const CaseDetail = () => {
             .catch((err) => {
                 const errors = err?.response?.data?.errors;
                 const firstError = errors ? Object.values(errors)?.[0]?.[0] : '';
+                if (errors && typeof errors === 'object') {
+                    setValidationErrors((prev) => ({ ...prev, ...errors }));
+                }
                 setError(firstError || err?.response?.data?.message || 'Gagal simpan kes.');
             })
             .finally(() => setIsSaving(false));
@@ -699,7 +742,7 @@ const CaseDetail = () => {
                         <div className="app-form-grid app-report-grid app-arrest-grid-compact">
                             <div className="app-form-field app-span-full">
                                 <span>Status Tangkapan <span className="complaint-required">*</span></span>
-                                <div className="app-radio-cards app-radio-cards-2">
+                                <div className={`app-radio-cards app-radio-cards-2 ${validationErrors.arrest_status ? 'app-input-error' : ''}`}>
                                     <label className={form.arrest_status === 'ada' ? 'active' : ''}>
                                         <input
                                             type="radio"
@@ -721,6 +764,7 @@ const CaseDetail = () => {
                                         <span>Tiada Tangkapan</span>
                                     </label>
                                 </div>
+                                {validationErrors.arrest_status && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.arrest_status) ? validationErrors.arrest_status[0] : validationErrors.arrest_status}</small>}
                             </div>
 
                             <label className="app-form-field app-span-full">
@@ -746,12 +790,17 @@ const CaseDetail = () => {
                             {isStandaloneDraft && (
                                 <label className="app-form-field">
                                     <span>Daerah <span className="complaint-required">*</span></span>
-                                    <select value={form.district_id} onChange={(event) => updateField('district_id', event.target.value)}>
+                                    <select
+                                        value={form.district_id}
+                                        onChange={(event) => updateField('district_id', event.target.value)}
+                                        className={validationErrors.district_id ? 'app-input-error' : ''}
+                                    >
                                         <option value="">Pilih daerah</option>
                                         {districtOptions.map((district) => (
                                             <option key={`case-district-${district.id}`} value={district.id}>{district.name}</option>
                                         ))}
                                     </select>
+                                    {validationErrors.district_id && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.district_id) ? validationErrors.district_id[0] : validationErrors.district_id}</small>}
                                 </label>
                             )}
 
@@ -773,7 +822,13 @@ const CaseDetail = () => {
 
                                 <label className="app-form-field">
                                     <span>Tarikh / Masa <span className="complaint-required">*</span></span>
-                                    <input type="datetime-local" value={form.action_datetime} onChange={(event) => updateField('action_datetime', event.target.value)} />
+                                    <input
+                                        type="datetime-local"
+                                        value={form.action_datetime}
+                                        onChange={(event) => updateField('action_datetime', event.target.value)}
+                                        className={validationErrors.action_datetime ? 'app-input-error' : ''}
+                                    />
+                                    {validationErrors.action_datetime && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.action_datetime) ? validationErrors.action_datetime[0] : validationErrors.action_datetime}</small>}
                                 </label>
 
                                 <label className="app-form-field">
@@ -833,13 +888,24 @@ const CaseDetail = () => {
                                         value={form.arrest_staff_id || ''}
                                         onChange={(value) => updateField('arrest_staff_id', value)}
                                         placeholder="-- Pilih Pegawai Penangkap --"
+                                        className={validationErrors.arrest_staff_id ? 'app-input-error' : ''}
+                                        searchable
+                                        searchPlaceholder="Cari pegawai penangkap..."
+                                        showDistrictLabel
                                     />
+                                    {validationErrors.arrest_staff_id && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.arrest_staff_id) ? validationErrors.arrest_staff_id[0] : validationErrors.arrest_staff_id}</small>}
                                 </div>
                             </div>
 
                             <label className="app-form-field app-span-full">
-                                <span>Laporan / Catatan Kes</span>
-                                <textarea rows="5" value={form.report_notes} onChange={(event) => updateField('report_notes', event.target.value)} />
+                                <span>Laporan / Catatan Kes <span className="complaint-required">*</span></span>
+                                <textarea
+                                    rows="5"
+                                    className={`app-case-report-notes ${validationErrors.report_notes ? 'app-input-error' : ''}`}
+                                    value={form.report_notes}
+                                    onChange={(event) => updateField('report_notes', event.target.value)}
+                                />
+                                {validationErrors.report_notes && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.report_notes) ? validationErrors.report_notes[0] : validationErrors.report_notes}</small>}
                             </label>
                         </div>
                     </section>
