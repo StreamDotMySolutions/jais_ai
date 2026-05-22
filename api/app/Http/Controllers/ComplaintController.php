@@ -81,6 +81,158 @@ class ComplaintController extends Controller
         return $this->respondWithPagination($query, $request, 'My complaints');
     }
 
+    public function calendar(Request $request)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        $validated = $request->validate([
+            'start' => ['required', 'date'],
+            'end' => ['required', 'date'],
+            'district_id' => ['nullable', 'integer'],
+            'status' => ['nullable', 'string', 'max:255'],
+            'case_type' => ['nullable', 'string', 'max:10'],
+            'channel' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $startDate = Carbon::parse($validated['start'])->startOfDay();
+        $endDate = Carbon::parse($validated['end'])->startOfDay();
+
+        $query = Complaint::query()
+            ->select([
+                'id',
+                'reference_no',
+                'complainant_name',
+                'district_id',
+                'district_name',
+                'case_type',
+                'channel',
+                'complaint_date',
+                'complaint_time',
+                'current_stage',
+                'summary',
+                'received_at',
+                'updated_at',
+            ])
+            ->orderBy('complaint_date')
+            ->orderBy('complaint_time');
+
+        $this->applyComplaintAccessScope($query, $user);
+
+        $query->whereNotNull('complaint_date')
+            ->whereDate('complaint_date', '>=', $startDate->toDateString())
+            ->whereDate('complaint_date', '<', $endDate->toDateString());
+
+        $districtId = (int) ($validated['district_id'] ?? 0);
+        if ($districtId > 0) {
+            $query->where('district_id', $districtId);
+        }
+
+        $status = trim((string) ($validated['status'] ?? ''));
+        if ($status !== '') {
+            $query->whereRaw('LOWER(current_stage) = ?', [strtolower($status)]);
+        }
+
+        $caseType = strtoupper(trim((string) ($validated['case_type'] ?? '')));
+        if ($caseType !== '') {
+            $query->where('case_type', $caseType);
+        }
+
+        $channel = trim((string) ($validated['channel'] ?? ''));
+        if ($channel !== '') {
+            $query->whereRaw('LOWER(channel) = ?', [strtolower($channel)]);
+        }
+
+        $rows = $query->get();
+
+        $events = $rows->map(function (Complaint $complaint) {
+            $dateValue = trim((string) ($complaint->complaint_date ?? ''));
+            $timeValue = trim((string) ($complaint->complaint_time ?? ''));
+            $allDay = $timeValue === '';
+            $startAt = $dateValue;
+            $endAt = null;
+
+            if ($dateValue !== '' && $timeValue !== '') {
+                $start = Carbon::parse($dateValue . ' ' . $timeValue);
+                $startAt = $start->toIso8601String();
+                $endAt = $start->copy()->addMinutes(30)->toIso8601String();
+            }
+
+            return [
+                'id' => $complaint->id,
+                'title' => $complaint->reference_no ?: ('Aduan #' . $complaint->id),
+                'start' => $startAt,
+                'end' => $endAt,
+                'allDay' => $allDay,
+                'extendedProps' => [
+                    'reference_no' => $complaint->reference_no,
+                    'complainant_name' => $complaint->complainant_name,
+                    'district_id' => $complaint->district_id,
+                    'district_name' => $complaint->district_name,
+                    'case_type' => $complaint->case_type,
+                    'channel' => $complaint->channel,
+                    'current_stage' => $complaint->current_stage,
+                    'summary' => $complaint->summary,
+                    'complaint_date' => $complaint->complaint_date,
+                    'complaint_time' => $complaint->complaint_time,
+                ],
+            ];
+        })->values();
+
+        return response()->json([
+            'message' => 'Kalendar aduan',
+            'data' => [
+                'events' => $events,
+                'viewer' => [
+                    'role' => $user->getRoleNames()->first(),
+                    'district_name' => optional($user->staff?->district)->name,
+                    'can_drag' => $user->hasAnyRole(['system', 'admin', 'pegawai', 'pegawai_hq']),
+                ],
+                'meta' => [
+                    'total' => $events->count(),
+                    'range' => [
+                        'start' => $startDate->toDateString(),
+                        'end' => $endDate->toDateString(),
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function updateCalendarDate(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthorized'], 401);
+        }
+
+        if (! $user->hasAnyRole(['system', 'admin', 'pegawai', 'pegawai_hq'])) {
+            return response()->json(['message' => 'Anda tidak mempunyai kebenaran untuk mengubah tarikh aduan melalui kalendar.'], 403);
+        }
+
+        if (! $this->canViewComplaint($complaint, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'complaint_date' => ['required', 'date'],
+        ]);
+
+        $complaint->update([
+            'complaint_date' => Carbon::parse($validated['complaint_date'])->toDateString(),
+        ]);
+
+        return response()->json([
+            'message' => 'Tarikh aduan berjaya dikemaskini.',
+            'data' => [
+                'id' => $complaint->id,
+                'complaint_date' => $complaint->complaint_date,
+            ],
+        ]);
+    }
+
     public function caseIndex(Request $request)
     {
         $user = $request->user();

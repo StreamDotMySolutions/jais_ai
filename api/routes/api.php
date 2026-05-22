@@ -125,6 +125,7 @@ Route::get('/test-telegram-token', [App\Http\Controllers\Telegram\WebhookControl
 
 // Complaints
 Route::middleware('auth:sanctum')->get('/complaints', [App\Http\Controllers\ComplaintController::class, 'index']);
+Route::middleware('auth:sanctum')->get('/complaints/calendar', [App\Http\Controllers\ComplaintController::class, 'calendar']);
 
 Route::middleware('auth:sanctum')->get('/complaints/my', [App\Http\Controllers\ComplaintController::class, 'myComplaints']);
 
@@ -228,6 +229,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/approve', [App\Http\Controllers\ComplaintController::class, 'approve'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/dispatch-to-district', [App\Http\Controllers\ComplaintController::class, 'dispatchToDistrict'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/calendar-date', [App\Http\Controllers\ComplaintController::class, 'updateCalendarDate'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/pickup', [App\Http\Controllers\ComplaintController::class, 'pickup'])
         ->whereNumber('complaint');

@@ -534,4 +534,3 @@ const AppointmentCalendar = ({ isPopup = false }) => {
 };
 
 export default AppointmentCalendar;
-

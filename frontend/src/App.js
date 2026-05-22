@@ -21,6 +21,7 @@ import AppComplaintList from './app/modules/aduan/ComplaintList';
 import AppComplaintListPublic from './app/modules/aduan/ComplaintListPublic';
 import AppComplaintListInternal from './app/modules/aduan/ComplaintListInternal';
 import AppComplaintDetail from './app/modules/aduan/ComplaintDetail';
+import ComplaintCalendar from './app/modules/aduan/ComplaintCalendar';
 import ComplaintPrintBorang5 from './app/modules/aduan/ComplaintPrintBorang5';
 import ComplaintPrintLaporanTindakan from './app/modules/aduan/ComplaintPrintLaporanTindakan';
 import ComplaintPrintTindakanAduan from './app/modules/aduan/ComplaintPrintTindakanAduan';
@@ -149,6 +150,7 @@ function App() {
               path="/app/complaints"
               element={<ComplaintListByRole />}
             />
+            <Route path="/app/complaints/calendar" element={<ComplaintCalendar />} />
             <Route
               path="/app/complaints/aj"
               element={<AppComplaintList caseType="AJ" title="Senarai Aduan Jenayah" description="Senarai aduan kategori jenayah (AJ)." />}

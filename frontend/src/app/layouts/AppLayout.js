@@ -100,6 +100,41 @@ const AppLayout = () => {
         return nextMenus;
     };
 
+    const ensureComplaintCalendarMenu = (menuItems) => {
+        if (!Array.isArray(menuItems) || menuItems.length === 0) {
+            return [];
+        }
+
+        const hasCalendarMenu = menuItems.some((menu) => (menu?.path || '') === '/app/complaints/calendar');
+        if (hasCalendarMenu) {
+            return menuItems;
+        }
+
+        const complaintsRootMenu = menuItems.find((menu) => (menu?.path || '') === '/app/complaints');
+        if (!complaintsRootMenu) {
+            return menuItems;
+        }
+
+        const injectedMenu = {
+            id: 'virtual-complaints-calendar',
+            parent_id: complaintsRootMenu.parent_id || null,
+            label: 'Kalendar Aduan',
+            path: '/app/complaints/calendar',
+            icon: 'bi-calendar3',
+            sort_order: Number(complaintsRootMenu.sort_order || 0) + 1,
+            is_active: 1,
+        };
+
+        const insertIndex = menuItems.findIndex((menu) => (menu?.path || '') === '/app/complaints');
+        if (insertIndex < 0) {
+            return [...menuItems, injectedMenu];
+        }
+
+        const nextMenus = [...menuItems];
+        nextMenus.splice(insertIndex + 1, 0, injectedMenu);
+        return nextMenus;
+    };
+
     const ensureCasesMenu = (menuItems) => {
         if (!Array.isArray(menuItems) || menuItems.length === 0) {
             return [];
@@ -170,7 +205,7 @@ const AppLayout = () => {
                 const pendingCount = Number(pendingResponse?.data?.meta?.total || 0);
                 const withPendingBadge = attachPendingApprovalCount(menuItems, pendingCount);
                 const withFirMenu = normalizeFirMenu(withPendingBadge);
-                setMenus(ensureCasesMenu(ensureWaranCalendarMenu(withFirMenu)));
+                setMenus(ensureCasesMenu(ensureWaranCalendarMenu(ensureComplaintCalendarMenu(withFirMenu))));
             })
             .catch(() => {
                 setMenus([]);

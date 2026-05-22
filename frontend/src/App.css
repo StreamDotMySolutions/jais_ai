@@ -5513,6 +5513,192 @@ body {
   animation: shimmer 1.6s infinite;
 }
 
+.app-shared-calendar {
+  position: relative;
+}
+
+.app-shared-calendar-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(248, 250, 252, 0.84);
+  backdrop-filter: blur(1px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  border-radius: 28px;
+}
+
+.app-shared-calendar-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid rgba(15, 23, 42, 0.16);
+  border-top-color: #172554;
+  animation: app-calendar-spin 0.8s linear infinite;
+}
+
+.app-shared-calendar .fc {
+  --fc-border-color: #dbe4ef;
+  --fc-button-bg-color: #172554;
+  --fc-button-border-color: #172554;
+  --fc-button-hover-bg-color: #1d4ed8;
+  --fc-button-hover-border-color: #1d4ed8;
+  --fc-button-active-bg-color: #0f172a;
+  --fc-button-active-border-color: #0f172a;
+  --fc-page-bg-color: #ffffff;
+  --fc-neutral-bg-color: #f8fafc;
+  --fc-today-bg-color: rgba(29, 78, 216, 0.06);
+}
+
+.app-shared-calendar .fc .fc-toolbar {
+  gap: 0.85rem;
+  margin: 1rem;
+  flex-wrap: wrap;
+}
+
+.app-shared-calendar .fc .fc-toolbar-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.app-shared-calendar .fc .fc-button {
+  border-radius: 14px;
+  box-shadow: none;
+  padding: 0.5rem 0.85rem;
+  font-weight: 600;
+}
+
+.app-shared-calendar .fc .fc-col-header-cell-cushion,
+.app-shared-calendar .fc .fc-daygrid-day-number,
+.app-shared-calendar .fc .fc-list-day-text,
+.app-shared-calendar .fc .fc-list-day-side-text {
+  color: #334155;
+  text-decoration: none;
+}
+
+.app-shared-calendar .fc .fc-daygrid-day-frame {
+  min-height: 132px;
+}
+
+.app-shared-calendar .fc .fc-daygrid-event,
+.app-shared-calendar .fc .fc-timegrid-event {
+  border: 0;
+  border-radius: 14px;
+  padding: 0;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.app-shared-calendar .fc .fc-event-main {
+  padding: 0;
+}
+
+.app-shared-calendar .fc .fc-event-title,
+.app-shared-calendar .fc .fc-event-time {
+  white-space: normal;
+}
+
+.app-shared-calendar .fc .fc-popover {
+  border-radius: 18px;
+  border-color: #dbe4ef;
+  overflow: hidden;
+}
+
+.app-shared-calendar .fc .fc-more-link {
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.app-calendar-page-note {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.app-complaint-calendar-event-card {
+  display: grid;
+  gap: 0.3rem;
+  width: 100%;
+  padding: 0.45rem 0.55rem;
+  color: #0f172a;
+  background: #e7efff;
+  text-decoration: none;
+}
+
+.app-complaint-calendar-event-top,
+.app-complaint-calendar-event-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.app-complaint-calendar-event-ref {
+  font-weight: 700;
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+
+.app-complaint-calendar-event-card small,
+.app-complaint-calendar-event-meta span {
+  font-size: 0.68rem;
+  color: #64748b;
+}
+
+.app-complaint-calendar-event-meta strong {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.app-complaint-calendar-event.is-neutral {
+  background: #f8fafc;
+  border-left: 4px solid #94a3b8;
+}
+
+.app-complaint-calendar-event.is-warn {
+  background: #fff7ed;
+  border-left: 4px solid #f59e0b;
+}
+
+.app-complaint-calendar-event.is-info {
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+}
+
+.app-complaint-calendar-event.is-primary {
+  background: #eef2ff;
+  border-left: 4px solid #4f46e5;
+}
+
+.app-complaint-calendar-event.is-warning-strong {
+  background: #fef3c7;
+  border-left: 4px solid #d97706;
+}
+
+.app-complaint-calendar-event.is-muted {
+  background: #f1f5f9;
+  border-left: 4px solid #64748b;
+}
+
+.app-complaint-calendar-event.is-success {
+  background: #ecfdf3;
+  border-left: 4px solid #16a34a;
+}
+
+@keyframes app-calendar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @media (max-width: 1024px) {
   .app-calendar-weekdays,
   .app-calendar-days {
