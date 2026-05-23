@@ -4209,6 +4209,52 @@ body {
   grid-template-columns: 0.8fr 1.6fr 1.2fr 0.8fr 0.6fr;
 }
 
+.app-beredar-oyds-table .app-oyds-table-head,
+.app-beredar-oyds-table .app-oyds-table-row {
+  grid-template-columns: 1.1fr 0.95fr 0.95fr 1.7fr 1.1fr 72px;
+}
+
+.app-beredar-oyds-table .app-oyds-table-cell-action {
+  align-items: center;
+}
+
+.app-beredar-oyds-table .app-oyds-table-cell input[type="file"] {
+  width: 100%;
+  font-size: 0.84rem;
+}
+
+.app-beredar-oyds-media-cell {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.app-beredar-oyds-media-note {
+  color: #5f6d76;
+}
+
+.app-beredar-oyds-attachment-strip {
+  gap: 0.35rem;
+}
+
+.app-beredar-oyds-attachment-link {
+  width: 100%;
+  text-decoration: none;
+}
+
+.app-beredar-sticky-actions {
+  margin-top: 0;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.app-beredar-sticky-actions-row {
+  justify-content: flex-end;
+}
+
+.app-content:has(.app-beredar-form-page) {
+  padding-bottom: 0;
+}
+
 .app-waran-header,
 .app-waran-row {
   grid-template-columns: 0.9fr 0.9fr 1fr 1fr 1fr 0.8fr 0.7fr;

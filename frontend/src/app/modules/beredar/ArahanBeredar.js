@@ -12,6 +12,12 @@ const initialForm = {
 
 const ArahanBeredar = ({ mode = 'create' }) => {
     const apiUrl = process.env.REACT_APP_API_URL;
+    const storageBaseUrl = useMemo(() => {
+        if (!apiUrl) {
+            return '';
+        }
+        return apiUrl.replace(/\/api\/?$/, '');
+    }, [apiUrl]);
     const { id } = useParams();
     const navigate = useNavigate();
     const [form, setForm] = useState(initialForm);
@@ -22,6 +28,7 @@ const ArahanBeredar = ({ mode = 'create' }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState('');
+    const [validationErrors, setValidationErrors] = useState({});
     const [isLoading, setIsLoading] = useState(mode !== 'create');
     const userName = useMemo(() => localStorage.getItem('user_name') || 'Pengguna', []);
     const userEmail = useMemo(() => localStorage.getItem('user_email') || '-', []);
@@ -42,6 +49,28 @@ const ArahanBeredar = ({ mode = 'create' }) => {
             });
     }, [apiUrl]);
 
+    const clearValidationError = (field) => {
+        setValidationErrors((prev) => {
+            if (!Object.prototype.hasOwnProperty.call(prev, field)) {
+                return prev;
+            }
+            const next = { ...prev };
+            delete next[field];
+            return next;
+        });
+        if (messageType === 'danger') {
+            setMessage('');
+            setMessageType('');
+        }
+    };
+
+    const buildMediaUrl = (media) => {
+        if (!storageBaseUrl || !media?.file_path) {
+            return '#';
+        }
+        return `${storageBaseUrl}/storage/${String(media.file_path).replace(/^\/+/, '')}`;
+    };
+
     const toggleSection = (value) => {
         setForm((prev) => {
             const exists = prev.sections.includes(value);
@@ -52,12 +81,14 @@ const ArahanBeredar = ({ mode = 'create' }) => {
                     : [...prev.sections, value],
             };
         });
+        clearValidationError('sections');
     };
 
     const updateOyds = (index, field, value) => {
         setOydsList((prev) => prev.map((item, idx) => (
             idx === index ? { ...item, [field]: value } : item
         )));
+        clearValidationError('oyds');
     };
 
     const addOyds = () => {
@@ -119,11 +150,33 @@ const ArahanBeredar = ({ mode = 'create' }) => {
             setMessage('API URL tidak diset.');
             return;
         }
+        const nextErrors = {};
+        if (!String(form.location || '').trim()) {
+            nextErrors.location = 'Lokasi kejadian wajib diisi.';
+        }
+        if (!String(form.incidentDate || '').trim()) {
+            nextErrors.incident_date = 'Tarikh kejadian wajib diisi.';
+        }
         if (!form.sections.length) {
+            nextErrors.sections = 'Sila pilih sekurang-kurangnya satu Seksyen Kesalahan.';
+        }
+        if (!oydsList.length || !oydsList.some((row) => (
+            String(row.name || '').trim()
+            || String(row.ic || '').trim()
+            || String(row.phone || '').trim()
+            || String(row.address || '').trim()
+            || (row.photo && row.photo.length)
+            || (Array.isArray(row.media) && row.media.length)
+        ))) {
+            nextErrors.oyds = 'Sila isi sekurang-kurangnya satu maklumat OYDS.';
+        }
+        if (Object.keys(nextErrors).length > 0) {
+            setValidationErrors(nextErrors);
             setMessageType('danger');
-            setMessage('Sila pilih sekurang-kurangnya satu Seksyen Kesalahan.');
+            setMessage('Sila lengkapkan maklumat wajib yang ditanda merah.');
             return;
         }
+        setValidationErrors({});
         setIsSubmitting(true);
         setMessage('');
         setMessageType('');
@@ -156,9 +209,12 @@ const ArahanBeredar = ({ mode = 'create' }) => {
         });
 
         const request = mode === 'edit'
-            ? axios.put(`${apiUrl}/arahan-beredar/${id}`, payload, {
-                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-            })
+            ? (() => {
+                payload.append('_method', 'PUT');
+                return axios.post(`${apiUrl}/arahan-beredar/${id}`, payload, {
+                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                });
+            })()
             : axios.post(`${apiUrl}/arahan-beredar`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             });
@@ -169,6 +225,13 @@ const ArahanBeredar = ({ mode = 'create' }) => {
                 setMessage(mode === 'edit' ? 'Rekod arahan beredar dikemaskini.' : 'Rekod arahan beredar disimpan.');
             })
             .catch((error) => {
+                const apiErrors = error?.response?.data?.errors || {};
+                if (Object.keys(apiErrors).length > 0) {
+                    setValidationErrors(apiErrors);
+                    setMessageType('danger');
+                    setMessage('Sila lengkapkan maklumat wajib yang ditanda merah.');
+                    return;
+                }
                 setMessageType('danger');
                 setMessage(error?.response?.data?.message || 'Gagal menyimpan rekod.');
             })
@@ -176,26 +239,12 @@ const ArahanBeredar = ({ mode = 'create' }) => {
     };
 
     return (
-        <div className="app-complaints">
+        <div className="app-complaints app-beredar-form-page">
             <div className="app-complaints-header">
                 <div>
                     <span className="app-eyebrow">Rekod Arahan Beredar</span>
                     <h3>Rekod Tindakan Nasihat & Arahan Beredar (AB 2026)</h3>
                     <p>Unit Perundangan dan Kesalahan BPN HQ.</p>
-                </div>
-                <div className="app-complaints-actions">
-                    <button className="app-button" type="button" onClick={handleSubmit} disabled={isSubmitting}>
-                        {isSubmitting ? 'Menyimpan...' : (mode === 'edit' ? 'Kemaskini Rekod' : 'Simpan Rekod')}
-                    </button>
-                    {mode === 'edit' && (
-                        <button
-                            className="app-button app-button-ghost"
-                            type="button"
-                            onClick={() => navigate('/app/arahan-beredar')}
-                        >
-                            Kembali
-                        </button>
-                    )}
                 </div>
             </div>
 
@@ -222,17 +271,27 @@ const ArahanBeredar = ({ mode = 'create' }) => {
                         <input
                             type="text"
                             placeholder="Masukkan lokasi kejadian"
-                            value={form.location}
-                            onChange={(event) => setForm({ ...form, location: event.target.value })}
-                        />
+                                value={form.location}
+                                className={validationErrors.location ? 'app-input-error' : ''}
+                                onChange={(event) => {
+                                    setForm({ ...form, location: event.target.value });
+                                    clearValidationError('location');
+                                }}
+                            />
+                        {validationErrors.location && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.location) ? validationErrors.location[0] : validationErrors.location}</small>}
                     </label>
                     <label className="app-form-field">
                         <span>Tarikh Kejadian</span>
                         <input
                             type="date"
-                            value={form.incidentDate}
-                            onChange={(event) => setForm({ ...form, incidentDate: event.target.value })}
-                        />
+                                value={form.incidentDate}
+                                className={validationErrors.incident_date ? 'app-input-error' : ''}
+                                onChange={(event) => {
+                                    setForm({ ...form, incidentDate: event.target.value });
+                                    clearValidationError('incident_date');
+                                }}
+                            />
+                        {validationErrors.incident_date && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.incident_date) ? validationErrors.incident_date[0] : validationErrors.incident_date}</small>}
                     </label>
                 </div>
             </div>
@@ -245,7 +304,7 @@ const ArahanBeredar = ({ mode = 'create' }) => {
                 <div className="app-form-section">
                     <p>Nyatakan seksyen kesalahan undang-undang yang berkaitan.</p>
                 </div>
-                <div className="app-checkbox-grid">
+                <div className={`app-checkbox-grid ${validationErrors.sections ? 'app-input-error' : ''}`}>
                     {sectionOptions.map((option) => (
                         <label key={option.id} className="app-checkbox">
                             <input
@@ -257,6 +316,7 @@ const ArahanBeredar = ({ mode = 'create' }) => {
                         </label>
                     ))}
                 </div>
+                {validationErrors.sections && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.sections) ? validationErrors.sections[0] : validationErrors.sections}</small>}
                 <div className="app-form-grid" style={{ marginTop: '1rem' }}>
                     <label className="app-form-field app-span-full">
                         <span>Lain-lain Kesalahan (sila nyatakan)</span>
@@ -284,63 +344,90 @@ const ArahanBeredar = ({ mode = 'create' }) => {
                     <h4>Maklumat OYDS</h4>
                     <span className="app-pill">Wajib</span>
                 </div>
-                <div className="app-inline-table app-oyds-table">
-                    <div className="app-inline-table-header">
-                        <span>Nama OYDS</span>
-                        <span>No. K/P</span>
-                        <span>No. Telefon</span>
-                        <span>Alamat</span>
-                        <span>Gambar</span>
-                        <span></span>
+                <div className="app-oyds-table-wrap app-beredar-oyds-table">
+                    <div className="app-oyds-table-head">
+                        <div>Nama OYDS</div>
+                        <div>No. K/P</div>
+                        <div>No. Telefon</div>
+                        <div>Alamat</div>
+                        <div>Gambar</div>
+                        <div>Aksi</div>
                     </div>
                     {oydsList.map((row, index) => (
-                        <div key={`oyds-${index}`} className="app-inline-table-row">
-                            <input
-                                type="text"
-                                placeholder="Nama penuh"
-                                value={row.name}
-                                onChange={(event) => updateOyds(index, 'name', event.target.value)}
-                            />
-                            <input
-                                type="text"
-                                placeholder="XXXXXX-XX-XXXX"
-                                value={row.ic}
-                                onChange={(event) => updateOyds(index, 'ic', event.target.value)}
-                            />
-                            <input
-                                type="text"
-                                placeholder="No telefon"
-                                value={row.phone}
-                                onChange={(event) => updateOyds(index, 'phone', event.target.value)}
-                            />
-                            <input
-                                type="text"
-                                placeholder="Alamat terkini"
-                                value={row.address}
-                                onChange={(event) => updateOyds(index, 'address', event.target.value)}
-                            />
-                            <input
-                                type="file"
-                                multiple
-                                onChange={(event) => updateOyds(index, 'photo', event.target.files)}
-                            />
-                            {row.media?.length > 0 && (
-                                <small className="app-hint">
-                                    {row.media.length} fail sedia ada
-                                </small>
-                            )}
-                            <button
-                                type="button"
-                                className="app-icon-button app-icon-button-danger"
-                                onClick={() => removeOyds(index)}
-                                title="Buang OYDS"
-                                aria-label="Buang OYDS"
-                            >
-                                <i className="bi bi-trash"></i>
-                            </button>
+                        <div key={`oyds-${index}`} className="app-oyds-table-row">
+                            <div className="app-oyds-table-cell">
+                                <input
+                                    type="text"
+                                    placeholder="Nama penuh"
+                                    value={row.name}
+                                    onChange={(event) => updateOyds(index, 'name', event.target.value)}
+                                />
+                            </div>
+                            <div className="app-oyds-table-cell">
+                                <input
+                                    type="text"
+                                    placeholder="XXXXXX-XX-XXXX"
+                                    value={row.ic}
+                                    onChange={(event) => updateOyds(index, 'ic', event.target.value)}
+                                />
+                            </div>
+                            <div className="app-oyds-table-cell">
+                                <input
+                                    type="text"
+                                    placeholder="No telefon"
+                                    value={row.phone}
+                                    onChange={(event) => updateOyds(index, 'phone', event.target.value)}
+                                />
+                            </div>
+                            <div className="app-oyds-table-cell">
+                                <input
+                                    type="text"
+                                    placeholder="Alamat terkini"
+                                    value={row.address}
+                                    onChange={(event) => updateOyds(index, 'address', event.target.value)}
+                                />
+                            </div>
+                            <div className="app-oyds-table-cell app-beredar-oyds-media-cell">
+                                <input
+                                    type="file"
+                                    multiple
+                                    onChange={(event) => updateOyds(index, 'photo', event.target.files)}
+                                />
+                                {row.media?.length > 0 && (
+                                    <div className="app-oyds-attachment-strip app-beredar-oyds-attachment-strip">
+                                        {row.media.map((media) => (
+                                            <a
+                                                key={media.id}
+                                                className="app-oyds-attachment-pill-main app-beredar-oyds-attachment-link"
+                                                href={buildMediaUrl(media)}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                title={media.file_name}
+                                            >
+                                                <span className="app-oyds-attachment-pill-thumb">
+                                                    <i className="bi bi-paperclip"></i>
+                                                </span>
+                                                <span className="app-oyds-attachment-pill-name">{media.file_name}</span>
+                                            </a>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="app-oyds-table-cell app-oyds-table-cell-action">
+                                <button
+                                    type="button"
+                                    className="app-icon-button app-icon-button-danger"
+                                    onClick={() => removeOyds(index)}
+                                    title="Buang OYDS"
+                                    aria-label="Buang OYDS"
+                                >
+                                    <i className="bi bi-trash"></i>
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
+                {validationErrors.oyds && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.oyds) ? validationErrors.oyds[0] : validationErrors.oyds}</small>}
                 <div className="app-inline-add">
                     <button className="app-button app-button-ghost" type="button" onClick={addOyds}>
                         <i className="bi bi-plus-lg"></i>
@@ -373,6 +460,23 @@ const ArahanBeredar = ({ mode = 'create' }) => {
                             {staffNo !== '-' && staffNo !== '' ? staffNo : staffIc}
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div className="app-actions-sticky app-beredar-sticky-actions">
+                <div className="app-complaints-actions app-beredar-sticky-actions-row">
+                    <button className="app-button" type="button" onClick={handleSubmit} disabled={isSubmitting}>
+                        {isSubmitting ? 'Menyimpan...' : (mode === 'edit' ? 'Kemaskini Rekod' : 'Simpan Rekod')}
+                    </button>
+                    {mode === 'edit' && (
+                        <button
+                            className="app-button app-button-ghost"
+                            type="button"
+                            onClick={() => navigate('/app/arahan-beredar')}
+                        >
+                            Kembali
+                        </button>
+                    )}
                 </div>
             </div>
             </>
