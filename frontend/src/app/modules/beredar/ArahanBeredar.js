@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useToast } from '../../components/SharedToastProvider';
 
 const initialForm = {
     location: '',
@@ -20,6 +21,7 @@ const ArahanBeredar = ({ mode = 'create' }) => {
     }, [apiUrl]);
     const { id } = useParams();
     const navigate = useNavigate();
+    const toast = useToast();
     const [form, setForm] = useState(initialForm);
     const [oydsList, setOydsList] = useState([
         { id: null, name: '', ic: '', phone: '', address: '', photo: null, media: [] },
@@ -221,8 +223,10 @@ const ArahanBeredar = ({ mode = 'create' }) => {
 
         request
             .then(() => {
+                const successMessage = mode === 'edit' ? 'Rekod arahan beredar dikemaskini.' : 'Rekod arahan beredar disimpan.';
                 setMessageType('success');
-                setMessage(mode === 'edit' ? 'Rekod arahan beredar dikemaskini.' : 'Rekod arahan beredar disimpan.');
+                setMessage(successMessage);
+                toast.success(successMessage);
             })
             .catch((error) => {
                 const apiErrors = error?.response?.data?.errors || {};
