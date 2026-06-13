@@ -61,80 +61,6 @@ const AppLayout = () => {
         });
     };
 
-    const ensureWaranCalendarMenu = (menuItems) => {
-        if (!Array.isArray(menuItems) || menuItems.length === 0) {
-            return [];
-        }
-
-        const hasCalendarMenu = menuItems.some((menu) => (menu?.path || '') === '/app/i-waran/calendar/status');
-        if (hasCalendarMenu) {
-            return menuItems;
-        }
-
-        const semakanMenu = menuItems.find((menu) => (menu?.path || '') === '/app/i-waran/semakan-okt');
-        const waranRootMenu = menuItems.find((menu) => (menu?.path || '') === '/app/i-waran');
-        if (!semakanMenu && !waranRootMenu) {
-            return menuItems;
-        }
-
-        const parentId = semakanMenu?.parent_id || waranRootMenu?.id || null;
-        const sortOrder = Number(semakanMenu?.sort_order || waranRootMenu?.sort_order || 0) + 1;
-
-        const injectedMenu = {
-            id: 'virtual-iwaran-calendar-status',
-            parent_id: parentId,
-            label: 'Kalendar',
-            path: '/app/i-waran/calendar/status',
-            icon: 'bi-calendar3',
-            sort_order: sortOrder,
-            is_active: 1,
-        };
-
-        const insertAfterPath = semakanMenu ? '/app/i-waran/semakan-okt' : '/app/i-waran';
-        const insertIndex = menuItems.findIndex((menu) => (menu?.path || '') === insertAfterPath);
-        if (insertIndex < 0) {
-            return [...menuItems, injectedMenu];
-        }
-        const nextMenus = [...menuItems];
-        nextMenus.splice(insertIndex + 1, 0, injectedMenu);
-        return nextMenus;
-    };
-
-    const ensureComplaintCalendarMenu = (menuItems) => {
-        if (!Array.isArray(menuItems) || menuItems.length === 0) {
-            return [];
-        }
-
-        const hasCalendarMenu = menuItems.some((menu) => (menu?.path || '') === '/app/complaints/calendar');
-        if (hasCalendarMenu) {
-            return menuItems;
-        }
-
-        const complaintsRootMenu = menuItems.find((menu) => (menu?.path || '') === '/app/complaints');
-        if (!complaintsRootMenu) {
-            return menuItems;
-        }
-
-        const injectedMenu = {
-            id: 'virtual-complaints-calendar',
-            parent_id: complaintsRootMenu.parent_id || null,
-            label: 'Kalendar Aduan',
-            path: '/app/complaints/calendar',
-            icon: 'bi-calendar3',
-            sort_order: Number(complaintsRootMenu.sort_order || 0) + 1,
-            is_active: 1,
-        };
-
-        const insertIndex = menuItems.findIndex((menu) => (menu?.path || '') === '/app/complaints');
-        if (insertIndex < 0) {
-            return [...menuItems, injectedMenu];
-        }
-
-        const nextMenus = [...menuItems];
-        nextMenus.splice(insertIndex + 1, 0, injectedMenu);
-        return nextMenus;
-    };
-
     const ensureCasesMenu = (menuItems) => {
         if (!Array.isArray(menuItems) || menuItems.length === 0) {
             return [];
@@ -205,7 +131,7 @@ const AppLayout = () => {
                 const pendingCount = Number(pendingResponse?.data?.meta?.total || 0);
                 const withPendingBadge = attachPendingApprovalCount(menuItems, pendingCount);
                 const withFirMenu = normalizeFirMenu(withPendingBadge);
-                setMenus(ensureCasesMenu(ensureWaranCalendarMenu(ensureComplaintCalendarMenu(withFirMenu))));
+                setMenus(ensureCasesMenu(withFirMenu));
             })
             .catch(() => {
                 setMenus([]);

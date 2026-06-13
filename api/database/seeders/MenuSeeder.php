@@ -19,6 +19,7 @@ class MenuSeeder extends Seeder
             ['label' => 'Aduan Untuk Disahkan', 'path' => '/app/complaints/pending-approval', 'icon' => 'bi-check2-square', 'sort_order' => 4],
             ['label' => 'Aduan Untuk Diambil', 'path' => '/app/complaints/pickup-queue', 'icon' => 'bi-inbox', 'sort_order' => 5],
             ['label' => 'Aduan Saya (PIC)', 'path' => '/app/complaints/my-pic', 'icon' => 'bi-person-check', 'sort_order' => 6],
+            ['label' => 'Kalendar Aduan', 'path' => '/app/complaints/calendar', 'icon' => 'bi-calendar3', 'sort_order' => 7],
             ['label' => 'Laporan Aduan', 'path' => '/app/complaints/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 8],
             ['label' => 'Jana Tindakan Aduan', 'path' => '/app/jana-tindakan-aduan', 'icon' => 'bi-list-task', 'sort_order' => 3],
             ['label' => 'Temujanji', 'path' => '/app/appointments-root', 'icon' => 'bi-calendar2-week', 'sort_order' => 4],
@@ -30,7 +31,8 @@ class MenuSeeder extends Seeder
             ['label' => 'i-WARAN', 'path' => '/app/i-waran-root', 'icon' => 'bi-file-earmark-text', 'sort_order' => 6],
             ['label' => 'Senarai Waran', 'path' => '/app/i-waran', 'icon' => 'bi-file-earmark-text', 'sort_order' => 1],
             ['label' => 'Semakan Nama OKT Waran', 'path' => '/app/i-waran/semakan-okt', 'icon' => 'bi-search', 'sort_order' => 2],
-            ['label' => 'Laporan i-WARAN', 'path' => '/app/i-waran/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 3],
+            ['label' => 'Kalendar', 'path' => '/app/i-waran/calendar/status', 'icon' => 'bi-calendar3', 'sort_order' => 3],
+            ['label' => 'Laporan i-WARAN', 'path' => '/app/i-waran/report', 'icon' => 'bi-clipboard-data', 'sort_order' => 4],
             ['label' => 'Kakitangan', 'path' => '/app/staff', 'icon' => 'bi-people', 'sort_order' => 7],
             ['label' => 'Pengguna', 'path' => '/app/users', 'icon' => 'bi-person-lines-fill', 'sort_order' => 8],
             ['label' => 'System Setting', 'path' => '/app/system-settings', 'icon' => 'bi-gear', 'sort_order' => 99],
@@ -68,6 +70,7 @@ class MenuSeeder extends Seeder
                 '/app/complaints/pending-approval',
                 '/app/complaints/pickup-queue',
                 '/app/complaints/my-pic',
+                '/app/complaints/calendar',
                 '/app/complaints/report',
             ], true)) {
                 $parentMenu = DB::table('sys_menus')->where('path', '/app/aduan')->first();
@@ -156,6 +159,15 @@ class MenuSeeder extends Seeder
                     ]);
                 }
             }
+            if ($menu['path'] === '/app/i-waran/calendar/status') {
+                $parentMenu = DB::table('sys_menus')->where('path', '/app/i-waran-root')->first();
+                if ($parentMenu) {
+                    DB::table('sys_menus')->where('id', $menuRecord->id)->update([
+                        'parent_id' => $parentMenu->id,
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
 
             $allowedRoles = ['system', 'admin', 'pegawai', 'user', 'awam'];
             if ($menu['path'] === '/app/complaints') {
@@ -171,6 +183,9 @@ class MenuSeeder extends Seeder
                 $allowedRoles = ['system', 'admin', 'pegawai', 'pegawai_hq', 'pegawai_daerah'];
             }
             if ($menu['path'] === '/app/complaints/report') {
+                $allowedRoles = ['system', 'admin', 'pegawai', 'pegawai_hq', 'pegawai_daerah'];
+            }
+            if ($menu['path'] === '/app/complaints/calendar') {
                 $allowedRoles = ['system', 'admin', 'pegawai', 'pegawai_hq', 'pegawai_daerah'];
             }
             if ($menu['path'] === '/app/jana-tindakan-aduan') {
@@ -197,7 +212,7 @@ class MenuSeeder extends Seeder
             if (in_array($menu['path'], ['/app/complaints/pickup-queue', '/app/complaints/my-pic'], true)) {
                 $allowedRoles = ['system', 'admin', 'pegawai_daerah'];
             }
-            if (in_array($menu['path'], ['/app/i-waran-root', '/app/i-waran', '/app/i-waran/report', '/app/i-waran/semakan-okt'], true)) {
+            if (in_array($menu['path'], ['/app/i-waran-root', '/app/i-waran', '/app/i-waran/report', '/app/i-waran/semakan-okt', '/app/i-waran/calendar/status'], true)) {
                 $allowedRoles = ['system', 'admin', 'pegawai', 'pegawai_hq', 'pegawai_daerah'];
             }
             if ($menu['path'] === '/app/users') {
