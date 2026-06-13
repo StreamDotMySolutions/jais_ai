@@ -40,7 +40,7 @@ class MenuController extends Controller
         }
 
         $perPage = (int) $request->query('per_page', 10);
-        if ($perPage <= 0 || $perPage > 100) {
+        if ($perPage <= 0 || $perPage > 1000) {
             $perPage = 10;
         }
         $keyword = trim((string) $request->query('keyword', ''));
@@ -126,8 +126,21 @@ class MenuController extends Controller
             'role_ids.*' => 'integer|exists:' . config('permission.table_names.roles') . ',id',
         ]);
 
-        if (! empty($validated['parent_id']) && (int) $validated['parent_id'] === (int) $menu->id) {
+        $resolvedParentId = isset($validated['parent_id']) ? (int) $validated['parent_id'] : null;
+        if ($resolvedParentId === 0) {
+            $resolvedParentId = null;
+        }
+
+        if ($resolvedParentId !== null && $resolvedParentId === (int) $menu->id) {
             return response()->json(['message' => 'Menu tidak boleh menjadi parent kepada dirinya sendiri.'], 422);
+        }
+
+        if ($resolvedParentId !== null) {
+            $parentMap = Menu::query()->pluck('parent_id', 'id')->map(fn ($value) => $value ? (int) $value : null)->all();
+            $parentMap[(int) $menu->id] = $resolvedParentId;
+            if ($this->wouldCreateCycle((int) $menu->id, $parentMap)) {
+                return response()->json(['message' => 'Struktur parent-child tidak sah kerana menghasilkan kitaran menu.'], 422);
+            }
         }
 
         $menu->update([
@@ -136,7 +149,7 @@ class MenuController extends Controller
             'icon' => $validated['icon'] ?? null,
             'sort_order' => $validated['sort_order'] ?? 0,
             'is_active' => $validated['is_active'] ?? true,
-            'parent_id' => $validated['parent_id'] ?? null,
+            'parent_id' => $resolvedParentId,
         ]);
 
         if (array_key_exists('role_ids', $validated)) {
@@ -171,13 +184,57 @@ class MenuController extends Controller
         }
 
         $validated = $request->validate([
-            'order' => 'required|array',
-            'order.*' => 'integer|exists:sys_menus,id',
+            'items' => 'required|array|min:1',
+            'items.*.id' => 'required|integer|exists:' . config('permission.table_names.menus', 'sys_menus') . ',id',
+            'items.*.parent_id' => 'nullable|integer|exists:' . config('permission.table_names.menus', 'sys_menus') . ',id',
+            'items.*.sort_order' => 'required|integer|min:1',
         ]);
 
-        \DB::transaction(function () use ($validated) {
-            foreach ($validated['order'] as $index => $menuId) {
-                Menu::where('id', $menuId)->update(['sort_order' => $index + 1]);
+        $items = collect($validated['items'])
+            ->map(function ($item) {
+                $parentId = $item['parent_id'] ?? null;
+                if ((int) $parentId === 0) {
+                    $parentId = null;
+                }
+
+                return [
+                    'id' => (int) $item['id'],
+                    'parent_id' => $parentId !== null ? (int) $parentId : null,
+                    'sort_order' => (int) $item['sort_order'],
+                ];
+            })
+            ->values();
+
+        $duplicateIds = $items->pluck('id')->duplicates();
+        if ($duplicateIds->isNotEmpty()) {
+            return response()->json(['message' => 'Payload susunan menu mengandungi item berganda.'], 422);
+        }
+
+        $parentMap = Menu::query()
+            ->pluck('parent_id', 'id')
+            ->map(fn ($value) => $value ? (int) $value : null)
+            ->all();
+
+        foreach ($items as $item) {
+            if ($item['parent_id'] !== null && $item['parent_id'] === $item['id']) {
+                return response()->json(['message' => 'Menu tidak boleh menjadi parent kepada dirinya sendiri.'], 422);
+            }
+
+            $parentMap[$item['id']] = $item['parent_id'];
+        }
+
+        foreach ($items as $item) {
+            if ($this->wouldCreateCycle($item['id'], $parentMap)) {
+                return response()->json(['message' => 'Struktur parent-child tidak sah kerana menghasilkan kitaran menu.'], 422);
+            }
+        }
+
+        \DB::transaction(function () use ($items) {
+            foreach ($items as $item) {
+                Menu::where('id', $item['id'])->update([
+                    'parent_id' => $item['parent_id'],
+                    'sort_order' => $item['sort_order'],
+                ]);
             }
         });
 
@@ -212,5 +269,26 @@ class MenuController extends Controller
         return response()->json([
             'message' => 'Bulk roles updated',
         ]);
+    }
+
+    private function wouldCreateCycle(int $menuId, array $parentMap): bool
+    {
+        $visited = [];
+        $current = $parentMap[$menuId] ?? null;
+
+        while ($current !== null) {
+            if ($current === $menuId) {
+                return true;
+            }
+
+            if (isset($visited[$current])) {
+                return true;
+            }
+
+            $visited[$current] = true;
+            $current = $parentMap[$current] ?? null;
+        }
+
+        return false;
     }
 }

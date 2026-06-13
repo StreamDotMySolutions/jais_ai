@@ -4283,6 +4283,106 @@ body {
   font-size: 0.9rem;
 }
 
+.app-menu-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+  padding-left: calc(var(--menu-level, 0) * 1.15rem);
+}
+
+.app-menu-tree-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.app-menu-toggle,
+.app-menu-toggle-placeholder {
+  flex: 0 0 auto;
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.app-menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: #eef3f0;
+  color: #355247;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.app-menu-toggle:hover {
+  background: #dbe8e2;
+  color: #0f5132;
+}
+
+.app-menu-toggle i {
+  font-size: 0.78rem;
+}
+
+.app-menu-toggle-placeholder {
+  display: inline-block;
+}
+
+.app-menu-name-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.app-menu-level-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.app-menu-level-indicator.is-parent {
+  background: #dff3e7;
+  color: #0f5132;
+}
+
+.app-menu-level-indicator.is-child {
+  background: #eef2f6;
+  color: #52616d;
+}
+
+.app-menu-sub-label {
+  color: #7b8c85;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.app-menu-parent-label {
+  color: #0f5132;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.app-menu-row.is-parent .app-code {
+  color: #123524;
+}
+
+.app-menu-row.is-child {
+  background: #fbfcfb;
+}
+
 .app-menu-row {
   cursor: grab;
 }
@@ -4290,6 +4390,23 @@ body {
 .app-menu-row.is-dragging {
   opacity: 0.6;
   background: #f2f7f4;
+}
+
+.app-menu-dropzone {
+  margin-bottom: 0.75rem;
+  padding: 0.8rem 1rem;
+  border: 1px dashed #c8d7cf;
+  border-radius: 14px;
+  background: #f8fbf9;
+  color: #6b7a83;
+  font-size: 0.92rem;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.app-menu-dropzone.is-active {
+  border-color: #198754;
+  background: #eef8f2;
+  color: #0f5132;
 }
 
 .app-list-tabs-row {
