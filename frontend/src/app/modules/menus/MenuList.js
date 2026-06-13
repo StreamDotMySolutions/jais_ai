@@ -255,7 +255,7 @@ const MenuList = () => {
         return menuTreeRows.slice(startIndex, startIndex + perPage);
     }, [menuTreeRows, page, perPage]);
 
-    const canReorder = !keyword && page === 1 && totalRows > 0 && totalRows <= perPage;
+    const canReorder = !keyword && totalRows > 0;
     const parentMenuIds = useMemo(
         () => Array.from(new Set(
             menus
@@ -663,11 +663,8 @@ const MenuList = () => {
             </div>
 
             {error && <div className="app-form-error">{error}</div>}
-            {!keyword && !canReorder && totalRows > perPage && (
-                <div className="app-detail-note">Untuk susun menu, tetapkan "Per halaman" sehingga semua menu dipaparkan dalam satu halaman.</div>
-            )}
             {keyword && (
-                <div className="app-detail-note">Paparan carian mengekalkan context parent-child minimum untuk menu yang padan.</div>
+                <div className="app-detail-note">Carian aktif akan menutup fungsi drag dan drop supaya susunan menu tidak mengelirukan.</div>
             )}
             {!keyword && parentMenuIds.length > 0 && (
                 <div className="app-menu-tree-actions">
