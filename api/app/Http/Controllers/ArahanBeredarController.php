@@ -9,6 +9,7 @@ use App\Models\Staff;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Services\CommonService;
 
 class ArahanBeredarController extends Controller
@@ -205,5 +206,24 @@ class ArahanBeredarController extends Controller
                 'message' => 'Gagal mengemaskini arahan beredar.',
             ], 422);
         }
+    }
+
+    public function downloadOydMedia(Request $request, ArahanBeredar $arahanBeredar, ArahanBeredarOydMedia $media)
+    {
+        $oyd = ArahanBeredarOyd::find($media->oyds_id);
+
+        if (! $oyd || (int) $oyd->arahan_beredar_id !== (int) $arahanBeredar->id) {
+            abort(404);
+        }
+
+        if (! $media->file_path) {
+            abort(404, 'Fail lampiran tidak dijumpai.');
+        }
+
+        if (! Storage::disk('public')->exists($media->file_path)) {
+            abort(404, 'Fail lampiran tidak ditemui pada storan.');
+        }
+
+        return Storage::disk('public')->download($media->file_path, $media->file_name);
     }
 }

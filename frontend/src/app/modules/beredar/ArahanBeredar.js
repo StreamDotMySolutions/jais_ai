@@ -13,12 +13,6 @@ const initialForm = {
 
 const ArahanBeredar = ({ mode = 'create' }) => {
     const apiUrl = process.env.REACT_APP_API_URL;
-    const storageBaseUrl = useMemo(() => {
-        if (!apiUrl) {
-            return '';
-        }
-        return apiUrl.replace(/\/api\/?$/, '');
-    }, [apiUrl]);
     const { id } = useParams();
     const navigate = useNavigate();
     const toast = useToast();
@@ -66,11 +60,70 @@ const ArahanBeredar = ({ mode = 'create' }) => {
         }
     };
 
-    const buildMediaUrl = (media) => {
-        if (!storageBaseUrl || !media?.file_path) {
-            return '#';
+    const applyRecordToState = (data) => {
+        if (!data) {
+            return;
         }
-        return `${storageBaseUrl}/storage/${String(media.file_path).replace(/^\/+/, '')}`;
+
+        setForm({
+            location: data.location || '',
+            incidentDate: data.incident_date || '',
+            sections: (data.sections || []).map((section) => section.id),
+            otherSection: data.other_section || '',
+            notes: data.notes || '',
+        });
+        setOydsList(
+            (data.oyds || []).map((row) => ({
+                id: row.id,
+                name: row.name || '',
+                ic: row.ic_number || '',
+                phone: row.phone || '',
+                address: row.address || '',
+                photo: null,
+                media: row.media || [],
+            }))
+        );
+    };
+
+    const buildMediaDownloadUrl = (media) => {
+        if (!apiUrl || !id || !media?.id) {
+            return '';
+        }
+        return `${apiUrl}/arahan-beredar/${id}/oyd-media/${media.id}/download`;
+    };
+
+    const openMedia = async (media) => {
+        const downloadUrl = buildMediaDownloadUrl(media);
+        if (!downloadUrl) {
+            toast.error('Lampiran tidak dijumpai.');
+            return;
+        }
+
+        try {
+            const response = await axios.get(downloadUrl, {
+                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                responseType: 'blob',
+            });
+            const contentType = response.headers?.['content-type'] || media?.file_type || 'application/octet-stream';
+            const blob = new Blob([response.data], { type: contentType });
+            const blobUrl = window.URL.createObjectURL(blob);
+            const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
+
+            if (!opened) {
+                const link = document.createElement('a');
+                link.href = blobUrl;
+                link.target = '_blank';
+                link.rel = 'noreferrer';
+                link.download = media?.file_name || 'lampiran';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            window.setTimeout(() => window.URL.revokeObjectURL(blobUrl), 60000);
+        } catch (_error) {
+            toast.error('Gagal membuka lampiran OYDS.');
+        }
     };
 
     const toggleSection = (value) => {
@@ -120,24 +173,7 @@ const ArahanBeredar = ({ mode = 'create' }) => {
                 if (!data) {
                     return;
                 }
-                setForm({
-                    location: data.location || '',
-                    incidentDate: data.incident_date || '',
-                    sections: (data.sections || []).map((section) => section.id),
-                    otherSection: data.other_section || '',
-                    notes: data.notes || '',
-                });
-                setOydsList(
-                    (data.oyds || []).map((row) => ({
-                        id: row.id,
-                        name: row.name || '',
-                        ic: row.ic_number || '',
-                        phone: row.phone || '',
-                        address: row.address || '',
-                        photo: null,
-                        media: row.media || [],
-                    }))
-                );
+                applyRecordToState(data);
             })
             .catch(() => {
                 setMessageType('danger');
@@ -222,8 +258,9 @@ const ArahanBeredar = ({ mode = 'create' }) => {
             });
 
         request
-            .then(() => {
+            .then((response) => {
                 const successMessage = mode === 'edit' ? 'Rekod arahan beredar dikemaskini.' : 'Rekod arahan beredar disimpan.';
+                applyRecordToState(response?.data?.data);
                 setMessageType('success');
                 setMessage(successMessage);
                 toast.success(successMessage);
@@ -400,19 +437,18 @@ const ArahanBeredar = ({ mode = 'create' }) => {
                                 {row.media?.length > 0 && (
                                     <div className="app-oyds-attachment-strip app-beredar-oyds-attachment-strip">
                                         {row.media.map((media) => (
-                                            <a
+                                            <button
+                                                type="button"
                                                 key={media.id}
                                                 className="app-oyds-attachment-pill-main app-beredar-oyds-attachment-link"
-                                                href={buildMediaUrl(media)}
-                                                target="_blank"
-                                                rel="noreferrer"
                                                 title={media.file_name}
+                                                onClick={() => openMedia(media)}
                                             >
                                                 <span className="app-oyds-attachment-pill-thumb">
                                                     <i className="bi bi-paperclip"></i>
                                                 </span>
                                                 <span className="app-oyds-attachment-pill-name">{media.file_name}</span>
-                                            </a>
+                                            </button>
                                         ))}
                                     </div>
                                 )}

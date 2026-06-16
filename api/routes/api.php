@@ -226,6 +226,9 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('arahanBeredar');
     Route::put('/arahan-beredar/{arahanBeredar}', [ArahanBeredarController::class, 'update'])
         ->whereNumber('arahanBeredar');
+    Route::get('/arahan-beredar/{arahanBeredar}/oyd-media/{media}/download', [ArahanBeredarController::class, 'downloadOydMedia'])
+        ->whereNumber('arahanBeredar')
+        ->whereNumber('media');
     Route::post('/complaints/{complaint}/approve', [App\Http\Controllers\ComplaintController::class, 'approve'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/dispatch-to-district', [App\Http\Controllers\ComplaintController::class, 'dispatchToDistrict'])
