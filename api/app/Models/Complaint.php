@@ -43,6 +43,21 @@ class Complaint extends Model
         return $this->belongsTo(User::class, 'submitted_by_user_id');
     }
 
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by_user_id');
+    }
+
+    public function deletedBy()
+    {
+        return $this->belongsTo(User::class, 'deleted_by_user_id');
+    }
+
     public function receivedBy()
     {
         return $this->belongsTo(User::class, 'received_by_user_id');

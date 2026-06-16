@@ -17,6 +17,50 @@ class ComplaintObserver
         'deleted_at',
     ];
 
+    public function creating(Complaint $complaint): void
+    {
+        $authUserId = Auth::id();
+        if ($complaint->created_by_user_id) {
+            return;
+        }
+
+        $complaint->created_by_user_id = $authUserId ?: ($complaint->submitted_by_user_id ?: null);
+    }
+
+    public function updating(Complaint $complaint): void
+    {
+        $authUserId = Auth::id();
+        if (! $authUserId) {
+            return;
+        }
+
+        if (! $complaint->isDirty()) {
+            return;
+        }
+
+        $meaningfulDirtyKeys = array_diff(array_keys($complaint->getDirty()), ['updated_by_user_id']);
+        if (! $meaningfulDirtyKeys) {
+            return;
+        }
+
+        $complaint->updated_by_user_id = $authUserId;
+    }
+
+    public function deleting(Complaint $complaint): void
+    {
+        if ($complaint->isForceDeleting()) {
+            return;
+        }
+
+        $authUserId = Auth::id();
+        if (! $authUserId) {
+            return;
+        }
+
+        $complaint->deleted_by_user_id = $authUserId;
+        $complaint->saveQuietly();
+    }
+
     private function writeLog(Complaint $complaint, string $event, array $oldValues = null, array $newValues = null, array $changedKeys = null): void
     {
         $request = request();
