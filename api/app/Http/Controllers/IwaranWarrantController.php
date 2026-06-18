@@ -90,6 +90,16 @@ class IwaranWarrantController extends Controller
         }
     }
 
+    private function isSystemUser($user): bool
+    {
+        return (bool) ($user && method_exists($user, 'hasRole') && $user->hasRole('system'));
+    }
+
+    private function canViewAudit($user): bool
+    {
+        return (bool) ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['admin', 'system']));
+    }
+
     private function applyWorkflowStageFromStatus(array &$data, ?IwaranWarrant $warrant = null): void
     {
         // Status pelaksanaan tidak lagi boleh menimpa workflow waran.
@@ -447,14 +457,22 @@ class IwaranWarrantController extends Controller
     {
         $currentStage = $this->resolveWarrantStage($warrant);
 
-        return array_merge($warrant->toArray(), [
+        $payload = array_merge($warrant->toArray(), [
             'current_stage' => $currentStage,
             'current_stage_label' => $this->getWarrantStageLabel($currentStage),
             'can_dispatch' => $this->canDispatchWarrant($user, $warrant),
             'can_pickup' => $this->canPickupWarrant($user, $warrant),
             'can_send_to_court' => $this->canSendWarrantToCourt($user, $warrant),
             'court_delivery_label' => ! empty($warrant->sent_to_court_at) ? 'Telah hantar ke Mahkamah' : null,
+            'is_deleted' => ! is_null($warrant->deleted_at),
+            'can_restore' => ! is_null($warrant->deleted_at) && $this->isSystemUser($user),
         ]);
+
+        if (! $this->canViewAudit($user)) {
+            unset($payload['created_by'], $payload['updated_by'], $payload['deleted_by']);
+        }
+
+        return $payload;
     }
 
     private function csvCell($value): string
@@ -561,6 +579,15 @@ class IwaranWarrantController extends Controller
                 'receivedBy:id,name',
                 'sentToDistrictBy:id,name',
             ]);
+
+        $scope = trim((string) $request->query('scope', 'active'));
+        if ($scope === 'deleted') {
+            if (! $this->isSystemUser($user)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $query->onlyTrashed();
+        }
 
         $this->applyIwaranAccessScope($query, $user);
 
@@ -1441,6 +1468,9 @@ class IwaranWarrantController extends Controller
         }
 
         $relations = [
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'deletedBy:id,name',
             'daerah:id,name',
             'mahkamah:id,nama',
             'pendaftar:id,name',
@@ -1806,6 +1836,43 @@ class IwaranWarrantController extends Controller
 
         return response()->json([
             'message' => 'Waran dipadam.',
+        ]);
+    }
+
+    public function restore(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        if (! $this->isSystemUser($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $iwaranWarrant = IwaranWarrant::withTrashed()
+            ->with(['attachments', 'courtDocuments'])
+            ->find($id);
+
+        if (! $iwaranWarrant || ! $iwaranWarrant->trashed()) {
+            return response()->json(['message' => 'Rekod waran dipadam tidak dijumpai.'], 404);
+        }
+
+        $iwaranWarrant->restore();
+        $iwaranWarrant->attachments()->onlyTrashed()->restore();
+        $iwaranWarrant->courtDocuments()->onlyTrashed()->restore();
+
+        $fresh = IwaranWarrant::query()
+            ->with([
+                'daerah:id,name',
+                'mahkamah:id,nama',
+                'pendaftar:id,name',
+                'pelaksana:id,name',
+                'receivedBy:id,name',
+                'sentToDistrictBy:id,name',
+                'sentToCourtBy:id,name',
+            ])
+            ->findOrFail($id);
+
+        return response()->json([
+            'message' => 'Rekod waran berjaya dipulihkan.',
+            'data' => $this->appendWorkflowMeta($fresh, $user),
         ]);
     }
 }

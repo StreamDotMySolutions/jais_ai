@@ -65,6 +65,7 @@ const CaseList = () => {
     const [isComplaintSearchLoading, setIsComplaintSearchLoading] = useState(false);
     const [isCreatingCase, setIsCreatingCase] = useState(false);
     const [createError, setCreateError] = useState('');
+    const [recordScope, setRecordScope] = useState('active');
 
     const loadCases = () => {
         if (!apiUrl) {
@@ -82,6 +83,7 @@ const CaseList = () => {
                 case_type: caseType || undefined,
                 keyword: keyword.trim() || undefined,
                 with_complaints: 1,
+                record_scope: recordScope,
             },
         })
             .then((response) => {
@@ -98,7 +100,7 @@ const CaseList = () => {
 
     useEffect(() => {
         loadCases();
-    }, [apiUrl, page, perPage, caseType]);
+    }, [apiUrl, page, perPage, caseType, recordScope]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -107,6 +109,22 @@ const CaseList = () => {
         }, 300);
         return () => clearTimeout(timer);
     }, [keyword]);
+
+    const handleRestore = (caseId) => {
+        if (!apiUrl) {
+            return;
+        }
+
+        axios.post(`${apiUrl}/cases/${caseId}/restore`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then(() => {
+                loadCases();
+            })
+            .catch((err) => {
+                setError(err?.response?.data?.message || 'Gagal memulihkan kes.');
+            });
+    };
 
     const searchComplaints = () => {
         if (!apiUrl) {
@@ -226,8 +244,35 @@ const CaseList = () => {
                 </>
             )}
             filters={(
-                <form className="app-filter app-case-filters" onSubmit={(event) => event.preventDefault()}>
-                    <div className="app-filter-row app-case-filter-row">
+                <>
+                    {role === 'system' && (
+                        <div className="app-list-tabs-row">
+                            <div className="app-list-tabs">
+                                <button
+                                    type="button"
+                                    className={`app-list-tab ${recordScope === 'active' ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setRecordScope('active');
+                                        setPage(1);
+                                    }}
+                                >
+                                    Aktif
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`app-list-tab ${recordScope === 'deleted' ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setRecordScope('deleted');
+                                        setPage(1);
+                                    }}
+                                >
+                                    Dipadam
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    <form className="app-filter app-case-filters" onSubmit={(event) => event.preventDefault()}>
+                        <div className="app-filter-row app-case-filter-row">
                         <div className="app-filter-field app-filter-field-main">
                             <span>Carian</span>
                             <div className="app-filter-input">
@@ -262,8 +307,9 @@ const CaseList = () => {
                                 <option value="">Semua</option>
                             </select>
                         </label>
-                    </div>
-                </form>
+                        </div>
+                    </form>
+                </>
             )}
         >
             {isCreateModalOpen && (
@@ -444,15 +490,25 @@ const CaseList = () => {
                                     </div>
                                 </div>
                                 <div className="app-case-table-actions">
-                                    <button
-                                        type="button"
-                                        className="app-icon-button"
-                                        onClick={() => navigate(`/app/cases/${item.id}`)}
-                                        aria-label="Papar Kes"
-                                        title="Papar Kes"
-                                    >
-                                        <i className="bi bi-pencil-square"></i>
-                                    </button>
+                                    {item.can_restore ? (
+                                        <button
+                                            type="button"
+                                            className="app-button app-button-ghost app-button-mini"
+                                            onClick={() => handleRestore(item.id)}
+                                        >
+                                            Pulihkan
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            className="app-icon-button"
+                                            onClick={() => navigate(`/app/cases/${item.id}`)}
+                                            aria-label="Papar Kes"
+                                            title="Papar Kes"
+                                        >
+                                            <i className="bi bi-pencil-square"></i>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

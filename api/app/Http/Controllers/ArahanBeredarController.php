@@ -14,16 +14,44 @@ use App\Services\CommonService;
 
 class ArahanBeredarController extends Controller
 {
+    private function isSystemUser($user): bool
+    {
+        return (bool) ($user && method_exists($user, 'hasRole') && $user->hasRole('system'));
+    }
+
+    private function canViewAudit($user): bool
+    {
+        return (bool) ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['admin', 'system']));
+    }
+
     public function index(Request $request): JsonResponse
     {
-        $items = ArahanBeredar::query()
+        $user = $request->user();
+        $query = ArahanBeredar::query()
             ->latest()
-            ->with(['oyds.media', 'sections', 'staff:id,name'])
-            ->paginate($request->integer('per_page', 10));
+            ->with(['oyds.media', 'sections', 'staff:id,name']);
+
+        $scope = trim((string) $request->query('scope', 'active'));
+        if ($scope === 'deleted') {
+            if (! $this->isSystemUser($user)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $query->onlyTrashed();
+        }
+
+        $items = $query->paginate($request->integer('per_page', 10));
+
+        $rows = collect($items->items())->map(function (ArahanBeredar $item) use ($user) {
+            return array_merge($item->toArray(), [
+                'is_deleted' => ! is_null($item->deleted_at),
+                'can_restore' => ! is_null($item->deleted_at) && $this->isSystemUser($user),
+            ]);
+        })->values();
 
         return response()->json([
             'message' => 'Arahan beredar',
-            'data' => $items->items(),
+            'data' => $rows,
             'meta' => [
                 'current_page' => $items->currentPage(),
                 'last_page' => $items->lastPage(),
@@ -33,11 +61,28 @@ class ArahanBeredarController extends Controller
         ]);
     }
 
-    public function show(ArahanBeredar $arahanBeredar): JsonResponse
+    public function show(Request $request, ArahanBeredar $arahanBeredar): JsonResponse
     {
+        $user = $request->user();
+        $arahanBeredar->load([
+            'oyds.media',
+            'sections',
+            'staff:id,name',
+            'creator:id,name',
+            'updatedBy:id,name',
+            'deletedBy:id,name',
+        ]);
+
+        if (! $this->canViewAudit($user)) {
+            $arahanBeredar->unsetRelation('creator');
+            $arahanBeredar->unsetRelation('updatedBy');
+            $arahanBeredar->unsetRelation('deletedBy');
+            $arahanBeredar->makeHidden(['creator', 'updatedBy', 'deletedBy', 'created_by', 'updated_by', 'deleted_by']);
+        }
+
         return response()->json([
             'message' => 'Arahan beredar',
-            'data' => $arahanBeredar->load(['oyds.media', 'sections', 'staff:id,name']),
+            'data' => $arahanBeredar,
         ]);
     }
 
@@ -223,5 +268,39 @@ class ArahanBeredarController extends Controller
         }
 
         return Storage::disk('public')->download($media->file_path, $media->file_name);
+    }
+
+    public function restore(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        if (! $this->isSystemUser($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $record = ArahanBeredar::withTrashed()
+            ->with(['oyds' => fn ($query) => $query->withTrashed()->with(['media' => fn ($mediaQuery) => $mediaQuery->withTrashed()])])
+            ->find($id);
+
+        if (! $record || ! $record->trashed()) {
+            return response()->json(['message' => 'Rekod arahan beredar dipadam tidak dijumpai.'], 404);
+        }
+
+        $record->restore();
+        $record->oyds()->onlyTrashed()->restore();
+        foreach ($record->oyds()->withTrashed()->get() as $oyd) {
+            $oyd->media()->onlyTrashed()->restore();
+        }
+
+        $fresh = ArahanBeredar::query()
+            ->with(['oyds.media', 'sections', 'staff:id,name'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'message' => 'Rekod arahan beredar berjaya dipulihkan.',
+            'data' => array_merge($fresh->toArray(), [
+                'is_deleted' => false,
+                'can_restore' => false,
+            ]),
+        ]);
     }
 }

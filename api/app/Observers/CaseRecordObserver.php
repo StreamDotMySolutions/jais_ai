@@ -59,6 +59,61 @@ class CaseRecordObserver
 
         $caseRecord->deleted_by_user_id = $authUserId;
         $caseRecord->saveQuietly();
+
+        $caseRecord->loadMissing([
+            'oyds.media',
+            'inspectionForms.media',
+            'seizureItems.media',
+            'policeReports.media',
+        ]);
+
+        foreach ($caseRecord->oyds as $oyd) {
+            foreach ($oyd->media as $media) {
+                if (! $media->trashed()) {
+                    $media->delete();
+                }
+            }
+
+            if (! $oyd->trashed()) {
+                $oyd->delete();
+            }
+        }
+
+        foreach ($caseRecord->inspectionForms as $form) {
+            foreach ($form->media as $media) {
+                if (! $media->trashed()) {
+                    $media->delete();
+                }
+            }
+
+            if (! $form->trashed()) {
+                $form->delete();
+            }
+        }
+
+        foreach ($caseRecord->seizureItems as $item) {
+            foreach ($item->media as $media) {
+                if (! $media->trashed()) {
+                    $media->delete();
+                }
+            }
+
+            if (! $item->trashed()) {
+                $item->delete();
+            }
+        }
+
+        foreach ($caseRecord->policeReports as $report) {
+            foreach ($report->media as $media) {
+                if (! $media->trashed()) {
+                    $media->delete();
+                }
+            }
+
+            if (! $report->trashed()) {
+                $report->delete();
+            }
+        }
     }
 
     private function writeLog(CaseRecord $caseRecord, string $event, array $oldValues = null, array $newValues = null, array $changedKeys = null): void

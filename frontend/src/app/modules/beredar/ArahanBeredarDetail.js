@@ -2,11 +2,34 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 
+const formatDateTime = (value) => {
+    if (!value) {
+        return '-';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return date.toLocaleString('ms-MY', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kuala_Lumpur',
+    });
+};
+
+const formatAuditUser = (user) => user?.name || '-';
+
 const ArahanBeredarDetail = () => {
     const { id } = useParams();
     const navigate = useNavigate();
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
+    const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
+    const canViewAudit = ['admin', 'system'].includes(role);
     const [record, setRecord] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -151,6 +174,40 @@ const ArahanBeredarDetail = () => {
                     </div>
                 </div>
             </div>
+
+            {canViewAudit && (
+                <div className="app-card">
+                    <div className="app-card-header">
+                        <h4>Audit Rekod</h4>
+                    </div>
+                    <div className="app-form-grid">
+                        <div className="app-form-field">
+                            <span>Dicipta Oleh</span>
+                            <div className="app-detail-value">{formatAuditUser(record.created_by || record.creator)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Tarikh Cipta</span>
+                            <div className="app-detail-value">{formatDateTime(record.created_at)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Dikemaskini Oleh</span>
+                            <div className="app-detail-value">{formatAuditUser(record.updated_by)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Tarikh Kemaskini</span>
+                            <div className="app-detail-value">{formatDateTime(record.updated_at)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Dipadam Oleh</span>
+                            <div className="app-detail-value">{formatAuditUser(record.deleted_by)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Tarikh Padam</span>
+                            <div className="app-detail-value">{formatDateTime(record.deleted_at)}</div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

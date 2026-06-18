@@ -25,6 +25,27 @@ const formatMonthLabel = (date) => date.toLocaleDateString('ms-MY', {
     timeZone: 'Asia/Kuala_Lumpur',
 });
 
+const formatDateTime = (value) => {
+    if (!value) {
+        return '-';
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+    return date.toLocaleString('ms-MY', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Asia/Kuala_Lumpur',
+    });
+};
+
+const formatAuditUser = (user) => user?.name || '-';
+
 const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
 const endOfMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
 
@@ -68,6 +89,8 @@ const buildCalendarDays = (baseDate) => {
 const AppointmentCalendar = ({ isPopup = false }) => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const role = normalizeRole(localStorage.getItem('role'));
+    const isSystem = role === 'system';
+    const canViewAudit = role === 'system' || role === 'admin';
     const initialScope = role === 'pegawai_daerah' ? 'daerah' : 'hq';
     const [searchParams] = useSearchParams();
     const focusDate = searchParams.get('date');
@@ -86,6 +109,9 @@ const AppointmentCalendar = ({ isPopup = false }) => {
     const [isSearchParamOpen, setIsSearchParamOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
+    const [recordScope, setRecordScope] = useState('active');
+    const [canViewDeleted, setCanViewDeleted] = useState(false);
+    const [restoreLoadingId, setRestoreLoadingId] = useState(null);
     const searchParamRef = useRef(null);
 
     const { days, monthStart, monthEnd } = useMemo(() => buildCalendarDays(currentDate), [currentDate]);
@@ -106,6 +132,7 @@ const AppointmentCalendar = ({ isPopup = false }) => {
             params: {
                 start_at: formatDateKey(monthStart),
                 end_at: formatDateKey(monthEnd),
+                scope: recordScope,
             },
         })
             .then((response) => {
@@ -114,6 +141,7 @@ const AppointmentCalendar = ({ isPopup = false }) => {
                 setViewerDistrictName(payload?.viewer?.district_name || '');
                 const nextScope = payload?.scope === 'daerah' ? 'daerah' : 'hq';
                 setCalendarScope(nextScope);
+                setCanViewDeleted(Boolean(payload?.can_view_deleted));
             })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal mendapatkan temujanji.');
@@ -122,7 +150,41 @@ const AppointmentCalendar = ({ isPopup = false }) => {
             .finally(() => {
                 setIsLoading(false);
             });
-    }, [apiUrl, monthKey]);
+    }, [apiUrl, monthKey, recordScope]);
+
+    const loadAppointments = () => {
+        if (!apiUrl) {
+            setError('API URL tidak diset.');
+            setIsLoading(false);
+            return;
+        }
+        const token = localStorage.getItem('token');
+        setIsLoading(true);
+        setError('');
+        axios.get(`${apiUrl}/appointments`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            params: {
+                start_at: formatDateKey(monthStart),
+                end_at: formatDateKey(monthEnd),
+                scope: recordScope,
+            },
+        })
+            .then((response) => {
+                const payload = response?.data || {};
+                setAppointments(payload?.data || []);
+                setViewerDistrictName(payload?.viewer?.district_name || '');
+                const nextScope = payload?.scope === 'daerah' ? 'daerah' : 'hq';
+                setCalendarScope(nextScope);
+                setCanViewDeleted(Boolean(payload?.can_view_deleted));
+            })
+            .catch((err) => {
+                setError(err?.response?.data?.message || 'Gagal mendapatkan temujanji.');
+                setAppointments([]);
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    };
 
     const searchOptions = useMemo(() => {
         const base = [
@@ -220,6 +282,29 @@ const AppointmentCalendar = ({ isPopup = false }) => {
 
     const closeEventPopover = () => setSelectedEvent(null);
 
+    const handleRestore = (item) => {
+        if (!apiUrl || !item?.id || restoreLoadingId) {
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        setRestoreLoadingId(item.id);
+        axios.post(`${apiUrl}/appointments/${item.id}/restore`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then(() => {
+                setError('');
+                closeEventPopover();
+                loadAppointments();
+            })
+            .catch((err) => {
+                setError(err?.response?.data?.message || 'Gagal memulihkan temujanji.');
+            })
+            .finally(() => {
+                setRestoreLoadingId(null);
+            });
+    };
+
     return (
         <div
             className={`app-calendar${isPopup ? ' app-calendar--popup' : ''}`}
@@ -239,13 +324,37 @@ const AppointmentCalendar = ({ isPopup = false }) => {
                     <button className="app-icon-button" type="button" onClick={handleNext} aria-label="Bulan seterusnya">
                         <i className="bi bi-chevron-right"></i>
                     </button>
-                    <div className="app-calendar-title app-calendar-title--google">
-                        <span>{monthLabel}</span>
-                        {!isPopup && calendarScope === 'daerah' && viewerDistrictName && (
-                            <small className="app-calendar-scope">Daerah: {viewerDistrictName}</small>
+                        <div className="app-calendar-title app-calendar-title--google">
+                            <span>{monthLabel}</span>
+                            {!isPopup && calendarScope === 'daerah' && viewerDistrictName && (
+                                <small className="app-calendar-scope">Daerah: {viewerDistrictName}</small>
+                            )}
+                        </div>
+                        {!isPopup && canViewDeleted && isSystem && (
+                            <div className="app-list-tabs">
+                                <button
+                                    type="button"
+                                    className={`app-list-tab ${recordScope === 'active' ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setRecordScope('active');
+                                        closeEventPopover();
+                                    }}
+                                >
+                                    Aktif
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`app-list-tab ${recordScope === 'deleted' ? 'active' : ''}`}
+                                    onClick={() => {
+                                        setRecordScope('deleted');
+                                        closeEventPopover();
+                                    }}
+                                >
+                                    Dipadam
+                                </button>
+                            </div>
                         )}
                     </div>
-                </div>
                 {!isPopup && (
                     <div className="app-calendar-head-right" ref={searchParamRef} onClick={(event) => event.stopPropagation()}>
                         <div className="app-calendar-search app-calendar-search--compact">
@@ -464,17 +573,7 @@ const AppointmentCalendar = ({ isPopup = false }) => {
                                         <div className="app-calendar-event-head">
                                             <div>
                                                 <strong>{eventForDay.complaint?.reference_no || eventForDay.title || 'Temujanji'}</strong>
-                                                <span>
-                                                    {new Date(eventForDay.start_at).toLocaleString('ms-MY', {
-                                                        day: '2-digit',
-                                                        month: '2-digit',
-                                                        year: 'numeric',
-                                                        hour: '2-digit',
-                                                        minute: '2-digit',
-                                                        hour12: false,
-                                                        timeZone: 'Asia/Kuala_Lumpur',
-                                                    })}
-                                                </span>
+                                                <span>{formatDateTime(eventForDay.start_at)}</span>
                                             </div>
                                             <button className="app-calendar-close" type="button" onClick={closeEventPopover}>×</button>
                                         </div>
@@ -499,26 +598,48 @@ const AppointmentCalendar = ({ isPopup = false }) => {
                                                 <div className="app-calendar-event-label">Status</div>
                                                 <div>{eventForDay.complaint?.current_stage || '-'}</div>
                                             </div>
+                                            {canViewAudit && (
+                                                <div className="app-calendar-event-block">
+                                                    <div className="app-calendar-event-label">Audit Rekod</div>
+                                                    <div>Dicipta oleh: {formatAuditUser(eventForDay.created_by)}</div>
+                                                    <div>Tarikh cipta: {formatDateTime(eventForDay.created_at)}</div>
+                                                    <div>Dikemaskini oleh: {formatAuditUser(eventForDay.updated_by)}</div>
+                                                    <div>Tarikh kemaskini: {formatDateTime(eventForDay.updated_at)}</div>
+                                                    <div>Dipadam oleh: {formatAuditUser(eventForDay.deleted_by)}</div>
+                                                    <div>Tarikh padam: {formatDateTime(eventForDay.deleted_at)}</div>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="app-calendar-event-actions">
                                             <button className="app-button app-button-ghost" type="button" onClick={closeEventPopover}>
                                                 Tutup
                                             </button>
-                                            <button
-                                                className="app-button"
-                                                type="button"
-                                                onClick={() => {
-                                                    const detailUrl = `/app/complaints/${eventForDay.complaint_id}`;
-                                                    if (isPopup && window.opener) {
-                                                        window.opener.location.href = detailUrl;
-                                                        window.close();
-                                                        return;
-                                                    }
-                                                    window.location.href = detailUrl;
-                                                }}
-                                            >
-                                                Buka Aduan
-                                            </button>
+                                            {eventForDay.can_restore ? (
+                                                <button
+                                                    className="app-button"
+                                                    type="button"
+                                                    onClick={() => handleRestore(eventForDay)}
+                                                    disabled={restoreLoadingId === eventForDay.id}
+                                                >
+                                                    {restoreLoadingId === eventForDay.id ? 'Memulihkan...' : 'Pulihkan'}
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    className="app-button"
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const detailUrl = `/app/complaints/${eventForDay.complaint_id}`;
+                                                        if (isPopup && window.opener) {
+                                                            window.opener.location.href = detailUrl;
+                                                            window.close();
+                                                            return;
+                                                        }
+                                                        window.location.href = detailUrl;
+                                                    }}
+                                                >
+                                                    Buka Aduan
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 )}

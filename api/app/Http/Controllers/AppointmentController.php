@@ -9,6 +9,11 @@ use Illuminate\Http\Request;
 
 class AppointmentController extends Controller
 {
+    private function isSystemUser($user): bool
+    {
+        return (bool) ($user && method_exists($user, 'hasRole') && $user->hasRole('system'));
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -20,12 +25,18 @@ class AppointmentController extends Controller
             'start_at' => 'required|date',
             'end_at' => 'required|date|after_or_equal:start_at',
             'district_id' => 'nullable|integer|exists:districts,id',
+            'scope' => 'nullable|in:active,deleted',
         ]);
 
         $startAt = Carbon::parse($validated['start_at'])->startOfDay();
         $endAt = Carbon::parse($validated['end_at'])->endOfDay();
         $isDistrictScope = $this->isDistrictScopedUser($user);
         $isHqScope = ! $isDistrictScope;
+
+        $scope = (string) ($validated['scope'] ?? 'active');
+        if ($scope === 'deleted' && ! $this->isSystemUser($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
 
         $viewerDistrictId = $this->resolveUserDistrictId($user);
         $selectedDistrictId = null;
@@ -39,20 +50,65 @@ class AppointmentController extends Controller
             ->where('status', 'booked')
             ->where('start_at', '<=', $endAt)
             ->where('end_at', '>=', $startAt)
-            ->whereHas('complaint', function ($query) use ($selectedDistrictId, $isDistrictScope) {
-                if ($selectedDistrictId) {
-                    $query->where('district_id', $selectedDistrictId);
-                    return;
+            ->orderBy('start_at');
+
+        if ($scope === 'deleted') {
+            $appointmentsQuery->onlyTrashed();
+        }
+
+        $appointmentsQuery->whereHas('complaint', function ($query) use ($selectedDistrictId, $isDistrictScope, $scope) {
+            if ($scope === 'deleted') {
+                $query->withTrashed();
+            }
+
+            if ($selectedDistrictId) {
+                $query->where('district_id', $selectedDistrictId);
+                return;
+            }
+
+            if ($isDistrictScope) {
+                // Pegawai daerah tanpa district yang valid tidak boleh lihat rekod daerah lain.
+                $query->whereRaw('1 = 0');
+            }
+        });
+
+        $appointmentsQuery->with([
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'deletedBy:id,name',
+            'complaint' => function ($query) use ($scope) {
+                if ($scope === 'deleted') {
+                    $query->withTrashed();
                 }
 
-                if ($isDistrictScope) {
-                    // Pegawai daerah tanpa district yang valid tidak boleh lihat rekod daerah lain.
-                    $query->whereRaw('1 = 0');
-                }
+                $query->select([
+                    'id',
+                    'reference_no',
+                    'case_type',
+                    'complainant_name',
+                    'identification_number',
+                    'contact_number',
+                    'complaint_date',
+                    'complaint_time',
+                    'address',
+                    'district_id',
+                    'district_name',
+                    'summary',
+                    'current_stage',
+                    'deleted_at',
+                ]);
+            },
+        ]);
+
+        $appointments = $appointmentsQuery
+            ->get(['id', 'complaint_id', 'title', 'start_at', 'end_at', 'status', 'created_at', 'updated_at', 'deleted_at'])
+            ->map(function (Appointment $appointment) use ($user) {
+                return array_merge($appointment->toArray(), [
+                    'is_deleted' => ! is_null($appointment->deleted_at),
+                    'can_restore' => ! is_null($appointment->deleted_at) && $this->isSystemUser($user),
+                ]);
             })
-            ->with(['complaint:id,reference_no,case_type,complainant_name,identification_number,contact_number,complaint_date,complaint_time,address,district_id,district_name,summary,current_stage'])
-            ->orderBy('start_at')
-            ->get(['id', 'complaint_id', 'title', 'start_at', 'end_at', 'status']);
+            ->values();
 
         $viewerDistrict = null;
         if ($viewerDistrictId) {
@@ -70,6 +126,8 @@ class AppointmentController extends Controller
         return response()->json([
             'message' => 'Appointment list',
             'scope' => $isDistrictScope ? 'daerah' : 'hq',
+            'record_scope' => $scope,
+            'can_view_deleted' => $this->isSystemUser($user),
             'viewer' => [
                 'district_id' => $viewerDistrict?->id,
                 'district_name' => $viewerDistrict?->name,
@@ -78,7 +136,7 @@ class AppointmentController extends Controller
                 'district_id' => $selectedDistrictId,
                 'available_districts' => $availableDistricts,
             ],
-            'data' => $appointmentsQuery,
+            'data' => $appointments,
         ]);
     }
 
@@ -118,6 +176,40 @@ class AppointmentController extends Controller
         return response()->json([
             'message' => $hasConflict ? 'Slot tidak tersedia.' : 'Slot tersedia.',
             'available' => ! $hasConflict,
+        ]);
+    }
+
+    public function restore(Request $request, int $id)
+    {
+        $user = $request->user();
+        if (! $this->isSystemUser($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $appointment = Appointment::withTrashed()
+            ->with(['complaint' => fn ($query) => $query->withTrashed()])
+            ->find($id);
+
+        if (! $appointment || ! $appointment->trashed()) {
+            return response()->json(['message' => 'Temujanji dipadam tidak dijumpai.'], 404);
+        }
+
+        if (! $appointment->complaint) {
+            return response()->json(['message' => 'Aduan asal untuk temujanji ini tidak dijumpai.'], 422);
+        }
+
+        if (method_exists($appointment->complaint, 'trashed') && $appointment->complaint->trashed()) {
+            return response()->json(['message' => 'Aduan asal masih dipadam. Pulihkan aduan terlebih dahulu.'], 422);
+        }
+
+        $appointment->restore();
+
+        return response()->json([
+            'message' => 'Temujanji berjaya dipulihkan.',
+            'data' => array_merge($appointment->fresh(['complaint'])->toArray(), [
+                'is_deleted' => false,
+                'can_restore' => false,
+            ]),
         ]);
     }
 

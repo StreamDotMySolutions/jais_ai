@@ -63,6 +63,8 @@ const WaranList = () => {
     const navigate = useNavigate();
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
+    const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
+    const isSystem = role === 'system';
     const [records, setRecords] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
@@ -81,6 +83,7 @@ const WaranList = () => {
         district: '',
         fromDate: '',
         toDate: '',
+        scope: 'active',
     });
     const [draftFilters, setDraftFilters] = useState({
         keyword: '',
@@ -88,6 +91,7 @@ const WaranList = () => {
         district: '',
         fromDate: '',
         toDate: '',
+        scope: 'active',
     });
     const [showFilters, setShowFilters] = useState(true);
     const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -115,6 +119,7 @@ const WaranList = () => {
                 ...(filters.district ? { district_id: filters.district } : {}),
                 ...(filters.fromDate ? { from_date: filters.fromDate } : {}),
                 ...(filters.toDate ? { to_date: filters.toDate } : {}),
+                ...(filters.scope ? { scope: filters.scope } : {}),
             },
         })
             .then((response) => {
@@ -168,6 +173,7 @@ const WaranList = () => {
                 ...(filters.district ? { district_id: filters.district } : {}),
                 ...(filters.fromDate ? { from_date: filters.fromDate } : {}),
                 ...(filters.toDate ? { to_date: filters.toDate } : {}),
+                ...(filters.scope ? { scope: filters.scope } : {}),
             },
         })
             .then((response) => {
@@ -218,6 +224,7 @@ const WaranList = () => {
             district: '',
             fromDate: '',
             toDate: '',
+            scope: filters.scope || 'active',
         };
         setDraftFilters(empty);
         setFilters(empty);
@@ -279,6 +286,25 @@ const WaranList = () => {
             })
             .catch((err) => {
                 setError(err?.response?.data?.message || 'Gagal hantar email i-Waran ke mahkamah.');
+            })
+            .finally(() => setActionLoadingId(null));
+    };
+
+    const handleRestore = (item) => {
+        if (!apiUrl || !item?.id || actionLoadingId) {
+            return;
+        }
+
+        setActionLoadingId(`restore-${item.id}`);
+        axios.post(`${apiUrl}/i-waran/${item.id}/restore`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then(() => {
+                setError('');
+                loadRecords();
+            })
+            .catch((err) => {
+                setError(err?.response?.data?.message || 'Gagal memulihkan rekod waran.');
             })
             .finally(() => setActionLoadingId(null));
     };
@@ -404,10 +430,32 @@ const WaranList = () => {
                     <div className="app-list-tabs">
                         <button
                             type="button"
-                            className="app-list-tab active"
+                            className={`app-list-tab ${filters.scope === 'active' ? 'active' : ''}`}
+                            onClick={() => {
+                                const next = { ...filters, scope: 'active' };
+                                const nextDraft = { ...draftFilters, scope: 'active' };
+                                setFilters(next);
+                                setDraftFilters(nextDraft);
+                                setPage(1);
+                            }}
                         >
-                            Semua
+                            Aktif
                         </button>
+                        {isSystem && (
+                            <button
+                                type="button"
+                                className={`app-list-tab ${filters.scope === 'deleted' ? 'active' : ''}`}
+                                onClick={() => {
+                                    const next = { ...filters, scope: 'deleted' };
+                                    const nextDraft = { ...draftFilters, scope: 'deleted' };
+                                    setFilters(next);
+                                    setDraftFilters(nextDraft);
+                                    setPage(1);
+                                }}
+                            >
+                                Dipadam
+                            </button>
+                        )}
                     </div>
                     <button className="app-button app-list-tabs-add-btn" type="button" onClick={() => navigate('/app/i-waran/new')}>
                         <i className="bi bi-plus-lg"></i>
@@ -555,30 +603,52 @@ const WaranList = () => {
                                                   {actionLoadingId === `court-${item.id}` ? 'Menghantar...' : 'Hantar ke Mahkamah'}
                                               </button>
                                           )}
+                                          {item.can_restore && (
+                                              <button
+                                                  type="button"
+                                                  className="app-button app-button-ghost app-button-mini"
+                                                  onClick={() => handleRestore(item)}
+                                                  disabled={actionLoadingId === `restore-${item.id}`}
+                                              >
+                                                  {actionLoadingId === `restore-${item.id}` && (
+                                                      <span
+                                                          className="spinner-border spinner-border-sm"
+                                                          role="status"
+                                                          aria-hidden="true"
+                                                          style={{ marginRight: '.45rem' }}
+                                                      ></span>
+                                                  )}
+                                                  {actionLoadingId === `restore-${item.id}` ? 'Memulihkan...' : 'Pulihkan'}
+                                              </button>
+                                          )}
                                     </span>
                                     <span>
                                         <div className="app-row-actions-stack is-compact">
                                             <div className="app-row-actions-icons">
-                                                <button
-                                                    className="app-icon-button"
-                                                    type="button"
-                                                    onClick={() => navigate(`/app/i-waran/${item.id}/edit`)}
-                                                    aria-label="Kemaskini waran"
-                                                    title="Kemaskini"
-                                                >
-                                                    <i className="bi bi-pencil-square"></i>
-                                                </button>
-                                                <a
-                                                    className="app-icon-button app-icon-button-xs"
-                                                    href={`/app/i-waran/${item.id}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    aria-label="Buka dalam tab baharu"
-                                                    title="Buka tab baharu"
-                                                    onClick={(event) => event.stopPropagation()}
-                                                >
-                                                    <i className="bi bi-box-arrow-up-right"></i>
-                                                </a>
+                                                {!item.is_deleted && (
+                                                    <>
+                                                        <button
+                                                            className="app-icon-button"
+                                                            type="button"
+                                                            onClick={() => navigate(`/app/i-waran/${item.id}/edit`)}
+                                                            aria-label="Kemaskini waran"
+                                                            title="Kemaskini"
+                                                        >
+                                                            <i className="bi bi-pencil-square"></i>
+                                                        </button>
+                                                        <a
+                                                            className="app-icon-button app-icon-button-xs"
+                                                            href={`/app/i-waran/${item.id}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            aria-label="Buka dalam tab baharu"
+                                                            title="Buka tab baharu"
+                                                            onClick={(event) => event.stopPropagation()}
+                                                        >
+                                                            <i className="bi bi-box-arrow-up-right"></i>
+                                                        </a>
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
                                     </span>

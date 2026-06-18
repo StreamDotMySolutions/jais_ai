@@ -46,6 +46,8 @@ const formatDateTime = (value) => {
     });
 };
 
+const formatAuditUser = (user) => user?.name || '-';
+
 const normalizeDateTimeLocal = (value) => {
     if (!value) return '';
     const date = new Date(value);
@@ -77,6 +79,7 @@ const CaseDetail = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
     const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
+    const canViewAudit = ['admin', 'system'].includes(role);
     const toast = useToast();
     const isMaintenanceOverride = isMaintenanceOverrideRole(role);
     const isDraft = !id || id === 'new';
@@ -1275,6 +1278,40 @@ const CaseDetail = () => {
                     </label>
                 </div>
             </section>
+
+            {!isDraft && canViewAudit && (
+                <section className="app-card">
+                    <div className="app-card-header">
+                        <h4>Audit Rekod</h4>
+                    </div>
+                    <div className="app-form-grid">
+                        <div className="app-form-field">
+                            <span>Dicipta Oleh</span>
+                            <div className="app-detail-value">{formatAuditUser(caseRecord?.created_by)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Tarikh Cipta</span>
+                            <div className="app-detail-value">{formatDateTime(caseRecord?.created_at)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Dikemaskini Oleh</span>
+                            <div className="app-detail-value">{formatAuditUser(caseRecord?.updated_by)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Tarikh Kemaskini</span>
+                            <div className="app-detail-value">{formatDateTime(caseRecord?.updated_at)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Dipadam Oleh</span>
+                            <div className="app-detail-value">{formatAuditUser(caseRecord?.deleted_by)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Tarikh Padam</span>
+                            <div className="app-detail-value">{formatDateTime(caseRecord?.deleted_at)}</div>
+                        </div>
+                    </div>
+                </section>
+            )}
 
             <div className="app-report-sticky app-case-sticky-actions">
                 <button type="button" className="app-button" onClick={saveCase} disabled={isSaving}>

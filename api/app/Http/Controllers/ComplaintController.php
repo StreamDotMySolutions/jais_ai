@@ -54,6 +54,33 @@ class ComplaintController extends Controller
     ) {
     }
 
+    private function isSystemUser($user): bool
+    {
+        return (bool) ($user && method_exists($user, 'hasRole') && $user->hasRole('system'));
+    }
+
+    private function canViewAudit($user): bool
+    {
+        return (bool) ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['admin', 'system']));
+    }
+
+    private function sanitizeAuditModelRelations($model, $user)
+    {
+        if (! $model || $this->canViewAudit($user) || ! method_exists($model, 'unsetRelation')) {
+            return $model;
+        }
+
+        foreach (['createdBy', 'updatedBy', 'deletedBy'] as $relation) {
+            $model->unsetRelation($relation);
+        }
+
+        if (method_exists($model, 'makeHidden')) {
+            $model->makeHidden(['createdBy', 'updatedBy', 'deletedBy', 'created_by', 'updated_by', 'deleted_by']);
+        }
+
+        return $model;
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -62,6 +89,15 @@ class ComplaintController extends Controller
         }
 
         $query = Complaint::query()->orderByDesc('id');
+        $recordScope = trim((string) $request->query('record_scope', 'active'));
+        if ($recordScope === 'deleted') {
+            if (! $this->isSystemUser($user)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $query->onlyTrashed();
+        }
+
         $this->applyComplaintAccessScope($query, $user);
         $this->applyComplaintFilters($query, $request);
 
@@ -248,6 +284,7 @@ class ComplaintController extends Controller
             'page' => 'nullable|integer|min:1',
             'per_page' => 'nullable|integer|min:1|max:100',
             'with_complaints' => 'nullable',
+            'record_scope' => 'nullable|in:active,deleted',
         ]);
 
         $query = CaseRecord::query()
@@ -266,13 +303,27 @@ class ComplaintController extends Controller
                 'arrest_status',
                 'action_datetime',
                 'created_at',
+                'deleted_at',
             ])
             ->withCount('complaints')
             ->orderByDesc('id');
 
+        $recordScope = (string) ($validated['record_scope'] ?? 'active');
+        if ($recordScope === 'deleted') {
+            if (! $this->isSystemUser($user)) {
+                return response()->json(['message' => 'Unauthorized'], 403);
+            }
+
+            $query->onlyTrashed();
+        }
+
         $withComplaints = filter_var($validated['with_complaints'] ?? false, FILTER_VALIDATE_BOOLEAN);
         if ($withComplaints) {
-            $query->with(['complaints' => function ($subQuery) {
+            $query->with(['complaints' => function ($subQuery) use ($recordScope) {
+                if ($recordScope === 'deleted') {
+                    $subQuery->withTrashed();
+                }
+
                 $subQuery->select([
                     'complaints.id',
                     'complaints.reference_no',
@@ -319,9 +370,15 @@ class ComplaintController extends Controller
         $perPage = (int) ($validated['per_page'] ?? 0);
         if ($perPage > 0) {
             $rows = $query->paginate($perPage);
+            $items = collect($rows->items())->map(function (CaseRecord $case) use ($user) {
+                return array_merge($case->toArray(), [
+                    'is_deleted' => ! is_null($case->deleted_at),
+                    'can_restore' => ! is_null($case->deleted_at) && $this->isSystemUser($user),
+                ]);
+            })->values();
             return response()->json([
                 'message' => 'Senarai kes',
-                'data' => $rows->items(),
+                'data' => $items,
                 'meta' => [
                     'current_page' => $rows->currentPage(),
                     'last_page' => $rows->lastPage(),
@@ -332,7 +389,14 @@ class ComplaintController extends Controller
         }
 
         $limit = (int) ($validated['limit'] ?? 10);
-        $rows = $query->limit($limit)->get();
+        $rows = $query->limit($limit)->get()
+            ->map(function (CaseRecord $case) use ($user) {
+                return array_merge($case->toArray(), [
+                    'is_deleted' => ! is_null($case->deleted_at),
+                    'can_restore' => ! is_null($case->deleted_at) && $this->isSystemUser($user),
+                ]);
+            })
+            ->values();
 
         return response()->json([
             'message' => 'Senarai kes',
@@ -536,7 +600,7 @@ class ComplaintController extends Controller
             return $case->fresh();
         }, 3);
 
-        $freshCase = $this->loadCaseDetail($case);
+        $freshCase = $this->loadCaseDetail($case, $user);
         $autoLaporanEmailMeta = $this->autoSendLaporanTindakanEmailAfterCaseSave($freshCase);
 
         $response = [
@@ -566,7 +630,7 @@ class ComplaintController extends Controller
 
         return response()->json([
             'message' => 'Maklumat kes',
-            'data' => $this->loadCaseDetail($case),
+            'data' => $this->loadCaseDetail($case, $user),
         ]);
     }
 
@@ -663,12 +727,12 @@ class ComplaintController extends Controller
             $this->syncCaseChildRows($case, CasePoliceReport::class, 'policeReports', $validated['police_reports'] ?? [], ['report_no', 'description', 'station']);
         }, 3);
 
-        $freshCase = $this->loadCaseDetail($case->fresh());
+        $freshCase = $this->loadCaseDetail($case->fresh(), $user);
         $autoLaporanEmailMeta = $this->autoSendLaporanTindakanEmailAfterCaseSave($freshCase);
 
         $response = [
             'message' => 'Maklumat kes berjaya dikemaskini.',
-            'data' => $this->loadCaseDetail($case->fresh()),
+            'data' => $this->loadCaseDetail($case->fresh(), $user),
         ];
 
         if ($autoLaporanEmailMeta) {
@@ -2435,6 +2499,9 @@ class ComplaintController extends Controller
         }
 
         $complaint->load([
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'deletedBy:id,name',
             'submittedBy:id,name,email,office_type',
             'submittedBy.staff',
             'submittedBy.staff.office:id,name,code,office_type,district_id,phone,address',
@@ -2528,6 +2595,8 @@ class ComplaintController extends Controller
                 ->where('decision', 'approved')
                 ->exists();
         }
+
+        $this->sanitizeAuditModelRelations($complaint, $user);
 
         return response()->json([
             'message' => 'Complaint detail',
@@ -2686,7 +2755,7 @@ class ComplaintController extends Controller
         }, 3);
 
         $freshComplaint = $this->reloadComplaintWithCases($complaint);
-        $freshCase = $this->loadCaseDetail($case);
+        $freshCase = $this->loadCaseDetail($case, $user);
         $autoLaporanEmailMeta = $this->autoSendLaporanTindakanEmailAfterCaseSave($freshCase);
 
         $response = [
@@ -4919,14 +4988,85 @@ class ComplaintController extends Controller
         DB::transaction(function () use ($complaint) {
             DB::table('complaint_approvals')->where('complaint_id', $complaint->id)->delete();
             DB::table('complaint_assignments')->where('complaint_id', $complaint->id)->delete();
-            Appointment::where('complaint_id', $complaint->id)->delete();
-            ComplaintOyd::where('complaint_id', $complaint->id)->delete();
-            ComplaintSeizureItem::where('complaint_id', $complaint->id)->delete();
             $complaint->delete();
         });
 
         return response()->json([
             'message' => 'Aduan dipadam.',
+        ]);
+    }
+
+    public function restoreComplaint(Request $request, int $id)
+    {
+        $user = $request->user();
+        if (! $this->isSystemUser($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $complaint = Complaint::withTrashed()->find($id);
+        if (! $complaint || ! $complaint->trashed()) {
+            return response()->json(['message' => 'Rekod aduan dipadam tidak dijumpai.'], 404);
+        }
+
+        DB::transaction(function () use ($complaint) {
+            $complaint->restore();
+            $complaint->appointment()->onlyTrashed()->restore();
+            $complaint->attachments()->onlyTrashed()->restore();
+            $complaint->oyds()->onlyTrashed()->restore();
+            foreach ($complaint->oyds()->withTrashed()->get() as $oyd) {
+                $oyd->media()->onlyTrashed()->restore();
+            }
+            $complaint->seizureItems()->onlyTrashed()->restore();
+            foreach ($complaint->seizureItems()->withTrashed()->get() as $item) {
+                $item->media()->onlyTrashed()->restore();
+            }
+            $complaint->policeReports()->onlyTrashed()->restore();
+            foreach ($complaint->policeReports()->withTrashed()->get() as $report) {
+                $report->media()->onlyTrashed()->restore();
+            }
+        });
+
+        return response()->json([
+            'message' => 'Rekod aduan berjaya dipulihkan.',
+            'data' => Complaint::query()->findOrFail($id),
+        ]);
+    }
+
+    public function restoreCase(Request $request, int $id)
+    {
+        $user = $request->user();
+        if (! $this->isSystemUser($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $case = CaseRecord::withTrashed()->find($id);
+        if (! $case || ! $case->trashed()) {
+            return response()->json(['message' => 'Rekod kes dipadam tidak dijumpai.'], 404);
+        }
+
+        DB::transaction(function () use ($case) {
+            $case->restore();
+            $case->oyds()->onlyTrashed()->restore();
+            foreach ($case->oyds()->withTrashed()->get() as $oyd) {
+                $oyd->media()->onlyTrashed()->restore();
+            }
+            $case->inspectionForms()->onlyTrashed()->restore();
+            foreach ($case->inspectionForms()->withTrashed()->get() as $form) {
+                $form->media()->onlyTrashed()->restore();
+            }
+            $case->seizureItems()->onlyTrashed()->restore();
+            foreach ($case->seizureItems()->withTrashed()->get() as $item) {
+                $item->media()->onlyTrashed()->restore();
+            }
+            $case->policeReports()->onlyTrashed()->restore();
+            foreach ($case->policeReports()->withTrashed()->get() as $report) {
+                $report->media()->onlyTrashed()->restore();
+            }
+        });
+
+        return response()->json([
+            'message' => 'Rekod kes berjaya dipulihkan.',
+            'data' => $this->loadCaseDetail(CaseRecord::query()->findOrFail($id)),
         ]);
     }
     public function lookup(Request $request)
@@ -6773,9 +6913,12 @@ class ComplaintController extends Controller
         return false;
     }
 
-    private function loadCaseDetail(CaseRecord $case): CaseRecord
+    private function loadCaseDetail(CaseRecord $case, $user = null): CaseRecord
     {
-        return $case->load([
+        $case->load([
+            'createdBy:id,name',
+            'updatedBy:id,name',
+            'deletedBy:id,name',
             'district:id,name',
             'supervisorStaff:id,name,staff_id,ic_number,phone,no_tel_pejabat,office_address,address,position,department,office_id',
             'supervisorStaff.office:id,name,code,office_type,district_id,phone,address',
@@ -6807,6 +6950,8 @@ class ComplaintController extends Controller
                     ->orderByDesc('complaints.id');
             },
         ]);
+
+        return $this->sanitizeAuditModelRelations($case, $user);
     }
 
     private function normalizeCaseRows(array $rows, array $fields): array
@@ -7259,11 +7404,14 @@ class ComplaintController extends Controller
         ]);
 
         $items = $query->paginate($perPage);
-        $items->getCollection()->transform(function ($item) {
+        $user = $request->user();
+        $items->getCollection()->transform(function ($item) use ($user) {
             $preferredSummary = trim((string) ($item->borang5_statement ?? ''));
             $fallbackSummary = trim((string) ($item->summary ?? ''));
             $item->summary = $preferredSummary !== '' ? $preferredSummary : $fallbackSummary;
             $this->normalizeComplaintReferenceAttributes($item);
+            $item->is_deleted = ! is_null($item->deleted_at);
+            $item->can_restore = ! is_null($item->deleted_at) && $this->isSystemUser($user);
             return $item;
         });
 

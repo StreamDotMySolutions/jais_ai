@@ -107,4 +107,9 @@ class AppointmentObserver
         $original = $appointment->getOriginal();
         $this->writeLog($appointment, 'deleted', $original, null, array_keys($original));
     }
+
+    public function restored(Appointment $appointment): void
+    {
+        $this->writeLog($appointment, 'restored', null, $appointment->getAttributes(), ['deleted_at']);
+    }
 }

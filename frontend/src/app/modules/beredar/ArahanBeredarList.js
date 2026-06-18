@@ -7,6 +7,8 @@ import ListPageLayout from '../../components/ListPageLayout';
 const ArahanBeredarList = () => {
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
+    const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
+    const isSystem = role === 'system';
     const navigate = useNavigate();
     const [records, setRecords] = useState([]);
     const [keyword, setKeyword] = useState('');
@@ -20,6 +22,7 @@ const ArahanBeredarList = () => {
         per_page: 10,
         total: 0,
     });
+    const [scope, setScope] = useState('active');
 
     const loadRecords = () => {
         if (!apiUrl) {
@@ -33,6 +36,7 @@ const ArahanBeredarList = () => {
             params: {
                 page,
                 per_page: perPage,
+                scope,
             },
         })
             .then((response) => {
@@ -53,7 +57,26 @@ const ArahanBeredarList = () => {
 
     useEffect(() => {
         loadRecords();
-    }, [apiUrl, page, perPage]);
+    }, [apiUrl, page, perPage, scope]);
+
+    const handleRestore = (item) => {
+        if (!apiUrl || !item?.id) {
+            return;
+        }
+
+        setIsLoading(true);
+        axios.post(`${apiUrl}/arahan-beredar/${item.id}/restore`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then(() => {
+                setError('');
+                loadRecords();
+            })
+            .catch((err) => {
+                setError(err?.response?.data?.message || 'Gagal memulihkan rekod.');
+            })
+            .finally(() => setIsLoading(false));
+    };
 
     const filteredRecords = useMemo(() => {
         const term = keyword.trim().toLowerCase();
@@ -103,6 +126,32 @@ const ArahanBeredarList = () => {
                     </>
                 )}
             >
+                <div className="app-list-tabs-row">
+                    <div className="app-list-tabs">
+                        <button
+                            type="button"
+                            className={`app-list-tab ${scope === 'active' ? 'active' : ''}`}
+                            onClick={() => {
+                                setScope('active');
+                                setPage(1);
+                            }}
+                        >
+                            Aktif
+                        </button>
+                        {isSystem && (
+                            <button
+                                type="button"
+                                className={`app-list-tab ${scope === 'deleted' ? 'active' : ''}`}
+                                onClick={() => {
+                                    setScope('deleted');
+                                    setPage(1);
+                                }}
+                            >
+                                Dipadam
+                            </button>
+                        )}
+                    </div>
+                </div>
                 {isLoading && <div className="app-empty">Memuatkan rekod...</div>}
                 {!isLoading && error && <div className="app-empty">{error}</div>}
                 {!isLoading && !error && filteredRecords.length === 0 && (
@@ -128,24 +177,37 @@ const ArahanBeredarList = () => {
                                     </span>
                                 </span>
                                 <span className="app-row-actions">
-                                    <button
-                                        className="app-icon-button"
-                                        type="button"
-                                        onClick={() => navigate(`/app/arahan-beredar/${item.id}`)}
-                                        aria-label="Lihat rekod"
-                                        title="Lihat"
-                                    >
-                                        <i className="bi bi-eye"></i>
-                                    </button>
-                                    <button
-                                        className="app-icon-button"
-                                        type="button"
-                                        onClick={() => navigate(`/app/arahan-beredar/${item.id}/edit`)}
-                                        aria-label="Kemaskini rekod"
-                                        title="Kemaskini"
-                                    >
-                                        <i className="bi bi-pencil-square"></i>
-                                    </button>
+                                    {!item.is_deleted && (
+                                        <>
+                                            <button
+                                                className="app-icon-button"
+                                                type="button"
+                                                onClick={() => navigate(`/app/arahan-beredar/${item.id}`)}
+                                                aria-label="Lihat rekod"
+                                                title="Lihat"
+                                            >
+                                                <i className="bi bi-eye"></i>
+                                            </button>
+                                            <button
+                                                className="app-icon-button"
+                                                type="button"
+                                                onClick={() => navigate(`/app/arahan-beredar/${item.id}/edit`)}
+                                                aria-label="Kemaskini rekod"
+                                                title="Kemaskini"
+                                            >
+                                                <i className="bi bi-pencil-square"></i>
+                                            </button>
+                                        </>
+                                    )}
+                                    {item.can_restore && (
+                                        <button
+                                            className="app-button app-button-ghost app-button-mini"
+                                            type="button"
+                                            onClick={() => handleRestore(item)}
+                                        >
+                                            Pulihkan
+                                        </button>
+                                    )}
                                 </span>
                             </div>
                         ))}

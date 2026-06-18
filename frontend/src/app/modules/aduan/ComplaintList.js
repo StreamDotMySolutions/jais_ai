@@ -439,6 +439,7 @@ const ComplaintList = ({
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
     const role = localStorage.getItem('role') || 'awam';
+    const isSystem = String(role).trim().toLowerCase() === 'system';
     const inferredPublicRole = ['awam', 'user'].includes(role);
     const isPublicRole = typeof publicMode === 'boolean' ? publicMode : inferredPublicRole;
     const canDelete = role === 'pegawai_hq';
@@ -492,6 +493,7 @@ const ComplaintList = ({
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
     const [statusTab, setStatusTab] = useState('all');
+    const [recordScope, setRecordScope] = useState('active');
     const [timeTick, setTimeTick] = useState(Date.now());
     const [pendingApproval, setPendingApproval] = useState(false);
     const [sortKey, setSortKey] = useState('');
@@ -547,6 +549,7 @@ const ComplaintList = ({
             isPublicRole,
             fetchEndpoint,
         });
+        params.record_scope = recordScope;
 
         axios.get(endpoint, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,
@@ -708,7 +711,7 @@ const ComplaintList = ({
 
     useEffect(() => {
         fetchComplaints();
-    }, [apiUrl, role, fetchEndpoint, caseType, isCase, page, perPage, filters, pendingApproval]);
+    }, [apiUrl, role, fetchEndpoint, caseType, isCase, page, perPage, filters, pendingApproval, recordScope]);
 
     useEffect(() => {
         if (draftFiltersKey === filtersKey) {
@@ -800,6 +803,24 @@ const ComplaintList = ({
             })
             .catch((err) => {
                 setActionMessage(err?.response?.data?.message || 'Gagal memadam aduan.');
+            });
+    };
+
+    const handleRestore = (complaintId) => {
+        if (!apiUrl) {
+            return;
+        }
+        const token = localStorage.getItem('token');
+        setActionMessage('');
+        axios.post(`${apiUrl}/complaints/${complaintId}/restore`, {}, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then((response) => {
+                setActionMessage(response?.data?.message || 'Aduan berjaya dipulihkan.');
+                fetchComplaints();
+            })
+            .catch((err) => {
+                setActionMessage(err?.response?.data?.message || 'Gagal memulihkan aduan.');
             });
     };
 
@@ -942,6 +963,34 @@ const ComplaintList = ({
                 isExporting={isExporting}
             />
 
+            {!isPublicRole && isSystem && (
+                <div className="app-list-tabs-row">
+                    <div className="app-list-tabs">
+                        <button
+                            type="button"
+                            className={`app-list-tab${recordScope === 'active' ? ' active' : ''}`}
+                            onClick={() => {
+                                setRecordScope('active');
+                                setPage(1);
+                            }}
+                        >
+                            Aktif
+                        </button>
+                        <button
+                            type="button"
+                            className={`app-list-tab${recordScope === 'deleted' ? ' active' : ''}`}
+                            onClick={() => {
+                                setRecordScope('deleted');
+                                setPage(1);
+                                setSelectedComplaint(null);
+                            }}
+                        >
+                            Dipadam
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {showFilters && (
                 <ComplaintListFilter
                     isPublicRole={isPublicRole}
@@ -1014,6 +1063,9 @@ const ComplaintList = ({
                                 buildComplaintDetailHref={buildComplaintDetailHref}
                                 canDelete={canDelete}
                                 setDeleteTarget={setDeleteTarget}
+                                recordScope={recordScope}
+                                canRestore={isSystem}
+                                handleRestore={handleRestore}
                                 enablePickup={enablePickup}
                                 handlePickup={handlePickup}
                                 pickupMessage={pickupMessage}

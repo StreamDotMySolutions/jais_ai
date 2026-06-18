@@ -33,6 +33,8 @@ const toTitle = (value) => {
         .replace(/\b\w/g, (m) => m.toUpperCase());
 };
 
+const formatAuditUser = (user) => user?.name || '-';
+
 const WARAN_STAGE_TONE = {
     baru: 'app-waran-status-pill is-draf',
     dihantar_ke_daerah: 'app-status-pill-soft',
@@ -45,6 +47,8 @@ const WaranDetail = () => {
     const navigate = useNavigate();
     const apiUrl = process.env.REACT_APP_API_URL;
     const token = localStorage.getItem('token');
+    const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
+    const canViewAudit = ['admin', 'system'].includes(role);
     const toast = useToast();
 
     const [record, setRecord] = useState(null);
@@ -490,6 +494,28 @@ const WaranDetail = () => {
                     ],
                 ])}
             </div>
+
+            {canViewAudit && (
+                <div className="app-card">
+                    <div className="app-card-header">
+                        <h4>Audit Rekod</h4>
+                    </div>
+                    {renderKvGrid([
+                        [
+                            { label: 'Dicipta Oleh', value: formatAuditUser(record.created_by) },
+                            { label: 'Tarikh Cipta', value: formatDateTime(record.created_at) },
+                        ],
+                        [
+                            { label: 'Dikemaskini Oleh', value: formatAuditUser(record.updated_by) },
+                            { label: 'Tarikh Kemaskini', value: formatDateTime(record.updated_at) },
+                        ],
+                        [
+                            { label: 'Dipadam Oleh', value: formatAuditUser(record.deleted_by) },
+                            { label: 'Tarikh Padam', value: formatDateTime(record.deleted_at) },
+                        ],
+                    ])}
+                </div>
+            )}
         </div>
     );
 };

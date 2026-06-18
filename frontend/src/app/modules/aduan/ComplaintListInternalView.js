@@ -225,6 +225,9 @@ const ComplaintListInternalView = ({
     buildComplaintDetailHref,
     canDelete,
     setDeleteTarget,
+    recordScope,
+    canRestore,
+    handleRestore,
     enablePickup,
     handlePickup,
     pickupMessage,
@@ -530,7 +533,7 @@ const ComplaintListInternalView = ({
                                                 </a>
                                             </>
                                         )}
-                                        {canDeleteItem && (
+                                        {canDeleteItem && recordScope !== 'deleted' && (
                                             <button
                                                 type="button"
                                                 className="app-icon-button app-icon-button-danger"
@@ -539,6 +542,15 @@ const ComplaintListInternalView = ({
                                                 title="Padam"
                                             >
                                                 <i className="bi bi-trash"></i>
+                                            </button>
+                                        )}
+                                        {recordScope === 'deleted' && canRestore && item.can_restore && (
+                                            <button
+                                                type="button"
+                                                className="app-button app-button-ghost"
+                                                onClick={() => handleRestore(item.id)}
+                                            >
+                                                Pulihkan
                                             </button>
                                         )}
                                         {enablePickup && item.current_stage !== 'baru' && (

@@ -59,6 +59,60 @@ class ComplaintObserver
 
         $complaint->deleted_by_user_id = $authUserId;
         $complaint->saveQuietly();
+
+        $complaint->loadMissing([
+            'appointment',
+            'attachments',
+            'oyds.media',
+            'seizureItems.media',
+            'policeReports.media',
+        ]);
+
+        if ($complaint->appointment && ! $complaint->appointment->trashed()) {
+            $complaint->appointment->delete();
+        }
+
+        foreach ($complaint->attachments as $attachment) {
+            if (! $attachment->trashed()) {
+                $attachment->delete();
+            }
+        }
+
+        foreach ($complaint->oyds as $oyd) {
+            foreach ($oyd->media as $media) {
+                if (! $media->trashed()) {
+                    $media->delete();
+                }
+            }
+
+            if (! $oyd->trashed()) {
+                $oyd->delete();
+            }
+        }
+
+        foreach ($complaint->seizureItems as $item) {
+            foreach ($item->media as $media) {
+                if (! $media->trashed()) {
+                    $media->delete();
+                }
+            }
+
+            if (! $item->trashed()) {
+                $item->delete();
+            }
+        }
+
+        foreach ($complaint->policeReports as $report) {
+            foreach ($report->media as $media) {
+                if (! $media->trashed()) {
+                    $media->delete();
+                }
+            }
+
+            if (! $report->trashed()) {
+                $report->delete();
+            }
+        }
     }
 
     private function writeLog(Complaint $complaint, string $event, array $oldValues = null, array $newValues = null, array $changedKeys = null): void

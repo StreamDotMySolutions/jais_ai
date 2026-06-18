@@ -268,6 +268,7 @@ const ComplaintDetail = () => {
     });
     const primaryCase = complaint?.primary_case || null;
     const complaintCases = Array.isArray(complaint?.cases) ? complaint.cases : [];
+    const hasExistingCases = complaintCases.length > 0;
     const [reportSections, setReportSections] = useState({
         issuer: true,
         arrest: true,
@@ -283,6 +284,7 @@ const ComplaintDetail = () => {
     const [policeReportUploadDrafts, setPoliceReportUploadDrafts] = useState({});
     const [timeTick, setTimeTick] = useState(Date.now());
     const role = localStorage.getItem('role') || 'awam';
+    const canViewAudit = ['admin', 'system'].includes(String(role || '').trim().toLowerCase());
     const localUserName = (localStorage.getItem('user_name') || '').trim().toLowerCase();
     const localStaffId = localStorage.getItem('staff_id') || '';
     const isPublicRole = ['awam', 'user'].includes(role);
@@ -341,6 +343,8 @@ const ComplaintDetail = () => {
             timeZone: 'Asia/Kuala_Lumpur',
         });
     };
+
+    const formatAuditUser = (user) => user?.name || '-';
 
     const formatArrestStatusLabel = (value) => {
         const normalized = String(value || '').trim().toLowerCase();
@@ -4397,9 +4401,14 @@ const ComplaintDetail = () => {
                                         <div style={{ display: 'flex', gap: '.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
                                             <button className="app-button" type="button" onClick={openAjReportModalForNewCase}>
                                                 <i className="bi bi-plus-lg"></i>
-                                                Tambah Kes
+                                                {hasExistingCases ? 'Tambah Kes Baru' : 'Tambah Kes'}
                                             </button>
                                         </div>
+                                        {hasExistingCases && (
+                                            <div className="app-detail-note app-detail-note--soft">
+                                                Aduan ini sudah mempunyai rekod kes. Klik <strong>Tambah Kes Baru</strong> untuk cipta kes tambahan bagi aduan yang sama.
+                                            </div>
+                                        )}
                                         <div className="app-case-table-wrap">
                                             <div className="app-case-table-header">
                                                 <div>BIL</div>
@@ -5258,6 +5267,40 @@ const ComplaintDetail = () => {
                         </div>
                     )}
 
+                </div>
+            )}
+
+            {canViewAudit && (
+                <div className="app-card">
+                    <div className="app-card-header">
+                        <h4>Audit Rekod</h4>
+                    </div>
+                    <div className="app-form-grid">
+                        <div className="app-form-field">
+                            <span>Dicipta Oleh</span>
+                            <div className="app-detail-value">{formatAuditUser(complaint.created_by)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Tarikh Cipta</span>
+                            <div className="app-detail-value">{formatDateTime(complaint.created_at)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Dikemaskini Oleh</span>
+                            <div className="app-detail-value">{formatAuditUser(complaint.updated_by)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Tarikh Kemaskini</span>
+                            <div className="app-detail-value">{formatDateTime(complaint.updated_at)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Dipadam Oleh</span>
+                            <div className="app-detail-value">{formatAuditUser(complaint.deleted_by)}</div>
+                        </div>
+                        <div className="app-form-field">
+                            <span>Tarikh Padam</span>
+                            <div className="app-detail-value">{formatDateTime(complaint.deleted_at)}</div>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

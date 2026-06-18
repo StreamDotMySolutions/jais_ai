@@ -143,6 +143,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('case');
     Route::put('/cases/{case}', [App\Http\Controllers\ComplaintController::class, 'caseUpdate'])
         ->whereNumber('case');
+    Route::post('/cases/{id}/restore', [App\Http\Controllers\ComplaintController::class, 'restoreCase'])
+        ->whereNumber('id');
     Route::post('/cases/{case}/oyds', [App\Http\Controllers\ComplaintController::class, 'createCaseOyd'])
         ->whereNumber('case');
     Route::post('/cases/{case}/inspection-forms', [App\Http\Controllers\ComplaintController::class, 'createCaseInspectionForm'])
@@ -189,6 +191,7 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('media');
     Route::get('/appointments', [AppointmentController::class, 'index']);
     Route::get('/appointments/check', [AppointmentController::class, 'check']);
+    Route::post('/appointments/{id}/restore', [AppointmentController::class, 'restore'])->whereNumber('id');
     Route::get('/i-waran', [IwaranWarrantController::class, 'index']);
     Route::get('/i-waran/semakan-okt', [IwaranWarrantController::class, 'semakanOkt']);
     Route::post('/i-waran', [IwaranWarrantController::class, 'store']);
@@ -206,6 +209,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/i-waran/{iwaranWarrant}/pickup', [IwaranWarrantController::class, 'pickup'])->whereNumber('iwaranWarrant');
     Route::post('/i-waran/{iwaranWarrant}/send-to-court', [IwaranWarrantController::class, 'sendToCourt'])->whereNumber('iwaranWarrant');
     Route::delete('/i-waran/{iwaranWarrant}', [IwaranWarrantController::class, 'destroy'])->whereNumber('iwaranWarrant');
+    Route::post('/i-waran/{id}/restore', [IwaranWarrantController::class, 'restore'])->whereNumber('id');
     Route::post('/i-waran/{iwaranWarrant}/attachments', [IwaranWarrantController::class, 'uploadAttachments'])
         ->whereNumber('iwaranWarrant');
     Route::get('/i-waran/attachments/{attachment}/download', [IwaranWarrantController::class, 'downloadAttachment'])
@@ -226,6 +230,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('arahanBeredar');
     Route::put('/arahan-beredar/{arahanBeredar}', [ArahanBeredarController::class, 'update'])
         ->whereNumber('arahanBeredar');
+    Route::post('/arahan-beredar/{id}/restore', [ArahanBeredarController::class, 'restore'])
+        ->whereNumber('id');
     Route::get('/arahan-beredar/{arahanBeredar}/oyd-media/{media}/download', [ArahanBeredarController::class, 'downloadOydMedia'])
         ->whereNumber('arahanBeredar')
         ->whereNumber('media');
@@ -343,6 +349,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('complaint');
     Route::delete('/complaints/{complaint}', [App\Http\Controllers\ComplaintController::class, 'destroy'])
         ->whereNumber('complaint');
+    Route::post('/complaints/{id}/restore', [App\Http\Controllers\ComplaintController::class, 'restoreComplaint'])
+        ->whereNumber('id');
 });
 
 Route::middleware('auth:sanctum')->group(function () {

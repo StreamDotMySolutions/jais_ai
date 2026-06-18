@@ -122,4 +122,9 @@ class ArahanBeredarObserver
         $original = $record->getOriginal();
         $this->writeLog($record, 'deleted', $original, null, array_keys($original));
     }
+
+    public function restored(ArahanBeredar $record): void
+    {
+        $this->writeLog($record, 'restored', null, $record->getAttributes(), ['deleted_at']);
+    }
 }
