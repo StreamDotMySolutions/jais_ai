@@ -52,6 +52,22 @@ class IwaranWarrantObserver
 
         $record->deleted_by_user_id = $authUserId;
         $record->saveQuietly();
+
+        if (! $record->isForceDeleting()) {
+            $record->loadMissing(['attachments', 'courtDocuments']);
+
+            foreach ($record->attachments as $attachment) {
+                if (! $attachment->trashed()) {
+                    $attachment->delete();
+                }
+            }
+
+            foreach ($record->courtDocuments as $document) {
+                if (! $document->trashed()) {
+                    $document->delete();
+                }
+            }
+        }
     }
 
     private function writeLog(IwaranWarrant $record, string $event, array $oldValues = null, array $newValues = null, array $changedKeys = null): void

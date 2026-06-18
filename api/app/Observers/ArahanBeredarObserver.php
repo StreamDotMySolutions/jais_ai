@@ -52,6 +52,21 @@ class ArahanBeredarObserver
 
         $record->deleted_by_user_id = $authUserId;
         $record->saveQuietly();
+
+        if (! $record->isForceDeleting()) {
+            $record->loadMissing('oyds.media');
+            foreach ($record->oyds as $oyd) {
+                foreach ($oyd->media as $media) {
+                    if (! $media->trashed()) {
+                        $media->delete();
+                    }
+                }
+
+                if (! $oyd->trashed()) {
+                    $oyd->delete();
+                }
+            }
+        }
     }
 
     private function writeLog(ArahanBeredar $record, string $event, array $oldValues = null, array $newValues = null, array $changedKeys = null): void

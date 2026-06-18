@@ -148,8 +148,6 @@ class ArahanBeredarController extends Controller
             foreach ($existingOyds as $oyds) {
                 if (!in_array($oyds->id, $incomingIds, true)) {
                     foreach ($oyds->media as $media) {
-                        $filename = basename($media->file_path);
-                        CommonService::handleDeleteFile($filename, 'arahan-beredar/oyds');
                         $media->delete();
                     }
                     $oyds->delete();

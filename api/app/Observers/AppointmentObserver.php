@@ -11,7 +11,48 @@ class AppointmentObserver
     private array $ignoredKeys = [
         'updated_at',
         'created_at',
+        'deleted_at',
     ];
+
+    public function creating(Appointment $appointment): void
+    {
+        $authUserId = Auth::id();
+        if (! $authUserId || $appointment->created_by_user_id) {
+            return;
+        }
+
+        $appointment->created_by_user_id = $authUserId;
+    }
+
+    public function updating(Appointment $appointment): void
+    {
+        $authUserId = Auth::id();
+        if (! $authUserId) {
+            return;
+        }
+
+        if (! $appointment->isDirty()) {
+            return;
+        }
+
+        $meaningfulDirtyKeys = array_diff(array_keys($appointment->getDirty()), ['updated_by_user_id']);
+        if (! $meaningfulDirtyKeys) {
+            return;
+        }
+
+        $appointment->updated_by_user_id = $authUserId;
+    }
+
+    public function deleting(Appointment $appointment): void
+    {
+        $authUserId = Auth::id();
+        if (! $authUserId) {
+            return;
+        }
+
+        $appointment->deleted_by_user_id = $authUserId;
+        $appointment->saveQuietly();
+    }
 
     private function writeLog(Appointment $appointment, string $event, array $oldValues = null, array $newValues = null, array $changedKeys = null): void
     {
@@ -67,4 +108,3 @@ class AppointmentObserver
         $this->writeLog($appointment, 'deleted', $original, null, array_keys($original));
     }
 }
-

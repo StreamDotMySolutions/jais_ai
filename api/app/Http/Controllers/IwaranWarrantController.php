@@ -1767,11 +1767,6 @@ class IwaranWarrantController extends Controller
 
     public function deleteAttachment(Request $request, IwaranWaranAttachment $attachment): JsonResponse
     {
-        $disk = $attachment->disk ?: 'local';
-        if ($attachment->path) {
-            Storage::disk($disk)->delete($attachment->path);
-        }
-
         $attachment->delete();
 
         return response()->json([
@@ -1791,11 +1786,6 @@ class IwaranWarrantController extends Controller
 
     public function deleteCourtDocument(Request $request, IwaranCourtDocument $document): JsonResponse
     {
-        $disk = $document->disk ?: 'local';
-        if ($document->path) {
-            Storage::disk($disk)->delete($document->path);
-        }
-
         $document->delete();
 
         return response()->json([
@@ -1811,20 +1801,6 @@ class IwaranWarrantController extends Controller
         }
 
         $iwaranWarrant->load(['attachments', 'courtDocuments']);
-
-        foreach (($iwaranWarrant->attachments ?? []) as $attachment) {
-            $disk = $attachment->disk ?: 'local';
-            if ($attachment->path) {
-                Storage::disk($disk)->delete($attachment->path);
-            }
-        }
-
-        foreach (($iwaranWarrant->courtDocuments ?? []) as $document) {
-            $disk = $document->disk ?: 'local';
-            if ($document->path) {
-                Storage::disk($disk)->delete($document->path);
-            }
-        }
 
         $iwaranWarrant->delete();
 
