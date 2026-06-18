@@ -105,8 +105,8 @@ const CasePrintRingkasanKes = () => {
     const laporanTindakan = String(caseRecord.case_summary || '').trim().toUpperCase();
     const statusSemasa = String(caseRecord.current_status || linkedComplaint?.current_stage || '').trim().toUpperCase();
     const noAduanFir = String(caseRecord.case_register_no || linkedComplaint?.reference_no || '').trim();
-    const tarikhTerima = formatDateSlash(linkedComplaint?.complaint_date);
-    const masaTerima = formatTimeMalay(linkedComplaint?.complaint_time);
+    const tarikhTerima = formatDateSlash(caseRecord?.created_at);
+    const masaTerima = formatTimeMalay(caseRecord?.created_at);
     const tarikhTindakan = formatDateSlash(caseRecord.action_datetime);
     const masaTindakan = formatTimeMalay(caseRecord.action_datetime);
     const pegawaiPenangkap = renderValue(caseRecord?.arrest_staff?.name || caseRecord?.arrestStaff?.name, '-').toUpperCase();
