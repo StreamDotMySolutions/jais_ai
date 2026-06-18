@@ -4440,11 +4440,10 @@ const ComplaintDetail = () => {
                                                                 <div className="app-case-table-actions">
                                                                     <button
                                                                         type="button"
-                                                                        className="app-icon-button"
+                                                                        className="app-button app-button-ghost app-button-mini"
                                                                         onClick={() => openAjReportModalForCase(row.id)}
-                                                                        title="Buka form kes"
                                                                     >
-                                                                        <i className="bi bi-pencil-square"></i>
+                                                                        Kemaskini
                                                                     </button>
                                                                 </div>
                                                             </div>
