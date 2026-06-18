@@ -28,6 +28,11 @@ class CaseRecord extends Model
         'charge_recommendations' => 'array',
     ];
 
+    protected function serializeDate(\DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
     public function complaints(): BelongsToMany
     {
         return $this->belongsToMany(Complaint::class, 'case_complaint_links', 'case_id', 'complaint_id')

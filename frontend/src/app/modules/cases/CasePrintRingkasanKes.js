@@ -26,7 +26,7 @@ const formatTimeMalay = (value) => {
     const [hhStr = '0', mmStr = '0'] = raw.split(':');
     const hh = Number(hhStr) || 0;
     const mm = Number(mmStr) || 0;
-    const session = hh < 12 ? 'PAGI' : 'PETANG';
+    const session = hh < 12 ? 'PAGI' : (hh < 19 ? 'PETANG' : 'MALAM');
     const hh12 = ((hh + 11) % 12) + 1;
     return `${hh12}.${pad2(mm)} ${session}`;
 };
