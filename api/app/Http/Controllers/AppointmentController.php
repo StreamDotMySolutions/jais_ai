@@ -14,6 +14,11 @@ class AppointmentController extends Controller
         return (bool) ($user && method_exists($user, 'hasRole') && $user->hasRole('system'));
     }
 
+    private function canViewAudit($user): bool
+    {
+        return (bool) ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole(['admin', 'system']));
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -100,13 +105,20 @@ class AppointmentController extends Controller
             },
         ]);
 
+        $canViewAudit = $this->canViewAudit($user);
         $appointments = $appointmentsQuery
             ->get(['id', 'complaint_id', 'title', 'start_at', 'end_at', 'status', 'created_at', 'updated_at', 'deleted_at'])
-            ->map(function (Appointment $appointment) use ($user) {
-                return array_merge($appointment->toArray(), [
+            ->map(function (Appointment $appointment) use ($user, $canViewAudit) {
+                $payload = array_merge($appointment->toArray(), [
                     'is_deleted' => ! is_null($appointment->deleted_at),
                     'can_restore' => ! is_null($appointment->deleted_at) && $this->isSystemUser($user),
                 ]);
+
+                if (! $canViewAudit) {
+                    unset($payload['created_by'], $payload['updated_by'], $payload['deleted_by']);
+                }
+
+                return $payload;
             })
             ->values();
 
