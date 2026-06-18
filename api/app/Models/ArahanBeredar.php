@@ -4,6 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ArahanBeredar extends Model
 {
@@ -11,22 +14,32 @@ class ArahanBeredar extends Model
 
     protected $guarded = ['id'];
 
-    public function oyds()
+    public function oyds(): HasMany
     {
         return $this->hasMany(ArahanBeredarOyd::class);
     }
 
-    public function staff()
+    public function staff(): BelongsTo
     {
         return $this->belongsTo(Staff::class);
     }
 
-    public function creator()
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
     }
 
-    public function sections()
+    public function updatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by_user_id');
+    }
+
+    public function deletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by_user_id');
+    }
+
+    public function sections(): BelongsToMany
     {
         return $this->belongsToMany(
             RefArahanBeredarSection::class,
