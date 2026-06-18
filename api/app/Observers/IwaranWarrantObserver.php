@@ -11,7 +11,48 @@ class IwaranWarrantObserver
     private array $ignoredKeys = [
         'updated_at',
         'created_at',
+        'deleted_at',
     ];
+
+    public function creating(IwaranWarrant $record): void
+    {
+        $authUserId = Auth::id();
+        if (! $authUserId || $record->created_by_user_id) {
+            return;
+        }
+
+        $record->created_by_user_id = $authUserId;
+    }
+
+    public function updating(IwaranWarrant $record): void
+    {
+        $authUserId = Auth::id();
+        if (! $authUserId) {
+            return;
+        }
+
+        if (! $record->isDirty()) {
+            return;
+        }
+
+        $meaningfulDirtyKeys = array_diff(array_keys($record->getDirty()), ['updated_by_user_id']);
+        if (! $meaningfulDirtyKeys) {
+            return;
+        }
+
+        $record->updated_by_user_id = $authUserId;
+    }
+
+    public function deleting(IwaranWarrant $record): void
+    {
+        $authUserId = Auth::id();
+        if (! $authUserId) {
+            return;
+        }
+
+        $record->deleted_by_user_id = $authUserId;
+        $record->saveQuietly();
+    }
 
     private function writeLog(IwaranWarrant $record, string $event, array $oldValues = null, array $newValues = null, array $changedKeys = null): void
     {
@@ -67,4 +108,3 @@ class IwaranWarrantObserver
         $this->writeLog($record, 'deleted', $original, null, array_keys($original));
     }
 }
-
