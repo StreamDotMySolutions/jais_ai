@@ -104,7 +104,7 @@ const WaranPrint = () => {
     return (
         <div className="app-print">
             <div className="app-print-toolbar">
-                <button type="button" className="app-button app-button-ghost" onClick={() => navigate(`/app/i-waran/${record.id}`)}>
+                <button type="button" className="app-button app-button-ghost" onClick={() => navigate(-1)}>
                     Kembali
                 </button>
                 <button type="button" className="app-button" onClick={() => window.print()}>

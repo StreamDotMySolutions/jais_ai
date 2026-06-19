@@ -8704,8 +8704,8 @@ body {
 }
 
 .app-waran-report-sheet {
-  font-family: "Times New Roman", Georgia, serif;
-  font-size: 10pt;
+  font-family: Verdana, Arial, Helvetica, sans-serif;
+  font-size: 9pt;
   color: #111111;
   max-width: 21cm;
   margin: 0 auto;
@@ -8715,7 +8715,7 @@ body {
 
 .app-waran-report-code {
   text-align: right;
-  font-size: 9.5pt;
+  font-size: 8.5pt;
   margin-bottom: 0.5cm;
   font-weight: 700;
 }
@@ -8733,12 +8733,14 @@ body {
 }
 
 .app-waran-report-title h1 {
-  font-size: 11.5pt;
+  font-size: 11pt;
   margin-bottom: 0.45cm;
+  text-decoration: underline;
+  text-transform: uppercase;
 }
 
 .app-waran-report-title h2 {
-  font-size: 11.5pt;
+  font-size: 11pt;
   margin-bottom: 0.24cm;
 }
 
@@ -8752,9 +8754,10 @@ body {
 
 .app-waran-report-section h3 {
   margin: 0 0 0.35cm;
-  font-size: 11.5pt;
+  font-size: 10pt;
   font-weight: 700;
-  text-decoration: underline;
+  text-transform: uppercase;
+  letter-spacing: 0;
 }
 
 .app-waran-report-table {
@@ -8766,10 +8769,13 @@ body {
 .app-waran-report-table .k {
   font-weight: 700;
   text-transform: uppercase;
+  font-size: 9pt;
 }
 
 .app-waran-report-table .v {
   min-height: 1.1em;
+  font-weight: 700;
+  font-size: 9pt;
 }
 
 .app-waran-report-table-compact {
@@ -8778,14 +8784,19 @@ body {
 
 .app-waran-report-paragraph {
   margin-top: 0.28cm;
-  line-height: 1.35;
+  line-height: 1.6;
   text-align: justify;
+  font-size: 10px;
+  font-family: Arial, sans-serif;
+  text-transform: uppercase;
+  word-break: break-word;
 }
 
 .app-waran-report-subtitle {
   margin-top: 0.35cm;
-  font-size: 11.5pt;
+  font-size: 9pt;
   font-weight: 700;
+  letter-spacing: 0;
 }
 
 .app-waran-signatures {
@@ -8804,7 +8815,8 @@ body {
 }
 
 .app-waran-signature-block .t {
-  font-size: 10.5pt;
+  font-size: 8px;
+  font-style: italic;
 }
 
 .app-waran-signature-block .line {
@@ -8814,12 +8826,12 @@ body {
 }
 
 .app-waran-signature-block .name {
-  font-size: 10pt;
+  font-size: 8.2px;
   font-weight: 700;
 }
 
 .app-waran-signature-block .role {
-  font-size: 9.5pt;
+  font-size: 8px;
   line-height: 1.15;
 }
 
@@ -8851,7 +8863,7 @@ body {
   .app-waran-report-sheet {
     max-width: none;
     margin: 0;
-    padding: 2.0cm 1.8cm 1.8cm;
+    padding: 0.6cm 0.9cm 0.8cm;
   }
 }
 
@@ -12012,6 +12024,17 @@ body {
   text-overflow: ellipsis;
   line-height: 1.35;
   max-height: calc(1.35em * 3);
+}
+
+.app-waran-status-pill {
+  display: inline-block;
+  width: fit-content;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.16rem 0.5rem;
+  border-radius: 6px;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .app-waran-status-pill.is-draf {

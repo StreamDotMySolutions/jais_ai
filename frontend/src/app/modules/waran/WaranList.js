@@ -517,8 +517,8 @@ const WaranList = () => {
                                         </span>
                                         {item.status && (
                                             <span className="app-status-stack">
-                                                <span className={`app-status-pill-mini is-muted app-waran-status-mini is-${item.status}`}>
-                                                    Pelaksanaan: {STATUS_LABELS[item.status] || toTitle(item.status)}
+                                                <span className={`app-waran-status-pill is-${item.status}`}>
+                                                    {STATUS_LABELS[item.status] || toTitle(item.status)}
                                                 </span>
                                                 {item.sent_to_court_at && (
                                                     <span className="app-status-pill-mini is-info">

@@ -327,7 +327,7 @@ const WaranCalendarStatus = () => {
                                                 >
                                                     <span className="app-waran-calendar-event-kv">
                                                         <small>Status</small>
-                                                        <strong>{meta.label}</strong>
+                                                        <span className={`app-waran-status-pill is-${event.status}`}>{meta.label}</span>
                                                     </span>
                                                     <span className="app-waran-calendar-event-kv">
                                                         <small>No. Kes</small>
@@ -376,7 +376,7 @@ const WaranCalendarStatus = () => {
                                 >
                                     <div className="app-waran-calendar-day-grid">
                                         <span>Status</span>
-                                        <strong>{meta.label}</strong>
+                                        <span className={`app-waran-status-pill is-${event.status}`}>{meta.label}</span>
                                         <span>No. Kes</span>
                                         <strong>{event.no_kes}</strong>
                                         <span>Daerah</span>
@@ -413,7 +413,7 @@ const WaranCalendarStatus = () => {
                                     <div key={`${event.id}-${event.status}-${event.no_kes}`} className="app-waran-calendar-dialog-item">
                                         <div className="app-waran-calendar-dialog-grid">
                                             <span>Status</span>
-                                            <strong style={{ color: meta.color }}>{meta.label}</strong>
+                                            <span className={`app-waran-status-pill is-${event.status}`}>{meta.label}</span>
                                             <span>No. Kes</span>
                                             <strong>{event.no_kes || '-'}</strong>
                                             <span>Daerah</span>
