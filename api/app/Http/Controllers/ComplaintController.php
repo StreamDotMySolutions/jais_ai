@@ -2487,12 +2487,14 @@ class ComplaintController extends Controller
         ]);
     }
 
-    public function show(Request $request, Complaint $complaint)
+    public function show(Request $request, $id)
     {
         $user = $request->user();
         if (! $user) {
             return response()->json(['message' => 'Unauthorized'], 401);
         }
+
+        $complaint = Complaint::withTrashed()->findOrFail($id);
 
         if (! $this->canViewComplaint($complaint, $user)) {
             return response()->json(['message' => 'Unauthorized'], 403);
