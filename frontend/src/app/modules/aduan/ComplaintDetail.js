@@ -225,6 +225,8 @@ const ComplaintDetail = () => {
     const [assigneeMessage, setAssigneeMessage] = useState('');
     const [autoNfaFromExpiredKiv, setAutoNfaFromExpiredKiv] = useState(false);
     const [approverStaffId, setApproverStaffId] = useState('');
+    const [receiverStaffId, setReceiverStaffId] = useState('');
+    const [editingReceiver, setEditingReceiver] = useState(false);
     const [districtOptions, setDistrictOptions] = useState([]);
     const [basicEditing, setBasicEditing] = useState(false);
     const [basicSaving, setBasicSaving] = useState(false);
@@ -342,6 +344,18 @@ const ComplaintDetail = () => {
             hour12: false,
             timeZone: 'Asia/Kuala_Lumpur',
         });
+    };
+
+    const toDateTimeLocalValue = (value) => {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
     };
 
     const formatAuditUser = (user) => user?.name || '-';
@@ -534,6 +548,19 @@ const ComplaintDetail = () => {
         const msg = response?.data?.message || 'Maklumat aduan dikemaskini.';
         toast.success(msg);
         return updated;
+    };
+
+    const updateComplaintReceiver = async (staffId) => {
+        if (!apiUrl || !id || !staffId) return;
+        const token = localStorage.getItem('token');
+        const response = await axios.post(`${apiUrl}/complaints/${id}/receiver`, { staff_id: staffId }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const updated = response?.data?.data;
+        if (updated) {
+            setComplaint((prev) => (prev ? { ...prev, ...updated } : prev));
+        }
+        toast.success(response?.data?.message || 'Penerima aduan dikemaskini.');
     };
 
     useEffect(() => {
@@ -1059,6 +1086,7 @@ const ComplaintDetail = () => {
                 : [{ accused_name: '', id_number: '', offense_id: '', case_no: '' }],
         });
         setApproverStaffId(complaint.approver_staff_id ? String(complaint.approver_staff_id) : '');
+        setReceiverStaffId(complaint.receivedBy?.staff?.id ? String(complaint.receivedBy.staff.id) : '');
     }, [complaint]);
 
     const updateReportField = (field, value) => {
@@ -2487,7 +2515,15 @@ const ComplaintDetail = () => {
                     <span className="app-detail-kicker">No Aduan</span>
                     <div className="app-detail-number">
                         <div className="app-detail-number-main">
-                            <h6>{complaint.reference_no || '-'}</h6>
+                            <h6>
+                                <SharedInlineEditText
+                                    value={complaint.reference_no || ''}
+                                    placeholder="-"
+                                    canEdit={isAdminMaintenanceRole}
+                                    maxLength={255}
+                                    onConfirm={(next) => saveBasicField('reference_no', next)}
+                                />
+                            </h6>
                             <div className="app-detail-status-row">
                                 <span className="app-detail-status-label">Status Aduan :</span>
                                 <span className="app-status-pill">
@@ -2530,15 +2566,52 @@ const ComplaintDetail = () => {
                         <div className="app-detail-submeta app-detail-submeta--inline" aria-label="Maklumat penghantaran aduan">
                             <div className="app-detail-submeta-item">
                                 <span className="app-detail-submeta-label">Tahun</span>
-                                <strong>{complaint.complaint_year || '-'}</strong>
+                                <strong>
+                                    <SharedInlineEditText
+                                        value={complaint.complaint_year || ''}
+                                        placeholder="-"
+                                        canEdit={isAdminMaintenanceRole}
+                                        maxLength={4}
+                                        onConfirm={(next) => saveBasicField('complaint_year', next)}
+                                    />
+                                </strong>
                             </div>
                             <div className="app-detail-submeta-item">
                                 <span className="app-detail-submeta-label">Kaedah Aduan</span>
-                                <strong>{formatChannelLabel(complaint.channel)}</strong>
+                                <strong>
+                                    <SharedInlineEditText
+                                        value={complaint.channel || ''}
+                                        placeholder="-"
+                                        canEdit={isAdminMaintenanceRole}
+                                        mode="select"
+                                        options={[
+                                            { value: 'portal', label: 'Portal (Awam)' },
+                                            { value: 'web', label: 'Web' },
+                                            { value: 'whatsapp', label: 'WhatsApp AI' },
+                                            { value: 'whatsapp_web', label: 'WhatsApp Web AI' },
+                                            { value: 'walkin', label: 'Walk-in / Kaunter' },
+                                            { value: 'telefon', label: 'Telefon' },
+                                            { value: 'email', label: 'Email' },
+                                            { value: 'agensi', label: 'Agensi' },
+                                            { value: 'lain', label: 'Lain-lain' },
+                                        ]}
+                                        formatDisplay={(val) => formatChannelLabel(val)}
+                                        onConfirm={(next) => saveBasicField('channel', next)}
+                                    />
+                                </strong>
                             </div>
                             <div className="app-detail-submeta-item">
                                 <span className="app-detail-submeta-label">Direkodkan</span>
-                                <strong>{complaint.submitted_at ? formatDateTime(complaint.submitted_at) : '-'}</strong>
+                                <strong>
+                                    <SharedInlineEditText
+                                        value={toDateTimeLocalValue(complaint.submitted_at)}
+                                        placeholder="-"
+                                        canEdit={isAdminMaintenanceRole}
+                                        inputType="datetime-local"
+                                        formatDisplay={(val) => val ? formatDateTime(val) : '-'}
+                                        onConfirm={(next) => saveBasicField('submitted_at', next)}
+                                    />
+                                </strong>
                             </div>
                         </div>
                         {isPegawaiRole && isBasicEditLockedBySource && !isAdminMaintenanceRole && (
@@ -3510,12 +3583,48 @@ const ComplaintDetail = () => {
                                             <div className="app-approver-row">
                                                 <span>Penerima Aduan</span>
                                                 <span>:</span>
-                                                <strong>{receiverDisplayName || '-'}</strong>
+                                                {isAdminMaintenanceRole && editingReceiver ? (
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: '1 1 auto', minWidth: 0 }}>
+                                                        <SharedStaffSelect
+                                                            apiUrl={apiUrl}
+                                                            value={receiverStaffId}
+                                                            onChange={(val) => {
+                                                                setReceiverStaffId(val);
+                                                                setEditingReceiver(false);
+                                                                if (val) updateComplaintReceiver(val);
+                                                            }}
+                                                            searchable
+                                                            searchPlaceholder="Cari penerima..."
+                                                            showDistrictLabel
+                                                        />
+                                                        <button type="button" className="app-icon-button app-icon-button-xs" onClick={() => setEditingReceiver(false)} title="Batal">
+                                                            <i className="bi bi-x"></i>
+                                                        </button>
+                                                    </span>
+                                                ) : (
+                                                    <>
+                                                        <strong>{receiverDisplayName || '-'}</strong>
+                                                        {isAdminMaintenanceRole && (
+                                                            <button type="button" className="app-inline-edit-display" onClick={() => setEditingReceiver(true)} title="Tukar penerima" style={{ display: 'inline-flex', verticalAlign: 'middle' }}>
+                                                                <i className="bi bi-pencil app-inline-edit-icon"></i>
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
                                             <div className="app-approver-row">
                                                 <span>Tarikh Terima</span>
                                                 <span>:</span>
-                                                <strong>{formatDateTime(complaint.received_at)}</strong>
+                                                <strong>
+                                                    <SharedInlineEditText
+                                                        value={toDateTimeLocalValue(complaint.received_at)}
+                                                        placeholder="-"
+                                                        canEdit={isAdminMaintenanceRole}
+                                                        inputType="datetime-local"
+                                                        formatDisplay={(val) => val ? formatDateTime(val) : '-'}
+                                                        onConfirm={(next) => saveBasicField('received_at', next)}
+                                                    />
+                                                </strong>
                                             </div>
                                         </div>
                                         <div className="app-approver-block">
@@ -3535,7 +3644,16 @@ const ComplaintDetail = () => {
                                             <div className="app-approver-row">
                                                 <span>Tarikh Sahkan</span>
                                                 <span>:</span>
-                                                <strong>{formatDateTime(complaint.approver_confirmed_at)}</strong>
+                                                <strong>
+                                                    <SharedInlineEditText
+                                                        value={toDateTimeLocalValue(complaint.approver_confirmed_at)}
+                                                        placeholder="-"
+                                                        canEdit={isAdminMaintenanceRole}
+                                                        inputType="datetime-local"
+                                                        formatDisplay={(val) => val ? formatDateTime(val) : '-'}
+                                                        onConfirm={(next) => saveBasicField('approver_confirmed_at', next)}
+                                                    />
+                                                </strong>
                                             </div>
                                         </div>
                                     </div>
@@ -3667,12 +3785,48 @@ const ComplaintDetail = () => {
                                             <div className="app-approver-row">
                                                 <span>Penerima Aduan</span>
                                                 <span>:</span>
-                                                <strong>{receiverDisplayName || '-'}</strong>
+                                                {isAdminMaintenanceRole && editingReceiver ? (
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: '1 1 auto', minWidth: 0 }}>
+                                                        <SharedStaffSelect
+                                                            apiUrl={apiUrl}
+                                                            value={receiverStaffId}
+                                                            onChange={(val) => {
+                                                                setReceiverStaffId(val);
+                                                                setEditingReceiver(false);
+                                                                if (val) updateComplaintReceiver(val);
+                                                            }}
+                                                            searchable
+                                                            searchPlaceholder="Cari penerima..."
+                                                            showDistrictLabel
+                                                        />
+                                                        <button type="button" className="app-icon-button app-icon-button-xs" onClick={() => setEditingReceiver(false)} title="Batal">
+                                                            <i className="bi bi-x"></i>
+                                                        </button>
+                                                    </span>
+                                                ) : (
+                                                    <>
+                                                        <strong>{receiverDisplayName || '-'}</strong>
+                                                        {isAdminMaintenanceRole && (
+                                                            <button type="button" className="app-inline-edit-display" onClick={() => setEditingReceiver(true)} title="Tukar penerima" style={{ display: 'inline-flex', verticalAlign: 'middle' }}>
+                                                                <i className="bi bi-pencil app-inline-edit-icon"></i>
+                                                            </button>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
                                             <div className="app-approver-row">
                                                 <span>Tarikh Terima</span>
                                                 <span>:</span>
-                                                <strong>{formatDateTime(complaint.received_at)}</strong>
+                                                <strong>
+                                                    <SharedInlineEditText
+                                                        value={toDateTimeLocalValue(complaint.received_at)}
+                                                        placeholder="-"
+                                                        canEdit={isAdminMaintenanceRole}
+                                                        inputType="datetime-local"
+                                                        formatDisplay={(val) => val ? formatDateTime(val) : '-'}
+                                                        onConfirm={(next) => saveBasicField('received_at', next)}
+                                                    />
+                                                </strong>
                                             </div>
                                         </div>
                                         <div className="app-approver-block">
@@ -3684,7 +3838,16 @@ const ComplaintDetail = () => {
                                             <div className="app-approver-row">
                                                 <span>Tarikh Sahkan</span>
                                                 <span>:</span>
-                                                <strong>{formatDateTime(complaint.approver_confirmed_at)}</strong>
+                                                <strong>
+                                                    <SharedInlineEditText
+                                                        value={toDateTimeLocalValue(complaint.approver_confirmed_at)}
+                                                        placeholder="-"
+                                                        canEdit={isAdminMaintenanceRole}
+                                                        inputType="datetime-local"
+                                                        formatDisplay={(val) => val ? formatDateTime(val) : '-'}
+                                                        onConfirm={(next) => saveBasicField('approver_confirmed_at', next)}
+                                                    />
+                                                </strong>
                                             </div>
                                         </div>
                                     </div>

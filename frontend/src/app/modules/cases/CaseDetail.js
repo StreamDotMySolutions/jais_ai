@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import SharedOffenseSelect from '../../components/SharedOffenseSelect';
 import SharedStaffSelect from '../../components/SharedStaffSelect';
 import SharedInlineAlert from '../../components/SharedInlineAlert';
+import SharedInlineEditText from '../../components/SharedInlineEditText';
 import OydAttachmentSection from '../../components/OydAttachmentSection';
 import SeizureAttachmentSection from '../../components/SeizureAttachmentSection';
 import { useToast } from '../../components/SharedToastProvider';
@@ -494,6 +495,21 @@ const CaseDetail = () => {
             .finally(() => setIsSaving(false));
     };
 
+    const updateCaseRegisterNo = async (nextValue) => {
+        if (!apiUrl || isDraft) return;
+        const token = localStorage.getItem('token');
+        const response = await axios.post(`${apiUrl}/cases/${id}/register-no`, { case_register_no: nextValue }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const updated = response?.data?.data;
+        if (updated) {
+            setCaseRecord(updated);
+            hydrateForm(updated);
+        }
+        const msg = response?.data?.message || 'No. Daftar Kes dikemaskini.';
+        toast.success(msg);
+    };
+
     const ensureChildRow = async (field, index, endpoint, payloadKeys) => {
         if (isDraft) {
             toast.error('Simpan kes dahulu sebelum muat naik lampiran.');
@@ -787,7 +803,17 @@ const CaseDetail = () => {
 
                             <label className="app-form-field">
                                 <span>No. Daftar Kes</span>
-                                <input value={isDraft ? 'Akan dijana selepas simpan' : (caseRecord?.case_register_no || '')} readOnly disabled />
+                                {isDraft ? (
+                                    <input value="Akan dijana selepas simpan" readOnly disabled />
+                                ) : (
+                                    <SharedInlineEditText
+                                        value={caseRecord?.case_register_no || ''}
+                                        placeholder="-"
+                                        canEdit={isMaintenanceOverride}
+                                        maxLength={255}
+                                        onConfirm={updateCaseRegisterNo}
+                                    />
+                                )}
                             </label>
 
                             {isStandaloneDraft && (

@@ -143,6 +143,10 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('case');
     Route::put('/cases/{case}', [App\Http\Controllers\ComplaintController::class, 'caseUpdate'])
         ->whereNumber('case');
+
+    Route::post('/cases/{case}/register-no', [App\Http\Controllers\ComplaintController::class, 'updateCaseRegisterNo'])
+        ->whereNumber('case');
+
     Route::post('/cases/{id}/restore', [App\Http\Controllers\ComplaintController::class, 'restoreCase'])
         ->whereNumber('id');
     Route::post('/cases/{case}/oyds', [App\Http\Controllers\ComplaintController::class, 'createCaseOyd'])
@@ -271,6 +275,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/complaints/{complaint}/assignees', [App\Http\Controllers\ComplaintController::class, 'updateAssignees'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/basic', [App\Http\Controllers\ComplaintController::class, 'updateBasic'])
+        ->whereNumber('complaint');
+    Route::post('/complaints/{complaint}/receiver', [App\Http\Controllers\ComplaintController::class, 'updateComplaintReceiver'])
         ->whereNumber('complaint');
     Route::post('/complaints/{complaint}/aj', [App\Http\Controllers\ComplaintController::class, 'updateAjPayload'])
         ->whereNumber('complaint');

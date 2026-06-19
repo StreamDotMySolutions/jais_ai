@@ -3523,6 +3523,12 @@ class ComplaintController extends Controller
             'ak_event_time' => 'nullable|date_format:H:i',
             'current_address' => 'nullable|string|max:1000',
             'ak_rujuk_date' => 'nullable|date',
+            'reference_no' => 'nullable|string|max:255',
+            'channel' => 'nullable|string|max:100',
+            'complaint_year' => 'nullable|integer|min:2000|max:2100',
+            'submitted_at' => 'nullable|date',
+            'received_at' => 'nullable|date',
+            'approver_confirmed_at' => 'nullable|date',
             'attachments' => 'nullable|array|max:10',
             'attachments.*' => 'file|max:51200|mimes:pdf,jpg,jpeg,png,doc,docx',
         ]);
@@ -3598,6 +3604,30 @@ class ComplaintController extends Controller
             } else {
                 $payload['aj_offense_id'] = $offenseId;
             }
+        }
+
+        if (array_key_exists('reference_no', $validated) && $canBypassBasicLock) {
+            $payload['reference_no'] = $validated['reference_no'];
+        }
+
+        if (array_key_exists('channel', $validated) && $canBypassBasicLock) {
+            $payload['channel'] = $validated['channel'];
+        }
+
+        if (array_key_exists('complaint_year', $validated) && $canBypassBasicLock) {
+            $payload['complaint_year'] = (int) $validated['complaint_year'];
+        }
+
+        if (array_key_exists('submitted_at', $validated) && $canBypassBasicLock) {
+            $payload['submitted_at'] = $validated['submitted_at'];
+        }
+
+        if (array_key_exists('received_at', $validated) && $canBypassBasicLock) {
+            $payload['received_at'] = $validated['received_at'];
+        }
+
+        if (array_key_exists('approver_confirmed_at', $validated) && $canBypassBasicLock) {
+            $payload['approver_confirmed_at'] = $validated['approver_confirmed_at'];
         }
 
         if (! empty($payload)) {
@@ -7468,6 +7498,51 @@ class ComplaintController extends Controller
             $writer->save('php://output');
         }, $filename, [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    public function updateComplaintReceiver(Request $request, Complaint $complaint)
+    {
+        $user = $request->user();
+        if (! $user || ! $this->canBypassWorkflowLocks($user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        $validated = $request->validate([
+            'staff_id' => ['required', 'integer', 'exists:staff,id'],
+        ]);
+
+        $staff = Staff::find($validated['staff_id']);
+        $complaint->update(['received_by_user_id' => $staff->user_id]);
+
+        return response()->json([
+            'message' => 'Penerima aduan dikemaskini.',
+            'data' => $complaint->fresh()->load(['receivedBy:id,name', 'receivedBy.staff:id,user_id', 'approverStaff:id,name,staff_id']),
+        ]);
+    }
+
+    public function updateCaseRegisterNo(Request $request, CaseRecord $case)
+    {
+        $user = $request->user();
+        if (! $user || ! $user->hasAnyRole(['pegawai', 'pegawai_hq', 'pegawai_daerah', 'admin', 'system'])) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canViewCaseRecord($case, $user)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+        if (! $this->canBypassWorkflowLocks($user)) {
+            return response()->json(['message' => 'Hanya admin/system boleh menukar No. Daftar Kes.'], 403);
+        }
+
+        $validated = $request->validate([
+            'case_register_no' => ['required', 'string', 'max:255'],
+        ]);
+
+        $case->update(['case_register_no' => $validated['case_register_no']]);
+
+        return response()->json([
+            'message' => 'No. Daftar Kes berjaya dikemaskini.',
+            'data' => $this->loadCaseDetail($case->fresh(), $user),
         ]);
     }
 
