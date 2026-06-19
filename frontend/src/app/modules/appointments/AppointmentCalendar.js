@@ -601,12 +601,38 @@ const AppointmentCalendar = ({ isPopup = false }) => {
                                             {canViewAudit && (
                                                 <div className="app-calendar-event-block">
                                                     <div className="app-calendar-event-label">Audit Rekod</div>
-                                                    <div>Dicipta oleh: {formatAuditUser(eventForDay.created_by)}</div>
-                                                    <div>Tarikh cipta: {formatDateTime(eventForDay.created_at)}</div>
-                                                    <div>Dikemaskini oleh: {formatAuditUser(eventForDay.updated_by)}</div>
-                                                    <div>Tarikh kemaskini: {formatDateTime(eventForDay.updated_at)}</div>
-                                                    <div>Dipadam oleh: {formatAuditUser(eventForDay.deleted_by)}</div>
-                                                    <div>Tarikh padam: {formatDateTime(eventForDay.deleted_at)}</div>
+                                                    <div className="app-waran-kv-grid" style={{gap: '0.5rem', fontSize: '0.82rem'}}>
+                                                        <div className="app-waran-kv-col">
+                                                            <div className="app-kv">
+                                                                <span className="app-kv-label">Dicipta oleh</span>
+                                                                <span className="app-kv-value">{formatAuditUser(eventForDay.created_by)}</span>
+                                                            </div>
+                                                            <div className="app-kv">
+                                                                <span className="app-kv-label">Tarikh cipta</span>
+                                                                <span className="app-kv-value">{formatDateTime(eventForDay.created_at)}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="app-waran-kv-col">
+                                                            <div className="app-kv">
+                                                                <span className="app-kv-label">Dikemaskini oleh</span>
+                                                                <span className="app-kv-value">{formatAuditUser(eventForDay.updated_by)}</span>
+                                                            </div>
+                                                            <div className="app-kv">
+                                                                <span className="app-kv-label">Tarikh kemaskini</span>
+                                                                <span className="app-kv-value">{formatDateTime(eventForDay.updated_at)}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="app-waran-kv-col">
+                                                            <div className="app-kv">
+                                                                <span className="app-kv-label">Dipadam oleh</span>
+                                                                <span className="app-kv-value">{formatAuditUser(eventForDay.deleted_by)}</span>
+                                                            </div>
+                                                            <div className="app-kv">
+                                                                <span className="app-kv-label">Tarikh padam</span>
+                                                                <span className="app-kv-value">{formatDateTime(eventForDay.deleted_at)}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>

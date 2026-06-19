@@ -5437,30 +5437,36 @@ const ComplaintDetail = () => {
                     <div className="app-card-header">
                         <h4>Audit Rekod</h4>
                     </div>
-                    <div className="app-form-grid">
-                        <div className="app-form-field">
-                            <span>Dicipta Oleh</span>
-                            <div className="app-detail-value">{formatAuditUser(complaint.created_by)}</div>
+                    <div className="app-waran-kv-grid">
+                        <div className="app-waran-kv-col">
+                            <div className="app-kv">
+                                <span className="app-kv-label">Dicipta Oleh</span>
+                                <span className="app-kv-value">{formatAuditUser(complaint.created_by)}</span>
+                            </div>
+                            <div className="app-kv">
+                                <span className="app-kv-label">Tarikh Cipta</span>
+                                <span className="app-kv-value">{formatDateTime(complaint.created_at)}</span>
+                            </div>
                         </div>
-                        <div className="app-form-field">
-                            <span>Tarikh Cipta</span>
-                            <div className="app-detail-value">{formatDateTime(complaint.created_at)}</div>
+                        <div className="app-waran-kv-col">
+                            <div className="app-kv">
+                                <span className="app-kv-label">Dikemaskini Oleh</span>
+                                <span className="app-kv-value">{formatAuditUser(complaint.updated_by)}</span>
+                            </div>
+                            <div className="app-kv">
+                                <span className="app-kv-label">Tarikh Kemaskini</span>
+                                <span className="app-kv-value">{formatDateTime(complaint.updated_at)}</span>
+                            </div>
                         </div>
-                        <div className="app-form-field">
-                            <span>Dikemaskini Oleh</span>
-                            <div className="app-detail-value">{formatAuditUser(complaint.updated_by)}</div>
-                        </div>
-                        <div className="app-form-field">
-                            <span>Tarikh Kemaskini</span>
-                            <div className="app-detail-value">{formatDateTime(complaint.updated_at)}</div>
-                        </div>
-                        <div className="app-form-field">
-                            <span>Dipadam Oleh</span>
-                            <div className="app-detail-value">{formatAuditUser(complaint.deleted_by)}</div>
-                        </div>
-                        <div className="app-form-field">
-                            <span>Tarikh Padam</span>
-                            <div className="app-detail-value">{formatDateTime(complaint.deleted_at)}</div>
+                        <div className="app-waran-kv-col">
+                            <div className="app-kv">
+                                <span className="app-kv-label">Dipadam Oleh</span>
+                                <span className="app-kv-value">{formatAuditUser(complaint.deleted_by)}</span>
+                            </div>
+                            <div className="app-kv">
+                                <span className="app-kv-label">Tarikh Padam</span>
+                                <span className="app-kv-value">{formatDateTime(complaint.deleted_at)}</span>
+                            </div>
                         </div>
                     </div>
                 </div>

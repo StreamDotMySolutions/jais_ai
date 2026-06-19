@@ -180,30 +180,36 @@ const ArahanBeredarDetail = () => {
                     <div className="app-card-header">
                         <h4>Audit Rekod</h4>
                     </div>
-                    <div className="app-form-grid">
-                        <div className="app-form-field">
-                            <span>Dicipta Oleh</span>
-                            <div className="app-detail-value">{formatAuditUser(record.created_by || record.creator)}</div>
+                    <div className="app-waran-kv-grid">
+                        <div className="app-waran-kv-col">
+                            <div className="app-kv">
+                                <span className="app-kv-label">Dicipta Oleh</span>
+                                <span className="app-kv-value">{formatAuditUser(record.created_by || record.creator)}</span>
+                            </div>
+                            <div className="app-kv">
+                                <span className="app-kv-label">Tarikh Cipta</span>
+                                <span className="app-kv-value">{formatDateTime(record.created_at)}</span>
+                            </div>
                         </div>
-                        <div className="app-form-field">
-                            <span>Tarikh Cipta</span>
-                            <div className="app-detail-value">{formatDateTime(record.created_at)}</div>
+                        <div className="app-waran-kv-col">
+                            <div className="app-kv">
+                                <span className="app-kv-label">Dikemaskini Oleh</span>
+                                <span className="app-kv-value">{formatAuditUser(record.updated_by)}</span>
+                            </div>
+                            <div className="app-kv">
+                                <span className="app-kv-label">Tarikh Kemaskini</span>
+                                <span className="app-kv-value">{formatDateTime(record.updated_at)}</span>
+                            </div>
                         </div>
-                        <div className="app-form-field">
-                            <span>Dikemaskini Oleh</span>
-                            <div className="app-detail-value">{formatAuditUser(record.updated_by)}</div>
-                        </div>
-                        <div className="app-form-field">
-                            <span>Tarikh Kemaskini</span>
-                            <div className="app-detail-value">{formatDateTime(record.updated_at)}</div>
-                        </div>
-                        <div className="app-form-field">
-                            <span>Dipadam Oleh</span>
-                            <div className="app-detail-value">{formatAuditUser(record.deleted_by)}</div>
-                        </div>
-                        <div className="app-form-field">
-                            <span>Tarikh Padam</span>
-                            <div className="app-detail-value">{formatDateTime(record.deleted_at)}</div>
+                        <div className="app-waran-kv-col">
+                            <div className="app-kv">
+                                <span className="app-kv-label">Dipadam Oleh</span>
+                                <span className="app-kv-value">{formatAuditUser(record.deleted_by)}</span>
+                            </div>
+                            <div className="app-kv">
+                                <span className="app-kv-label">Tarikh Padam</span>
+                                <span className="app-kv-value">{formatDateTime(record.deleted_at)}</span>
+                            </div>
                         </div>
                     </div>
                 </div>

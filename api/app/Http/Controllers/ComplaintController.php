@@ -282,7 +282,7 @@ class ComplaintController extends Controller
             'exclude_complaint_id' => 'nullable|integer',
             'limit' => 'nullable|integer|min:1|max:50',
             'page' => 'nullable|integer|min:1',
-            'per_page' => 'nullable|integer|min:1|max:100',
+            'per_page' => 'nullable|integer|min:1|max:500',
             'with_complaints' => 'nullable',
             'record_scope' => 'nullable|in:active,deleted',
         ]);
