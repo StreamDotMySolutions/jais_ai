@@ -4236,7 +4236,22 @@ body {
 
 .app-beredar-header,
 .app-beredar-row {
-  grid-template-columns: 0.8fr 1.6fr 1.2fr 0.8fr 0.6fr;
+  grid-template-columns: 0.8fr 1.6fr 1.2fr 0.8fr 0.85fr;
+}
+
+.app-beredar-row .app-link {
+  background: #f2f5f4;
+  color: #33443c;
+  border-radius: 10px;
+  padding: 5px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.app-beredar-row .app-link:hover {
+  background: #e7eeea;
+  color: #33443c;
+  text-decoration: none;
 }
 
 .app-beredar-oyds-table .app-oyds-table-head,
@@ -6317,20 +6332,7 @@ body {
   align-self: center;
 }
 
-.app-case-menu-table .app-link {
-  background: #f2f5f4;
-  color: #33443c;
-  border-radius: 10px;
-  padding: 5px;
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
 
-.app-case-menu-table .app-link:hover {
-  background: #e7eeea;
-  color: #33443c;
-  text-decoration: none;
-}
 
 .app-case-create-modal {
   display: grid;
@@ -11631,17 +11633,17 @@ body {
 .app-aduan-list .app-table-row {
   font-size: 0.8rem;
   gap: 0.45rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0;
 }
 
 .app-aduan-list .app-table-actions .app-table-header,
 .app-aduan-list .app-table-actions .app-table-row {
-  grid-template-columns: 25px 1.7fr 1.1fr 1fr 0.9fr 1fr 1.1fr 1.1fr 0.85fr;
+  grid-template-columns: 25px 1.7fr 1.1fr 1fr 0.9fr 1fr 1.1fr 1.0fr 0.64fr;
 }
 
 .app-aduan-list .app-table .app-table-row:has(.app-button),
 .app-aduan-list .app-table .app-table-header:has(+ .app-table-row .app-button) {
-  grid-template-columns: 25px 1.7fr 1.1fr 1fr 0.9fr 1fr 1.1fr 1.1fr 0.85fr;
+  grid-template-columns: 25px 1.7fr 1.1fr 1fr 0.9fr 1fr 1.1fr 1.0fr 0.64fr;
 }
 
 .app-aduan-list .app-complaints-body.has-drawer .app-table-actions .app-table-header,
@@ -11652,6 +11654,21 @@ body {
 .app-aduan-list .app-complaints-body.has-drawer .app-table .app-table-row:has(.app-button),
 .app-aduan-list .app-complaints-body.has-drawer .app-table .app-table-header:has(+ .app-table-row .app-button) {
   grid-template-columns: 25px 1.7fr 1.1fr 1fr 0.9fr 1fr 1.1fr 0.85fr;
+}
+
+.app-aduan-list .app-row-actions-icons .app-link {
+  background: #f2f5f4;
+  color: #33443c;
+  border-radius: 10px;
+  padding: 5px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.app-aduan-list .app-row-actions-icons .app-link:hover {
+  background: #e7eeea;
+  color: #33443c;
+  text-decoration: none;
 }
 
 .app-aduan-list .app-complaints-body.has-drawer .app-table-header > *:nth-child(8),
@@ -11928,7 +11945,34 @@ body {
 .app-waran-list .app-table-actions .app-table-row,
 .app-waran-list .app-table.app-waran-list-table .app-table-row:has(.app-button),
 .app-waran-list .app-table.app-waran-list-table .app-table-header:has(+ .app-table-row .app-button) {
-  grid-template-columns: 34px minmax(220px, 1.35fr) minmax(180px, 0.9fr) minmax(140px, 0.78fr) minmax(250px, 1.4fr) minmax(150px, 0.78fr) minmax(110px, 0.55fr);
+  grid-template-columns: 34px minmax(220px, 1.35fr) minmax(180px, 0.9fr) minmax(140px, 0.78fr) minmax(250px, 1.4fr) minmax(150px, 0.78fr) minmax(130px, 0.75fr);
+}
+
+.app-complaint-cell-link-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.app-complaint-cell-link-row .app-icon-button-xs {
+  padding: 0.1rem 0.2rem;
+  font-size: 0.7rem;
+  border-radius: 6px;
+}
+
+.app-waran-list-table .app-link {
+  background: #f2f5f4;
+  color: #33443c;
+  border-radius: 10px;
+  padding: 5px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.app-waran-list-table .app-link:hover {
+  background: #e7eeea;
+  color: #33443c;
+  text-decoration: none;
 }
 
 .app-waran-list .app-table-header > *,

@@ -376,14 +376,27 @@ const ComplaintListInternalView = ({
                             >
                                 <span>{startIndex + index}</span>
                                 <span className="app-complaint-cell">
-                                    <button
-                                        type="button"
-                                        className="app-link app-link-button app-complaint-cell-link"
-                                        onClick={() => openComplaintDetail(item.id)}
-                                        title={item.reference_no || '-'}
-                                    >
-                                        {item.reference_no || '-'}
-                                    </button>
+                                    <span className="app-complaint-cell-link-row">
+                                        <button
+                                            type="button"
+                                            className="app-link app-link-button app-complaint-cell-link"
+                                            onClick={() => openComplaintDetail(item.id)}
+                                            title={item.reference_no || '-'}
+                                        >
+                                            {item.reference_no || '-'}
+                                        </button>
+                                        <a
+                                            className="app-icon-button app-icon-button-xs"
+                                            href={buildComplaintDetailHref(item.id)}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            aria-label="Buka dalam tab baharu"
+                                            title="Buka tab baharu"
+                                            onClick={(event) => event.stopPropagation()}
+                                        >
+                                            <i className="bi bi-box-arrow-up-right"></i>
+                                        </a>
+                                    </span>
                                 </span>
                                 <span className="app-complaint-cell">
                                     <span className="app-complaint-cell-name">{item.complainant_name || '-'}</span>
@@ -510,28 +523,13 @@ const ComplaintListInternalView = ({
                                                 Sedang dikemaskini oleh {receiverName}
                                             </span>
                                         ) : (
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    className="app-icon-button"
-                                                    onClick={() => openComplaintDetail(item.id)}
-                                                    aria-label="Kemaskini"
-                                                    title="Kemaskini"
-                                                >
-                                                    <i className="bi bi-pencil"></i>
-                                                </button>
-                                                <a
-                                                    className="app-icon-button app-icon-button-xs"
-                                                    href={buildComplaintDetailHref(item.id)}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    aria-label="Buka dalam tab baharu"
-                                                    title="Buka tab baharu"
-                                                    onClick={(event) => event.stopPropagation()}
-                                                >
-                                                    <i className="bi bi-box-arrow-up-right"></i>
-                                                </a>
-                                            </>
+                                            <button
+                                                type="button"
+                                                className="app-link"
+                                                onClick={() => openComplaintDetail(item.id)}
+                                            >
+                                                Kemaskini
+                                            </button>
                                         )}
                                         {canDeleteItem && recordScope !== 'deleted' && (
                                             <button

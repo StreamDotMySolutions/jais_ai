@@ -482,13 +482,26 @@ const WaranList = () => {
                                 <div key={item.id} className="app-table-row">
                                     <span>{startIndex + index}</span>
                                     <span className="app-complaint-cell">
-                                        <button
-                                            type="button"
-                                            className="app-link app-link-button app-complaint-cell-link"
-                                            onClick={() => navigate(`/app/i-waran/${item.id}`)}
-                                        >
-                                            {item.no_ruj_fail || '-'}
-                                        </button>
+                                        <span className="app-complaint-cell-link-row">
+                                            <button
+                                                type="button"
+                                                className="app-link app-link-button app-complaint-cell-link"
+                                                onClick={() => navigate(`/app/i-waran/${item.id}`)}
+                                            >
+                                                {item.no_ruj_fail || '-'}
+                                            </button>
+                                            <a
+                                                className="app-icon-button app-icon-button-xs"
+                                                href={`/app/i-waran/${item.id}`}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                aria-label="Buka dalam tab baharu"
+                                                title="Buka tab baharu"
+                                                onClick={(event) => event.stopPropagation()}
+                                            >
+                                                <i className="bi bi-box-arrow-up-right"></i>
+                                            </a>
+                                        </span>
                                         <span className="app-complaint-cell-name">
                                             {JENIS_WARAN_LABELS[item.jenis_waran] || toTitle(item.jenis_waran)}
                                         </span>
@@ -628,25 +641,12 @@ const WaranList = () => {
                                                 {!item.is_deleted && (
                                                     <>
                                                         <button
-                                                            className="app-icon-button"
                                                             type="button"
+                                                            className="app-link"
                                                             onClick={() => navigate(`/app/i-waran/${item.id}/edit`)}
-                                                            aria-label="Kemaskini waran"
-                                                            title="Kemaskini"
                                                         >
-                                                            <i className="bi bi-pencil-square"></i>
+                                                            Kemaskini
                                                         </button>
-                                                        <a
-                                                            className="app-icon-button app-icon-button-xs"
-                                                            href={`/app/i-waran/${item.id}`}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            aria-label="Buka dalam tab baharu"
-                                                            title="Buka tab baharu"
-                                                            onClick={(event) => event.stopPropagation()}
-                                                        >
-                                                            <i className="bi bi-box-arrow-up-right"></i>
-                                                        </a>
                                                     </>
                                                 )}
                                             </div>

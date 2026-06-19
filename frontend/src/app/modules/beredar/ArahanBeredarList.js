@@ -189,13 +189,11 @@ const ArahanBeredarList = () => {
                                                 <i className="bi bi-eye"></i>
                                             </button>
                                             <button
-                                                className="app-icon-button"
                                                 type="button"
+                                                className="app-link"
                                                 onClick={() => navigate(`/app/arahan-beredar/${item.id}/edit`)}
-                                                aria-label="Kemaskini rekod"
-                                                title="Kemaskini"
                                             >
-                                                <i className="bi bi-pencil-square"></i>
+                                                Kemaskini
                                             </button>
                                         </>
                                     )}
