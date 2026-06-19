@@ -33,7 +33,18 @@ class StaffController extends Controller
             $query->where(function ($subQuery) use ($keyword) {
                 $subQuery->where('name', 'like', '%' . $keyword . '%')
                     ->orWhere('staff_id', 'like', '%' . $keyword . '%')
-                    ->orWhere('ic_number', 'like', '%' . $keyword . '%');
+                    ->orWhere('ic_number', 'like', '%' . $keyword . '%')
+                    ->orWhere('phone', 'like', '%' . $keyword . '%')
+                    ->orWhere('grade', 'like', '%' . $keyword . '%')
+                    ->orWhereHas('office', function ($q) use ($keyword) {
+                        $q->where('name', 'like', '%' . $keyword . '%');
+                    })
+                    ->orWhereHas('district', function ($q) use ($keyword) {
+                        $q->where('name', 'like', '%' . $keyword . '%');
+                    })
+                    ->orWhereHas('user', function ($q) use ($keyword) {
+                        $q->where('email', 'like', '%' . $keyword . '%');
+                    });
             });
         }
 

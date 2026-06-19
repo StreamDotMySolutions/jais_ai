@@ -3959,7 +3959,7 @@ body {
 
 .app-staff-header,
 .app-staff-row {
-  grid-template-columns: 25px 1.2fr 0.9fr 0.8fr 0.7fr 1.1fr 0.8fr 0.9fr 1.15fr 0.6fr;
+  grid-template-columns: 25px 1.2fr 0.9fr 0.8fr 0.5fr 1.1fr 0.8fr 0.75fr 1.3fr 0.7fr;
 }
 
 .app-staff-account-cell {
@@ -3967,6 +3967,36 @@ body {
   flex-direction: column;
   align-items: flex-start;
   gap: 0.2rem;
+}
+
+.app-staff-row .app-link {
+  background: #f2f5f4;
+  color: #33443c;
+  border-radius: 10px;
+  padding: 5px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.app-staff-row .app-link:hover {
+  background: #e7eeea;
+  color: #33443c;
+  text-decoration: none;
+}
+
+.app-user-row .app-link {
+  background: #f2f5f4;
+  color: #33443c;
+  border-radius: 10px;
+  padding: 5px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.app-user-row .app-link:hover {
+  background: #e7eeea;
+  color: #33443c;
+  text-decoration: none;
 }
 
 .app-staff-account-empty {
@@ -6285,6 +6315,21 @@ body {
 .app-case-list .app-case-table-actions {
   justify-content: flex-end;
   align-self: center;
+}
+
+.app-case-menu-table .app-link {
+  background: #f2f5f4;
+  color: #33443c;
+  border-radius: 10px;
+  padding: 5px;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.app-case-menu-table .app-link:hover {
+  background: #e7eeea;
+  color: #33443c;
+  text-decoration: none;
 }
 
 .app-case-create-modal {

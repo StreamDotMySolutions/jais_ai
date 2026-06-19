@@ -306,7 +306,7 @@ const StaffList = () => {
                         <input
                             value={keyword}
                             onChange={(event) => setKeyword(event.target.value)}
-                            placeholder="Cari nama atau ID staff..."
+                            placeholder="Cari Nama / ID / Telefon / Gred / Pejabat..."
                         />
                         {keyword && (
                             <button

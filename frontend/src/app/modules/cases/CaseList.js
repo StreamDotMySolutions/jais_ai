@@ -501,12 +501,10 @@ const CaseList = () => {
                                     ) : (
                                         <button
                                             type="button"
-                                            className="app-icon-button"
+                                            className="app-link"
                                             onClick={() => navigate(`/app/cases/${item.id}`)}
-                                            aria-label="Papar Kes"
-                                            title="Papar Kes"
                                         >
-                                            <i className="bi bi-pencil-square"></i>
+                                            Kemaskini
                                         </button>
                                     )}
                                 </div>
