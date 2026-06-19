@@ -25,6 +25,7 @@ class ComplaintObserver
         }
 
         $complaint->created_by_user_id = $authUserId ?: ($complaint->submitted_by_user_id ?: null);
+        $complaint->created_ip_address = request()->ip();
     }
 
     public function updating(Complaint $complaint): void
@@ -44,6 +45,7 @@ class ComplaintObserver
         }
 
         $complaint->updated_by_user_id = $authUserId;
+        $complaint->updated_ip_address = request()->ip();
     }
 
     public function deleting(Complaint $complaint): void

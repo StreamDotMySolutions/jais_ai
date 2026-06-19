@@ -7433,6 +7433,8 @@ class ComplaintController extends Controller
         $query->with([
             'receivedBy:id,name',
             'approverStaff:id,name,staff_id',
+            'submittedBy:id,name',
+            'updatedBy:id,name',
         ]);
 
         $items = $query->paginate($perPage);
@@ -7444,6 +7446,7 @@ class ComplaintController extends Controller
             $this->normalizeComplaintReferenceAttributes($item);
             $item->is_deleted = ! is_null($item->deleted_at);
             $item->can_restore = ! is_null($item->deleted_at) && $this->isSystemUser($user);
+            $item->modified_user_name = $item->updatedBy?->name;
             return $item;
         });
 
