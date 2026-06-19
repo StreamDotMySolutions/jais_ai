@@ -19,7 +19,7 @@ class AuditTrailController extends Controller
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 10);
-        if ($perPage <= 0 || $perPage > 100) {
+        if ($perPage <= 0 || $perPage > 500) {
             $perPage = 10;
         }
         $query = $this->buildFilteredQuery($request);
