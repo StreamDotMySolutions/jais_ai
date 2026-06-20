@@ -295,7 +295,7 @@ const ComplaintDetail = () => {
     const isAdminMaintenanceRole = isMaintenanceOverrideRole(role);
     const detailTopBoxTitle = 'Aduan';
     const complaintChannelNormalized = (complaint?.channel || '').toString().trim().toLowerCase().replace(/_/g, '-');
-    const shouldHideInformantSection = ['portal', 'whatsapp', 'whatsapp-web'].includes(complaintChannelNormalized);
+    const shouldHideInformantSection = false;
     const isBasicEditLockedBySource = LOCKED_BASIC_EDIT_CHANNELS.includes(complaintChannelNormalized);
     const effectiveInformantName = (complaint?.informant_name || '').trim();
     const effectiveInformantIdNumber = (complaint?.informant_identification_number || '').trim();
@@ -534,7 +534,7 @@ const ComplaintDetail = () => {
         const lockedStages = isAkCase
             ? ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'dihantar_ke_daerah']
             : ['tunggu_pengesahan', 'menunggu_tindakan_pi', 'disahkan', 'dihantar_ke_daerah'];
-        const isAduanEditingLocked = lockedStages.includes(currentStage) && !isAdminMaintenanceRole;
+        const isAduanEditingLocked = lockedStages.includes(currentStage) && !isAdminMaintenanceRole && fieldName !== 'channel';
         if (!apiUrl || !id || isAduanEditingLocked) return;
         const token = localStorage.getItem('token');
         const payload = { [fieldName]: value };
@@ -2582,7 +2582,7 @@ const ComplaintDetail = () => {
                                     <SharedInlineEditText
                                         value={complaint.channel || ''}
                                         placeholder="-"
-                                        canEdit={isAdminMaintenanceRole}
+                                        canEdit={true}
                                         mode="select"
                                         options={[
                                             { value: 'portal', label: 'Portal (Awam)' },
@@ -3184,9 +3184,29 @@ const ComplaintDetail = () => {
                             </div>
                         )}
 
-                        <div className="app-detail-meta">
+                        <div className="app-detail-meta" style={{ marginBottom: '1.5rem' }}>
                             <span>Kaedah Aduan:</span>
-                            <strong>{formatChannelLabel(complaint.channel)}</strong>
+                            <strong>
+                                <SharedInlineEditText
+                                    value={complaint.channel || ''}
+                                    placeholder="-"
+                                    canEdit={true}
+                                    mode="select"
+                                    options={[
+                                        { value: 'portal', label: 'Portal (Awam)' },
+                                        { value: 'web', label: 'Web' },
+                                        { value: 'whatsapp', label: 'WhatsApp AI' },
+                                        { value: 'whatsapp_web', label: 'WhatsApp Web AI' },
+                                        { value: 'walkin', label: 'Walk-in / Kaunter' },
+                                        { value: 'telefon', label: 'Telefon' },
+                                        { value: 'email', label: 'Email' },
+                                        { value: 'agensi', label: 'Agensi' },
+                                        { value: 'lain', label: 'Lain-lain' },
+                                    ]}
+                                    formatDisplay={(val) => formatChannelLabel(val)}
+                                    onConfirm={(next) => saveBasicField('channel', next)}
+                                />
+                            </strong>
                         </div>
                         {!shouldHideInformantSection && (
                             <>

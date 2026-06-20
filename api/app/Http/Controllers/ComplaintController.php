@@ -3491,7 +3491,8 @@ class ComplaintController extends Controller
             && collect($requestKeys)->every(fn ($key) => in_array($key, $allowedWhenBasicLocked, true));
         $canBypassBasicLock = $this->canBypassWorkflowLocks($user);
 
-        if ($this->isBasicOfficerEditLockedByChannel($complaint->channel) && ! $isAllowedLockedUpdate && ! $canBypassBasicLock) {
+        $isOnlyChannelUpdate = $requestKeys === ['channel'];
+        if ($this->isBasicOfficerEditLockedByChannel($complaint->channel) && ! $isAllowedLockedUpdate && ! $canBypassBasicLock && ! $isOnlyChannelUpdate) {
             return response()->json([
                 'message' => 'Aduan dari portal atau WhatsApp AI tidak boleh dikemaskini oleh pegawai pada bahagian ini.',
             ], 422);
@@ -3612,8 +3613,25 @@ class ComplaintController extends Controller
             $payload['reference_no'] = $validated['reference_no'];
         }
 
-        if (array_key_exists('channel', $validated) && $canBypassBasicLock) {
+        if (array_key_exists('channel', $validated)) {
             $payload['channel'] = $validated['channel'];
+            $channel = strtolower(trim((string) $validated['channel']));
+            $isPhysical = in_array($channel, ['walkin', 'walk-in', 'kaunter'], true);
+            if ($isPhysical) {
+                $payload['informant_name'] = $complaint->complainant_name;
+                $payload['informant_identification_number'] = $complaint->identification_number;
+                $payload['informant_contact_number'] = $complaint->contact_number;
+            } else {
+                $complaint->loadMissing(['receivedBy.staff', 'submittedBy.staff']);
+                $receiverStaff = $complaint->receivedBy?->staff ?: $complaint->submittedBy?->staff;
+                $issuerName = $complaint->submittedBy?->staff?->name
+                    ?: $complaint->submittedBy?->name
+                    ?: $complaint->receivedBy?->name
+                    ?: '-';
+                $payload['informant_name'] = $receiverStaff?->name ?: $complaint->receivedBy?->name ?: $issuerName;
+                $payload['informant_identification_number'] = $receiverStaff?->staff_id ?: $receiverStaff?->ic_number ?: '-';
+                $payload['informant_contact_number'] = $this->resolveBorang5OfficePhone($complaint, $receiverStaff);
+            }
         }
 
         if (array_key_exists('complaint_year', $validated) && $canBypassBasicLock) {
