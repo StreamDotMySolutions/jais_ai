@@ -850,7 +850,7 @@ const CaseDetail = () => {
                                 </div>
 
                                 <label className="app-form-field">
-                                    <span>Tarikh / Masa di Lokasi <span className="complaint-required">*</span></span>
+                                    <span>Tarikh / Masa <span className="complaint-required">*</span></span>
                                     <input
                                         type="datetime-local"
                                         value={form.action_datetime}

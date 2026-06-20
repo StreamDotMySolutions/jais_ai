@@ -133,8 +133,8 @@ const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
     const officerPhone = arrestStaff?.office?.phone || arrestStaff?.no_tel_pejabat || arrestStaff?.phone || '-';
     const officerAddress = arrestStaff?.office?.address || arrestStaff?.office_address || arrestStaff?.address || arrestStaff?.department || '-';
     const reportParagraph = String(laporanText || '').trim().toUpperCase();
-    const reportDate = formatDateDMY(isCasePrint ? (caseSource?.created_at || '') : tarikhMasa);
-    const reportTime = formatTime12hDot(isCasePrint ? (caseSource?.created_at || '') : tarikhMasa);
+    const reportDate = formatDateDMY(tarikhMasa);
+    const reportTime = formatTime12hDot(tarikhMasa);
     const missingFields = [];
 
     if (isCasePrint) {
