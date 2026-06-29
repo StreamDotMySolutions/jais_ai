@@ -34,9 +34,7 @@ export default function PublicHomePage() {
                   secara selamat, teratur dan telus melalui Bahagian Pengurusan Penguatkuasaan JAIS.
                 </p>
                 <div className="d-flex gap-3 mt-4">
-                  <Link to="/complaint" className="public-cta">
-                    Buat Aduan
-                  </Link>
+
                   <Link to="/sign-in" className="public-cta-outline">
                     Login Pengguna
                   </Link>
@@ -61,9 +59,9 @@ export default function PublicHomePage() {
               <div className="col-md-4">
                 <div className="card h-100 shadow-sm">
                   <div className="card-body">
-                    <h5 className="fw-bold">Aduan Tanpa Login</h5>
+                    <h5 className="fw-bold">Daftar Untuk Buat Aduan</h5>
                     <p className="text-muted small">
-                      Orang awam boleh membuat aduan tanpa perlu akaun pengguna.
+                      Orang awam boleh membuat aduan secara atas talian.
                     </p>
                   </div>
                 </div>

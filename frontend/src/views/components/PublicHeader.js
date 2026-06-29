@@ -28,9 +28,6 @@ const PublicHeader = () => {
                     <NavLink to="/about-us" className="public-link" onClick={() => setMenuOpen(false)}>
                         Mengenai Kami
                     </NavLink>
-                    <NavLink to="/complaint" className="public-link" onClick={() => setMenuOpen(false)}>
-                        Aduan Online
-                    </NavLink>
                     <NavLink to="/semak-status" className="public-link" onClick={() => setMenuOpen(false)}>
                         Semak Status
                     </NavLink>
