@@ -1,4 +1,13 @@
 secrets/
-/docs/*
-!/docs/*.md
+/docs
 /tools
+
+tools/generate_uat_docx.py
+tools/staff_mapping/map_staff_excel.py
+start_api.bat
+start_frontend.bat
+start_jais_dev.bat
+api/REQUIREMENTS.md
+api/DEPLOY.md
+api/app/Console/Commands/ImportZohoOpDocxCommand.php
+api/app/Console/Commands/ImportZohoOpDocxCommand.php
