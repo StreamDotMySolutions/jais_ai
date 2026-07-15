@@ -109,7 +109,7 @@ class WhatsAppSendToLlmJob implements ShouldQueue
                 'contact_number' => $data['phone_no'] ?? $this->phone,
                 'address' => $data['location'] ?? 'Tidak dinyatakan',
                 'district_name' => $data['district'] ?? null,
-                'summary' => $data['contents'] ?? 'Tidak dinyatakan',
+                'summary' => '[TEST] ' . ($data['contents'] ?? 'Tidak dinyatakan'),
                 'channel' => 'whatsapp',
                 'current_stage' => 'baru',
                 'submitted_at' => $now,
