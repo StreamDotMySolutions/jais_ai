@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Form } from 'react-bootstrap';
+import { Alert, Form } from 'react-bootstrap';
 import axios from 'axios';
 import useStore from '../../../store';
 import { appendFormData, InputText } from '../../../libs/FormInput';
@@ -11,6 +11,10 @@ function Register() {
     const url = process.env.REACT_APP_API_URL; // API server
     const [isLoading, setIsLoading] = useState(false);
     const [isRegistered, setIsRegistered] = useState(false);
+    const [registeredEmail, setRegisteredEmail] = useState('');
+    const [resendMsg, setResendMsg] = useState('');
+    const [resendMsgType, setResendMsgType] = useState('');
+    const [isResending, setIsResending] = useState(false);
 
     useEffect(() => {
         // Code to run when the component is loaded (similar to window.onload)
@@ -50,6 +54,7 @@ function Register() {
         .then(response => {
             console.log(response);
             console.log('Form submitted successfully!');
+            setRegisteredEmail(store.getValue('email'));
             setIsRegistered(true);
         })
         .catch(error => {
@@ -63,6 +68,21 @@ function Register() {
         })
     };
 
+
+    const handleResend = () => {
+        setIsResending(true);
+        setResendMsg('');
+        axios.post(`${url}/email/resend`, { email: registeredEmail })
+            .then(response => {
+                setResendMsgType('success');
+                setResendMsg(response?.data?.message || 'Emel verifikasi telah dihantar semula.');
+            })
+            .catch(error => {
+                setResendMsgType('danger');
+                setResendMsg(error?.response?.data?.message || 'Gagal menghantar emel. Sila cuba lagi.');
+            })
+            .finally(() => setIsResending(false));
+    };
 
     return (
         <div className="auth-shell">
@@ -105,17 +125,29 @@ function Register() {
                     {isRegistered ? (
                         <div className="text-center py-4">
                             <div className="mb-3">
-                                <i className="bi bi-check-circle-fill text-success" style={{ fontSize: '3rem' }}></i>
+                                <i className="bi bi-envelope-check-fill text-primary" style={{ fontSize: '3rem' }}></i>
                             </div>
                             <h2 className="auth-title">Pendaftaran Berjaya</h2>
                             <p className="text-muted">
-                                Akaun anda telah didaftarkan. Pentadbir sistem akan mengaktifkan akaun anda sebelum anda boleh log masuk.
+                                Akaun anda telah berjaya didaftarkan.
                             </p>
                             <p className="text-muted">
-                                Anda akan menerima emel notifikasi sebaik sahaja akaun anda diaktifkan.
+                                Sila semak emel <strong>{registeredEmail}</strong> untuk mengesahkan akaun anda.
                             </p>
-                            <div className="mt-4">
-                                <Link className="auth-link" to="/sign-in">Log masuk</Link>
+                            <p className="text-muted">
+                                Jika tiada emel diterima, klik butang di bawah untuk menghantar semula.
+                            </p>
+                            {resendMsg && <Alert className="auth-alert" variant={resendMsgType}>{resendMsg}</Alert>}
+                            <div className="mt-3 d-flex gap-2 justify-content-center">
+                                <button
+                                    type="button"
+                                    className="btn btn-outline-primary"
+                                    onClick={handleResend}
+                                    disabled={isResending}
+                                >
+                                    {isResending ? 'Menghantar...' : 'Hantar Semula Emel'}
+                                </button>
+                                <Link className="btn btn-primary" to="/sign-in">Log masuk</Link>
                             </div>
                         </div>
                     ) : (

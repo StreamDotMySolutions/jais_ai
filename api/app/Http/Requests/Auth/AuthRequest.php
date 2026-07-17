@@ -35,14 +35,16 @@ class AuthRequest extends FormRequest
 
         $credentials = null;
         $userStatus = null;
+        $userEmailVerifiedAt = null;
 
         if ($login !== '' && str_contains($login, '@')) {
             $user = DB::table('users')
                 ->where('email', $login)
-                ->first(['email', 'status']);
+                ->first(['email', 'status', 'email_verified_at']);
             if ($user) {
                 $credentials = ['email' => $user->email, 'password' => $this->input('password')];
                 $userStatus = (int) ($user->status ?? 0);
+                $userEmailVerifiedAt = $user->email_verified_at ?? null;
             }
         } else {
             // Normalize IC by removing non-digits; allow inputs like 900101-01-0001.
@@ -55,10 +57,11 @@ class AuthRequest extends FormRequest
             if ($userId) {
                 $user = DB::table('users')
                     ->where('id', $userId)
-                    ->first(['email', 'status']);
+                    ->first(['email', 'status', 'email_verified_at']);
                 if ($user && !empty($user->email)) {
                     $credentials = ['email' => $user->email, 'password' => $this->input('password')];
                     $userStatus = (int) ($user->status ?? 0);
+                    $userEmailVerifiedAt = $user->email_verified_at ?? null;
                 }
             }
         }
@@ -67,6 +70,13 @@ class AuthRequest extends FormRequest
             throw ValidationException::withMessages([
                 'login' => __('auth.failed'),
                 'email' => __('auth.failed'),
+            ]);
+        }
+
+        if (! $userEmailVerifiedAt) {
+            throw ValidationException::withMessages([
+                'login' => 'Emel belum disahkan. Sila semak emel anda.',
+                'email' => 'Emel belum disahkan. Sila semak emel anda.',
             ]);
         }
 

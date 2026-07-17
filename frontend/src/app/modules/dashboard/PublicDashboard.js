@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import ComplaintForm from '../aduan/ComplaintForm';
 
 const PublicDashboard = () => {
+    const [isFormOpen, setIsFormOpen] = useState(false);
+
     return (
         <div className="app-dashboard">
             <div className="app-welcome">
@@ -9,9 +12,9 @@ const PublicDashboard = () => {
                     <h3>Dashboard Pengadu</h3>
                     <p>Semak status aduan anda atau hantar aduan baharu.</p>
                 </div>
-                <Link to="/complaint" className="app-cta">
+                <button type="button" className="app-cta" onClick={() => setIsFormOpen(true)}>
                     Hantar Aduan Baharu
-                </Link>
+                </button>
             </div>
 
             <div className="app-grid">
@@ -45,6 +48,28 @@ const PublicDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {isFormOpen && (
+                <div className="app-modal">
+                    <div className="app-modal-backdrop" onClick={() => setIsFormOpen(false)}></div>
+                    <div className="app-modal-content">
+                        <div className="app-modal-header">
+                            <div>
+                                <h4>Tambah Aduan</h4>
+                                <p>Lengkapkan maklumat aduan anda.</p>
+                            </div>
+                            <button className="app-modal-close" onClick={() => setIsFormOpen(false)}>
+                                <i className="bi bi-x-lg"></i>
+                            </button>
+                        </div>
+                        <ComplaintForm
+                            showSuccessMessage={false}
+                            channelSource="portal"
+                            onSuccess={() => setIsFormOpen(false)}
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -67,6 +67,7 @@ import Profile from './views/pages/Global/Profile';
 import AboutUs from './views/pages/Guest/AboutUs';
 import SignIn from './views/pages/Guest/SignIn';
 import Register from './views/pages/Guest/Register';
+import EmailVerified from './views/pages/Guest/EmailVerified';
 import ContactUs from './views/pages/Guest/ContactUs';
 import SignOut from './views/pages/Guest/SignOut';
 import Complaint from './views/pages/Guest/Complaint';
@@ -121,6 +122,7 @@ function App() {
         <Route element={<HomeLayout />}>
           <Route path="/sign-in" element={<SignIn />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/email-verified" element={<EmailVerified />} />
         </Route>
 
         {/* Public Layout */}

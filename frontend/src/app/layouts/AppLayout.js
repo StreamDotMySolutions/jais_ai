@@ -66,6 +66,10 @@ const AppLayout = () => {
             return [];
         }
 
+        if (role === 'awam') {
+            return menuItems;
+        }
+
         const placeCasesAfterJanaTindakan = (items) => {
             const casesIndex = items.findIndex((menu) => (menu?.path || '') === '/app/cases');
             const janaTindakanIndex = items.findIndex((menu) => (menu?.path || '') === '/app/jana-tindakan-aduan');

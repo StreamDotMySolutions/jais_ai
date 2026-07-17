@@ -13,6 +13,9 @@ function SignIn() {
     const [isLoading, setIsLoading] = useState(false);
     const [message, setMessage] = useState('');
     const [messageType, setMessageType] = useState('');
+    const [emailNotVerified, setEmailNotVerified] = useState(false);
+    const [isResending, setIsResending] = useState(false);
+    const [resendMsg, setResendMsg] = useState('');
    
     useEffect(() => {
         // Code to run when the component is loaded (similar to window.onload)
@@ -32,6 +35,7 @@ function SignIn() {
     // handle form submission
     const handleSubmit = (e) => {
         store.setValue('errors', null ) // reset the error when form is submitting
+        setEmailNotVerified(false);
         setIsLoading(true)
         e.preventDefault();
         
@@ -83,6 +87,14 @@ function SignIn() {
                     setMessageType('danger');
                     setMessage(firstFieldError || responseMessage);
                 }
+
+                // Detect email not verified
+                const errorText = firstFieldError || responseMessage || '';
+                if (errorText.toLowerCase().includes('emel belum disahkan')) {
+                    setEmailNotVerified(true);
+                } else {
+                    setEmailNotVerified(false);
+                }
             } else if (error.response?.data?.message) {
                 setMessageType('danger');
                 setMessage(error.response.data.message);
@@ -95,6 +107,25 @@ function SignIn() {
         .finally( () => {
             setIsLoading(false)
         })
+    };
+
+    const resetForm = () => {
+        setEmailNotVerified(false);
+        setMessage('');
+    };
+
+    const handleResendVerification = () => {
+        setIsResending(true);
+        setResendMsg('');
+        const loginValue = store.getValue('login') || store.getValue('email') || '';
+        axios.post(`${url}/email/resend`, { email: loginValue })
+            .then(response => {
+                setResendMsg(response?.data?.message || 'Emel verifikasi telah dihantar semula.');
+            })
+            .catch(error => {
+                setResendMsg(error?.response?.data?.message || 'Gagal menghantar emel. Sila cuba lagi.');
+            })
+            .finally(() => setIsResending(false));
     };
 
     // handle redirect after login
@@ -148,6 +179,23 @@ function SignIn() {
                     </div>
 
                     {message && <Alert className="auth-alert" variant={messageType}>{message}</Alert>}
+
+                    {emailNotVerified && (
+                        <Alert className="auth-alert" variant="warning">
+                            <div className="d-flex align-items-center gap-2">
+                                <span>{resendMsg || 'Klik butang di bawah untuk menghantar semula emel verifikasi.'}</span>
+                                <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-warning ms-auto"
+                                    onClick={handleResendVerification}
+                                    disabled={isResending}
+                                    style={{ whiteSpace: 'nowrap' }}
+                                >
+                                    {isResending ? 'Menghantar...' : 'Hantar Semula'}
+                                </button>
+                            </div>
+                        </Alert>
+                    )}
 
                     <Form onSubmit={handleSubmit}>
                         <div className="auth-field">

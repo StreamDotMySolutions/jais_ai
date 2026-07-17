@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
@@ -50,9 +51,11 @@ class RegisterController extends Controller
             $user->syncRoles([$awamRole->name]);
         }
 
+        event(new Registered($user));
+
         return response()->json([
             'status' => 'success',
-            'message' => 'User registered successfully!',
+            'message' => 'Pendaftaran berjaya. Sila semak emel untuk mengesahkan akaun.',
             'user' => $user,
         ], 201);
     }
