@@ -434,6 +434,7 @@ const CaseDetail = () => {
 
     const saveCase = () => {
         if (!apiUrl) return;
+        if (isSaving) return;
         const nextValidationErrors = getRequiredValidationErrors();
         if (Object.keys(nextValidationErrors).length) {
             setValidationErrors(nextValidationErrors);

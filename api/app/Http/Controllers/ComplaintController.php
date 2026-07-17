@@ -2718,6 +2718,16 @@ class ComplaintController extends Controller
             'report_notes.required' => 'Laporan / Catatan Kes wajib diisi.',
         ]);
 
+        $recentlyCreated = $complaint->cases()
+            ->wherePivot('created_at', '>=', now()->subSeconds(10))
+            ->exists();
+
+        if ($recentlyCreated) {
+            return response()->json([
+                'message' => 'Kes telah berjaya disimpan sebelum ini. Sila muat semula halaman.',
+            ], 409);
+        }
+
         $case = DB::transaction(function () use ($complaint, $validated) {
             $case = $this->createAdditionalCaseForComplaint($complaint, [
                 'file_no' => $this->nullableString($validated['file_no'] ?? null),
