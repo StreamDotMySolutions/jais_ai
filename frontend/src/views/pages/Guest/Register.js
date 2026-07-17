@@ -3,20 +3,19 @@ import { Form } from 'react-bootstrap';
 import axios from 'axios';
 import useStore from '../../../store';
 import { appendFormData, InputText } from '../../../libs/FormInput';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import SubmitButton from '../../../libs/SubmitButton';
 
 function Register() {
-    const navigate = useNavigate();
     const store = useStore(); // zustand store management
     const url = process.env.REACT_APP_API_URL; // API server
     const [isLoading, setIsLoading] = useState(false);
+    const [isRegistered, setIsRegistered] = useState(false);
 
     useEffect(() => {
         // Code to run when the component is loaded (similar to window.onload)
         console.log("Page has loaded!");
         store.emptyData() // clear all previous data
-        store.setValue('registered', false ) // init
 
         // Optionally, you can return a cleanup function to run when the component is unmounted
         return () => {
@@ -51,7 +50,7 @@ function Register() {
         .then(response => {
             console.log(response);
             console.log('Form submitted successfully!');
-            store.setValue('registered', true) // for redirect purpose
+            setIsRegistered(true);
         })
         .catch(error => {
             if( error.response?.status == 422 ){ // detect 422 errors by Laravel
@@ -63,14 +62,6 @@ function Register() {
             setIsLoading(false)
         })
     };
-
-
-    useEffect( () => {
-        // handle redirect after successful registration
-        if (store.getValue('registered') === true) {
-            navigate('/sign-in', { replace: true });
-        }
-    }, [store.getValue('registered')])
 
 
     return (
@@ -111,13 +102,31 @@ function Register() {
                 </div>
 
                 <div className="auth-form">
-                    <div className="auth-form-header">
-                        <span className="auth-kicker">Akaun baharu</span>
-                        <h1 className="auth-title">Daftar</h1>
-                        <p className="auth-subtitle">Isi maklumat asas untuk mengaktifkan akaun anda.</p>
-                    </div>
+                    {isRegistered ? (
+                        <div className="text-center py-4">
+                            <div className="mb-3">
+                                <i className="bi bi-check-circle-fill text-success" style={{ fontSize: '3rem' }}></i>
+                            </div>
+                            <h2 className="auth-title">Pendaftaran Berjaya</h2>
+                            <p className="text-muted">
+                                Akaun anda telah didaftarkan. Pentadbir sistem akan mengaktifkan akaun anda sebelum anda boleh log masuk.
+                            </p>
+                            <p className="text-muted">
+                                Anda akan menerima emel notifikasi sebaik sahaja akaun anda diaktifkan.
+                            </p>
+                            <div className="mt-4">
+                                <Link className="auth-link" to="/sign-in">Log masuk</Link>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="auth-form-header">
+                                <span className="auth-kicker">Akaun baharu</span>
+                                <h1 className="auth-title">Daftar</h1>
+                                <p className="auth-subtitle">Isi maklumat asas untuk mengaktifkan akaun anda.</p>
+                            </div>
 
-                    <Form onSubmit={handleSubmit}>
+                            <Form onSubmit={handleSubmit}>
                         <div className="auth-field">
                             <label className="auth-label">Nama penuh</label>
                             <InputText 
@@ -177,6 +186,8 @@ function Register() {
                     <div className="mt-3 text-center">
                         <Link to="/" className="auth-link"><i className="bi bi-house-door"></i> Utama</Link>
                     </div>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

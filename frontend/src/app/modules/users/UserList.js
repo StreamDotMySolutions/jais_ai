@@ -146,6 +146,24 @@ const UserList = () => {
             });
     };
 
+    const toggleUserStatus = (item) => {
+        if (!apiUrl) {
+            return;
+        }
+        const nextStatus = item.status ? 0 : 1;
+        axios.put(`${apiUrl}/users/${item.id}`, {
+            status: nextStatus,
+        }, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        })
+            .then(() => {
+                loadUsers();
+            })
+            .catch((err) => {
+                setError(err?.response?.data?.message || 'Gagal mengemaskini status pengguna.');
+            });
+    };
+
     const startIndex = total === 0 ? 0 : (page - 1) * perPage + 1;
     const endIndex = Math.min(page * perPage, total);
     const sortColumns = [
@@ -258,7 +276,17 @@ const UserList = () => {
                                     <div>{item.email}</div>
                                     <div>{item.roles?.[0]?.name || '-'}</div>
                                     <div>{item.office_type === 'hq' ? 'HQ' : item.office_type === 'daerah' ? 'Daerah' : '-'}</div>
-                                    <div>{item.status ? 'Aktif' : 'Tidak Aktif'}</div>
+                                    <div className="app-user-status-cell">
+                                        <label className="app-toggle-switch" title={item.status ? 'Aktif' : 'Tidak Aktif'}>
+                                            <input
+                                                type="checkbox"
+                                                checked={Boolean(item.status)}
+                                                onChange={() => toggleUserStatus(item)}
+                                            />
+                                            <span className="app-toggle-slider"></span>
+                                        </label>
+                                        <span className="app-user-status-label">{item.status ? 'Aktif' : 'Tidak Aktif'}</span>
+                                    </div>
                                     <button
                                         type="button"
                                         className="app-link"

@@ -74,9 +74,19 @@ function SignIn() {
             if( error.response?.status == 422 ){ // detect 422 errors by Laravel
                 console.log(error.response.data.errors)
                 store.setValue('errors', error.response.data.errors ) // set the errors to store
-            }
 
-            if(error?.message){
+                // Show first validation message (e.g. inactive account) as alert
+                const responseMessage = error.response?.data?.message;
+                const fieldErrors = error.response?.data?.errors;
+                const firstFieldError = fieldErrors && Object.values(fieldErrors).flat()[0];
+                if (firstFieldError || responseMessage) {
+                    setMessageType('danger');
+                    setMessage(firstFieldError || responseMessage);
+                }
+            } else if (error.response?.data?.message) {
+                setMessageType('danger');
+                setMessage(error.response.data.message);
+            } else if(error?.message){
                 setMessageType('danger')
                 setMessage(error.message)
             }
