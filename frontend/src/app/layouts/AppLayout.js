@@ -67,7 +67,12 @@ const AppLayout = () => {
         }
 
         if (role === 'awam') {
-            return menuItems;
+            return menuItems.map((menu) => {
+                if ((menu?.path || '') === '/app/aduan') {
+                    return { ...menu, label: 'Aduan' };
+                }
+                return menu;
+            });
         }
 
         const placeCasesAfterJanaTindakan = (items) => {
