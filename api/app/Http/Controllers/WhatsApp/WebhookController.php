@@ -44,6 +44,11 @@ class WebhookController extends Controller
 
         $from = data_get($payload, 'entry.0.changes.0.value.messages.0.from');
 
+        // Which of our business numbers this message was sent TO — used so the
+        // reply goes out from the same number the user contacted (a single WABA
+        // can host multiple numbers sharing one webhook).
+        $phoneNumberId = data_get($payload, 'entry.0.changes.0.value.metadata.phone_number_id');
+
         if (!$message || !$from) {
             return response()->json(['status' => 'ignored']);
         }
@@ -51,7 +56,7 @@ class WebhookController extends Controller
         if (in_array($message, ['/reset', 'reset', '/batal', 'batal'], true)) {
             app(LlmComplaintService::class)->resetHistory('whatsapp-meta', $from);
             \Log::info('WhatsApp reset — chat history cleared', ['from' => $from, 'trigger' => $message]);
-            $this->sendMessage($from, 'Perbualan dikosongkan. Sila mula semula.');
+            $this->sendMessage($from, 'Perbualan dikosongkan. Sila mula semula.', $phoneNumberId);
             return response()->json(['status' => 'ok']);
         }
 
@@ -66,18 +71,23 @@ class WebhookController extends Controller
             message: $message,
             from: $from,
             channel: 'whatsapp-meta',
-            hints: $hints
+            hints: $hints,
+            phoneNumberId: $phoneNumberId
         ));
 
         return response()->json(['status' => 'ok']);
     }
 
-    private function sendMessage(string $to, string $body): void
+    private function sendMessage(string $to, string $body, ?string $phoneNumberId = null): void
     {
+        // Reply from the number the user messaged (from inbound metadata),
+        // falling back to the configured default if it wasn't provided.
+        $phoneNumberId = $phoneNumberId ?: config('services.whatsapp.phone_number_id');
+
         Http::withToken(config('services.whatsapp.token'))
             ->post(
                 'https://graph.facebook.com/v19.0/' .
-                config('services.whatsapp.phone_number_id') .
+                $phoneNumberId .
                 '/messages',
                 [
                     'messaging_product' => 'whatsapp',
