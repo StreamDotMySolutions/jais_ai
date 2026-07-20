@@ -21,15 +21,13 @@ class SendToLlmJob implements ShouldQueue
     public string $from;
     public string $channel;
     public ?array $hints;
-    public ?string $phoneNumberId;
 
-    public function __construct(string $message, string $from, string $channel, ?array $hints = null, ?string $phoneNumberId = null)
+    public function __construct(string $message, string $from, string $channel, ?array $hints = null)
     {
-        $this->message       = $message;
-        $this->from          = $from;
-        $this->channel       = $channel;
-        $this->hints         = $hints;
-        $this->phoneNumberId = $phoneNumberId;
+        $this->message = $message;
+        $this->from    = $from;
+        $this->channel = $channel;
+        $this->hints   = $hints;
     }
 
     public function handle(LlmComplaintService $llm): void
@@ -145,14 +143,10 @@ class SendToLlmJob implements ShouldQueue
 
     private function sendToWhatsApp(string $reply): void
     {
-        // Reply from the number the user actually messaged (inbound metadata),
-        // falling back to the configured default if metadata was absent.
-        $phoneNumberId = $this->phoneNumberId ?: config('services.whatsapp.phone_number_id');
-
         Http::withToken(config('services.whatsapp.token'))
             ->post(
                 'https://graph.facebook.com/v19.0/' .
-                $phoneNumberId .
+                config('services.whatsapp.phone_number_id') .
                 '/messages',
                 [
                     'messaging_product' => 'whatsapp',
