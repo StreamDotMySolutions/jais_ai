@@ -90,10 +90,20 @@ class LlmComplaintService
                 $lines[] = "- Nombor telefon (dari WhatsApp): {$hints['phone']}";
             }
             if ($lines) {
+                $content = "MAKLUMAT PENGGUNA YANG TELAH DIKENAL:\n" . implode("\n", $lines) .
+                    "\n\nARAHAN: Gunakan maklumat ini sebagai nilai lalai. Jika pengguna membetulkan maklumat ini, gunakan versi yang dibetulkan.";
+
+                if (!empty($hints['phone'])) {
+                    $content .= "\n\nARAHAN KHUSUS NOMBOR TELEFON:" .
+                        "\n- Nombor telefon pengguna SUDAH DIKETAHUI daripada WhatsApp: {$hints['phone']}." .
+                        "\n- JANGAN tanya nombor telefon. LANGKAU soalan nombor telefon dalam urutan soalan." .
+                        "\n- Dalam ringkasan pengesahan, isi baris 'Nombor telefon' dengan {$hints['phone']}." .
+                        "\n- Dalam arahan /store_complaint, isi 'contact_number' dengan {$hints['phone']}.";
+                }
+
                 $systemMessages[] = [
-                    'role' => 'system',
-                    'content' => "MAKLUMAT PENGGUNA YANG TELAH DIKENAL:\n" . implode("\n", $lines) .
-                        "\n\nARAHAN: Gunakan maklumat ini sebagai nilai lalai. Sahkan dengan pengguna terlebih dahulu sebelum menyimpan aduan. Jika pengguna membetulkan maklumat ini, gunakan versi yang dibetulkan.",
+                    'role'    => 'system',
+                    'content' => $content,
                 ];
             }
         }
@@ -150,9 +160,10 @@ class LlmComplaintService
             $complainantName = $hints['name'] ?? 'Tidak dinyatakan';
         }
 
-        $contactNumber = $data['contact_number'] ?? null;
+        // WhatsApp sender number (captured from the webhook) is authoritative when present.
+        $contactNumber = $hints['phone'] ?? null;
         if (!is_string($contactNumber) || trim($contactNumber) === '') {
-            $contactNumber = $hints['phone'] ?? $chatId;
+            $contactNumber = $data['contact_number'] ?? $chatId;
         }
 
         Complaint::create([
