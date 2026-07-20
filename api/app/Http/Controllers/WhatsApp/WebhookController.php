@@ -49,6 +49,19 @@ class WebhookController extends Controller
         // can host multiple numbers sharing one webhook).
         $phoneNumberId = data_get($payload, 'entry.0.changes.0.value.metadata.phone_number_id');
 
+        // Ownership guard: this server only handles its own WABA number. If the
+        // shared webhook delivers a message for a different number, ignore it so
+        // dev and production stay isolated. Lenient when either side is unknown
+        // (e.g. simulated payloads without metadata, or WHATSAPP_PHONE_NUMBER_ID unset).
+        $ownPhoneNumberId = config('services.whatsapp.phone_number_id');
+        if ($ownPhoneNumberId && $phoneNumberId && $phoneNumberId !== $ownPhoneNumberId) {
+            \Log::info('WhatsApp webhook ignored — phone_number_id not owned by this server', [
+                'received' => $phoneNumberId,
+                'expected' => $ownPhoneNumberId,
+            ]);
+            return response()->json(['status' => 'ignored']);
+        }
+
         if (!$message || !$from) {
             return response()->json(['status' => 'ignored']);
         }
