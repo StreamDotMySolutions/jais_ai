@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\ChatMessage;
 use App\Models\Complaint;
+use App\Models\District;
 use App\Services\ComplaintReferenceService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -81,6 +82,23 @@ class LlmComplaintService
             ->toArray();
 
         $systemMessages = [['role' => 'system', 'content' => config('llm.complaint_system_prompt')]];
+
+        $activeDistricts = District::where('is_active', true)
+            ->orderBy('id')
+            ->pluck('name')
+            ->all();
+        if ($activeDistricts) {
+            $lines = [];
+            foreach ($activeDistricts as $index => $name) {
+                $lines[] = ($index + 1) . '. ' . $name;
+            }
+            $systemMessages[] = [
+                'role'    => 'system',
+                'content' => "SENARAI DAERAH AKTIF (untuk soalan 'Daerah kejadian'):\n" . implode("\n", $lines) .
+                    "\n\nARAHAN: Paparkan senarai ini apabila bertanya soalan daerah. Terima hanya daerah yang ada dalam senarai. Simpan nama daerah yang dipilih (bukan nombor) sebagai 'district'.",
+            ];
+        }
+
         if ($hints) {
             $lines = [];
             if (!empty($hints['name'])) {
@@ -175,7 +193,7 @@ class LlmComplaintService
             'complainant_name'     => $complainantName,
             'identification_number' => $data['identification_number'] ?? 'Tidak dinyatakan',
             'contact_number'       => $contactNumber,
-            'address'              => $data['location'] ?? 'Tidak dinyatakan',
+            'address'              => $data['location'] ?? $data['district'] ?? 'Tidak dinyatakan',
             'district_name'        => $data['district'] ?? null,
             'summary'              => (Str::startsWith($channel, 'whatsapp') ? '[TEST] ' : '') . ($data['contents'] ?? 'Tidak dinyatakan'),
             'channel'              => $channel,
