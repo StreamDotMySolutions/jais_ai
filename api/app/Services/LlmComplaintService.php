@@ -184,7 +184,7 @@ class LlmComplaintService
             'contact_number'       => $contactNumber,
             'address'              => $data['location'] ?? $data['district'] ?? 'Tidak dinyatakan',
             'district_name'        => $data['district'] ?? null,
-            'summary'              => (Str::startsWith($channel, 'whatsapp') ? '[TEST] ' : '') . ($data['contents'] ?? 'Tidak dinyatakan'),
+            'summary'              => $data['contents'] ?? 'Tidak dinyatakan',
             'channel'              => $channel,
             'current_stage'        => 'baru',
             'submitted_at'         => $now,
