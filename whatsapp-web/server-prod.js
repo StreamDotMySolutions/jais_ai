@@ -6,11 +6,11 @@ const qrcode = require('qrcode-terminal');
 const axios = require('axios');
 const { startControlServer } = require('./lib/control');
 
-const API_URL = process.env.API_URL || 'http://127.0.0.1:8000/api/whatsappweb';
+const API_URL = process.env.API_URL || 'https://hotline.jais.gov.my/api/whatsappweb';
 const CHROMIUM_PATH = process.env.CHROMIUM_PATH || '/usr/bin/chromium-browser';
 
 // Status-ingest endpoint on Laravel (loopback). Guarded by shared secret.
-const STATUS_URL = process.env.WAWEB_STATUS_URL || 'http://127.0.0.1:8000/api/whatsappweb/_internal/status';
+const STATUS_URL = process.env.WAWEB_STATUS_URL || 'https://hotline.jais.gov.my/api/whatsappweb/_internal/status';
 const STATUS_SECRET = process.env.WAWEB_INTERNAL_SECRET || '';
 const HEARTBEAT_MS = 10_000;
 const CONTROL_PORT = parseInt(process.env.WAWEB_CONTROL_PORT || '3001', 10);
