@@ -4,10 +4,12 @@ namespace App\Services;
 
 use App\Models\ChatMessage;
 use App\Models\Complaint;
+use App\Models\ComplaintAttachment;
 use App\Services\ComplaintReferenceService;
 use App\Services\DistrictResolverService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class LlmComplaintService
@@ -93,6 +95,20 @@ class LlmComplaintService
             ];
         }
 
+        // Identity from the uploaded MyKad is injected as a runtime system message
+        // (not via chat history) so it is always present regardless of the history
+        // trim window, and can never be overridden by whatever the user types.
+        $identity = $this->stagedIdentity($channel, $chatId);
+        if ($identity) {
+            $systemMessages[] = [
+                'role'    => 'system',
+                'content' => "IDENTITI PENGADU (DISAHKAN DARIPADA MyKad — gunakan nilai ini, JANGAN tanya semula):" .
+                    "\n- Nama penuh: " . ($identity['name'] ?? '') .
+                    "\n- Nombor kad pengenalan: " . ($identity['nric'] ?? '') .
+                    "\n- Alamat: " . ($identity['address'] ?? ''),
+            ];
+        }
+
         if ($hints) {
             $lines = [];
             if (!empty($hints['name'])) {
@@ -171,10 +187,17 @@ class LlmComplaintService
             $now
         );
 
-        $complainantName = $data['name'] ?? null;
+        // Identity (name, IC, address) comes from the staged MyKad extraction and is
+        // authoritative — the LLM never emits it, so it cannot be fabricated or altered.
+        $identity = $this->stagedIdentity($channel, $chatId);
+
+        $complainantName = $identity['name'] ?? $data['name'] ?? null;
         if (!is_string($complainantName) || trim($complainantName) === '') {
             $complainantName = $hints['name'] ?? 'Tidak dinyatakan';
         }
+
+        $identificationNumber = $identity['nric'] ?? $data['identification_number'] ?? 'Tidak dinyatakan';
+        $address = $identity['address'] ?? $data['location'] ?? $district ?? 'Tidak dinyatakan';
 
         // WhatsApp sender number (captured from the webhook) is authoritative when present.
         $contactNumber = $hints['phone'] ?? null;
@@ -182,16 +205,16 @@ class LlmComplaintService
             $contactNumber = $data['contact_number'] ?? $chatId;
         }
 
-        Complaint::create([
+        $complaint = Complaint::create([
             'reference_no'         => $referenceNo,
             'case_type'            => 'AJ',
             'complaint_year'       => (int) $now->format('Y'),
             'complaint_date'       => $now->toDateString(),
             'complaint_time'       => $now->format('H:i:s'),
             'complainant_name'     => $complainantName,
-            'identification_number' => $data['identification_number'] ?? 'Tidak dinyatakan',
+            'identification_number' => $identificationNumber,
             'contact_number'       => $contactNumber,
-            'address'              => $data['location'] ?? $district ?? 'Tidak dinyatakan',
+            'address'              => $address,
             'district_name'        => $district,
             'summary'              => $data['contents'] ?? 'Tidak dinyatakan',
             'channel'              => $channel,
@@ -199,9 +222,13 @@ class LlmComplaintService
             'submitted_at'         => $now,
         ]);
 
+        $this->attachIdentityImage($channel, $chatId, $complaint);
+
         ChatMessage::where('channel', $channel)
             ->where('chat_id', $chatId)
             ->delete();
+
+        $this->clearPending($channel, $chatId);
 
         return $referenceNo;
     }
@@ -210,5 +237,106 @@ class LlmComplaintService
         ChatMessage::where('channel', $channel)
             ->where('chat_id', $chatId)
             ->delete();
+
+        // Drop any MyKad staged in an abandoned session so it can't leak into the next.
+        $this->clearPending($channel, $chatId);
+    }
+
+    /**
+     * True once a valid MyKad has been read and staged for this chat.
+     * The webhook uses this to hard-gate the complaint flow.
+     */
+    public function hasIdentity(string $channel, string $chatId): bool
+    {
+        return Storage::disk('local')->exists($this->pendingDir($channel, $chatId) . '/identity.json');
+    }
+
+    /**
+     * Persist the extracted MyKad image + identity fields for this chat, pending
+     * submission. Moved into the complaint folder when /store_complaint fires.
+     */
+    public function stageIdentity(string $channel, string $chatId, string $bytes, string $mime, array $extracted): void
+    {
+        $dir = $this->pendingDir($channel, $chatId);
+
+        Storage::disk('local')->put($dir . '/identity.png', $bytes);
+        Storage::disk('local')->put($dir . '/identity.json', json_encode([
+            'name'    => $extracted['name'] ?? null,
+            'nric'    => $extracted['nric'] ?? null,
+            'address' => $extracted['address'] ?? null,
+            'mime'    => $mime,
+        ], JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * Produce the assistant's next turn without an incoming user message — used
+     * right after a MyKad is staged to kick off the district question.
+     */
+    public function replyWithoutUserInput(string $channel, string $chatId, ?array $hints = null): ?string
+    {
+        $reply = $this->askOpenAi($channel, $chatId, $hints);
+
+        if (!$reply) {
+            return null;
+        }
+
+        ChatMessage::create([
+            'channel' => $channel,
+            'chat_id' => $chatId,
+            'role'    => 'assistant',
+            'content' => $reply,
+        ]);
+
+        return $reply;
+    }
+
+    private function stagedIdentity(string $channel, string $chatId): ?array
+    {
+        $path = $this->pendingDir($channel, $chatId) . '/identity.json';
+
+        if (!Storage::disk('local')->exists($path)) {
+            return null;
+        }
+
+        $data = json_decode(Storage::disk('local')->get($path), true);
+
+        return is_array($data) ? $data : null;
+    }
+
+    private function attachIdentityImage(string $channel, string $chatId, Complaint $complaint): void
+    {
+        $source = $this->pendingDir($channel, $chatId) . '/identity.png';
+
+        if (!Storage::disk('local')->exists($source)) {
+            Log::warning('No staged MyKad image to attach', ['complaint_id' => $complaint->id]);
+            return;
+        }
+
+        $dest = 'complaints/' . $complaint->id . '/identity.png';
+        Storage::disk('local')->put($dest, Storage::disk('local')->get($source));
+
+        $identity = $this->stagedIdentity($channel, $chatId);
+
+        ComplaintAttachment::create([
+            'complaint_id' => $complaint->id,
+            'category'     => 'identity',
+            'file_name'    => 'identity.png',
+            'path'         => $dest,
+            'disk'         => 'local',
+            'mime'         => $identity['mime'] ?? 'image/png',
+            'size'         => Storage::disk('local')->size($dest),
+        ]);
+    }
+
+    private function clearPending(string $channel, string $chatId): void
+    {
+        Storage::disk('local')->deleteDirectory($this->pendingDir($channel, $chatId));
+    }
+
+    private function pendingDir(string $channel, string $chatId): string
+    {
+        $safeChat = preg_replace('/[^A-Za-z0-9_.-]/', '_', $chatId);
+
+        return 'whatsapp_media_pending/' . $channel . '/' . $safeChat;
     }
 }

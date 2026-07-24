@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Http;
 use App\Jobs\WhatsAppSendToLlmJob;
 use App\Jobs\SendToLlmJob;
+use App\Jobs\ProcessMykadJob;
 use App\Models\ChatMessage;
 use App\Services\LlmComplaintService;
 
@@ -38,13 +39,42 @@ class WebhookController extends Controller
 
         \Log::info('WhatsApp Webhook Payload:', $payload);
 
+        $from = data_get($payload, 'entry.0.changes.0.value.messages.0.from');
+        $type = data_get($payload, 'entry.0.changes.0.value.messages.0.type');
         $message = strtolower(trim(
             data_get($payload, 'entry.0.changes.0.value.messages.0.text.body')
         ));
 
-        $from = data_get($payload, 'entry.0.changes.0.value.messages.0.from');
+        // Ignore non-message webhooks (delivery/read statuses etc.).
+        if (!$from || !$type) {
+            return response()->json(['status' => 'ignored']);
+        }
 
-        if (!$message || !$from) {
+        $hints = [];
+        $profileName = data_get($payload, 'entry.0.changes.0.value.contacts.0.profile.name');
+        if (is_string($profileName) && trim($profileName) !== '') {
+            $hints['name'] = trim($profileName);
+        }
+        $hints['phone'] = preg_replace('/^60/', '0', $from);
+
+        // Image message → MyKad extraction pipeline.
+        if ($type === 'image') {
+            $mediaId = data_get($payload, 'entry.0.changes.0.value.messages.0.image.id');
+            if (!$mediaId) {
+                return response()->json(['status' => 'ignored']);
+            }
+
+            dispatch(new ProcessMykadJob(
+                mediaId: $mediaId,
+                from: $from,
+                hints: $hints
+            ));
+
+            return response()->json(['status' => 'ok']);
+        }
+
+        // From here we only handle text.
+        if ($type !== 'text' || !$message) {
             return response()->json(['status' => 'ignored']);
         }
 
@@ -55,12 +85,11 @@ class WebhookController extends Controller
             return response()->json(['status' => 'ok']);
         }
 
-        $hints = [];
-        $profileName = data_get($payload, 'entry.0.changes.0.value.contacts.0.profile.name');
-        if (is_string($profileName) && trim($profileName) !== '') {
-            $hints['name'] = trim($profileName);
+        // Hard gate: no complaint questions until a MyKad has been read for this chat.
+        if (!app(LlmComplaintService::class)->hasIdentity('whatsapp-meta', $from)) {
+            $this->sendMessage($from, config('llm.mykad_required_prompt'));
+            return response()->json(['status' => 'ok']);
         }
-        $hints['phone'] = preg_replace('/^60/', '0', $from);
 
         dispatch(new SendToLlmJob(
             message: $message,
