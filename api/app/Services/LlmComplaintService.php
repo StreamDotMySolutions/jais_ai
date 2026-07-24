@@ -197,7 +197,11 @@ class LlmComplaintService
         }
 
         $identificationNumber = $identity['nric'] ?? $data['identification_number'] ?? 'Tidak dinyatakan';
-        $address = $identity['address'] ?? $data['location'] ?? $district ?? 'Tidak dinyatakan';
+
+        // Complainant's residential address comes from the MyKad. `address` stays the
+        // incident/general address (WhatsApp doesn't collect one — falls back to district).
+        $complainantAddress = $identity['address'] ?? null;
+        $address = $data['location'] ?? $district ?? 'Tidak dinyatakan';
 
         // WhatsApp sender number (captured from the webhook) is authoritative when present.
         $contactNumber = $hints['phone'] ?? null;
@@ -215,6 +219,7 @@ class LlmComplaintService
             'identification_number' => $identificationNumber,
             'contact_number'       => $contactNumber,
             'address'              => $address,
+            'complainant_address'  => $complainantAddress,
             'district_name'        => $district,
             'summary'              => $data['contents'] ?? 'Tidak dinyatakan',
             'channel'              => $channel,
