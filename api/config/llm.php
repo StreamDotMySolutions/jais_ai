@@ -66,7 +66,7 @@ PROMPT,
     | The complaint flow is hard-gated on MyKad: no complaint questions are
     | accepted until a valid MyKad image has been read.
     */
-    'mykad_required_prompt' => 'Salam sejahtera. Saya pembantu maya (AI) rasmi Jabatan Agama Islam Selangor (JAIS). Untuk membuat aduan, sila muat naik GAMBAR MyKad (kad pengenalan) anda terlebih dahulu. Aduan tidak boleh diteruskan tanpa MyKad.',
+    'mykad_required_prompt' => "Salam sejahtera. Saya pembantu maya (AI) rasmi Jabatan Agama Islam Selangor (JAIS). Untuk membuat aduan, sila muat naik GAMBAR MyKad (kad pengenalan) anda terlebih dahulu. Aduan tidak boleh diteruskan tanpa MyKad.\n\nPanduan gambar:\n- Ambil gambar bahagian HADAPAN MyKad sahaja.\n- Pastikan SELURUH kad kelihatan dan tidak terpotong.\n- Gambar mesti terang, jelas dan tidak kabur.\n- Elakkan pantulan cahaya atau bayang pada kad.",
 
     /*
     |--------------------------------------------------------------------------
