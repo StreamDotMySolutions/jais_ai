@@ -22,6 +22,11 @@ class ProcessMykadJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /** Meta download + OpenAI vision is slow; give it room and retry transient failures. */
+    public int $tries = 3;
+    public array $backoff = [10, 30];
+    public int $timeout = 110;
+
     private const CHANNEL = 'whatsapp-meta';
 
     public function __construct(

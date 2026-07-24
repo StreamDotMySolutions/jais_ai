@@ -17,6 +17,11 @@ class SendToLlmJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /** Retry transient OpenAI failures rather than dropping the reply. */
+    public int $tries = 3;
+    public array $backoff = [5, 15];
+    public int $timeout = 30;
+
     public string $message;
     public string $from;
     public string $channel;
