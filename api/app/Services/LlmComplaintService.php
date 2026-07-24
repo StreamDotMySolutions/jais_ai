@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Models\ChatMessage;
 use App\Models\Complaint;
-use App\Models\District;
 use App\Services\ComplaintReferenceService;
+use App\Services\DistrictResolverService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -18,7 +18,8 @@ class LlmComplaintService
     private const TIMEOUT = 15;
 
     public function __construct(
-        private ComplaintReferenceService $complaintReferenceService
+        private ComplaintReferenceService $complaintReferenceService,
+        private DistrictResolverService $districtResolver
     ) {
     }
 
@@ -83,19 +84,12 @@ class LlmComplaintService
 
         $systemMessages = [['role' => 'system', 'content' => config('llm.complaint_system_prompt')]];
 
-        $activeDistricts = District::where('is_active', true)
-            ->orderBy('id')
-            ->pluck('name')
-            ->all();
-        if ($activeDistricts) {
-            $lines = [];
-            foreach ($activeDistricts as $index => $name) {
-                $lines[] = ($index + 1) . '. ' . $name;
-            }
+        $districtList = $this->districtResolver->numberedList();
+        if ($districtList !== '') {
             $systemMessages[] = [
                 'role'    => 'system',
-                'content' => "SENARAI DAERAH AKTIF (untuk soalan 'Daerah kejadian'):\n" . implode("\n", $lines) .
-                    "\n\nARAHAN: Paparkan senarai ini apabila bertanya soalan daerah. Terima hanya daerah yang ada dalam senarai. Simpan nama daerah yang dipilih (bukan nombor) sebagai 'district'.",
+                'content' => "SENARAI DAERAH AKTIF (untuk soalan 'Daerah kejadian'):\n" . $districtList .
+                    "\n\nARAHAN: Paparkan senarai ini apabila bertanya soalan daerah. Pengguna boleh menjawab dengan NOMBOR pilihan (contoh: 3) ATAU dengan menaip NAMA daerah (contoh: Hulu Langat) - kedua-duanya sah. Terima hanya daerah yang ada dalam senarai. Sentiasa gunakan NAMA PENUH daerah (bukan nombor) apabila memaparkan ringkasan dan apabila menyimpannya sebagai 'district'.",
             ];
         }
 
@@ -155,10 +149,25 @@ class LlmComplaintService
             return null;
         }
 
+        // Resolve whatever the LLM emitted ("3", "gombak", "Hulu Langat") to a
+        // canonical active district. This cannot be left to the model alone: the
+        // value is interpolated into the public reference number, so a raw "3"
+        // would permanently file the complaint as AJ-3/2026/07/0001.
+        $rawDistrict = is_string($data['district'] ?? null) ? $data['district'] : null;
+        $district = $this->districtResolver->resolve($rawDistrict);
+
+        if ($district === null && $rawDistrict !== null && trim($rawDistrict) !== '') {
+            Log::warning('District could not be resolved to an active district', [
+                'channel' => $channel,
+                'chat_id' => $chatId,
+                'raw'     => $rawDistrict,
+            ]);
+        }
+
         $now = now();
         $referenceNo = $this->complaintReferenceService->generateReferenceNo(
             'AJ',
-            $data['district'] ?? null,
+            $district,
             $now
         );
 
@@ -182,8 +191,8 @@ class LlmComplaintService
             'complainant_name'     => $complainantName,
             'identification_number' => $data['identification_number'] ?? 'Tidak dinyatakan',
             'contact_number'       => $contactNumber,
-            'address'              => $data['location'] ?? $data['district'] ?? 'Tidak dinyatakan',
-            'district_name'        => $data['district'] ?? null,
+            'address'              => $data['location'] ?? $district ?? 'Tidak dinyatakan',
+            'district_name'        => $district,
             'summary'              => $data['contents'] ?? 'Tidak dinyatakan',
             'channel'              => $channel,
             'current_stage'        => 'baru',
