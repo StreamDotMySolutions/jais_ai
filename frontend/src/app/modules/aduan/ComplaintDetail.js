@@ -3141,6 +3141,31 @@ const ComplaintDetail = () => {
                             </div>
                         )}
 
+                        {(complaint.attachments || []).some((att) => att.category === 'identity') && (
+                            <div className="app-card-subsection">
+                                <div className="app-card-subheader">
+                                    <h5>Identiti Pengadu (MyKad)</h5>
+                                </div>
+                                <SharedAttachmentSection
+                                    apiUrl={apiUrl}
+                                    token={token}
+                                    recordId={complaint.id}
+                                    attachments={(complaint.attachments || []).filter((att) => att.category === 'identity')}
+                                    canUpload={false}
+                                    canDelete={false}
+                                    getDownloadUrl={({ apiUrl: baseUrl, attachment }) => {
+                                        if (attachment?.download_url) {
+                                            return attachment.download_url;
+                                        }
+                                        if (!baseUrl || !complaint?.id || !attachment?.id) {
+                                            return '';
+                                        }
+                                        return `${baseUrl}/complaints/${complaint.id}/attachments/${attachment.id}/download`;
+                                    }}
+                                />
+                            </div>
+                        )}
+
                         {isAkFamilyDetail && (
                             <div className="app-card-subsection">
                                 <div className="app-card-subheader">
@@ -3150,7 +3175,7 @@ const ComplaintDetail = () => {
                                     apiUrl={apiUrl}
                                     token={token}
                                     recordId={complaint.id}
-                                    attachments={complaint.attachments || []}
+                                    attachments={(complaint.attachments || []).filter((att) => att.category !== 'identity')}
                                     canUpload={canEditAduanBox}
                                     canDelete={canEditAduanBox}
                                     getUploadUrl={({ apiUrl: baseUrl, recordId }) =>
