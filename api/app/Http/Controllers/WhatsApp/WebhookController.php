@@ -37,7 +37,7 @@ class WebhookController extends Controller
 
         $payload = $request->all();
 
-        \Log::info('WhatsApp Webhook Payload:', $payload);
+        \Log::info('WhatsApp Webhook Payload: '.json_encode($payload));
 
         $from = data_get($payload, 'entry.0.changes.0.value.messages.0.from');
         $type = data_get($payload, 'entry.0.changes.0.value.messages.0.type');
