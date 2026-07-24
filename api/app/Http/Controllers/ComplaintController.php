@@ -3535,6 +3535,7 @@ class ComplaintController extends Controller
             'ak_event_place' => 'nullable|string|max:255',
             'ak_event_time' => 'nullable|date_format:H:i',
             'current_address' => 'nullable|string|max:1000',
+            'complainant_address' => 'nullable|string|max:1000',
             'ak_rujuk_date' => 'nullable|date',
             'reference_no' => 'nullable|string|max:255',
             'channel' => 'nullable|string|max:100',
@@ -3568,6 +3569,7 @@ class ComplaintController extends Controller
             'ak_event_date',
             'ak_event_place',
             'current_address',
+            'complainant_address',
             'ak_rujuk_date',
         ] as $key) {
             if (array_key_exists($key, $validated)) {

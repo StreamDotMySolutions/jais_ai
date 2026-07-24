@@ -261,6 +261,7 @@ const ComplaintDetail = () => {
         ak_event_place: '',
         ak_event_time: '',
         current_address: '',
+        complainant_address: '',
         ak_rujuk_date: '',
         district_id: '',
         address: '',
@@ -515,6 +516,7 @@ const ComplaintDetail = () => {
             ak_event_place: complaint.ak_event_place || '',
             ak_event_time: (complaint.ak_event_time || '').slice(0, 5),
             current_address: complaint.current_address || '',
+            complainant_address: complaint.complainant_address || '',
             ak_rujuk_date: complaint.ak_rujuk_date || '',
             district_id: complaint.district_id ? String(complaint.district_id) : '',
             address: complaint.address || '',
@@ -2666,6 +2668,22 @@ const ComplaintDetail = () => {
                                             onConfirm={(next) => saveBasicField('identification_number', next)}
                                         />
                                     </span>
+                                </div>
+                                <div className="app-kv app-kv--stack">
+                                    <span className="app-kv-label">Alamat (MyKad)</span>
+                                    <div className="app-kv-stack">
+                                        <span className="app-kv-value">
+                                            <SharedInlineEditText
+                                                value={complaint.complainant_address}
+                                                placeholder="-"
+                                                canEdit={canEditAduanBox}
+                                                mode="textarea"
+                                                fullWidth
+                                                maxLength={1000}
+                                                onConfirm={(next) => saveBasicField('complainant_address', next)}
+                                            />
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="app-kv">
                                     <span className="app-kv-label">Pekerjaan Pengadu</span>
