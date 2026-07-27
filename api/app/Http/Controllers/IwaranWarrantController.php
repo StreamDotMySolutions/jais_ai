@@ -620,7 +620,11 @@ class IwaranWarrantController extends Controller
             $query->whereDate('tarikh_masa_terima', '<=', $request->string('to_date')->toString());
         }
 
-        $items = $query->paginate($request->integer('per_page', 10));
+        $perPage = $request->integer('per_page', 10);
+        if ($perPage <= 0 || $perPage > 500) {
+            $perPage = 10;
+        }
+        $items = $query->paginate($perPage);
 
         $rows = collect($items->items())->map(fn (IwaranWarrant $warrant) => $this->appendWorkflowMeta($warrant, $user))->values();
 
@@ -668,7 +672,11 @@ class IwaranWarrantController extends Controller
             $query->whereDate('tarikh_bicara', '<=', $request->string('to_date')->toString());
         }
 
-        $items = $query->paginate($request->integer('per_page', 10));
+        $perPage = $request->integer('per_page', 10);
+        if ($perPage <= 0 || $perPage > 500) {
+            $perPage = 10;
+        }
+        $items = $query->paginate($perPage);
 
         return response()->json([
             'message' => 'Semakan nama OKT waran',

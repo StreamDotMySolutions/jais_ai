@@ -201,7 +201,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
     const { id } = useParams();
     const navigate = useNavigate();
     const apiUrl = process.env.REACT_APP_API_URL;
-    const token = localStorage.getItem('token');
+    const authHeaders = () => { const t = localStorage.getItem('token'); return t ? { Authorization: `Bearer ${t}` } : undefined; };
     const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
     const [formData, setFormData] = useState({ ...emptyForm });
     const [isLoading, setIsLoading] = useState(mode === 'edit');
@@ -590,7 +590,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         }, delayMs);
 
         return () => window.clearTimeout(timer);
-    }, [apiUrl, isEdit, token]);
+    }, [apiUrl, isEdit]);
 
     const saveNewMahkamah = () => {
         if (!apiUrl || savingMahkamah) {
@@ -625,7 +625,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                 emel: emel || null,
             },
             {
-                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                headers: authHeaders(),
             }
         )
             .then((response) => {
@@ -692,7 +692,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         setIsLoading(true);
         axios.get(`${apiUrl}/i-waran/${id}`, {
             params: { lightweight: 1 },
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            headers: authHeaders(),
         })
             .then((response) => {
                 const data = response?.data?.data;
@@ -747,7 +747,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                 setCourtDocuments([]);
                 axios.get(`${apiUrl}/i-waran/${id}`, {
                     params: { only: 'attachments' },
-                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                    headers: authHeaders(),
                 })
                     .then((attachmentResponse) => {
                         setAttachments(Array.isArray(attachmentResponse?.data?.data?.attachments)
@@ -757,7 +757,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     .catch(() => setAttachments([]));
                 axios.get(`${apiUrl}/i-waran/${id}`, {
                     params: { only: 'court-documents' },
-                    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                    headers: authHeaders(),
                 })
                     .then((courtDocumentResponse) => {
                         setCourtDocuments(Array.isArray(courtDocumentResponse?.data?.data?.court_documents)
@@ -770,7 +770,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                 setError(err?.response?.data?.message || 'Gagal memuatkan waran.');
             })
             .finally(() => setIsLoading(false));
-    }, [apiUrl, id, isEdit, token]);
+    }, [apiUrl, id, isEdit]);
 
     const validateForStep = (targetStep) => {
         const errors = {};
@@ -843,10 +843,10 @@ const WaranFormStepper = ({ mode = 'create' }) => {
 
         const request = isEdit
             ? axios.put(`${apiUrl}/i-waran/${id}`, payload, {
-                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                headers: authHeaders(),
             })
             : axios.post(`${apiUrl}/i-waran`, payload, {
-                headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                headers: authHeaders(),
             });
 
         request
@@ -873,7 +873,10 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                     setValidationErrors((prev) => ({ ...prev, ...apiErrors }));
                 }
                 const firstError = Object.values(apiErrors)[0];
-                const msg = firstError || err?.response?.data?.message || 'Gagal menyimpan waran.';
+                const status = err?.response?.status || 'network';
+                const serverMsg = err?.response?.data?.message || '';
+                console.warn('[WaranSaveError]', { status, message: serverMsg, errors: apiErrors, data: err?.response?.data });
+                const msg = firstError || serverMsg || `Gagal menyimpan waran (${status}).`;
                 setError(msg);
                 toast.error(msg);
             })
@@ -917,7 +920,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         setShowMessage(true);
 
         axios.post(actionUrl, {}, {
-            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            headers: authHeaders(),
         })
             .then((response) => {
                 const data = response?.data?.data || {};
@@ -1236,7 +1239,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     <label>Dokumen Mahkamah</label>
                                     <AttachmentSection
                                         apiUrl={apiUrl}
-                                        token={token}
+                                        token={localStorage.getItem('token')}
                                         recordId={id}
                                         attachments={courtDocuments}
                                         onAttachmentsChange={setCourtDocuments}
@@ -1359,7 +1362,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                     <label>Tindakan Oleh *</label>
                                     <SharedStaffSelect
                                         apiUrl={apiUrl}
-                                        token={token}
+                                        token={localStorage.getItem('token')}
                                         value={formData.tindakan_oleh_staff_id}
                                         onChange={updateFieldValue('tindakan_oleh_staff_id')}
                                         placeholder="Pilih pegawai"
@@ -1525,7 +1528,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
                                 <div className="app-accordion-body">
                                     <AttachmentSection
                                         apiUrl={apiUrl}
-                                        token={token}
+                                        token={localStorage.getItem('token')}
                                         recordId={id}
                                         attachments={attachments}
                                         onAttachmentsChange={setAttachments}
