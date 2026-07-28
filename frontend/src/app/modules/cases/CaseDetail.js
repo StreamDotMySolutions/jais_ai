@@ -78,7 +78,7 @@ const CaseDetail = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const apiUrl = process.env.REACT_APP_API_URL;
-    const token = localStorage.getItem('token');
+    const authHeaders = () => { const t = localStorage.getItem('token'); return t ? { Authorization: `Bearer ${t}` } : undefined; };
     const role = String(localStorage.getItem('role') || '').trim().toLowerCase();
     const canViewAudit = ['admin', 'system'].includes(role);
     const toast = useToast();
@@ -130,7 +130,6 @@ const CaseDetail = () => {
     const [linkError, setLinkError] = useState('');
     const [districtOptions, setDistrictOptions] = useState([]);
 
-    const headers = useMemo(() => (token ? { Authorization: `Bearer ${token}` } : undefined), [token]);
     const otherCaseComplaints = useMemo(() => getOtherCaseComplaints(caseRecord), [caseRecord]);
     const linkedComplaintIds = useMemo(() => new Set(
         (Array.isArray(caseRecord?.complaints) ? caseRecord.complaints : []).map((complaint) => Number(complaint.id))
@@ -203,7 +202,7 @@ const CaseDetail = () => {
                 return;
             }
             setIsLoading(true);
-            axios.get(`${apiUrl}/complaints/${draftComplaintId}`, { headers })
+            axios.get(`${apiUrl}/complaints/${draftComplaintId}`, { headers: authHeaders() })
                 .then((response) => {
                     const complaint = response?.data?.data || null;
                     if (!complaint) {
@@ -232,7 +231,7 @@ const CaseDetail = () => {
         }
 
         setIsLoading(true);
-        axios.get(`${apiUrl}/cases/${id}`, { headers })
+        axios.get(`${apiUrl}/cases/${id}`, { headers: authHeaders() })
             .then((response) => {
                 const data = response?.data?.data || null;
                 setCaseRecord(data);
@@ -274,7 +273,7 @@ const CaseDetail = () => {
             setIsComplaintSearchLoading(true);
             setLinkError('');
             axios.get(`${apiUrl}/complaints`, {
-                headers,
+                headers: authHeaders(),
                 params: {
                     case_type: caseRecord?.case_type || 'AJ',
                     keyword: complaintKeyword.trim() || undefined,
@@ -292,7 +291,7 @@ const CaseDetail = () => {
                 });
         }, 300);
         return () => clearTimeout(timer);
-    }, [apiUrl, headers, isLinkPanelOpen, complaintKeyword, caseRecord]);
+    }, [apiUrl, isLinkPanelOpen, complaintKeyword, caseRecord]);
 
     const linkComplaintToCase = (complaintId) => {
         if (!apiUrl || !complaintId || isLinkingComplaint || isDraft) {
@@ -301,7 +300,7 @@ const CaseDetail = () => {
 
         setIsLinkingComplaint(true);
         setLinkError('');
-        axios.post(`${apiUrl}/complaints/${complaintId}/cases/${id}/attach`, {}, { headers })
+        axios.post(`${apiUrl}/complaints/${complaintId}/cases/${id}/attach`, {}, { headers: authHeaders() })
             .then((response) => {
                 const msg = response?.data?.message || 'Aduan berjaya dipautkan ke kes ini.';
                 setMessage(msg);
@@ -462,10 +461,10 @@ const CaseDetail = () => {
         const request = isDraft
             ? (
                 draftComplaintId
-                    ? axios.post(`${apiUrl}/complaints/${draftComplaintId}/cases`, payload, { headers })
-                    : axios.post(`${apiUrl}/cases/standalone`, payload, { headers })
+                    ? axios.post(`${apiUrl}/complaints/${draftComplaintId}/cases`, payload, { headers: authHeaders() })
+                    : axios.post(`${apiUrl}/cases/standalone`, payload, { headers: authHeaders() })
             )
-            : axios.put(`${apiUrl}/cases/${id}`, payload, { headers });
+            : axios.put(`${apiUrl}/cases/${id}`, payload, { headers: authHeaders() });
 
         request
             .then((response) => {
@@ -524,7 +523,7 @@ const CaseDetail = () => {
             payload[key] = row[key] || '';
         });
 
-        const response = await axios.post(`${apiUrl}/cases/${id}/${endpoint}`, payload, { headers });
+        const response = await axios.post(`${apiUrl}/cases/${id}/${endpoint}`, payload, { headers: authHeaders() });
         const created = response?.data?.data || {};
         if (created?.id) {
             mergeArrayRow(field, index, created);
@@ -985,7 +984,7 @@ const CaseDetail = () => {
                                     <OydAttachmentSection
                                         compact
                                         apiUrl={apiUrl}
-                                        token={token}
+                                        token={localStorage.getItem('token')}
                                         basePath={`${apiUrl}/cases/${id}`}
                                         recordId={row.id || null}
                                         attachments={row.media || []}
@@ -1065,7 +1064,7 @@ const CaseDetail = () => {
                                             compact
                                             mode="inspection_form"
                                             apiUrl={apiUrl}
-                                            token={token}
+                                            token={localStorage.getItem('token')}
                                             basePath={`${apiUrl}/cases/${id}`}
                                             recordId={row.id || null}
                                             attachments={row.media || []}
@@ -1148,7 +1147,7 @@ const CaseDetail = () => {
                                         <SeizureAttachmentSection
                                             compact
                                             apiUrl={apiUrl}
-                                            token={token}
+                                            token={localStorage.getItem('token')}
                                             basePath={`${apiUrl}/cases/${id}`}
                                             recordId={row.id || null}
                                             attachments={row.media || []}
@@ -1232,7 +1231,7 @@ const CaseDetail = () => {
                                             compact
                                             mode="police_report"
                                             apiUrl={apiUrl}
-                                            token={token}
+                                            token={localStorage.getItem('token')}
                                             basePath={`${apiUrl}/cases/${id}`}
                                             recordId={row.id || null}
                                             attachments={row.media || []}
