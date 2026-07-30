@@ -4,7 +4,16 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
-import msLocale from '@fullcalendar/core/locales/ms';
+// Malay locale definition for FullCalendar
+const msLocale = {
+    code: 'ms',
+    week: { dow: 1, doy: 7 },
+    buttonText: { prev: 'Sebelum', next: 'Selepas', today: 'Hari Ini', year: 'Tahun', month: 'Bulan', week: 'Minggu', day: 'Hari', list: 'Senarai' },
+    weekText: 'Mg',
+    allDayText: 'Sepanjang Hari',
+    moreLinkText: function (n) { return 'lain ' + n; },
+    noEventsText: 'Tiada acara untuk dipaparkan',
+};
 
 const DEFAULT_HEADER_TOOLBAR = {
     left: 'prev,next today',
