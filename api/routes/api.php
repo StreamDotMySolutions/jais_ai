@@ -149,6 +149,8 @@ Route::middleware('auth:sanctum')->group(function () {
         ->whereNumber('case');
     Route::put('/cases/{case}', [App\Http\Controllers\ComplaintController::class, 'caseUpdate'])
         ->whereNumber('case');
+    Route::post('/cases/{case}/update', [App\Http\Controllers\ComplaintController::class, 'caseUpdate'])
+        ->whereNumber('case');
 
     Route::post('/cases/{case}/register-no', [App\Http\Controllers\ComplaintController::class, 'updateCaseRegisterNo'])
         ->whereNumber('case');
@@ -215,6 +217,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/i-waran/{iwaranWarrant}/export/xlsx', [IwaranWarrantController::class, 'exportSingleXlsx'])
         ->whereNumber('iwaranWarrant');
     Route::put('/i-waran/{iwaranWarrant}', [IwaranWarrantController::class, 'update'])->whereNumber('iwaranWarrant');
+    Route::post('/i-waran/{iwaranWarrant}/update', [IwaranWarrantController::class, 'update'])->whereNumber('iwaranWarrant');
     Route::post('/i-waran/{iwaranWarrant}/dispatch-to-district', [IwaranWarrantController::class, 'dispatchToDistrict'])->whereNumber('iwaranWarrant');
     Route::post('/i-waran/{iwaranWarrant}/pickup', [IwaranWarrantController::class, 'pickup'])->whereNumber('iwaranWarrant');
     Route::post('/i-waran/{iwaranWarrant}/send-to-court', [IwaranWarrantController::class, 'sendToCourt'])->whereNumber('iwaranWarrant');

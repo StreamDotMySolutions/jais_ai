@@ -464,7 +464,7 @@ const CaseDetail = () => {
                     ? axios.post(`${apiUrl}/complaints/${draftComplaintId}/cases`, payload, { headers: authHeaders() })
                     : axios.post(`${apiUrl}/cases/standalone`, payload, { headers: authHeaders() })
             )
-            : axios.put(`${apiUrl}/cases/${id}`, payload, { headers: authHeaders() });
+            : axios.post(`${apiUrl}/cases/${id}/update`, payload, { headers: authHeaders() });
 
         request
             .then((response) => {

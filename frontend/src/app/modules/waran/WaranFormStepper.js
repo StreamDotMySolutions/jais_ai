@@ -842,7 +842,7 @@ const WaranFormStepper = ({ mode = 'create' }) => {
         delete payload.laporan_2;
 
         const request = isEdit
-            ? axios.put(`${apiUrl}/i-waran/${id}`, payload, {
+            ? axios.post(`${apiUrl}/i-waran/${id}/update`, payload, {
                 headers: authHeaders(),
             })
             : axios.post(`${apiUrl}/i-waran`, payload, {
