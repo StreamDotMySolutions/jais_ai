@@ -79,7 +79,7 @@ function run(cmd) {
     const out = document.getElementById('output');
     out.textContent = '⏳ Menunggu respons daripada server...';
 
-    fetch('/system/deploy/run/' + cmd, {
+    fetch('/api/system/deploy/run/' + cmd, {
         method: 'POST',
         headers: {
             'Authorization': 'Bearer ' + token,

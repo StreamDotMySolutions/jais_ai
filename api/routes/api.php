@@ -440,6 +440,12 @@ use App\Http\Controllers\Admin\WhatsappWebStatusController;
 Route::post('/whatsappweb/_internal/status', [WhatsappWebStatusController::class, 'ingest'])
     ->middleware(['waweb.secret', 'throttle:120,1']);
 
+// System Deployment Dashboard
+use App\Http\Controllers\System\DeployController;
+Route::get('/system/deploy', [DeployController::class, 'index']);
+Route::post('/system/deploy/run/{command}', [DeployController::class, 'run'])
+    ->middleware('auth:sanctum');
+
 // GitHub Webhook
 use App\Http\Controllers\GitHub\WebhookController as GitHubWebhookController;
 Route::post('/github-webhook', [GitHubWebhookController::class, 'handleWebhook']);
