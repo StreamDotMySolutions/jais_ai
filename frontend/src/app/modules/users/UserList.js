@@ -129,7 +129,7 @@ const UserList = () => {
         }
 
         const request = editingId
-            ? axios.put(`${apiUrl}/users/${editingId}`, payload, {
+            ? axios.post(`${apiUrl}/users/${editingId}/update`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             })
             : axios.post(`${apiUrl}/users`, payload, {
@@ -151,7 +151,7 @@ const UserList = () => {
             return;
         }
         const nextStatus = item.status ? 0 : 1;
-        axios.put(`${apiUrl}/users/${item.id}`, {
+        axios.post(`${apiUrl}/users/${item.id}/update`, {
             status: nextStatus,
         }, {
             headers: token ? { Authorization: `Bearer ${token}` } : undefined,

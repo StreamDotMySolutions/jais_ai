@@ -390,6 +390,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users', [UserController::class, 'index']);
     Route::post('/users', [UserController::class, 'store']);
     Route::put('/users/{user}', [UserController::class, 'update'])->whereNumber('user');
+    Route::post('/users/{user}/update', [UserController::class, 'update'])->whereNumber('user');
     Route::post('/references/mahkamah', [ReferenceController::class, 'storeMahkamah']);
 });
 
