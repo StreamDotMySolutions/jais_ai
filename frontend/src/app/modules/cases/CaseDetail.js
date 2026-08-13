@@ -806,53 +806,55 @@ const CaseDetail = () => {
                                 <textarea rows="4" value={form.case_summary} onChange={(event) => updateField('case_summary', event.target.value)} />
                             </label>
 
-                            <label className="app-form-field">
-                                <span>No. Daftar Kes</span>
-                                {isDraft ? (
-                                    <input value="Akan dijana selepas simpan" readOnly disabled />
-                                ) : (
-                                    <SharedInlineEditText
-                                        value={caseRecord?.case_register_no || ''}
-                                        placeholder="-"
-                                        canEdit={isMaintenanceOverride}
-                                        maxLength={255}
-                                        onConfirm={updateCaseRegisterNo}
-                                    />
-                                )}
-                            </label>
-
-                            {isStandaloneDraft && (
+                            <div className="app-arrest-row app-case-datetime-row app-span-full">
                                 <label className="app-form-field">
-                                    <span>Daerah <span className="complaint-required">*</span></span>
-                                    <select
-                                        value={form.district_id}
-                                        onChange={(event) => updateField('district_id', event.target.value)}
-                                        className={validationErrors.district_id ? 'app-input-error' : ''}
-                                    >
-                                        <option value="">Pilih daerah</option>
-                                        {districtOptions.map((district) => (
-                                            <option key={`case-district-${district.id}`} value={district.id}>{district.name}</option>
-                                        ))}
-                                    </select>
-                                    {validationErrors.district_id && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.district_id) ? validationErrors.district_id[0] : validationErrors.district_id}</small>}
+                                    <span>No. Daftar Kes</span>
+                                    {isDraft ? (
+                                        <input value="Akan dijana selepas simpan" readOnly disabled />
+                                    ) : (
+                                        <SharedInlineEditText
+                                            value={caseRecord?.case_register_no || ''}
+                                            placeholder="-"
+                                            canEdit={isMaintenanceOverride}
+                                            maxLength={255}
+                                            onConfirm={updateCaseRegisterNo}
+                                        />
+                                    )}
                                 </label>
-                            )}
 
-                            <label className="app-form-field">
-                                <span>Nombor Fail</span>
-                                <input value={form.file_no} onChange={(event) => updateField('file_no', event.target.value)} />
-                            </label>
+                                <label className="app-form-field">
+                                    <span>Tarikh / Masa (Daftar Laporan) <span className="complaint-required">*</span></span>
+                                    <input
+                                        type="datetime-local"
+                                        value={form.action_datetime}
+                                        onChange={(event) => updateField('action_datetime', event.target.value)}
+                                        className={validationErrors.action_datetime ? 'app-input-error' : ''}
+                                    />
+                                    {validationErrors.action_datetime && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.action_datetime) ? validationErrors.action_datetime[0] : validationErrors.action_datetime}</small>}
+                                </label>
 
-                            <label className="app-form-field">
-                                <span>Tarikh / Masa (Daftar Laporan) <span className="complaint-required">*</span></span>
-                                <input
-                                    type="datetime-local"
-                                    value={form.action_datetime}
-                                    onChange={(event) => updateField('action_datetime', event.target.value)}
-                                    className={validationErrors.action_datetime ? 'app-input-error' : ''}
-                                />
-                                {validationErrors.action_datetime && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.action_datetime) ? validationErrors.action_datetime[0] : validationErrors.action_datetime}</small>}
-                            </label>
+                                {isStandaloneDraft && (
+                                    <label className="app-form-field">
+                                        <span>Daerah <span className="complaint-required">*</span></span>
+                                        <select
+                                            value={form.district_id}
+                                            onChange={(event) => updateField('district_id', event.target.value)}
+                                            className={validationErrors.district_id ? 'app-input-error' : ''}
+                                        >
+                                            <option value="">Pilih daerah</option>
+                                            {districtOptions.map((district) => (
+                                                <option key={`case-district-${district.id}`} value={district.id}>{district.name}</option>
+                                            ))}
+                                        </select>
+                                        {validationErrors.district_id && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.district_id) ? validationErrors.district_id[0] : validationErrors.district_id}</small>}
+                                    </label>
+                                )}
+
+                                <label className="app-form-field">
+                                    <span>Nombor Fail</span>
+                                    <input value={form.file_no} onChange={(event) => updateField('file_no', event.target.value)} />
+                                </label>
+                            </div>
 
                             <div className="app-arrest-row app-case-datetime-row app-span-full">
                                 <div className="app-form-field">
