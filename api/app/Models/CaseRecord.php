@@ -20,6 +20,7 @@ class CaseRecord extends Model
         'directive_at' => 'datetime:Y-m-d H:i',
         'handover_at' => 'datetime:Y-m-d H:i',
         'action_datetime' => 'datetime:Y-m-d H:i',
+        'laporan_tindakan_datetime' => 'datetime:Y-m-d H:i',
         'statement_datetime' => 'datetime:Y-m-d H:i',
         'opened_at' => 'datetime:Y-m-d H:i',
         'closed_at' => 'datetime:Y-m-d H:i',

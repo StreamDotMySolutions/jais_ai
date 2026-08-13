@@ -509,6 +509,7 @@ class ComplaintController extends Controller
             'female_count' => ['nullable', 'integer', 'min:0'],
             'other_count' => ['nullable', 'integer', 'min:0'],
             'action_datetime' => ['required', 'date'],
+            'laporan_tindakan_datetime' => ['required', 'date'],
             'statement_datetime' => ['nullable', 'date'],
             'court_date' => ['nullable', 'date'],
             'report_notes' => ['required', 'string'],
@@ -538,7 +539,8 @@ class ComplaintController extends Controller
         ], [
             'district_id.required' => 'Daerah wajib dipilih.',
             'arrest_status.required' => 'Status tangkapan wajib dipilih.',
-            'action_datetime.required' => 'Tarikh / Masa wajib diisi.',
+            'action_datetime.required' => 'Tarikh / Masa (Daftar Laporan) wajib diisi.',
+            'laporan_tindakan_datetime.required' => 'Tarikh / Masa (Tindakan di Lokasi) wajib diisi.',
             'arrest_staff_id.required' => 'Pegawai penangkap wajib dipilih.',
             'report_notes.required' => 'Laporan / Catatan Kes wajib diisi.',
         ]);
@@ -576,6 +578,7 @@ class ComplaintController extends Controller
                 'female_count' => $validated['female_count'] ?? null,
                 'other_count' => $validated['other_count'] ?? null,
                 'action_datetime' => $validated['action_datetime'] ?? null,
+                'laporan_tindakan_datetime' => $validated['laporan_tindakan_datetime'] ?? null,
                 'statement_datetime' => $validated['statement_datetime'] ?? null,
                 'court_date' => $validated['court_date'] ?? null,
                 'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
@@ -658,6 +661,7 @@ class ComplaintController extends Controller
             'female_count' => ['nullable', 'integer', 'min:0'],
             'other_count' => ['nullable', 'integer', 'min:0'],
             'action_datetime' => ['required', 'date'],
+            'laporan_tindakan_datetime' => ['required', 'date'],
             'statement_datetime' => ['nullable', 'date'],
             'court_date' => ['nullable', 'date'],
             'report_notes' => ['required', 'string'],
@@ -686,7 +690,8 @@ class ComplaintController extends Controller
             'police_reports.*.station' => ['nullable', 'string', 'max:1000'],
         ], [
             'arrest_status.required' => 'Status tangkapan wajib dipilih.',
-            'action_datetime.required' => 'Tarikh / Masa wajib diisi.',
+            'action_datetime.required' => 'Tarikh / Masa (Daftar Laporan) wajib diisi.',
+            'laporan_tindakan_datetime.required' => 'Tarikh / Masa (Tindakan di Lokasi) wajib diisi.',
             'arrest_staff_id.required' => 'Pegawai penangkap wajib dipilih.',
             'report_notes.required' => 'Laporan / Catatan Kes wajib diisi.',
         ]);
@@ -706,6 +711,7 @@ class ComplaintController extends Controller
                 'female_count' => $validated['female_count'] ?? null,
                 'other_count' => $validated['other_count'] ?? null,
                 'action_datetime' => $validated['action_datetime'] ?? null,
+                'laporan_tindakan_datetime' => $validated['laporan_tindakan_datetime'] ?? null,
                 'statement_datetime' => $validated['statement_datetime'] ?? null,
                 'court_date' => $validated['court_date'] ?? null,
                 'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
@@ -2685,6 +2691,7 @@ class ComplaintController extends Controller
             'female_count' => ['nullable', 'integer', 'min:0'],
             'other_count' => ['nullable', 'integer', 'min:0'],
             'action_datetime' => ['required', 'date'],
+            'laporan_tindakan_datetime' => ['required', 'date'],
             'statement_datetime' => ['nullable', 'date'],
             'court_date' => ['nullable', 'date'],
             'report_notes' => ['required', 'string'],
@@ -2713,7 +2720,8 @@ class ComplaintController extends Controller
             'police_reports.*.station' => ['nullable', 'string', 'max:1000'],
         ], [
             'arrest_status.required' => 'Status tangkapan wajib dipilih.',
-            'action_datetime.required' => 'Tarikh / Masa wajib diisi.',
+            'action_datetime.required' => 'Tarikh / Masa (Daftar Laporan) wajib diisi.',
+            'laporan_tindakan_datetime.required' => 'Tarikh / Masa (Tindakan di Lokasi) wajib diisi.',
             'arrest_staff_id.required' => 'Pegawai penangkap wajib dipilih.',
             'report_notes.required' => 'Laporan / Catatan Kes wajib diisi.',
         ]);
@@ -2743,6 +2751,7 @@ class ComplaintController extends Controller
                 'female_count' => $validated['female_count'] ?? null,
                 'other_count' => $validated['other_count'] ?? null,
                 'action_datetime' => $validated['action_datetime'] ?? null,
+                'laporan_tindakan_datetime' => $validated['laporan_tindakan_datetime'] ?? null,
                 'statement_datetime' => $validated['statement_datetime'] ?? null,
                 'court_date' => $validated['court_date'] ?? null,
                 'report_notes' => $this->nullableTextareaString($validated['report_notes'] ?? null),
@@ -6279,9 +6288,7 @@ class ComplaintController extends Controller
             }
         };
 
-        $tarikhMasa = $case->action_datetime
-            ?: $case->statement_datetime
-            ?: $primaryComplaint?->complaint_date;
+        $tarikhMasa = $case->laporan_tindakan_datetime;
         $reportDate = $formatDateDmyDash($tarikhMasa);
         $reportTime = $formatTime12hDot($tarikhMasa);
 

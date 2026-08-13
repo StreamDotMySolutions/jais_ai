@@ -94,7 +94,7 @@ const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
     };
 
     const tarikhMasa = isCasePrint
-        ? (caseSource?.action_datetime || '')
+        ? (caseSource?.laporan_tindakan_datetime || '')
         : (caseSource?.action_datetime || caseSource?.statement_datetime || linkedComplaint?.aj_action_datetime || '');
 
     const noDaftar = (() => {
@@ -139,7 +139,8 @@ const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
 
     if (isCasePrint) {
         if (!String(noDaftar || '').trim()) missingFields.push('No. Daftar Kes');
-        if (!String(caseSource?.action_datetime || '').trim()) missingFields.push('Tarikh / Masa Tindakan');
+        if (!String(caseSource?.action_datetime || '').trim()) missingFields.push('Tarikh / Masa (Daftar Laporan)');
+        if (!String(caseSource?.laporan_tindakan_datetime || '').trim()) missingFields.push('Tarikh / Masa (Tindakan di Lokasi)');
         if (!String(caseSource?.arrest_staff_id || '').trim() || !String(officerName || '').trim()) missingFields.push('Pegawai Penangkap');
         if (!String(laporanText || '').trim()) missingFields.push('Laporan / Catatan Kes');
     }

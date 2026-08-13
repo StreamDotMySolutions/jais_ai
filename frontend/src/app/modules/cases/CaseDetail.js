@@ -105,6 +105,7 @@ const CaseDetail = () => {
         female_count: '',
         other_count: '',
         action_datetime: '',
+        laporan_tindakan_datetime: '',
         statement_datetime: '',
         court_date: '',
         case_summary: '',
@@ -156,6 +157,7 @@ const CaseDetail = () => {
             female_count: data?.female_count ?? '',
             other_count: data?.other_count ?? '',
             action_datetime: normalizeDateTimeLocal(data?.action_datetime),
+            laporan_tindakan_datetime: normalizeDateTimeLocal(data?.laporan_tindakan_datetime),
             statement_datetime: normalizeDateTimeLocal(data?.statement_datetime),
             court_date: data?.court_date || '',
             case_summary: data?.case_summary || '',
@@ -338,7 +340,10 @@ const CaseDetail = () => {
             nextErrors.district_id = 'Daerah wajib dipilih.';
         }
         if (!form.action_datetime) {
-            nextErrors.action_datetime = 'Tarikh / Masa wajib diisi.';
+            nextErrors.action_datetime = 'Tarikh / Masa (Daftar Laporan) wajib diisi.';
+        }
+        if (!form.laporan_tindakan_datetime) {
+            nextErrors.laporan_tindakan_datetime = 'Tarikh / Masa (Tindakan di Lokasi) wajib diisi.';
         }
         if (!form.arrest_staff_id) {
             nextErrors.arrest_staff_id = 'Pegawai penangkap wajib dipilih.';
@@ -838,6 +843,17 @@ const CaseDetail = () => {
                                 <input value={form.file_no} onChange={(event) => updateField('file_no', event.target.value)} />
                             </label>
 
+                            <label className="app-form-field">
+                                <span>Tarikh / Masa (Daftar Laporan) <span className="complaint-required">*</span></span>
+                                <input
+                                    type="datetime-local"
+                                    value={form.action_datetime}
+                                    onChange={(event) => updateField('action_datetime', event.target.value)}
+                                    className={validationErrors.action_datetime ? 'app-input-error' : ''}
+                                />
+                                {validationErrors.action_datetime && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.action_datetime) ? validationErrors.action_datetime[0] : validationErrors.action_datetime}</small>}
+                            </label>
+
                             <div className="app-arrest-row app-case-datetime-row app-span-full">
                                 <div className="app-form-field">
                                     <span>Kesalahan</span>
@@ -850,14 +866,14 @@ const CaseDetail = () => {
                                 </div>
 
                                 <label className="app-form-field">
-                                    <span>Tarikh / Masa <span className="complaint-required">*</span></span>
+                                    <span>Tarikh / Masa (Tindakan di Lokasi) <span className="complaint-required">*</span></span>
                                     <input
                                         type="datetime-local"
-                                        value={form.action_datetime}
-                                        onChange={(event) => updateField('action_datetime', event.target.value)}
-                                        className={validationErrors.action_datetime ? 'app-input-error' : ''}
+                                        value={form.laporan_tindakan_datetime}
+                                        onChange={(event) => updateField('laporan_tindakan_datetime', event.target.value)}
+                                        className={validationErrors.laporan_tindakan_datetime ? 'app-input-error' : ''}
                                     />
-                                    {validationErrors.action_datetime && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.action_datetime) ? validationErrors.action_datetime[0] : validationErrors.action_datetime}</small>}
+                                    {validationErrors.laporan_tindakan_datetime && <small className="app-inline-note app-inline-note-error">{Array.isArray(validationErrors.laporan_tindakan_datetime) ? validationErrors.laporan_tindakan_datetime[0] : validationErrors.laporan_tindakan_datetime}</small>}
                                 </label>
 
                                 <label className="app-form-field">
