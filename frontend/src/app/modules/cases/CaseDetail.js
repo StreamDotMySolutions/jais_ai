@@ -57,6 +57,12 @@ const normalizeDateTimeLocal = (value) => {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
+const nowDateTimeLocal = () => {
+    const date = new Date();
+    const pad = (num) => String(num).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const getLinkedComplaintCaseLabel = (complaint, caseRecord) => {
     const complaintCaseNo = String(complaint?.case_register_no || '').trim();
     const currentCaseNo = String(caseRecord?.case_register_no || '').trim();
@@ -104,7 +110,7 @@ const CaseDetail = () => {
         male_count: '',
         female_count: '',
         other_count: '',
-        action_datetime: '',
+        action_datetime: nowDateTimeLocal(),
         laporan_tindakan_datetime: '',
         statement_datetime: '',
         court_date: '',
@@ -156,7 +162,7 @@ const CaseDetail = () => {
             male_count: data?.male_count ?? '',
             female_count: data?.female_count ?? '',
             other_count: data?.other_count ?? '',
-            action_datetime: normalizeDateTimeLocal(data?.action_datetime),
+            action_datetime: normalizeDateTimeLocal(data?.action_datetime) || nowDateTimeLocal(),
             laporan_tindakan_datetime: normalizeDateTimeLocal(data?.laporan_tindakan_datetime),
             statement_datetime: normalizeDateTimeLocal(data?.statement_datetime),
             court_date: data?.court_date || '',
