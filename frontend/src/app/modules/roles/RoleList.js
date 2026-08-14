@@ -121,7 +121,7 @@ const RoleList = () => {
         setError('');
         const payload = { name, is_active: isActive };
         const request = editing
-            ? axios.put(`${apiUrl}/roles/${editing.id}`, payload, {
+            ? axios.post(`${apiUrl}/roles/${editing.id}/update`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             })
             : axios.post(`${apiUrl}/roles`, payload, {

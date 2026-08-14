@@ -350,7 +350,7 @@ const MenuList = () => {
         };
 
         const request = editing
-            ? axios.put(`${apiUrl}/menus/${editing.id}`, payload, { headers: authHeaders })
+            ? axios.post(`${apiUrl}/menus/${editing.id}/update`, payload, { headers: authHeaders })
             : axios.post(`${apiUrl}/menus`, payload, { headers: authHeaders });
 
         request

@@ -1343,8 +1343,8 @@ const ComplaintDetail = () => {
         };
 
         try {
-            await axios.put(
-                `${apiUrl}/complaints/${id}/oyds/${row.id}`,
+            await axios.post(
+                `${apiUrl}/complaints/${id}/oyds/${row.id}/update`,
                 payload,
                 { headers: { Authorization: `Bearer ${token}` } },
             );

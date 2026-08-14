@@ -316,6 +316,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/complaints/{complaint}/oyds/{oyd}', [App\Http\Controllers\ComplaintController::class, 'updateOyd'])
         ->whereNumber('complaint')
         ->whereNumber('oyd');
+    Route::post('/complaints/{complaint}/oyds/{oyd}/update', [App\Http\Controllers\ComplaintController::class, 'updateOyd'])
+        ->whereNumber('complaint')
+        ->whereNumber('oyd');
     Route::post('/complaints/{complaint}/oyds/{oyd}/media', [App\Http\Controllers\ComplaintController::class, 'uploadOydMedia'])
         ->whereNumber('complaint')
         ->whereNumber('oyd');
@@ -373,10 +376,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/staff/options', [StaffController::class, 'options']);
     Route::post('/staff', [StaffController::class, 'store']);
     Route::put('/staff/{staff}', [StaffController::class, 'update'])->whereNumber('staff');
+    Route::post('/staff/{staff}/update', [StaffController::class, 'update'])->whereNumber('staff');
     Route::post('/staff/{staff}/register-account', [StaffController::class, 'registerAccount'])->whereNumber('staff');
     Route::get('/roles', [RoleController::class, 'index']);
     Route::post('/roles', [RoleController::class, 'store']);
     Route::put('/roles/{role}', [RoleController::class, 'update'])->whereNumber('role');
+    Route::post('/roles/{role}/update', [RoleController::class, 'update'])->whereNumber('role');
     Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->whereNumber('role');
     Route::get('/menus/my', [MenuController::class, 'myMenus']);
     Route::get('/menus', [MenuController::class, 'index']);
@@ -384,6 +389,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/menus/reorder', [MenuController::class, 'reorder']);
     Route::post('/menus/bulk-roles', [MenuController::class, 'bulkRoles']);
     Route::put('/menus/{menu}', [MenuController::class, 'update'])->whereNumber('menu');
+    Route::post('/menus/{menu}/update', [MenuController::class, 'update'])->whereNumber('menu');
     Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->whereNumber('menu');
     Route::get('/audit-trail', [AuditTrailController::class, 'index']);
     Route::get('/audit-trail/export/csv', [AuditTrailController::class, 'exportCsv']);

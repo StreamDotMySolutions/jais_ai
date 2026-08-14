@@ -201,7 +201,7 @@ const StaffList = () => {
         }
 
         const request = editingId
-            ? axios.put(`${apiUrl}/staff/${editingId}`, payload, {
+            ? axios.post(`${apiUrl}/staff/${editingId}/update`, payload, {
                 headers: token ? { Authorization: `Bearer ${token}` } : undefined,
             })
             : axios.post(`${apiUrl}/staff`, payload, {
