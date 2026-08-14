@@ -6,9 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 
 class VerifyEmailNotification extends Notification
 {
@@ -30,18 +28,20 @@ class VerifyEmailNotification extends Notification
             ->line('Sila klik butang di bawah untuk mengesahkan alamat emel anda.')
             ->action('Sahkan Emel', $verificationUrl)
             ->line('Jika anda tidak mendaftar akaun ini, sila abaikan emel ini.')
+            ->line('Pautan ini sah selama 24 jam. Jika telah tamat tempoh, sila minta penghantaran semula.')
             ->salutation('Sekian, terima kasih.');
     }
 
     protected function verificationUrl($notifiable): string
     {
-        return URL::temporarySignedRoute(
-            'verification.verify',
-            Carbon::now()->addMinutes(Config::get('auth.verification.expire', 60)),
-            [
-                'id' => $notifiable->getKey(),
-                'hash' => sha1($notifiable->getEmailForVerification()),
-            ]
-        );
+        $token = Str::random(64);
+        $notifiable->forceFill([
+            'email_verify_token' => $token,
+            'email_verify_token_expires_at' => now()->addHours(24),
+        ])->save();
+
+        $base = rtrim(config('app.url', 'http://localhost'), '/');
+
+        return $base . '/api/email/verify/token/' . $token;
     }
 }

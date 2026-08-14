@@ -74,8 +74,7 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 
 // Email Verification
-Route::get('/email/verify/{id}/{hash}', [App\Http\Controllers\Auth\VerificationController::class, 'verify'])
-    ->middleware(['signed'])
+Route::get('/email/verify/token/{token}', [App\Http\Controllers\Auth\VerificationController::class, 'verifyByToken'])
     ->name('verification.verify');
 Route::post('/email/resend', [App\Http\Controllers\Auth\VerificationController::class, 'resend']);
 

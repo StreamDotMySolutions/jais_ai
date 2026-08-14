@@ -8,13 +8,17 @@ use Illuminate\Http\Request;
 
 class VerificationController extends Controller
 {
-    public function verify(Request $request, $id, $hash)
+    public function verifyByToken(Request $request, $token)
     {
-        $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+        $frontendUrl = rtrim(config('app.frontend_url', 'http://localhost:3000'), '/');
 
-        $user = User::findOrFail($id);
+        $user = User::where('email_verify_token', $token)->first();
 
-        if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+        if (! $user) {
+            return redirect($frontendUrl . '/email-verified?status=invalid');
+        }
+
+        if ($user->email_verify_token_expires_at && $user->email_verify_token_expires_at->lt(now())) {
             return redirect($frontendUrl . '/email-verified?status=invalid');
         }
 
@@ -23,7 +27,11 @@ class VerificationController extends Controller
         }
 
         $user->markEmailAsVerified();
-        $user->update(['status' => 1]);
+        $user->update([
+            'status' => 1,
+            'email_verify_token' => null,
+            'email_verify_token_expires_at' => null,
+        ]);
 
         return redirect($frontendUrl . '/email-verified?status=success');
     }

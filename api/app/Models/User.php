@@ -46,6 +46,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $casts = [
         'created_at' => 'datetime:d-m-Y H:i:s', // Format as datetime
         'email_verified_at' => 'datetime',
+        'email_verify_token_expires_at' => 'datetime',
         'password' => 'hashed',
     ];
 
