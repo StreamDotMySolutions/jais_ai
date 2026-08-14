@@ -93,14 +93,14 @@ class DeployController extends Controller
         $map = [
             'backup-db' => ['Backup Database' => $backupDb],
             'backup-code' => ['Backup Source Code' => $backupCode],
-            'git-pull' => ['Git Pull' => 'git pull origin main 2>&1'],
+            'git-pull' => ['Git Pull' => 'git pull --autostash origin main 2>&1'],
             'composer' => ['Composer Install' => 'composer install --no-dev --no-interaction 2>&1'],
             'npm-build' => ['NPM Build' => 'cd ../frontend && node node_modules/react-scripts/bin/react-scripts.js build 2>&1'],
             'migrate' => ['Artisan Migrate' => 'php artisan migrate --force 2>&1'],
             'all' => [
                 'Backup Database' => $backupDb,
                 'Backup Source Code' => $backupCode,
-                'Git Pull' => 'git pull origin main 2>&1',
+                'Git Pull' => 'git pull --autostash origin main 2>&1',
                 'Composer Install' => 'composer install --no-dev --no-interaction 2>&1',
                 'NPM Build' => 'cd ../frontend && node node_modules/react-scripts/bin/react-scripts.js build 2>&1',
                 'Artisan Migrate' => 'php artisan migrate --force 2>&1',
