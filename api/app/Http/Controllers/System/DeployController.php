@@ -13,6 +13,40 @@ class DeployController extends Controller
         return view('system.deploy.index');
     }
 
+    public function logs(Request $request)
+    {
+        $user = $request->user();
+        if (!$user || !$user->hasRole('system')) {
+            return response('Unauthorized', 403);
+        }
+
+        $lines = (int) $request->input('lines', 200);
+        $logPath = storage_path('logs/laravel.log');
+
+        if (!file_exists($logPath)) {
+            return response('Tiada log dijumpai.', 200);
+        }
+
+        $fileSize = filesize($logPath);
+        if ($fileSize === 0) {
+            return response('Log kosong.', 200);
+        }
+
+        $readBytes = min($fileSize, max($lines, 1) * 1024);
+        $handle = fopen($logPath, 'r');
+        fseek($handle, max(0, $fileSize - $readBytes));
+        $content = fread($handle, $readBytes);
+        fclose($handle);
+
+        $parts = preg_split('/\n(?=\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\])/', $content);
+        $parts = array_slice($parts, -$lines);
+
+        header('Content-Type: text/plain; charset=utf-8');
+        header('X-Accel-Buffering: no');
+        echo implode("\n", $parts);
+        exit;
+    }
+
     public function run(Request $request, $command)
     {
         $user = $request->user();

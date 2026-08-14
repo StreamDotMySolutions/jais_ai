@@ -55,6 +55,7 @@
             <div class="card"><button onclick="run('npm-build')"><div class="icon">🏗️</div><div class="label">NPM Build</div><div class="desc">npm run build</div></button></div>
             <div class="card"><button onclick="run('migrate')"><div class="icon">🗄️</div><div class="label">Migrate DB</div><div class="desc">php artisan migrate --force</div></button></div>
             <div class="card full"><button class="btn-all" onclick="run('all')" style="padding:20px"><div class="icon">🚀</div><div class="label" style="font-size:18px">Backup + Deploy All</div><div class="desc">Backup &rarr; Git Pull &rarr; Composer &rarr; Build &rarr; Migrate</div></button></div>
+            <div class="card full"><button onclick="viewLogs()"><div class="icon">📄</div><div class="label">Lihat Log Laravel</div><div class="desc">Baca bahagian akhir api/storage/logs/laravel.log (200 baris)</div></button></div>
         </div>
 
         <div id="output">&gt; Tekan butang di atas untuk mulakan proses.</div>
@@ -70,6 +71,27 @@ const token = localStorage.getItem('token');
 if (token) {
     document.getElementById('auth-check').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
+}
+
+function viewLogs() {
+    const out = document.getElementById('output');
+    out.textContent = '⏳ Mengambil log...';
+
+    fetch('/api/system/deploy/logs?lines=200', {
+        method: 'GET',
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+            'Accept': 'text/plain',
+        }
+    }).then(res => {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.text();
+    }).then(text => {
+        out.textContent = text || '(log kosong)';
+    }).catch(e => {
+        out.textContent = '⚠ Gagal ambil log: ' + e.message;
+    });
 }
 
 function run(cmd) {

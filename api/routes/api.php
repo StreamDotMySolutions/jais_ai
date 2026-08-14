@@ -450,6 +450,8 @@ Route::post('/whatsappweb/_internal/status', [WhatsappWebStatusController::class
 // System Deployment Dashboard
 use App\Http\Controllers\System\DeployController;
 Route::get('/system/deploy', [DeployController::class, 'index']);
+Route::get('/system/deploy/logs', [DeployController::class, 'logs'])
+    ->middleware('auth:sanctum');
 Route::post('/system/deploy/run/{command}', [DeployController::class, 'run'])
     ->middleware('auth:sanctum');
 
