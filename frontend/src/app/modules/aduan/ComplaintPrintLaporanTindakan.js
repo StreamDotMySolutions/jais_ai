@@ -128,7 +128,7 @@ const ComplaintPrintLaporanTindakan = ({ source = 'complaint' }) => {
         ? (caseSource?.arrest_staff || caseSource?.arrestStaff || null)
         : (caseSource?.arrest_staff || caseSource?.arrestStaff || linkedComplaint?.aj_arrest_staff || linkedComplaint?.ajArrestStaff || null);
     const officerName = arrestStaff?.name || '';
-    const officerIdNo = arrestStaff?.ic_number || arrestStaff?.staff_id || '-';
+    const officerIdNo = arrestStaff?.staff_id || arrestStaff?.ic_number || '-';
     const officerJob = arrestStaff?.position || '-';
     const officerPhone = arrestStaff?.office?.phone || arrestStaff?.no_tel_pejabat || arrestStaff?.phone || '-';
     const officerAddress = arrestStaff?.office?.address || arrestStaff?.office_address || arrestStaff?.address || arrestStaff?.department || '-';
