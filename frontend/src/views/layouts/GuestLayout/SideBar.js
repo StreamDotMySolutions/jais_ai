@@ -22,9 +22,9 @@ const SideBar = () => {
                 </li>
 
                 <li className="nav-item">
-                    <Link to="/complaint" className="nav-link text-dark-custom px-sm-0 px-2">
+                    <span className="nav-link text-dark-custom px-sm-0 px-2 opacity-50" style={{ pointerEvents: "none" }} aria-disabled="true">
                         <i className="fs-5 bi-pencil"></i><span className="ms-1 d-none d-sm-inline">Aduan Online</span>
-                    </Link>
+                    </span>
                 </li>
 
                 <li className="nav-item">

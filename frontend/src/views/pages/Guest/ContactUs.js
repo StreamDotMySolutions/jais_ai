@@ -1,5 +1,4 @@
 import React from "react";
-import { Link } from "react-router-dom";
 
 const contactItems = [
   {
@@ -88,12 +87,12 @@ const ContactUs = () => {
               <div className="contact-note">
                 <div className="contact-note-title">Aduan Online</div>
                 <p className="mb-3">
-                  Anda boleh membuat aduan berkaitan kesalahan syariah secara dalam talian melalui
-                  sistem i-SYAEMS tanpa perlu hadir ke pejabat.
+                  Aduan berkaitan kesalahan syariah boleh dibuat melalui hotline talian
+                  1 800 88 2424 atau WhatsApp 60 12-275 3454.
                 </p>
-                <Link to="/complaint" className="public-cta w-100 d-inline-flex justify-content-center">
-                  Buat Aduan Sekarang
-                </Link>
+                <div className="public-cta w-100 d-inline-flex justify-content-center opacity-50" style={{ pointerEvents: "none" }} aria-disabled="true">
+                  Aduan Online Buat Sementara Ditutup
+                </div>
               </div>
             </div>
           </aside>
